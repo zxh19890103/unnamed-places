@@ -1,0 +1,12 @@
+{
+  "name": "unnamed-places",
+  "version": "1.0.0",
+  "description": "a desktop software allowing you reach anywhere on the earth in a cute 3d space and checkout the photos you took there.",
+  "main": "index.js",
+  "author": "singhi",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "electron": "^39.2.7"
+  }
+}
