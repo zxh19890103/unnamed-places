@@ -2,10 +2,16 @@
   "name": "unnamed-places",
   "version": "1.0.0",
   "description": "a desktop software allowing you reach anywhere on the earth in a cute 3d space and checkout the photos you took there.",
-  "main": "index.js",
+  "main": "app/main.js",
+  "type": "module",
   "author": "singhi",
   "license": "MIT",
   "private": true,
+  "scripts": {
+    "start": "electron .",
+    "serve": "node app/serve",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "devDependencies": {
     "electron": "^39.2.7"
   }

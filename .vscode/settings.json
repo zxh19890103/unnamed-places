@@ -1,0 +1,14 @@
+{
+  // "editor.fontFamily": "Cascadia Code, Yuppy TC",
+  // "editor.fontFamily": "Anonymous Pro, Yuppy TC",
+//   "editor.fontFamily": "Chalkboard SE, Yuppy TC",
+  // "editor.fontFamily": "Monolisa",
+  // "editor.fontFamily": "Wawati TC",
+  "editor.fontFamily": "Ubuntu Sans Mono",
+  "editor.fontSize": 16,
+  "workbench.fontAliasing": "antialiased",
+  "editor.fontLigatures": true,
+  "editor.fontWeight": "300",
+  "window.zoomLevel": 1,
+  "editor.letterSpacing": 1
+}
