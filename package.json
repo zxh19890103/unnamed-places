@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "serve": "node app/serve",
+    "dev": "node app/serve",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
