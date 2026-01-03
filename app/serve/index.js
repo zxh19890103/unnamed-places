@@ -2,21 +2,29 @@ import http from "http";
 import path from "path";
 import ts, { ModuleKind } from "typescript";
 import fs from "node:fs";
-import chokidar from "chokidar";
 import config from "./_config.js";
+import {
+  __client_root_dir,
+  __app_root_dir,
+  __project_root_dir,
+} from "../context.js";
+import { __tw_file_cache_id, moduleCache } from "./_cache.js";
+import routes from "./routes/index.js";
 
 import md5 from "md5";
+import { connectHttpReqWith, sendSSEClientScript } from "./notify/index.js";
 
-const PORT = 1989;
+const PORT = config.PORT;
 const allowedOrigin = "*";
 
 const IMPORTMAP = {
   imports: Object.keys(config.importmaps.imports),
 };
 
-const CLIENT_ROOT_DIR = path.resolve("../client");
-const TSCONFIG_PATH = path.join(CLIENT_ROOT_DIR, "./tsconfig.json");
-const WATCHED_FOLDERS = config.projects;
+const __this_dir = path.join(__app_root_dir, "./serve");
+const __tsconfigfile_path = path.join(__client_root_dir, "./tsconfig.json");
+
+console.log("client dir", __client_root_dir);
 
 // Load tsconfig.json compiler options
 function loadTsConfig(tsconfigPath) {
@@ -44,7 +52,7 @@ function loadTsConfig(tsconfigPath) {
   return configParseResult.options;
 }
 
-const compilerOptions = loadTsConfig(TSCONFIG_PATH);
+const compilerOptions = loadTsConfig(__tsconfigfile_path);
 
 // Custom TS transformer to rewrite import paths
 /**
@@ -88,8 +96,8 @@ async function compileTsFile(filePath, rewriteFn, config = null) {
     ...config,
   };
 
-  console.log("tsconfig rootDir: ", tsCfg.rootDir);
-  console.log("file:", filePath);
+  console.log("[compileTsFile] file dir: ", tsCfg.rootDir);
+  console.log("[compileTsFile] file:", filePath);
 
   const program = ts.createProgram([filePath], tsCfg);
 
@@ -120,44 +128,6 @@ async function compileTsFile(filePath, rewriteFn, config = null) {
   return [outputText, outputMap];
 }
 
-// cache
-const moduleCache = new Map();
-
-// Watch TypeScript files in the 'src' folder
-const watcher = chokidar.watch(
-  WATCHED_FOLDERS.map((folder) => {
-    return `./${folder}/**/*.{ts,tsx}`;
-  }),
-  {
-    ignored: /node_modules/,
-    persistent: true,
-    ignoreInitial: true,
-  }
-);
-
-const onSourceChanged = (_path) => {
-  const filepath = path.join(CLIENT_ROOT_DIR, _path);
-  if (moduleCache.has(filepath)) {
-    moduleCache.delete(filepath);
-  }
-
-  notifySseReqClients("reload");
-  console.log("source file changed", _path);
-};
-
-watcher
-  // .on("add", () => {})
-  .on("change", onSourceChanged)
-  .on("unlink", onSourceChanged);
-
-const sseReqClients = new Set();
-
-const notifySseReqClients = (type) => {
-  sseReqClients.forEach((res) => {
-    res.write(`event: ${type}\ndata: hello\n\n`);
-  });
-};
-
 const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader(
@@ -168,46 +138,65 @@ const server = http.createServer(async (req, res) => {
   res.setHeader("Expires", "0");
 
   if (req.url === "/events-client") {
-    res.setHeader("Content-Type", "application/javascript");
-    res.end(
-      `
-      const end = "http://" + location.hostname + ":" + ${PORT} + "/events";
-      const __evtSource__ = new EventSource(end);
-      __evtSource__.addEventListener("reload", () => {
-        window.location.reload();
-      });
-      `
-    );
+    sendSSEClientScript(req, res);
     return;
   } else if (req.url === "/events") {
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
-    sseReqClients.add(res);
-
-    req.on("close", () => {
-      res.end();
-      sseReqClients.delete(res);
-    });
+    connectHttpReqWith(req, res);
     return;
+  }
+
+  if (req.url === "/") {
+    res.setHeader("Content-Type", "text/html");
+
+    const htmlPath = path.join(__app_root_dir, "./index.html");
+
+    if (moduleCache.has(htmlPath)) {
+      res.end(moduleCache.get(htmlPath), "utf8");
+      return;
+    }
+
+    let html = fs.readFileSync(htmlPath, "utf8");
+
+    html = html.replace(
+      /<script\s+type="importmap">[\s\S]+?<\/script>/,
+      '<script type="importmap">' +
+        JSON.stringify({
+          imports: {
+            ...config.importmaps.imports,
+            "$npm/": "/$npm/",
+            "@/": "/src/",
+          },
+        }) +
+        "</script>"
+    );
+
+    moduleCache.set(htmlPath, html);
+    res.end(html, "utf8");
+    return;
+  }
+
+  for (const route of routes) {
+    if (route.enabled && route.route.test(req.url)) {
+      route.handler(req, res);
+      return;
+    }
   }
 
   // default: ts and js
   try {
-    const regx = /^\/\$npm\/(.+)\.js$/;
-    if (regx.test(req.url)) {
+    const $npmregx = /^\/\$npm\/(.+)\.js$/;
+    if ($npmregx.test(req.url)) {
       // $npm/three-geojson-geometry
       res.setHeader("Content-Type", "application/javascript");
       res.statusCode = 200;
       /// consider ghost.js
-      let [, pkg] = regx.exec(req.url);
+      let [, pkg] = $npmregx.exec(req.url);
 
       if (pkg.endsWith("ghost")) {
         pkg = pkg.replace("/ghost", "");
       }
 
-      const folder = path.join(CLIENT_ROOT_DIR, `./node_modules/${pkg}`);
+      const folder = path.join(__client_root_dir, `./node_modules/${pkg}`);
       const mainfile = getEntryFile(folder);
       const isFolder = mainfile !== null;
       const esmfile = mainfile ? path.join(folder, mainfile) : `${folder}.js`;
@@ -245,8 +234,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Resolve and sanitize path
-      let filePath = path.join(CLIENT_ROOT_DIR, req.url);
-      if (!filePath.startsWith(CLIENT_ROOT_DIR)) {
+      let filePath = path.join(__client_root_dir, req.url);
+      if (!filePath.startsWith(__client_root_dir)) {
         res.statusCode = 403;
         res.end("Forbidden");
         return;
@@ -259,16 +248,14 @@ const server = http.createServer(async (req, res) => {
 
       res.setHeader("Content-Type", "application/javascript");
 
-      // console.log("ts file", filePath);
+      console.log("[moduleCache] ts file", filePath);
       if (moduleCache.has(filePath)) {
-        res.end(moduleCache.get(filePath));
+        res.end(moduleCache.get(filePath), "utf8");
         return;
       }
 
       // Compile with import rewrite
       const [jsCode, _] = await compileTsFile(filePath, defaultEsmTransformer);
-
-      res.setHeader("Content-Type", "application/javascript");
       moduleCache.set(filePath, jsCode);
       res.end(jsCode);
     }
@@ -311,12 +298,15 @@ function defaultEsmTransformer(importPath) {
   }
 
   // Add ".js" extension if missing
-  if (importPath.endsWith(".js")) {
+  const extname = path.extname(importPath);
+  if (presevedModuleTypes.includes(extname)) {
     return importPath;
+  } else {
+    return `${importPath}.js`;
   }
-
-  return importPath + ".js";
 }
+
+const presevedModuleTypes = [".js", ".scss", ".css", ".glsl"];
 
 function getEntryFile(npmFolder) {
   if (fs.existsSync(npmFolder)) {
@@ -340,7 +330,7 @@ const npmjsfileSavedto = `.cache/npmjs`;
 
 function tryGetCachedNpmjs(esmfile, res) {
   const id = md5(esmfile);
-  const jsfile = path.join(CLIENT_ROOT_DIR, npmjsfileSavedto, `${id}.js`);
+  const jsfile = path.join(__this_dir, npmjsfileSavedto, `${id}.js`);
   if (fs.existsSync(jsfile)) {
     console.log("find cached file", esmfile);
     const jsCode = fs.readFileSync(jsfile, "utf-8");
@@ -354,7 +344,7 @@ function tryGetCachedNpmjs(esmfile, res) {
 
 function trySaveCachedNpmjs(esmfile, jsCode) {
   const id = md5(esmfile);
-  const jsfile = path.join(CLIENT_ROOT_DIR, npmjsfileSavedto, `${id}.js`);
+  const jsfile = path.join(__this_dir, npmjsfileSavedto, `${id}.js`);
   fs.writeFileSync(jsfile, jsCode, "utf-8");
   console.log("jscode saved", esmfile);
 }

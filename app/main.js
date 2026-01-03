@@ -17,7 +17,7 @@ const createWindow = async () => {
   await win.loadFile(join(__dirname, "index.html"));
 
   // --- ADD THIS LINE ---
-  win.webContents.openDevTools();
+  // win.webContents.openDevTools();
 };
 
 app.whenReady().then(() => {

@@ -28,10 +28,9 @@
     // "moduleDetection": "auto",                        /* Control what method is used to detect module-format JS files. */
     /* Modules */
     "module": "nodenext" /* Specify what module code is generated. */,
-    "rootDir": "." /* Specify the root folder within your source files. */,
-    // "rootDirs": ["cases", "courses"],
+    "rootDir": "./src" /* Specify the root folder within your source files. */,
     "moduleResolution": "nodenext" /* Specify how TypeScript looks up a file from a given module specifier. */,
-    "baseUrl": "./src" /* Specify the base directory to resolve non-relative module names. */,
+    "baseUrl": "." /* Specify the base directory to resolve non-relative module names. */,
     "paths": {
       "@/*": ["./src/*"],
       "three/addons/*": ["node_modules/@types/three/examples/jsm/*"]

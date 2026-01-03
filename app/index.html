@@ -2,36 +2,33 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta
+    <!-- <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'"
     />
     <meta
       http-equiv="X-Content-Security-Policy"
       content="default-src 'self'; script-src 'self'"
+    /> -->
+    <title>Unnamed Places!</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
     />
-    <title>Hello from Electron renderer!</title>
+    <script src="/events-client" defer></script>
 
     <script type="importmap">
       {
-        "imports": {
-          "three": "/jslibs/three/three.module.js",
-          "three/addons/": "https://threejs.org/examples/jsm/",
-          "react": "https://cdn.jsdelivr.net/npm/react@19.1.0/+esm",
-          "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.1.0/jsx-runtime/+esm",
-          "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.1.0/+esm",
-          "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.1.0/client/+esm",
-          "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.13.0/+esm",
-          "$npm/": "/node_modules",
-          "@/": "/src"
-        }
+        "imports": {}
       }
     </script>
+    <link href="./tailwind.twcss" rel="stylesheet" type="text/css" />
   </head>
   <body>
-    <h1>Hello from Electron renderer!</h1>
-    <p>👋</p>
-    <p id="info"></p>
+    <div id="UnnamedPlaces"></div>
   </body>
-  <script src="./renderer.js"></script>
+  <script src="./runtime"></script>
+  <script type="module" src="./src/bootstrap.js"></script>
 </html>
