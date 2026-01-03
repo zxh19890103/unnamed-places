@@ -27,7 +27,7 @@ const GeoMap = memo((props: { onDetermine: (latlng: L.LatLng) => void }) => {
     }).setView([51.505, -0.09], 12);
 
     L.tileLayer(
-      "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&scale=2&hl=en",
+      "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=2&hl=en",
       {
         maxZoom: 21,
         attribution:
