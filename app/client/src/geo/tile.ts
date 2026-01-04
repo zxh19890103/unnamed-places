@@ -1,6 +1,6 @@
 import { convert4326To3857, tileToLatLon } from "./calc.js";
 
-type TilePosition = {
+export type TilePosition = {
   x: number;
   y: number;
   z: number;
@@ -51,20 +51,24 @@ export function calcTileBBOX(x: number, y: number, z: number): TileBBOX {
     leftBottom,
     rightBottom,
     center,
+    dLng: rightTop.lng - leftBottom.lng,
+    dLat: rightTop.lat - leftBottom.lat,
     bbox: bbox,
     bbox3857: bbox3857,
   };
 }
 
 export const getGoogleTileUrl = (xyz: TilePosition, styled = false) => {
-  // return `/gtile/${xyz.z}/${xyz.x}/${xyz.y}?styled=${styled}`;
-  return `https://mt1.google.com/vt/lyrs=s&x=${xyz.x}&y=${xyz.y}&z=${xyz.z}&scale=2&hl=en`;
+  return `/gootile/${xyz.z}/${xyz.x}/${xyz.y}?styled=${styled}`;
+  // return `https://mt1.google.com/vt/lyrs=s&x=${xyz.x}&y=${xyz.y}&z=${xyz.z}&scale=2&hl=en`;
 };
 
 type TileBBOX = {
   x: number;
   y: number;
   z: number;
+  dLat: number;
+  dLng: number;
   placement: TileBBOXSplitPlace;
   center: L.LatLngLiteral;
   bbox: string;
@@ -78,3 +82,9 @@ type TileBBOXSplitPlace =
   | "bottom-right"
   | "top-left"
   | "top-right";
+
+export type TileElevation = {
+  span: number;
+  minElevation: number;
+  maxElevation: number;
+};

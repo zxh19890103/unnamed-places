@@ -1,5 +1,21 @@
+import { join } from "node:path";
+import { __app_root_dir, __client_root_dir } from "../context.js";
+
+const this_dir = join(__app_root_dir, "./serve");
+
 export default {
   PORT: 1989,
+  cmds: {
+    gdal_translate:
+      "/Applications/QGIS-LTR.app/Contents/MacOS/bin/gdal_translate",
+  },
+  paths: {
+    twdist: join(__client_root_dir, "./dist"),
+    npmjs: join(this_dir, "./.cache/npmjs"),
+    gootiles: join(this_dir, "./.cache/gootiles"),
+    demdata: join(this_dir, "./.cache/demdata"),
+    osmdata: join(this_dir, "./.cache/osmdata"),
+  },
   importmaps: {
     imports: {
       three: "/public/jslibs/three/three.module.js",

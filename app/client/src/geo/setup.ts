@@ -12,7 +12,7 @@ export const setupThree = (element: HTMLDivElement) => {
     75,
     window.innerWidth / window.innerHeight,
     100,
-    300000
+    1e6
   );
 
   camera.position.set(0, 600, 1000);
@@ -35,6 +35,14 @@ export const setupThree = (element: HTMLDivElement) => {
   const controls = new OrbitControls(camera, element);
   controls.enableDamping = true;
   controls.dampingFactor = 0.1;
+  controls.maxDistance = 2e6;
+  controls.minDistance = 1e2;
+  controls.maxPolarAngle = Math.PI;
+  controls.minPolarAngle = 0;
+  controls.maxAzimuthAngle = Math.PI;
+  controls.minAzimuthAngle = -Math.PI;
+  controls.zoomSpeed = 1;
+  controls.rotateSpeed = 1;
 
   const clock = new THREE.Clock();
   let delta: number = -1;

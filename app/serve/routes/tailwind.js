@@ -3,15 +3,16 @@ import tailwindcss from "@tailwindcss/postcss";
 import fs from "node:fs";
 import { join } from "node:path";
 
-import { __client_root_dir } from "../../context.js";
+import { __client_root_src_dir } from "../../context.js";
 import { __tw_file_cache_id, moduleCache } from "../_cache.js";
+import _config from "../_config.js";
 
 export const route = /\.twcss$/;
 
 export const enabled = true;
 
-const inputFile = join(__client_root_dir, "src/tailwind.style.css");
-const outputFile = join(__client_root_dir, "dist/tailwind.style.css");
+const inputFile = join(__client_root_src_dir, "./tailwind.style.css");
+const outputFile = join(_config.paths.twdist, "./tailwind.style.css");
 
 export const handler = (req, res) => {
   res.setHeader("Content-Type", "text/css");

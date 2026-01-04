@@ -13,6 +13,7 @@ import routes from "./routes/index.js";
 
 import md5 from "md5";
 import { connectHttpReqWith, sendSSEClientScript } from "./notify/index.js";
+import { URL } from "node:url";
 
 const PORT = config.PORT;
 const allowedOrigin = "*";
@@ -21,7 +22,6 @@ const IMPORTMAP = {
   imports: Object.keys(config.importmaps.imports),
 };
 
-const __this_dir = path.join(__app_root_dir, "./serve");
 const __tsconfigfile_path = path.join(__client_root_dir, "./tsconfig.json");
 
 console.log("client dir", __client_root_dir);
@@ -176,8 +176,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   for (const route of routes) {
-    if (route.enabled && route.route.test(req.url)) {
-      route.handler(req, res);
+    const url = new URL(`http://unnamed-places.dev${req.url}`);
+    console.log("[routing] welcome to pathname: ", url.pathname);
+    if (route.enabled && route.matcher.test(url.pathname)) {
+      route.handler(req, res, url, route.getParams(url));
       return;
     }
   }
@@ -267,6 +269,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
+  prepareDirectories();
   console.log(`TS server running at http://localhost:${PORT}`);
 });
 
@@ -308,6 +311,13 @@ function defaultEsmTransformer(importPath) {
 
 const presevedModuleTypes = [".js", ".scss", ".css", ".glsl"];
 
+function prepareDirectories() {
+  Object.entries(config.paths).forEach(([_, dirpath]) => {
+    if (fs.existsSync(dirpath)) return;
+    fs.mkdirSync(dirpath, { recursive: true });
+  });
+}
+
 function getEntryFile(npmFolder) {
   if (fs.existsSync(npmFolder)) {
     const pkg = path.join(npmFolder, "./package.json");
@@ -326,11 +336,9 @@ function getEntryFile(npmFolder) {
   }
 }
 
-const npmjsfileSavedto = `.cache/npmjs`;
-
 function tryGetCachedNpmjs(esmfile, res) {
   const id = md5(esmfile);
-  const jsfile = path.join(__this_dir, npmjsfileSavedto, `${id}.js`);
+  const jsfile = path.join(config.paths.npmjs, `${id}.js`);
   if (fs.existsSync(jsfile)) {
     console.log("find cached file", esmfile);
     const jsCode = fs.readFileSync(jsfile, "utf-8");
@@ -344,7 +352,7 @@ function tryGetCachedNpmjs(esmfile, res) {
 
 function trySaveCachedNpmjs(esmfile, jsCode) {
   const id = md5(esmfile);
-  const jsfile = path.join(__this_dir, npmjsfileSavedto, `${id}.js`);
+  const jsfile = path.join(config.paths.npmjs, `${id}.js`);
   fs.writeFileSync(jsfile, jsCode, "utf-8");
   console.log("jscode saved", esmfile);
 }
