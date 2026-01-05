@@ -8,7 +8,12 @@ import {
   __app_root_dir,
   __project_root_dir,
 } from "../context.js";
-import { __tw_file_cache_id, moduleCache } from "./_cache.js";
+import {
+  __tw_file_cache_id,
+  moduleCache,
+  moduleCacheSet,
+  tryModuleCacheGet,
+} from "./_cache.js";
 import routes from "./routes/index.js";
 
 import md5 from "md5";
@@ -145,40 +150,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/") {
-    res.setHeader("Content-Type", "text/html");
-
-    const htmlPath = path.join(__app_root_dir, "./index.html");
-
-    if (moduleCache.has(htmlPath)) {
-      res.end(moduleCache.get(htmlPath), "utf8");
-      return;
-    }
-
-    let html = fs.readFileSync(htmlPath, "utf8");
-
-    html = html.replace(
-      /<script\s+type="importmap">[\s\S]+?<\/script>/,
-      '<script type="importmap">' +
-        JSON.stringify({
-          imports: {
-            ...config.importmaps.imports,
-            "$npm/": "/$npm/",
-            "@/": "/src/",
-          },
-        }) +
-        "</script>"
-    );
-
-    moduleCache.set(htmlPath, html);
-    res.end(html, "utf8");
-    return;
-  }
-
   for (const route of routes) {
     const url = new URL(`http://unnamed-places.dev${req.url}`);
-    console.log("[routing] welcome to pathname: ", url.pathname);
     if (route.enabled && route.matcher.test(url.pathname)) {
+      console.log("[routing] welcome to pathname: ", url.pathname);
       route.handler(req, res, url, route.getParams(url));
       return;
     }
@@ -187,12 +162,13 @@ const server = http.createServer(async (req, res) => {
   // default: ts and js
   try {
     const $npmregx = /^\/\$npm\/(.+)\.js$/;
-    if ($npmregx.test(req.url)) {
+    const _url = req.url;
+    if ($npmregx.test(_url)) {
       // $npm/three-geojson-geometry
       res.setHeader("Content-Type", "application/javascript");
       res.statusCode = 200;
       /// consider ghost.js
-      let [, pkg] = $npmregx.exec(req.url);
+      let [, pkg] = $npmregx.exec(_url);
 
       if (pkg.endsWith("ghost")) {
         pkg = pkg.replace("/ghost", "");
@@ -203,8 +179,7 @@ const server = http.createServer(async (req, res) => {
       const isFolder = mainfile !== null;
       const esmfile = mainfile ? path.join(folder, mainfile) : `${folder}.js`;
 
-      if (moduleCache.has(esmfile)) {
-        res.end(moduleCache.get(esmfile));
+      if (tryModuleCacheGet(req, res, esmfile)) {
         return;
       }
 
@@ -225,18 +200,10 @@ const server = http.createServer(async (req, res) => {
       });
 
       trySaveCachedNpmjs(esmfile, esmCode);
-
-      moduleCache.set(esmfile, esmCode);
-      res.end(esmCode);
-    } else {
-      if (!req.url.endsWith(".js")) {
-        res.statusCode = 404;
-        res.end("Only .js files are served");
-        return;
-      }
-
+      moduleCacheSet(req, res, esmfile, esmCode);
+    } else if (_url.endsWith(".js")) {
       // Resolve and sanitize path
-      let filePath = path.join(__client_root_dir, req.url);
+      let filePath = path.join(__client_root_dir, _url);
       if (!filePath.startsWith(__client_root_dir)) {
         res.statusCode = 403;
         res.end("Forbidden");
@@ -251,15 +218,47 @@ const server = http.createServer(async (req, res) => {
       res.setHeader("Content-Type", "application/javascript");
 
       console.log("[moduleCache] ts file", filePath);
-      if (moduleCache.has(filePath)) {
-        res.end(moduleCache.get(filePath), "utf8");
+
+      if (tryModuleCacheGet(req, res, filePath)) {
         return;
       }
 
       // Compile with import rewrite
       const [jsCode, _] = await compileTsFile(filePath, defaultEsmTransformer);
-      moduleCache.set(filePath, jsCode);
-      res.end(jsCode);
+
+      moduleCacheSet(req, res, filePath, jsCode);
+    } else {
+      if (req.headers["accept"]?.includes("text/html")) {
+        // html output.
+        res.setHeader("Content-Type", "text/html");
+
+        const htmlPath = path.join(__app_root_dir, "./index.html");
+
+        if (tryModuleCacheGet(req, res, htmlPath)) {
+          return;
+        }
+
+        let html = fs.readFileSync(htmlPath, "utf8");
+
+        html = html.replace(
+          /<script\s+type="importmap">[\s\S]+?<\/script>/,
+          '<script type="importmap">' +
+            JSON.stringify({
+              imports: {
+                ...config.importmaps.imports,
+                "$npm/": "/$npm/",
+                "@/": "/src/",
+              },
+            }) +
+            "</script>"
+        );
+
+        moduleCacheSet(req, res, htmlPath, html);
+      } else {
+        // it's not html request, it's something requested using javascript;
+        res.statusCode = 500;
+        res.end(JSON.stringify("You're requesting something unkown!"), "utf8");
+      }
     }
   } catch (e) {
     res.statusCode = 500;

@@ -1,4 +1,3 @@
-
 uniform sampler2D displacementMap;
 uniform vec3 elevation;
 

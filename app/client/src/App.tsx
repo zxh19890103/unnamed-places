@@ -5,6 +5,10 @@ import * as L from "leaflet";
 import TileView from "./TileView.js";
 import { GeoMap } from "./GeoMap.js";
 
+import * as suncalc from "suncalc";
+
+import "./glsl-chunks/index.js";
+
 export function App() {
   const [latlng, setLatlng] = useState<L.LatLng>(null);
 

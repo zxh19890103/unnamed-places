@@ -19,6 +19,7 @@ export default {
   importmaps: {
     imports: {
       three: "/public/jslibs/three/three.module.js",
+      suncalc: "/public/jslibs/suncalc/suncalc.js",
       leaflet: "/public/jslibs/leaflet/leaflet-src.esm.js",
       "three/addons/": "https://threejs.org/examples/jsm/",
       react: "https://cdn.jsdelivr.net/npm/react@19.1.0/+esm",

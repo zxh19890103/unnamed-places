@@ -11,14 +11,19 @@ export const enabled = true;
  * @param {URL} url
  */
 export const getParams = function (url) {
-  const vert = url.pathname.endsWith(".vert.glsl");
-  const frag = url.pathname.endsWith(".frag.glsl");
-  const both = vert === false && frag === false;
+  const pathname = url.pathname;
 
-  const shader = url.pathname.slice(0, both ? -5 : -10);
+  const chunk = pathname.endsWith(".chunk.glsl");
+  const vert = !chunk && pathname.endsWith(".vert.glsl");
+  const frag = !chunk && pathname.endsWith(".frag.glsl");
+  const both = !chunk && vert === false && frag === false;
+
+  const shader = pathname.slice(0, both ? -5 : -10);
 
   return {
     shader,
+    chunkfile: join(__client_root_dir, pathname),
+    chunk,
     vertfile: join(__client_root_dir, `${shader}.vert.glsl`),
     vert: vert || both,
     fragfile: join(__client_root_dir, `${shader}.frag.glsl`),
@@ -27,7 +32,7 @@ export const getParams = function (url) {
 };
 
 /**
- * @type {import("./_type.js").Handler<{ shader: string; vertfile: string; fragfile: string; vert: boolean; frag: boolean }>}
+ * @type {import("./_type.js").Handler<{ shader: string; chunk: boolean; chunkfile: string; vertfile: string; fragfile: string; vert: boolean; frag: boolean }>}
  */
 export const handler = (req, res, url, params) => {
   res.setHeader("Content-Type", "application/javascript");
@@ -35,6 +40,7 @@ export const handler = (req, res, url, params) => {
   const shaders = {
     vertexShader: null,
     fragmentShader: null,
+    chunkShader: null,
   };
 
   if (params.vert && fs.existsSync(params.vertfile)) {
@@ -43,6 +49,10 @@ export const handler = (req, res, url, params) => {
 
   if (params.frag && fs.existsSync(params.fragfile)) {
     shaders.fragmentShader = fs.readFileSync(params.fragfile, "utf8");
+  }
+
+  if (params.chunk && fs.existsSync(params.chunkfile)) {
+    shaders.chunkShader = fs.readFileSync(params.chunkfile, "utf8");
   }
 
   res.end(
