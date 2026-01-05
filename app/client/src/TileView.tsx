@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 
 import * as THREE from "three";
-import { setupThree } from "./geo/setup.js";
+import { setupThree, ThreeSetup } from "./geo/setup.js";
 import * as calc from "./geo/calc.js";
 import * as tile from "./geo/tile.js";
 
@@ -22,14 +22,14 @@ export default function (props: { latlng: L.LatLng }) {
 }
 
 let __textureLoader: THREE.TextureLoader;
-let __world: THREE.Scene;
+let __world: ThreeSetup;
 
 const Load = memo((props: {}) => {
   const elementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     __textureLoader = new THREE.TextureLoader(new THREE.LoadingManager());
-    const { world } = setupThree(elementRef.current);
+    const world = setupThree(elementRef.current);
     __world = world;
 
     return () => {
@@ -76,16 +76,19 @@ const TileRender = memo((props: { x: number; y: number; z: number }) => {
 });
 
 const createOneTileMap = async (tileIndex: TilePosition) => {
-  const tileUrl = tile.getGoogleTileUrl(tileIndex, false);
+  const tileUrl = tile.getGoogleTileUrl(tileIndex, true);
 
   const bbox = tile.calcTileBBOX(tileIndex.x, tileIndex.y, tileIndex.z);
 
   const meters_in_x = calc.Meters_per_lon(bbox.center.lat) * bbox.dLng;
   const meters_in_y = calc.Meters_per_lat * bbox.dLat;
-  const segments_in_x = Math.ceil(meters_in_x / 30);
-  const segments_in_y = Math.ceil(meters_in_y / 30);
+  const resolution = 10;
+  const segments_in_x = Math.ceil(meters_in_x / resolution);
+  const segments_in_y = Math.ceil(meters_in_y / resolution);
 
   console.log(meters_in_x, meters_in_y, segments_in_x, segments_in_y);
+
+  __world.updateSun(bbox.center.lat, bbox.center.lng);
 
   const elevation: TileElevation = await fetch(
     `/elevation/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`
@@ -106,6 +109,7 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
     ),
     new THREE.ShaderMaterial({
       wireframe: false,
+      precision: "highp",
       uniforms: {
         map: {
           value: map,
@@ -120,6 +124,21 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
             elevation.span
           ),
         },
+        ambLightColor: {
+          value: __world.ambientLight.color,
+        },
+        ambLightIntensity: {
+          value: __world.ambientLight.intensity,
+        },
+        dirLightColor: {
+          value: __world.directionalLight.color,
+        },
+        dirLightDir: {
+          value: __world.directionalLight.position.clone().normalize(),
+        },
+        dirLightIntensity: {
+          value: __world.directionalLight.intensity,
+        },
       },
       vertexShader: abc.vertexShader,
       fragmentShader: abc.fragmentShader,
@@ -127,10 +146,10 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
   );
 
   plane.rotation.x = -Math.PI / 2;
-  __world.add(plane);
+  __world.world.add(plane);
 
   return () => {
-    __world.remove(plane);
+    __world.world.remove(plane);
 
     plane.geometry.dispose();
     map.dispose();
