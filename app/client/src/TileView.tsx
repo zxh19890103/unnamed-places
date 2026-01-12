@@ -5,8 +5,15 @@ import { setupThree, ThreeSetup } from "./geo/setup.js";
 import * as calc from "./geo/calc.js";
 import * as tile from "./geo/tile.js";
 
-import abc from "./abc.glsl";
 import type { TileElevation, TilePosition } from "./geo/tile.js";
+import { HighwaysCollection } from "./osm/highway.js";
+import { BuildingsCollection } from "./osm/building.js";
+import { WaterwaysCollection } from "./osm/waterway.js";
+import { NaturalThingsCollection } from "./osm/natural.js";
+import { buildGroundGeometry } from "./env/ground.js";
+import { GoogleTileRoot } from "./env/earth.js";
+import { Plants } from "./env/plants.js";
+import { Clouds, LonelyClouds } from "./env/clouds.js";
 
 export default function (props: { latlng: L.LatLng }) {
   if (!props.latlng) {
@@ -76,13 +83,11 @@ const TileRender = memo((props: { x: number; y: number; z: number }) => {
 });
 
 const createOneTileMap = async (tileIndex: TilePosition) => {
-  const tileUrl = tile.getGoogleTileUrl(tileIndex, true);
-
   const bbox = tile.calcTileBBOX(tileIndex.x, tileIndex.y, tileIndex.z);
 
   const meters_in_x = calc.Meters_per_lon(bbox.center.lat) * bbox.dLng;
   const meters_in_y = calc.Meters_per_lat * bbox.dLat;
-  const resolution = 10;
+  const resolution = 8.5;
   const segments_in_x = Math.ceil(meters_in_x / resolution);
   const segments_in_y = Math.ceil(meters_in_y / resolution);
 
@@ -98,62 +103,118 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
     `/dem/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}?bbox=${bbox.bbox}`
   );
 
-  const map = __textureLoader.load(tileUrl);
+  displacementMap.magFilter = THREE.LinearFilter;
+  displacementMap.minFilter = THREE.LinearFilter;
 
-  const plane = new THREE.Mesh(
-    new THREE.PlaneGeometry(
-      meters_in_x,
-      meters_in_y,
-      segments_in_x,
-      segments_in_y
-    ),
-    new THREE.ShaderMaterial({
-      wireframe: false,
-      precision: "highp",
-      uniforms: {
-        map: {
-          value: map,
-        },
-        displacementMap: {
-          value: displacementMap,
-        },
-        elevation: {
-          value: new THREE.Vector3(
-            elevation.minElevation,
-            elevation.maxElevation,
-            elevation.span
-          ),
-        },
-        ambLightColor: {
-          value: __world.ambientLight.color,
-        },
-        ambLightIntensity: {
-          value: __world.ambientLight.intensity,
-        },
-        dirLightColor: {
-          value: __world.directionalLight.color,
-        },
-        dirLightDir: {
-          value: __world.directionalLight.position.clone().normalize(),
-        },
-        dirLightIntensity: {
-          value: __world.directionalLight.intensity,
-        },
-      },
-      vertexShader: abc.vertexShader,
-      fragmentShader: abc.fragmentShader,
-    })
-  );
+  const tileCrsProject = tile.createLatlngToTileCoordProjector(bbox);
 
-  plane.rotation.x = -Math.PI / 2;
-  __world.world.add(plane);
-
-  return () => {
-    __world.world.remove(plane);
-
-    plane.geometry.dispose();
-    map.dispose();
-    displacementMap.dispose();
-    plane.material.dispose();
+  const demInformation = {
+    texture: displacementMap,
+    elevation,
   };
+
+  const tileSize = new THREE.Vector2(meters_in_x, meters_in_y);
+
+  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/building?bbox=${bbox.bbox}`)
+    .then((r) => r.json())
+    .then((geojson) => {
+      const things = new BuildingsCollection(
+        geojson,
+        tileCrsProject,
+        tileSize,
+        new THREE.Vector2(segments_in_x, segments_in_y),
+        __world,
+        demInformation
+      );
+
+      things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
+      earthGround.add(things);
+    });
+
+  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/highway?bbox=${bbox.bbox}`)
+    .then((r) => r.json())
+    .then((geojson) => {
+      const things = new HighwaysCollection(
+        geojson,
+        tileCrsProject,
+        tileSize.clone(),
+        demInformation
+      );
+
+      things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
+      earthGround.add(things);
+    });
+
+  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/waterway?bbox=${bbox.bbox}`)
+    .then((r) => r.json())
+    .then((geojson) => {
+      const things = new WaterwaysCollection(
+        geojson,
+        tileCrsProject,
+        tileSize.clone(),
+        demInformation
+      );
+
+      things.position.set(-meters_in_x / 2, -meters_in_y / 2, 7);
+      earthGround.add(things);
+    });
+
+  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/natural?bbox=${bbox.bbox}`)
+    .then((r) => r.json())
+    .then((geojson) => {
+      const things = new NaturalThingsCollection(
+        geojson,
+        tileCrsProject,
+        tileSize.clone()
+      );
+      earthGround.add(things);
+
+      setTimeout(() => {
+        earthGround.setRiverMaskTex(things.riverMaskTex);
+      }, 1000);
+    });
+
+  const earthGround = new GoogleTileRoot(bbox.x, bbox.y, __world);
+
+  earthGround.widthSegments = segments_in_x;
+  earthGround.heightSegments = segments_in_x;
+
+  earthGround.prepare().then(() => {
+    earthGround.split24();
+
+    __world.controls.addEventListener("change", () => {
+      earthGround.cameraPosLive.copy(__world.camera.position);
+      earthGround.cameraPolarAngle =
+        Math.PI / 2 - __world.controls.getPolarAngle();
+      earthGround.updateMaterialUniforms();
+    });
+
+    const greenMask = __textureLoader.load(
+      tile.getGoogleTileUrl(tileIndex, true)
+    );
+
+    greenMask.magFilter = THREE.NearestFilter;
+    greenMask.minFilter = THREE.NearestFilter;
+
+    const plants = new Plants(tileSize, greenMask, demInformation, __world);
+
+    plants.position.set(-meters_in_x / 2, -meters_in_y / 2, 0.1);
+    earthGround.add(plants);
+  });
+
+  earthGround.rotation.x = -Math.PI / 2;
+  __world.world.add(earthGround);
+
+  // const clouds = new Clouds(
+  //   __world.textureLoader,
+  //   new THREE.Vector3(9000, 9000, 3000),
+  //   new THREE.Vector2(300, 0),
+  //   demInformation
+  // );
+
+  // __world.world.add(clouds);
+
+  __world.world.add(new LonelyClouds(tileSize, __world, demInformation));
+
+  return () => {};
 };

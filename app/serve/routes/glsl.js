@@ -7,7 +7,7 @@ export const route = /\.glsl$/;
 export const enabled = true;
 
 /**
- * @this {import('./_type.js').Route}
+ * @this {__types__.Route}
  * @param {URL} url
  */
 export const getParams = function (url) {
@@ -32,7 +32,7 @@ export const getParams = function (url) {
 };
 
 /**
- * @type {import("./_type.js").Handler<{ shader: string; chunk: boolean; chunkfile: string; vertfile: string; fragfile: string; vert: boolean; frag: boolean }>}
+ * @type {__types__.Handler<__types__.GLSLModuleFetchQuery>}
  */
 export const handler = (req, res, url, params) => {
   res.setHeader("Content-Type", "application/javascript");

@@ -10,7 +10,8 @@ export const GeoMap = memo(
       }).setView([22.056883427333975, 107.13509658925432], 12);
 
       L.tileLayer(
-        "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=2&hl=en",
+        // "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=2&hl=en",
+        "/gootile/{z}/{x}/{y}?scale=2",
         {
           maxZoom: 21,
           attribution:

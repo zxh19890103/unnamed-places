@@ -7,6 +7,9 @@ export const route = /\.scss$/;
 
 export const enabled = true;
 
+/**
+ * @type {__types__.Handler}
+ */
 export const handler = (req, res) => {
   const referer = req.headers["referer"];
 

@@ -8,6 +8,7 @@ export default {
   cmds: {
     gdal_translate:
       "/Applications/QGIS-LTR.app/Contents/MacOS/bin/gdal_translate",
+    gdal_dem: "/Applications/QGIS-LTR.app/Contents/MacOS/bin/gdaldem",
   },
   paths: {
     twdist: join(__client_root_dir, "./dist"),
@@ -21,6 +22,9 @@ export default {
       three: "/public/jslibs/three/three.module.js",
       suncalc: "/public/jslibs/suncalc/suncalc.js",
       leaflet: "/public/jslibs/leaflet/leaflet-src.esm.js",
+      delaunator: "https://cdn.skypack.dev/delaunator@5.0.0",
+      "d3-polygon": "https://cdn.skypack.dev/d3-polygon@3",
+      "three/addons/controls/": "/public/jslibs/three/controls/",
       "three/addons/": "https://threejs.org/examples/jsm/",
       react: "https://cdn.jsdelivr.net/npm/react@19.1.0/+esm",
       "react/jsx-runtime":

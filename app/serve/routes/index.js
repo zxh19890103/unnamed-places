@@ -4,15 +4,20 @@ import * as _scss from "./scss.js";
 import * as _glsl from "./glsl.js";
 import * as _html from "./html.js";
 import * as _gootile from "./gootile.js";
+import * as _gootile_styled from "./gootile.styled.js";
 import * as _dem from "./dem.js";
 import * as _elevation from "./elevation.js";
 import * as _runtime from "./runtime/index.js";
+import * as _osm from "./osm.js";
+import * as _dem_aspect from "./dem.aspect.js";
+import * as _dem_slope from "./dem.slope.js";
+import * as _steal from "./steal.js";
 
 import { pathToRegexp } from "path-to-regexp";
 import { parseParamValue } from "./_util.js";
 
 /**
- * @type {import("./_type.js").Routes}
+ * @type {__types__.Routes}
  */
 const routes = Array.prototype.map.call(
   [
@@ -22,9 +27,14 @@ const routes = Array.prototype.map.call(
     _scss,
     _glsl,
     _html,
+    _osm,
     _gootile,
+    _gootile_styled,
     _dem,
     _elevation,
+    _dem_slope,
+    _dem_aspect,
+    _steal,
   ],
   (route) => {
     return { ...route };
@@ -47,10 +57,12 @@ routes.forEach((route) => {
   if (!route.getParams) {
     route.getParams = routeParamsGetter;
   }
+
+  route._getSearch = routeSearchGetter;
 });
 
 /**
- * @this {import("./_type.js").Route}
+ * @this {__types__.Route}
  * @param {URL} url
  * @returns
  */
@@ -66,6 +78,20 @@ function routeParamsGetter(url) {
   return Object.fromEntries(
     this.paramsKeys.map(({ name }, idx) => {
       return [name, parseParamValue(match[idx + 1])];
+    })
+  );
+}
+
+/**
+ * @this {__types__.Route}
+ * @param {URL} url
+ * @returns
+ */
+function routeSearchGetter(url) {
+  const entries = [...url.searchParams.entries()];
+  return Object.fromEntries(
+    entries.map((ent) => {
+      return [ent[0], parseParamValue(ent[1])];
     })
   );
 }

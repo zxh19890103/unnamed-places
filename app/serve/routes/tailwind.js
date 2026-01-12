@@ -14,6 +14,9 @@ export const enabled = true;
 const inputFile = join(__client_root_src_dir, "./tailwind.style.css");
 const outputFile = join(_config.paths.twdist, "./tailwind.style.css");
 
+/**
+ * @type {__types__.Handler}
+ */
 export const handler = (req, res) => {
   res.setHeader("Content-Type", "text/css");
 

@@ -9,7 +9,7 @@ export const pathmatch = "/elevation/:z/:x/:y";
 export const enabled = true;
 
 /**
- * @type {import("./_type.js").Handler<{ x: number; y: number; z: number }>}
+ * @type {__types__.Handler<__types__.WithXYZ>}
  */
 export const handler = (req, res, _url, params) => {
   const tX = params.x;

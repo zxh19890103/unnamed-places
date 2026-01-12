@@ -3,11 +3,13 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 import { Sky } from "three/addons/objects/Sky.js";
 import * as suncalc from "suncalc";
-import { Meters_per_lat } from "./calc.js";
+import { Clouds } from "@/env/clouds.js";
 
 type AnimationRun = (delta: number, elapsed: number) => void;
 
 export class ThreeSetup {
+  readonly textureLoader: THREE.TextureLoader;
+
   readonly world: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
   readonly controls: OrbitControls;
@@ -18,8 +20,13 @@ export class ThreeSetup {
   readonly runs: AnimationRun[] = [];
 
   updateSun: (lat: number, lng: number) => void;
+  demXSegments: number;
+  demYSegments: number;
 
-  constructor() {}
+  constructor() {
+    const mgr = new THREE.LoadingManager();
+    this.textureLoader = new THREE.TextureLoader(mgr);
+  }
 
   animate(run: AnimationRun) {
     this.runs.push(run);
@@ -29,7 +36,7 @@ export class ThreeSetup {
 export const setupThree = (element: HTMLDivElement) => {
   // 1. Scene Setup
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0da0f0); // Set a dark background color
+  scene.background = new THREE.Color(0x000000); // Set a dark background color
 
   // 2. Camera Setup
   // PerspectiveCamera( fov, aspect, near, far )
@@ -92,7 +99,7 @@ export const setupThree = (element: HTMLDivElement) => {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
   directionalLight.position.set(0.0, 1e6, 0.0);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.71);
 
   scene.add(directionalLight, ambientLight);
 
@@ -112,9 +119,9 @@ export const setupThree = (element: HTMLDivElement) => {
   resize();
   animate();
 
-  createSky({ threeSetup, measure: Meters_per_lat * 1.5 });
+  createSky({ threeSetup, measure: 10000 });
 
-  scene.add(new THREE.AxesHelper(1e4))
+  scene.add(new THREE.AxesHelper(1e4));
 
   return threeSetup;
 };
@@ -135,8 +142,8 @@ function createSky({ threeSetup, measure }: CreateSkyOptions) {
   const uniforms = sky.material.uniforms;
   uniforms["turbidity"].value = 1;
   uniforms["rayleigh"].value = 1;
-  uniforms["mieCoefficient"].value = 0.05;
-  uniforms["mieDirectionalG"].value = 80;
+  uniforms["mieCoefficient"].value = 0.005;
+  uniforms["mieDirectionalG"].value = 0.1;
 
   // Set sun position
   const sun = new THREE.Vector3();
@@ -144,14 +151,14 @@ function createSky({ threeSetup, measure }: CreateSkyOptions) {
   let now = Date.now();
 
   const updateSun = (lat: number, lng: number) => {
-    const sunPosition = suncalc.getPosition(new Date(now), lat, lng);
+    const times = suncalc.getTimes(new Date(now), lat, lng);
+    const sunPosition = suncalc.getPosition(times.sunrise, lat, lng);
     const phi = Math.PI / 2 - sunPosition.altitude; // Near horizon for sunset
-    const theta = sunPosition.azimuth;
+    const theta = sunPosition.azimuth + Math.PI;
     sun.setFromSphericalCoords(1, phi, theta).normalize();
     uniforms["sunPosition"].value.copy(sun);
     sky.material.needsUpdate = true;
     threeSetup.directionalLight.position.copy(sun).setLength(1e6);
-    console.log(threeSetup.directionalLight.position.toArray());
   };
 
   threeSetup.updateSun = updateSun;

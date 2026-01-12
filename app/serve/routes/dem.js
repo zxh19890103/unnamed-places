@@ -12,26 +12,22 @@ export const pathmatch = "/dem/:z/:x/:y";
 export const enabled = true;
 
 /**
- * @type {import("./_type.js").Handler<{ x: number; y: number; z: number }>}
+ * @type {__types__.Handler<__types__.WithXYZ, { bbox: string }>}
  */
-export const handler = (req, res, _url, params) => {
-  const query = _url.searchParams;
-
-  if (!query.has("bbox")) {
+export const handler = (req, res, _url, params, query) => {
+  if (!query.bbox) {
     res.statusCode = 422;
     res.end();
     return;
   }
 
-  const bbox = query.get("bbox").split(",");
+  const bbox = query.bbox.split(",");
 
   console.log("bbox", bbox);
 
   const tX = params.x;
   const tY = params.y;
   const tZ = params.z;
-
-  console.log("xyz", tX, tY, tZ);
 
   const savetoPicture = join(_config.paths.demdata, `./${tZ}-${tX}-${tY}.png`);
 
@@ -60,6 +56,8 @@ export const handler = (req, res, _url, params) => {
   const forwardsToUrl = `https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&south=${bbox[0]}&north=${bbox[2]}&west=${bbox[1]}&east=${bbox[3]}&outputFormat=GTiff&API_Key=17f93d71fccb58e27e4cc8983c502fc3`;
 
   console.log("url", forwardsToUrl);
+  // gdaldem aspect input_dem.tif output_aspect.png -of PNG
+  // gdaldem slope input_dem.tif output_slope.png -of PNG
 
   const client = https
     .get(
@@ -152,3 +150,23 @@ const logErr = (err_, label) => {
   console.log(err_);
   console.log(`<<<<<<<<${label}`);
 };
+
+// exec(
+//   `
+//   "${_config.cmds.gdal_dem}" slope ../.cache/demdata/12-3271-1786.gtiff ../.temp/output_slope.gtiff -of GTiff
+//   `.trim(),
+//   (err_, stdout, stderr) => {
+//     if (err_) console.log(err_);
+//     else console.log(stdout);
+//   }
+// );
+
+// exec(
+//   `
+//   "${_config.cmds.gdal_translate}" -ot UInt16 -of PNG -scale 0 90 0 65535  ../.temp/output_slope.gtiff ../.temp/output_slope.png
+//   `.trim(),
+//   (err_, stdout, stderr) => {
+//     if (err_) console.log(err_);
+//     else console.log(stdout);
+//   }
+// );

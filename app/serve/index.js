@@ -150,11 +150,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.url === "/favicon.ico") {
+    fs.createReadStream(
+      path.join(__app_root_dir, "./public/assets/tree.png")
+    ).pipe(res);
+    return;
+  }
+
   for (const route of routes) {
     const url = new URL(`http://unnamed-places.dev${req.url}`);
     if (route.enabled && route.matcher.test(url.pathname)) {
       console.log("[routing] welcome to pathname: ", url.pathname);
-      route.handler(req, res, url, route.getParams(url));
+      route.handler(req, res, url, route.getParams(url), route._getSearch(url));
       return;
     }
   }

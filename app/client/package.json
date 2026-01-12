@@ -8,6 +8,8 @@
     "@types/three": "^0.178.0"
   },
   "dependencies": {
+    "@types/d3-polygon": "^3.0.2",
+    "@types/delaunator": "^5.0.3",
     "tailwindcss": "^4.1.18"
   }
 }

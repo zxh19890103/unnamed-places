@@ -1,4 +1,12 @@
-import { convert4326To3857, tileToLatLon } from "./calc.js";
+import {
+  convert4326To3857,
+  Meters_per_lat,
+  Meters_per_lon,
+  tileToLatLon,
+} from "./calc.js";
+
+import type * as gj from "geojson";
+import type { Texture } from "three";
 
 export type TilePosition = {
   x: number;
@@ -26,6 +34,10 @@ export function splitTileDownTo4(x: number, y: number, zoom: number) {
     topRight: bbox1,
     bottomLeft: bbox2,
     bottomRight: bbox3,
+    /**
+     * bottomLeft, bottomRight, topLeft, topRight
+     */
+    asArray: [bbox2, bbox3, bbox0, bbox1],
   };
 }
 
@@ -41,6 +53,13 @@ export function calcTileBBOX(x: number, y: number, z: number): TileBBOX {
     rightTop
   )}`;
 
+  const dLng = rightTop.lng - leftBottom.lng;
+  const dLat = rightTop.lat - leftBottom.lat;
+
+  const meters_per_lon = Meters_per_lon(center.lat);
+  const measure_on_x = meters_per_lon * dLng;
+  const measure_on_y = Meters_per_lat * dLat;
+
   return {
     x,
     y,
@@ -51,28 +70,55 @@ export function calcTileBBOX(x: number, y: number, z: number): TileBBOX {
     leftBottom,
     rightBottom,
     center,
-    dLng: rightTop.lng - leftBottom.lng,
-    dLat: rightTop.lat - leftBottom.lat,
+    measureX: measure_on_x,
+    measureY: measure_on_y,
+    dLng: dLng,
+    dLat: dLat,
     bbox: bbox,
     bbox3857: bbox3857,
   };
 }
 
 export const getGoogleTileUrl = (xyz: TilePosition, styled = false) => {
-  return `/gootile/${xyz.z}/${xyz.x}/${xyz.y}?styled=${styled}`;
-  // return `https://mt1.google.com/vt/lyrs=s&x=${xyz.x}&y=${xyz.y}&z=${xyz.z}&scale=2&hl=en`;
+  if (styled) {
+    return `/gootile-styled/${xyz.z}/${xyz.x}/${xyz.y}`;
+  } else {
+    return `/gootile/${xyz.z}/${xyz.x}/${xyz.y}?scale=4`;
+  }
 };
 
-type TileBBOX = {
+export const createLatlngToTileCoordProjector = (xyz: TilePosition) => {
+  const bbox = calcTileBBOX(xyz.x, xyz.y, xyz.z);
+
+  const meters_per_lon = Meters_per_lon(bbox.center.lat);
+
+  const project = (lnglat: gj.Position | GeoJsonLngLat) => {
+    const dlat = lnglat[1] - bbox.leftBottom.lat;
+    const dlng = lnglat[0] - bbox.leftBottom.lng;
+
+    const x = meters_per_lon * dlng;
+    const y = Meters_per_lat * dlat;
+
+    return [x, y, 0] as TileCoords;
+  };
+
+  return project;
+};
+
+export type TileBBOX = {
+  placement: TileBBOXSplitPlace;
   x: number;
   y: number;
   z: number;
   dLat: number;
   dLng: number;
-  placement: TileBBOXSplitPlace;
-  center: L.LatLngLiteral;
   bbox: string;
   bbox3857: string;
+  rightTop: L.LatLngLiteral;
+  leftBottom: L.LatLngLiteral;
+  center: L.LatLngLiteral;
+  measureX: number;
+  measureY: number;
   [k: string]: any;
 };
 
@@ -87,4 +133,16 @@ export type TileElevation = {
   span: number;
   minElevation: number;
   maxElevation: number;
+};
+
+type TileCoords = [number, number, number];
+type GeoJsonLngLat = [number, number];
+
+export type TileCRSProjection = (
+  lnglat: gj.Position | GeoJsonLngLat
+) => TileCoords;
+
+export type DemInformation = {
+  texture: Texture;
+  elevation: TileElevation;
 };
