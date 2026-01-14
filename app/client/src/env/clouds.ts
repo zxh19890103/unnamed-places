@@ -2,6 +2,8 @@ import type { ThreeSetup } from "@/geo/setup.js";
 import type { DemInformation } from "@/geo/tile.js";
 import * as THREE from "three";
 
+import { Text } from "troika-three-text";
+
 export class Clouds extends THREE.Group {
   constructor(
     textLoader: THREE.TextureLoader,
@@ -166,7 +168,12 @@ export class LonelyClouds extends THREE.Group {
         cloud0.scale.x = ratio;
         cloud0.scale.multiplyScalar(0.5);
 
-        this.add(cloud0);
+        const text = new Text();
+        text.text = "Hello";
+        text.fontSize = 500;
+        text.color = 0xfe9a09;
+
+        this.add(cloud0, text);
       });
   }
 }

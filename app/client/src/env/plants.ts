@@ -11,7 +11,7 @@ export class Plants extends THREE.Group {
   ) {
     super();
 
-    const n = 100000;
+    const n = 500000;
     const positions = new Float32Array(n * 3);
     const uvs = new Float32Array(n * 2);
     const scales = new Float32Array(n * 4);
@@ -145,7 +145,7 @@ export class Plants extends THREE.Group {
 
                 float vegetationFactor = smoothstep(0.42, 0.2, howfar);
 
-                if (vegetationFactor < 0.1) discard;
+                if (vegetationFactor < 0.025) discard;
 
                 vec3 finalRGB = mix(baseColor.rgb, vMaskColor, 0.2);
 

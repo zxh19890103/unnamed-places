@@ -20,5 +20,10 @@ void main() {
 
     vec3 lighting = ambLightColor.rgb * ambLightIntensity + (dirLightColor.rgb * diffuse) * dirLightIntensity;
 
-    gl_FragColor = vec4(color.rgb * lighting, 1.0);
+    vec3 texelColor = color.rgb;
+
+    float gray = dot(texelColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    vec3 rockGrey = vec3(gray) * vec3(0.95, 0.95, 1.0);
+
+    gl_FragColor = vec4(rockGrey * lighting, 1.0);
 }

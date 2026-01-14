@@ -255,14 +255,25 @@ class GoogleTile extends THREE.Group {
             } else {
 
               float angleMask = smoothstep(0.02, 1.5, uCameraPolarAngle);
-              baseColor = mix(styledBaseColor, baseColor, angleMask);
+
+              float luminance = dot(styledBaseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+
+              vec3 shadowColor = vec3(0.4, 0.35, 0.3); // Warm brown/grey for depths
+              vec3 sunColor = vec3(1.0, 0.9, 0.7);    // Bright, warm yellow-white for highlights
+              
+              // 3. Blend based on brightness
+              // This makes dark areas earthy and bright areas look like they are hit by sun
+              vec3 warmGround = mix(shadowColor, sunColor, luminance);
+              
+              // 4. Boost Saturation/Contrast (Optional)
+              warmGround = pow(warmGround, vec3(0.9)); // Slight gamma adjustment for pop
+
+              baseColor = mix(warmGround, baseColor, angleMask);
 
               float diffuse = max(dot(vNormal, dirLightDir), 0.0);
               vec3 lighting = ambLightColor.rgb * ambLightIntensity + (dirLightColor.rgb * diffuse) * dirLightIntensity;
 
-              baseColor = baseColor * lighting;
-
-              gl_FragColor = vec4(baseColor, 1.0);
+              gl_FragColor = vec4(baseColor * lighting, 1.0);
 
             }
           }

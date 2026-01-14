@@ -7,6 +7,8 @@ import {
 import type * as gj from "geojson";
 import type { ThreeSetup } from "@/geo/setup.js";
 
+import { Text } from "troika-three-text";
+
 export class BuildingsCollection extends THREE.Group {
   constructor(
     geojson: gj.FeatureCollection,
@@ -18,6 +20,19 @@ export class BuildingsCollection extends THREE.Group {
   ) {
     super();
 
+    const onOneComputed = (pos: THREE.Vector3, properties) => {
+      // const text = new Text();
+
+      // text.text = properties.name ?? "unnamed";
+      // text.fontSize = 50;
+      // text.color = 0xea910f;
+      // text.position.copy(pos);
+
+      console.log(properties.name);
+
+      // this.add(text);
+    };
+
     const ui = buildBuildings(
       geojson,
       tileSize,
@@ -25,7 +40,8 @@ export class BuildingsCollection extends THREE.Group {
       threeSetup.textureLoader,
       projection,
       deminformation,
-      threeSetup
+      threeSetup,
+      onOneComputed
     );
 
     this.add(ui);
@@ -40,7 +56,8 @@ function buildBuildings(
   textLoader: THREE.TextureLoader,
   projectFn: TileCRSProjection,
   deminformation: DemInformation,
-  __world: ThreeSetup
+  __world: ThreeSetup,
+  onOneComputed
 ) {
   const geodat: GeometryAttriData = {
     tileSize: { x: tileSize.x, y: tileSize.y },
@@ -77,7 +94,7 @@ function buildBuildings(
       const lnglats = geometry.coordinates[0];
       const h = getHeight(properties);
       count++;
-      makeOneBuilding(lnglats, h, projectFn, geodat, properties);
+      makeOneBuilding(lnglats, h, projectFn, geodat, properties, onOneComputed);
     }
   }
 
@@ -233,7 +250,8 @@ function makeOneBuilding(
   height: number,
   project: TileCRSProjection,
   geoAttriData: GeometryAttriData,
-  properties
+  properties,
+  onComputed: (xyz: THREE.Vector3, properties) => void
 ) {
   const pts = lnglats.map(project);
   const {
@@ -341,9 +359,13 @@ function makeOneBuilding(
 
   const offset0 = offset;
 
+  const roofCenter = new THREE.Vector3();
+
   // draw roof
   for (const vec of vec2s) {
     position.push(vec.x, vec.y, height);
+    roofCenter.set(vec.x, vec.y, height);
+
     group.push(uniformType);
     uv.push(vec.x / tileSize.x, vec.y / tileSize.y);
     color.push(uniformColor.r, uniformColor.g, uniformColor.b);
@@ -360,6 +382,8 @@ function makeOneBuilding(
 
   geoAttriData.groupIndex += 1;
   geoAttriData.offset = offset;
+
+  onComputed?.(roofCenter, properties);
 }
 
 type GeometryAttriData = {

@@ -115,7 +115,7 @@ async function compileTsFile(filePath, rewriteFn, config = null) {
 
   // Custom writeFile to capture emitted files in memory
   const writeFile = (fileName, data) => {
-    if (fileName.endsWith(".js")) {
+    if (fileName.endsWith(".js") || fileName.endsWith('.mjs')) {
       outputText = data;
     }
 
@@ -197,6 +197,7 @@ const server = http.createServer(async (req, res) => {
       console.log(`esmfile resolved under ${pkg}!`, esmfile);
 
       const workdir = isFolder ? folder : path.join(folder, "..");
+      console.log("[workdir]", workdir);
 
       const [esmCode, _] = await compileTsFile(esmfile, defaultEsmTransformer, {
         allowJs: true,
