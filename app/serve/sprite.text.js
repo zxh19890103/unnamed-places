@@ -2,8 +2,11 @@ import fs from "node:fs";
 import sharp from "sharp";
 
 function createSprite(geojson) {
-  const dw = 100;
-  const dh = 6;
+  const dw = 64;
+  const dh = 16;
+  const gap = 4;
+  const dy = 12;
+  const dx = 2;
 
   let x = 0;
   let y = 0;
@@ -17,19 +20,18 @@ function createSprite(geojson) {
           .map(({ properties }) => {
             console.log(properties);
             if (properties.name) {
-              x = dw * i;
+              x = (dw + gap) * i;
+
+              i++;
 
               if (x > 1024) {
-                y = dh * j;
                 j++;
+                y = (dh + gap) * j;
                 x = 0;
                 i = 0;
               }
 
-              console.log(x, y);
-
-              i++;
-              return `<text x="${x}" dy="300" y="${y}"  length-adjust="spacing" text-length="5em" fill="#fe9109" font-family="Wawati SC" font-size="14">${properties["name:en"]}</text>`;
+              return `<text x="${x}" y="${y}" dx="${dx}" dy="${dy}" font-size="14" length-adjust="spacing" text-length="5em" fill="#000" font-family="Wawati SC">${properties["name"]}</text>`;
             }
 
             return null;
@@ -61,6 +63,18 @@ function createSprite(geojson) {
 
 createSprite(
   JSON.parse(
-    fs.readFileSync("./.cache/osmdata/building-12-3186-1768.geojson", "utf-8")
+    JSON.stringify({
+      features: Array(300)
+        .fill(0)
+        .map(() => {
+          const name = Math.random().toString(26).substring(2, 9);
+
+          return {
+            properties: {
+              name,
+            },
+          };
+        }),
+    })
   )
 );

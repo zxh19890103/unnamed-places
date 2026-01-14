@@ -2,6 +2,7 @@ import sharp from "sharp";
 import { join } from "node:path";
 import { __app_root_dir } from "../context.js";
 
+const cat = "plants";
 const size = 2048;
 const tileSize = 256;
 const padding = 8;
@@ -22,7 +23,7 @@ const images = Promise.all(
     .split(/[,\s]/)
     .filter((s) => Boolean(s))
     .map((id) => {
-      const file = join(__app_root_dir, `./steal/data-vecteezy/clouds/${id}.png`);
+      const file = join(__app_root_dir, `./steal/data-vecteezy/${cat}/${id}.png`);
 
       return sharp(file)
         .trim({
@@ -56,7 +57,7 @@ const images = Promise.all(
   });
 });
 
-const destination = join(__app_root_dir, `./steal/data-vecteezy/_in-one-clouds.png`);
+const destination = join(__app_root_dir, `./steal/data-vecteezy/${cat}/_in-one.png`);
 
 images.then((files) => {
   sharp({
