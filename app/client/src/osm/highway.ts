@@ -128,8 +128,8 @@ export class HighwaysCollection extends THREE.Group {
           `,
           fragmentShader: `
           void main() {
-            vec3 roadColor = vec3(0.4, 0.76, 0.32);
-            gl_FragColor = vec4(roadColor * 2.1, 1.0);
+            vec3 roadColor = vec3(0.4, 0.36, 0.32);
+            gl_FragColor = vec4(roadColor * 1.5, 1.0);
           }
           `,
         })

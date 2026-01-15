@@ -1,13 +1,23 @@
 import * as THREE from "three";
 import {
   type DemInformation,
+  type TileBBOX,
   type TileCRSProjection,
   type TileElevation,
+  type TilePosition,
 } from "@/geo/tile.js";
 import type * as gj from "geojson";
 import type { ThreeSetup } from "@/geo/setup.js";
 
-import { Text } from "troika-three-text";
+type OsmNameMeta = {
+  resolution: number;
+  ratio: number;
+  nX: number;
+  nY: number;
+  segments: { x: number; y: number };
+  count: number;
+  maxChars: number;
+};
 
 export class BuildingsCollection extends THREE.Group {
   constructor(
@@ -16,21 +26,17 @@ export class BuildingsCollection extends THREE.Group {
     tileSize: THREE.Vector2,
     tileGrid: THREE.Vector2,
     threeSetup: ThreeSetup,
-    deminformation: DemInformation
+    deminformation: DemInformation,
+    bbox: TileBBOX
   ) {
     super();
 
-    const onOneComputed = (pos: THREE.Vector3, properties) => {
-      // const text = new Text();
-
-      // text.text = properties.name ?? "unnamed";
-      // text.fontSize = 50;
-      // text.color = 0xea910f;
-      // text.position.copy(pos);
-
-      console.log(properties.name);
-
-      // this.add(text);
+    const featureFilter = ({ properties, geometry }) => {
+      return (
+        Boolean(properties.building) &&
+        Boolean(properties.name) &&
+        geometry.type === "Polygon"
+      );
     };
 
     const ui = buildBuildings(
@@ -40,10 +46,151 @@ export class BuildingsCollection extends THREE.Group {
       threeSetup.textureLoader,
       projection,
       deminformation,
-      threeSetup,
-      onOneComputed
+      threeSetup
     );
 
+    const buildNames = async () => {
+      const features = geojson.features.filter(featureFilter);
+      const count = features.length;
+      if (count === 0) return;
+
+      const nameTextureConfig: OsmNameMeta = await fetch(
+        `/osm-name/building/${bbox.z}/${bbox.x}/${bbox.y}/meta`
+      ).then((r) => r.json());
+
+      console.log(nameTextureConfig);
+      console.log(count);
+
+      const textLength = 300;
+      const textHeight = Math.floor(textLength / nameTextureConfig.ratio);
+      const geometry = new THREE.PlaneGeometry(textLength, textHeight);
+
+      geometry.rotateX(Math.PI * 1.5);
+
+      const namesDisplay = new THREE.InstancedMesh(
+        geometry,
+        new THREE.ShaderMaterial({
+          side: THREE.DoubleSide,
+          depthTest: true,
+          uniforms: {
+            map: {
+              value: threeSetup.textureLoader.load(
+                `/osm-name/building/${bbox.z}/${bbox.x}/${bbox.y}/name`
+              ),
+            },
+            tileSize: {
+              value: tileSize,
+            },
+            displacementMap: { value: deminformation.texture },
+            displacementScale: { value: deminformation.elevation.span },
+            displacementBias: {
+              value: deminformation.elevation.minElevation + textHeight,
+            },
+            uvScale: {
+              value: new THREE.Vector2(
+                1 / nameTextureConfig.nX,
+                1 / nameTextureConfig.nY
+              ),
+            },
+          },
+          vertexShader: `
+          attribute vec2 instanceUvOffset;
+
+          uniform vec2 tileSize;
+          uniform sampler2D displacementMap;
+          uniform float displacementBias;
+          uniform float displacementScale;
+
+          varying vec2 vUv;
+          varying vec3 vColor;
+
+          flat out vec2 vInstanceUvOffset;
+
+          void main() {
+            vUv = uv;
+            vColor = instanceColor;
+            vInstanceUvOffset = instanceUvOffset;
+
+            vec4 instancedPosition = instanceMatrix * vec4(position, 1.0);
+
+            vec3 worldOriginOfInstance = instanceMatrix[3].xyz;
+            vec2 st = worldOriginOfInstance.xy / tileSize;
+
+            float h = texture2D(displacementMap, st).r;
+            instancedPosition.z += displacementBias + displacementScale * h;
+
+            gl_Position = projectionMatrix * modelViewMatrix * instancedPosition;
+          }
+        `,
+          fragmentShader: `
+          uniform sampler2D map;
+
+          uniform vec2 uvScale;
+          uniform vec2 uvOffset;
+          varying vec2 vUv;
+
+          varying vec3 vColor;
+          flat in vec2 vInstanceUvOffset;
+
+          void main() {
+            vec2 uv = vUv;
+
+            uv *= uvScale;
+            uv += vInstanceUvOffset * uvScale;
+
+            uv.y = 1.0 - uv.y;
+            
+            vec4 texColor = texture2D(map, uv);
+
+            if (texColor.a < 0.5) {
+              discard;
+            } else {
+              gl_FragColor = vec4(0.9, 0.37, 0.16, 1.0);
+            }
+          }
+        `,
+        }),
+        count
+      );
+
+      const dummy = new THREE.Object3D();
+
+      const nameUVOffset: number[] = [];
+
+      let cursor = 0;
+
+      for (const { geometry, properties } of features) {
+        const lnglats = (geometry as gj.Polygon).coordinates[0];
+
+        const coords = lnglats.map(projection);
+        const h = getBuildingHeight(properties);
+        const center = getPolygonCentroid(coords);
+
+        dummy.position.set(center.x, center.y, h);
+        dummy.updateMatrix();
+        namesDisplay.setMatrixAt(cursor, dummy.matrix);
+        namesDisplay.setColorAt(
+          cursor,
+          new THREE.Color(Math.random() * 0xffffff)
+        );
+
+        nameUVOffset.push(
+          cursor % nameTextureConfig.nX,
+          Math.floor(cursor / nameTextureConfig.nX)
+        );
+
+        cursor++;
+      }
+
+      namesDisplay.geometry.setAttribute(
+        "instanceUvOffset",
+        new THREE.InstancedBufferAttribute(new Float32Array(nameUVOffset), 2)
+      );
+
+      this.add(namesDisplay);
+    };
+
+    buildNames();
     this.add(ui);
   }
 }
@@ -56,8 +203,7 @@ function buildBuildings(
   textLoader: THREE.TextureLoader,
   projectFn: TileCRSProjection,
   deminformation: DemInformation,
-  __world: ThreeSetup,
-  onOneComputed
+  __world: ThreeSetup
 ) {
   const geodat: GeometryAttriData = {
     tileSize: { x: tileSize.x, y: tileSize.y },
@@ -73,28 +219,16 @@ function buildBuildings(
     normal: [],
   };
 
-  const getHeight = (properties) => {
-    if (Object.hasOwn(properties, "height")) {
-      return Number(properties.height);
-    } else if (Object.hasOwn(properties, "building:levels")) {
-      return Number(properties["building:levels"]) * 6;
-    } else if (properties.building === "apartments") {
-      return 90;
-    } else if (properties.building === "commercial") {
-      return 120;
-    }
-    return 34;
-  };
-
   let count = 0;
+
   for (const { geometry, properties } of geojson.features) {
     if (properties.building === undefined) continue;
 
     if (geometry.type === "Polygon") {
       const lnglats = geometry.coordinates[0];
-      const h = getHeight(properties);
+      const h = getBuildingHeight(properties);
+      makeOneBuilding(lnglats, h, projectFn, geodat, properties, count);
       count++;
-      makeOneBuilding(lnglats, h, projectFn, geodat, properties, onOneComputed);
     }
   }
 
@@ -119,8 +253,8 @@ function buildBuildings(
     new THREE.Float32BufferAttribute(geodat.position, 3)
   );
   geometry.setAttribute(
-    "aBuildingType",
-    new THREE.Float32BufferAttribute(geodat.group, 1)
+    "aBuildingInformation",
+    new THREE.Float32BufferAttribute(geodat.group, 2)
   );
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(geodat.uv, 2));
   geometry.setAttribute("uv1", new THREE.Float32BufferAttribute(geodat.uv1, 2));
@@ -152,6 +286,7 @@ function buildBuildings(
     uniforms: {
       map: { value: surface },
       mapSubdivisions: { value: mapSubdivisions },
+
       displacementMap: { value: deminformation.texture },
       displacementScale: { value: deminformation.elevation.span },
       displacementBias: { value: deminformation.elevation.minElevation + 5 },
@@ -176,7 +311,7 @@ function buildBuildings(
     vertexShader: `
       attribute vec2 uv1;
       attribute vec3 color;
-      attribute float aBuildingType;
+      attribute vec2 aBuildingInformation;
 
       uniform sampler2D displacementMap;
       uniform float displacementScale;
@@ -184,8 +319,8 @@ function buildBuildings(
 
       varying vec2 vUv;
       varying vec3 vColor;
-      varying float vBuildingType;
       varying vec3 vNormal;
+      flat out vec2 vBuildingInformation;
 
       void main() {
         vec3 pos = position.xyz;
@@ -193,8 +328,8 @@ function buildBuildings(
         vUv = uv1;
         vColor = color;
         vNormal = mat3(modelMatrix) * normal;
+        vBuildingInformation = aBuildingInformation;
 
-        vBuildingType = aBuildingType;
         float h = texture2D(displacementMap, uv).r;
         pos.z += displacementBias + displacementScale * h;
 
@@ -203,6 +338,7 @@ function buildBuildings(
       `,
     fragmentShader: `
       uniform sampler2D map;
+      uniform sampler2D nameMap;
       uniform vec4 mapSubdivisions[16];
 
       uniform vec3 ambLightColor;
@@ -213,13 +349,14 @@ function buildBuildings(
 
       varying vec2 vUv;
       varying vec3 vColor;
-      varying float vBuildingType;
       varying vec3 vNormal;
+
+      flat in vec2 vBuildingInformation;
 
       void main() {
         vec2 uv = fract(vUv);
 
-        vec4 offsetScale = mapSubdivisions[int(vBuildingType)];
+        vec4 offsetScale = mapSubdivisions[int(vBuildingInformation.r)];
         vec2 scale = offsetScale.rg;
         vec2 offset = offsetScale.ba;
         
@@ -232,7 +369,6 @@ function buildBuildings(
 
         float diffuse = max(dot(vNormal, dirLightDir), 0.0);
         vec3 lighting = ambLightColor.rgb * ambLightIntensity + (dirLightColor.rgb * diffuse) * dirLightIntensity;
-
 
         gl_FragColor = vec4(baseColor * lighting, 1.0);
       }
@@ -251,7 +387,7 @@ function makeOneBuilding(
   project: TileCRSProjection,
   geoAttriData: GeometryAttriData,
   properties,
-  onComputed: (xyz: THREE.Vector3, properties) => void
+  index: number
 ) {
   const pts = lnglats.map(project);
   const {
@@ -293,7 +429,7 @@ function makeOneBuilding(
     y = Pt[1];
 
     position.push(x, y, h); // 0, 2
-    group.push(uniformType);
+    group.push(uniformType, index);
     color.push(uniformColor.r, uniformColor.g, uniformColor.b);
     uv.push(x / tileSize.x, y / tileSize.y);
 
@@ -366,7 +502,7 @@ function makeOneBuilding(
     position.push(vec.x, vec.y, height);
     roofCenter.set(vec.x, vec.y, height);
 
-    group.push(uniformType);
+    group.push(uniformType, index);
     uv.push(vec.x / tileSize.x, vec.y / tileSize.y);
     color.push(uniformColor.r, uniformColor.g, uniformColor.b);
     uv1.push(0.5, 0.5); // pure color.
@@ -382,8 +518,6 @@ function makeOneBuilding(
 
   geoAttriData.groupIndex += 1;
   geoAttriData.offset = offset;
-
-  onComputed?.(roofCenter, properties);
 }
 
 type GeometryAttriData = {
@@ -435,4 +569,32 @@ enum BuildingColor {
   warehouse = 0x85929e,
   temple = 0xaf7ac5,
   hotel = 0xeb984e,
+}
+
+function getBuildingHeight(properties) {
+  if (Object.hasOwn(properties, "height")) {
+    return Number(properties.height);
+  } else if (Object.hasOwn(properties, "building:levels")) {
+    return Number(properties["building:levels"]) * 6;
+  } else if (properties.building === "apartments") {
+    return 90;
+  } else if (properties.building === "commercial") {
+    return 120;
+  }
+  return 34;
+}
+
+function getPolygonCentroid(polygon: THREE.Vector3Tuple[]) {
+  const count = polygon.length;
+  const sum = new THREE.Vector3();
+
+  for (const coord of polygon) {
+    sum.x += coord[0];
+    sum.y += coord[1];
+    sum.z += coord[2];
+  }
+
+  sum.divideScalar(count);
+
+  return sum;
 }

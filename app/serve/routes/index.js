@@ -9,9 +9,11 @@ import * as _dem from "./dem.js";
 import * as _elevation from "./elevation.js";
 import * as _runtime from "./runtime/index.js";
 import * as _osm from "./osm.js";
+import * as _osm_name from "./osm.name.js";
 import * as _dem_aspect from "./dem.aspect.js";
 import * as _dem_slope from "./dem.slope.js";
 import * as _steal from "./steal.js";
+import * as _temp from "./temp.js";
 
 import { pathToRegexp } from "path-to-regexp";
 import { parseParamValue } from "./_util.js";
@@ -28,6 +30,7 @@ const routes = Array.prototype.map.call(
     _glsl,
     _html,
     _osm,
+    _osm_name,
     _gootile,
     _gootile_styled,
     _dem,
@@ -35,6 +38,7 @@ const routes = Array.prototype.map.call(
     _dem_slope,
     _dem_aspect,
     _steal,
+    _temp,
   ],
   (route) => {
     return { ...route };

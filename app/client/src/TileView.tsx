@@ -124,7 +124,8 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
         tileSize,
         new THREE.Vector2(segments_in_x, segments_in_y),
         __world,
-        demInformation
+        demInformation,
+        bbox
       );
 
       things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
