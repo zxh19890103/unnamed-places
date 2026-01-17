@@ -1,6 +1,8 @@
 import * as THREE from "three";
-import { type TileCRSProjection } from "@/geo/tile.js";
+import { type DemInformation, type TileCRSProjection } from "@/geo/tile.js";
 import type * as gj from "geojson";
+import { SimplexNoise } from "three/addons/math/SimplexNoise.js";
+import type { ThreeSetup } from "@/geo/setup.js";
 
 // import Delaunator from "delaunator";
 // import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -12,12 +14,18 @@ export class NaturalThingsCollection extends THREE.Group {
   constructor(
     geojson: gj.FeatureCollection<gj.LineString>,
     projection: TileCRSProjection,
-    tileSize: THREE.Vector2
+    tileSize: THREE.Vector2,
+    tileGrid: THREE.Vector2,
+    demInformation: DemInformation,
+    textureLoader: THREE.TextureLoader,
+    __world: ThreeSetup
   ) {
     super();
 
     const canvas = rasterPolygons(
-      geojson.features,
+      geojson.features.filter((feature) => {
+        return feature.properties.water === "river";
+      }),
       projection,
       tileSize,
       512,
@@ -25,6 +33,48 @@ export class NaturalThingsCollection extends THREE.Group {
     );
 
     this.riverMaskTex = new THREE.CanvasTexture(canvas);
+
+    const pmremGenerator = new THREE.PMREMGenerator(__world.renderer);
+    const environmentTarget = pmremGenerator.fromScene(__world.world);
+    __world.world.environment = environmentTarget.texture;
+    __world.world.environment.wrapS = THREE.RepeatWrapping;
+    __world.world.environment.wrapT = THREE.RepeatWrapping;
+
+    const water = new THREE.Mesh(
+      new THREE.PlaneGeometry(tileSize.x, tileSize.y, tileGrid.x, tileGrid.y),
+      new THREE.MeshStandardMaterial({
+        color: 0xeeeeee, // Base silver/grey
+        metalness: 0.9,
+        roughness: 0.7,
+        displacementMap: demInformation.texture,
+        displacementBias: demInformation.elevation.minElevation + 5,
+        displacementScale: demInformation.elevation.span,
+        normalMap: textureLoader.load(
+          "/public/assets/waternormals.jpg",
+          (tex) => {
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(40, 40);
+          }
+        ),
+        // envMap: environmentTarget.texture, // Sky reflection
+        transparent: true,
+        opacity: 1,
+        alphaTest: 0.5,
+        alphaMap: this.riverMaskTex,
+      })
+    );
+
+    // const waterMaterial = water.material;
+
+    // __world.animate((_, elapsed) => {
+    //   // Very subtle movement for a "calm" silvering look
+    //   // waterMaterial.normalMap.offset.x += 0.01 * Math.cos(elapsed);
+    //   // waterMaterial.normalMap.offset.y += 0.01 * Math.sin(elapsed);
+    // });
+
+    // water.position.set(0, 0, demInformation.elevation.minElevation + 30);
+    this.add(water);
   }
 }
 
@@ -107,79 +157,4 @@ function rasterPolygons(
   }
 
   return canvas;
-}
-
-/*
-function renderTriangles() {
-  // remove the last two positions;
-  const size = positions.length;
-  const coordinates: [number, number][] = [];
-  const coords = new Float32Array(2 * size);
-
-  cursor = 0;
-
-  for (let i = 0; i < size; i++) {
-    line();
-    coords[2 * i] = x;
-    coords[2 * i + 1] = y;
-    coordinates.push([x, y]);
-    cursor++;
-  }
-
-  const delaunator = new Delaunator(coords);
-
-  const { triangles, halfedges, coords: dcoords } = delaunator;
-
-  ctx2d.strokeStyle = "#ffffff";
-
-  ctx2d.beginPath();
-  for (let e = 0; e < halfedges.length; e++) {
-    const twin = halfedges[e];
-    if (twin > e) {
-      const ti = triangles[e];
-      const tj = triangles[twin];
-
-      const from = [dcoords[ti * 2], dcoords[ti * 2 + 1]] as [number, number];
-      const to = [dcoords[tj * 2], dcoords[tj * 2 + 1]] as [number, number];
-
-      ctx2d.moveTo(from[0], from[1]);
-      ctx2d.lineTo(to[0], to[1]);
-    }
-  }
-  ctx2d.stroke();
-}
-
-*/
-
-/**
- * Calculates the circumcenter of a triangle in the Delaunator array
- * @param {number} i - The index of the triangle (triangleIndex)
- * @param {Float64Array} points - The flat points array [x0, y0, x1, y1...]
- * @param {Uint32Array} triangles - The d.triangles array from Delaunator
- */
-function getCircumcenter(i, points, triangles) {
-  const t0 = triangles[i * 3] * 2;
-  const t1 = triangles[i * 3 + 1] * 2;
-  const t2 = triangles[i * 3 + 2] * 2;
-
-  const ax = points[t0];
-  const ay = points[t0 + 1];
-  const bx = points[t1];
-  const by = points[t1 + 1];
-  const cx = points[t2];
-  const cy = points[t2 + 1];
-
-  const dx = bx - ax;
-  const dy = by - ay;
-  const ex = cx - ax;
-  const ey = cy - ay;
-
-  const bl = dx * dx + dy * dy;
-  const cl = ex * ex + ey * ey;
-  const d = 0.5 / (dx * ey - dy * ex);
-
-  const x = ax + (ey * bl - dy * cl) * d;
-  const y = ay + (dx * cl - ex * bl) * d;
-
-  return { x, y };
 }

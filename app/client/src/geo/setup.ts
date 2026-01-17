@@ -3,7 +3,6 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 import { Sky } from "three/addons/objects/Sky.js";
 import * as suncalc from "suncalc";
-import { Clouds } from "@/env/clouds.js";
 
 type AnimationRun = (delta: number, elapsed: number) => void;
 
@@ -11,6 +10,7 @@ export class ThreeSetup {
   readonly textureLoader: THREE.TextureLoader;
 
   readonly world: THREE.Scene;
+  readonly renderer: THREE.WebGLRenderer;
   readonly camera: THREE.PerspectiveCamera;
   readonly controls: OrbitControls;
 
@@ -115,6 +115,8 @@ export const setupThree = (element: HTMLDivElement) => {
   threeSetup.directionalLight = directionalLight;
   // @ts-ignore
   threeSetup.ambientLight = ambientLight;
+  // @ts-ignore
+  threeSetup.renderer = renderer;
 
   resize();
   animate();

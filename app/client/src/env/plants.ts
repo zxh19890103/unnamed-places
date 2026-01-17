@@ -43,11 +43,11 @@ export class Plants extends THREE.Group {
     const fog = new THREE.Fog(0x444444, 100, 10000);
 
     const plantsTex = threeSetup.textureLoader.load(
-      "/steal/data-vecteezy/plants/_in-one"
+      "/steal/data-vecteezy/flowers/_in-one"
     );
 
-    plantsTex.magFilter = THREE.NearestFilter;
-    plantsTex.minFilter = THREE.NearestFilter;
+    plantsTex.magFilter = THREE.LinearFilter;
+    plantsTex.minFilter = THREE.LinearFilter;
 
     const ui = new THREE.Points(
       geometry,
@@ -87,7 +87,7 @@ export class Plants extends THREE.Group {
             varying vec3 vWorldPosition;
 
             flat out vec4 vPlant;
-            varying vec3 vMaskColor;
+            varying vec3 vGreenMaskColor;
 
             void main() {
                 vec3 ipos = position.xyz;
@@ -102,7 +102,7 @@ export class Plants extends THREE.Group {
 
                 vUv = uv;
                 vPlant = aPlant;
-                vMaskColor = texture2D(greenMaskMap, uv).rgb;
+                vGreenMaskColor = texture2D(greenMaskMap, uv).rgb;
 
                 vec4 wPos = modelMatrix * vec4(ipos, 1.0);
                 vWorldPosition = wPos.xyz;
@@ -120,13 +120,8 @@ export class Plants extends THREE.Group {
             varying vec3 vWorldPosition;
 
             varying vec2 vUv;
-            varying vec3 vMaskColor;
+            varying vec3 vGreenMaskColor;
             flat in vec4 vPlant;
-
-            // Simple hash function to generate pseudo-randomness
-            float hash(vec3 p) {
-                return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
-            }
 
             void main() {
                 vec2 uv = gl_PointCoord;
@@ -141,17 +136,16 @@ export class Plants extends THREE.Group {
 
                 vec3 targetGreen = vec3(0.13, 0.55, 0.13);
 
-                float howfar = distance(vMaskColor, targetGreen);
+                float howfar = distance(vGreenMaskColor, targetGreen);
 
                 float vegetationFactor = smoothstep(0.42, 0.2, howfar);
 
                 if (vegetationFactor < 0.025) discard;
 
-                vec3 finalRGB = mix(baseColor.rgb, vMaskColor, 0.2);
-
                 float depth = gl_FragCoord.z / gl_FragCoord.w;
                 float fogFactor = smoothstep( fogNear, fogFar, depth );
 
+                vec3 finalRGB = mix(baseColor.rgb, vGreenMaskColor, 0.2);
                 gl_FragColor = vec4(mix(finalRGB, fogColor, fogFactor), 1.0);
             }
             `,

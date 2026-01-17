@@ -2,7 +2,8 @@ import https from "https";
 import fs, { createWriteStream } from "node:fs";
 import { join } from "node:path";
 
-const cat = "plants";
+const cat = "flowers";
+
 const thumbnailsStr = fs.readFileSync(`./vecteezy.${cat}.json`, "utf8");
 const thumbnails = JSON.parse(thumbnailsStr);
 const folder2save = `./data-vecteezy/${cat}`;

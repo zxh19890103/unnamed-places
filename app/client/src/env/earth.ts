@@ -130,6 +130,9 @@ class GoogleTile extends THREE.Group {
           map: {
             value: map,
           },
+          waterMap: {
+            value: this.textLoader.load("/public/assets/water2.avif"),
+          },
           styledMap: {
             value: styledMap,
           },
@@ -179,6 +182,9 @@ class GoogleTile extends THREE.Group {
           riverMaskTex: {
             value: null,
           },
+          waterUvScale: {
+            value: 10,
+          },
         },
         vertexShader: /*glsl */ `
           uniform sampler2D displacementMap;
@@ -192,7 +198,7 @@ class GoogleTile extends THREE.Group {
           uniform vec2 uvOffset;
 
           varying vec2 vUv;
-          varying vec2 vaUv;
+          varying vec2 vaUv; // actual uv;
           varying vec3 vNormal;
 
           void main() {
@@ -226,10 +232,12 @@ class GoogleTile extends THREE.Group {
         fragmentShader: /*glsl */ `
           uniform sampler2D map;
           uniform sampler2D styledMap;
+          uniform sampler2D waterMap;
           uniform sampler2D riverMaskTex;
 
           uniform vec3 uCameraPos;
           uniform float uCameraPolarAngle;
+          uniform float waterUvScale;
 
           uniform vec3 ambLightColor;
           uniform float ambLightIntensity;
@@ -249,8 +257,10 @@ class GoogleTile extends THREE.Group {
 
             if (isRiver > 0.5) {
 
-              vec3 waterColor = vec3(0.6, 0.7, 0.91);
-              gl_FragColor = vec4(waterColor * 0.6, 1.0);
+              discard;
+              // vec2 waterUv = vec2(1.0, 2.8) * waterUvScale;
+              // vec4 waterColor = texture2D(waterMap, fract(vaUv * waterUv));
+              // gl_FragColor = vec4(waterColor.rgb * 0.97, 0.8);
 
             } else {
 

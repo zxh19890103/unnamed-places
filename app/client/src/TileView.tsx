@@ -115,65 +115,69 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
 
   const tileSize = new THREE.Vector2(meters_in_x, meters_in_y);
 
-  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/building?bbox=${bbox.bbox}`)
-    .then((r) => r.json())
-    .then((geojson) => {
-      const things = new BuildingsCollection(
-        geojson,
-        tileCrsProject,
-        tileSize,
-        new THREE.Vector2(segments_in_x, segments_in_y),
-        __world,
-        demInformation,
-        bbox
-      );
+  async function renderOsm() {
+    await fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/building?bbox=${bbox.bbox}`)
+      .then((r) => r.json())
+      .then((geojson) => {
+        const things = new BuildingsCollection(
+          geojson,
+          tileCrsProject,
+          tileSize,
+          new THREE.Vector2(segments_in_x, segments_in_y),
+          __world,
+          demInformation,
+          bbox
+        );
 
-      things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
-      earthGround.add(things);
-    });
+        things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
+        earthGround.add(things);
+      });
 
-  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/highway?bbox=${bbox.bbox}`)
-    .then((r) => r.json())
-    .then((geojson) => {
-      const things = new HighwaysCollection(
-        geojson,
-        tileCrsProject,
-        tileSize.clone(),
-        demInformation
-      );
+    fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/natural?bbox=${bbox.bbox}`)
+      .then((r) => r.json())
+      .then((geojson) => {
+        const things = new NaturalThingsCollection(
+          geojson,
+          tileCrsProject,
+          tileSize.clone(),
+          new THREE.Vector2(segments_in_x, segments_in_y),
+          demInformation,
+          __textureLoader,
+          __world
+        );
 
-      things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
-      earthGround.add(things);
-    });
-
-  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/waterway?bbox=${bbox.bbox}`)
-    .then((r) => r.json())
-    .then((geojson) => {
-      const things = new WaterwaysCollection(
-        geojson,
-        tileCrsProject,
-        tileSize.clone(),
-        demInformation
-      );
-
-      things.position.set(-meters_in_x / 2, -meters_in_y / 2, 7);
-      earthGround.add(things);
-    });
-
-  fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/natural?bbox=${bbox.bbox}`)
-    .then((r) => r.json())
-    .then((geojson) => {
-      const things = new NaturalThingsCollection(
-        geojson,
-        tileCrsProject,
-        tileSize.clone()
-      );
-      earthGround.add(things);
-
-      setTimeout(() => {
         earthGround.setRiverMaskTex(things.riverMaskTex);
-      }, 1000);
-    });
+        earthGround.add(things);
+      });
+
+    fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/highway?bbox=${bbox.bbox}`)
+      .then((r) => r.json())
+      .then((geojson) => {
+        const things = new HighwaysCollection(
+          geojson,
+          tileCrsProject,
+          tileSize.clone(),
+          demInformation
+        );
+
+        things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
+        earthGround.add(things);
+      });
+
+    // fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/waterway?bbox=${bbox.bbox}`)
+    //   .then((r) => r.json())
+    //   .then((geojson) => {
+    //     const things = new WaterwaysCollection(
+    //       geojson,
+    //       tileCrsProject,
+    //       tileSize.clone(),
+    //       demInformation
+    //     );
+
+    //     things.position.set(-meters_in_x / 2, -meters_in_y / 2, 7);
+    //     earthGround.add(things);
+    //   });
+  }
 
   const earthGround = new GoogleTileRoot(bbox.x, bbox.y, __world);
 
@@ -201,6 +205,8 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
 
     plants.position.set(-meters_in_x / 2, -meters_in_y / 2, 0.1);
     earthGround.add(plants);
+
+    renderOsm();
   });
 
   earthGround.rotation.x = -Math.PI / 2;
