@@ -1,18 +1,19 @@
 import type { ThreeSetup } from "@/geo/setup.js";
 import type { DemInformation } from "@/geo/tile.js";
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 export class Clouds extends THREE.Group {
   constructor(
     textLoader: THREE.TextureLoader,
     coverage: THREE.Vector3,
     size: THREE.Vector2,
-    demInfo: DemInformation
+    demInfo: DemInformation,
   ) {
     super();
 
     const texture = textLoader.load(
-      "/public/assets/Gemini_Generated_Image_tzna9wtzna9wtzna.png"
+      "/public/assets/Gemini_Generated_Image_tzna9wtzna9wtzna.png",
     );
 
     texture.magFilter = THREE.LinearFilter;
@@ -136,30 +137,47 @@ function gaussianRandom(mean = 0, stdev = 1) {
   return z * stdev + mean;
 }
 
-export class LonelyClouds extends THREE.Group {
+export class LonelyBigClouds extends THREE.Group {
   constructor(
     tileSize: THREE.Vector2,
     threeSetup: ThreeSetup,
-    demInf: DemInformation
+    demInf: DemInformation,
   ) {
     super();
 
     threeSetup.textureLoader
-      .loadAsync("/steal/data-vecteezy/clouds/89")
+      .loadAsync("/steal/data-vecteezy/clouds/_in-one")
       .then((texture) => {
+        const planeTop = new THREE.PlaneGeometry(tileSize.x, tileSize.y);
+        const planeFront = new THREE.PlaneGeometry(tileSize.x, tileSize.y / 2);
+        const planeBack = new THREE.PlaneGeometry(tileSize.x, tileSize.y / 2);
+        const planeLeft = new THREE.PlaneGeometry(tileSize.x, tileSize.y / 2);
+        const planeRight = new THREE.PlaneGeometry(tileSize.x, tileSize.y / 2);
+
+        planeTop.rotateX(-Math.PI / 2);
+        planeTop.translate(0, tileSize.y / 2, 0);
+
+        const totalGeometry = mergeGeometries([
+          planeTop,
+          // planeFront,
+          // planeBack,
+          // planeLeft,
+          // planeRight,
+        ]);
+
         const cloud0 = new THREE.Mesh(
-          new THREE.PlaneGeometry(tileSize.x, tileSize.y / 2),
+          totalGeometry,
           new THREE.MeshBasicMaterial({
             transparent: true,
             map: texture,
-          })
+          }),
         );
 
-        cloud0.position.set(
-          0,
-          demInf.elevation.minElevation + tileSize.y / 4,
-          -tileSize.x / 2
-        );
+        // cloud0.position.set(
+        //   0,
+        //   demInf.elevation.minElevation + tileSize.y / 4,
+        //   -tileSize.x / 2,
+        // );
 
         const ratio = texture.width / texture.height;
 
@@ -168,5 +186,115 @@ export class LonelyClouds extends THREE.Group {
 
         this.add(cloud0);
       });
+  }
+}
+
+export class SkyClouds extends THREE.Group {
+  public mesh: THREE.InstancedMesh;
+  private material: THREE.ShaderMaterial;
+
+  constructor(
+    cloudTexture: THREE.Texture,
+    count: number,
+    sizeS: number,
+    elevationE: number,
+  ) {
+    super();
+
+    const geometry = new THREE.PlaneGeometry(30, 30);
+
+    // Attribute for 4x4 sprite selection
+    const instanceIndices = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      instanceIndices[i] = Math.floor(Math.random() * 16);
+    }
+    geometry.setAttribute(
+      "instanceIndex",
+      new THREE.InstancedBufferAttribute(instanceIndices, 1),
+    );
+
+    this.material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTexture: { value: cloudTexture },
+        uGridSize: { value: 4.0 },
+      },
+      vertexShader: `
+                attribute float instanceIndex;
+                varying vec2 vUv;
+                
+                void main() {
+                    vUv = uv;
+                    float gridSize = 4.0;
+                    float column = mod(instanceIndex, gridSize);
+                    float row = floor(instanceIndex / gridSize);
+                    vUv = (vUv / gridSize) + vec2(column / gridSize, (gridSize - 1.0 - row) / gridSize);
+
+                    // --- BILLBOARDING LOGIC ---
+                    // Extract position from the instance matrix
+                    vec3 instancePosition = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+                    
+                    // Get the view-space position of the instance
+                    vec4 mvPosition = modelViewMatrix * vec4(instancePosition, 1.0);
+
+                    // Extract the scale from the instance matrix
+                    float scaleX = length(vec3(instanceMatrix[0][0], instanceMatrix[0][1], instanceMatrix[0][2]));
+                    float scaleY = length(vec3(instanceMatrix[1][0], instanceMatrix[1][1], instanceMatrix[1][2]));
+
+                    // Apply local vertex position to the view-space center (cancels rotation)
+                    mvPosition.xy += position.xy * vec2(scaleX, scaleY);
+
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+      fragmentShader: `
+                uniform sampler2D uTexture;
+                varying vec2 vUv;
+                void main() {
+                    vec4 color = texture2D(uTexture, vUv);
+                    if (color.a < 0.05) discard;
+                    gl_FragColor = color;
+                }
+            `,
+      transparent: true,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+    });
+
+    this.mesh = new THREE.InstancedMesh(geometry, this.material, count);
+    this.distributeOnHorizon(sizeS, elevationE);
+    this.add(this.mesh);
+  }
+
+  private distributeOnHorizon(S: number, E: number): void {
+    const matrix = new THREE.Matrix4();
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+
+    for (let i = 0; i < this.mesh.count; i++) {
+      // 1. Polar Distribution (Around the edge)
+      const angle = Math.random() * Math.PI * 2;
+      // Radius between 40% and 60% of S to form a ring at the boundary
+      const radius = (1 + Math.random() * 0.2) * S;
+
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+
+      // 2. Vertical Distribution (Above elevation E)
+      // Clouds float between E + small offset and a ceiling
+      const y = E + Math.random() * (S * 0.15);
+
+      position.set(x, y, z);
+
+      // 3. Scale & Rotation
+      // Since we use billboarding in the shader, rotation in the matrix
+      // is only needed if you want to rotate the sprite on its own Z-axis.
+      const s = S * 0.01 + Math.random() * (S * 0.01); // Scale relative to S
+      scale.set(s, s, s);
+
+      matrix.compose(position, quaternion, scale);
+      this.mesh.setMatrixAt(i, matrix);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
   }
 }

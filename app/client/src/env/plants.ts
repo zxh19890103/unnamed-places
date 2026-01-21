@@ -6,12 +6,14 @@ export class Plants extends THREE.Group {
   constructor(
     tileSize: THREE.Vector2,
     greenMask: THREE.Texture,
+    riverMask: THREE.Texture,
+    highwayMask: THREE.Texture,
     demInformation: DemInformation,
-    threeSetup: ThreeSetup
+    threeSetup: ThreeSetup,
   ) {
     super();
 
-    const n = 500000;
+    const n = 1000000;
     const positions = new Float32Array(n * 3);
     const uvs = new Float32Array(n * 2);
     const scales = new Float32Array(n * 4);
@@ -43,7 +45,7 @@ export class Plants extends THREE.Group {
     const fog = new THREE.Fog(0x444444, 100, 10000);
 
     const plantsTex = threeSetup.textureLoader.load(
-      "/steal/data-vecteezy/flowers/_in-one"
+      "/steal/data-vecteezy/plants/_in-one",
     );
 
     plantsTex.magFilter = THREE.LinearFilter;
@@ -61,6 +63,12 @@ export class Plants extends THREE.Group {
           },
           greenMaskMap: {
             value: greenMask,
+          },
+          riverMask: {
+            value: riverMask,
+          },
+          highwayMask: {
+            value: highwayMask,
           },
           uSize: {
             value: 50,
@@ -82,12 +90,16 @@ export class Plants extends THREE.Group {
             uniform float displacementScale;
             uniform float uSize;
             uniform sampler2D greenMaskMap;
+            uniform sampler2D riverMask;
+            uniform sampler2D highwayMask;
 
             varying vec2 vUv;
             varying vec3 vWorldPosition;
 
             flat out vec4 vPlant;
             varying vec3 vGreenMaskColor;
+            flat out float isRiver;
+            flat out float isRoad;
 
             void main() {
                 vec3 ipos = position.xyz;
@@ -103,6 +115,8 @@ export class Plants extends THREE.Group {
                 vUv = uv;
                 vPlant = aPlant;
                 vGreenMaskColor = texture2D(greenMaskMap, uv).rgb;
+                isRiver = step(0.5, texture2D(riverMask, uv).r);
+                isRoad = step(0.5, texture2D(highwayMask, uv).r);
 
                 vec4 wPos = modelMatrix * vec4(ipos, 1.0);
                 vWorldPosition = wPos.xyz;
@@ -122,8 +136,14 @@ export class Plants extends THREE.Group {
             varying vec2 vUv;
             varying vec3 vGreenMaskColor;
             flat in vec4 vPlant;
+            flat in float isRiver;
+            flat in float isRoad;
 
             void main() {
+
+               if (isRiver > 0.5) discard;
+               if (isRoad > 0.5) discard;
+
                 vec2 uv = gl_PointCoord;
 
                 uv.y = 1.0 - uv.y;
@@ -138,7 +158,7 @@ export class Plants extends THREE.Group {
 
                 float howfar = distance(vGreenMaskColor, targetGreen);
 
-                float vegetationFactor = smoothstep(0.42, 0.2, howfar);
+                float vegetationFactor = smoothstep(0.52, 0.01, howfar);
 
                 if (vegetationFactor < 0.025) discard;
 
@@ -149,7 +169,7 @@ export class Plants extends THREE.Group {
                 gl_FragColor = vec4(mix(finalRGB, fogColor, fogFactor), 1.0);
             }
             `,
-      })
+      }),
     );
 
     this.add(ui);

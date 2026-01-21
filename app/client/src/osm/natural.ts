@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { type DemInformation, type TileCRSProjection } from "@/geo/tile.js";
 import type * as gj from "geojson";
-import { SimplexNoise } from "three/addons/math/SimplexNoise.js";
 import type { ThreeSetup } from "@/geo/setup.js";
 
 // import Delaunator from "delaunator";
@@ -12,24 +11,32 @@ export class NaturalThingsCollection extends THREE.Group {
   readonly riverMaskTex: THREE.CanvasTexture;
 
   constructor(
-    geojson: gj.FeatureCollection<gj.LineString>,
+    geojson: gj.FeatureCollection,
     projection: TileCRSProjection,
     tileSize: THREE.Vector2,
     tileGrid: THREE.Vector2,
     demInformation: DemInformation,
     textureLoader: THREE.TextureLoader,
-    __world: ThreeSetup
+    __world: ThreeSetup,
   ) {
     super();
 
     const canvas = rasterPolygons(
-      geojson.features.filter((feature) => {
-        return feature.properties.water === "river";
-      }),
+      geojson.features.filter(({ properties, geometry }) => {
+        console.log(properties, geometry.type);
+        return (
+          (properties.natural === "water" ||
+            properties.natural === "wetland") &&
+          (properties.water === "river" ||
+            properties.water === "pond" ||
+            properties.water === "lake") &&
+          (geometry.type === "Polygon" || geometry.type === "MultiPolygon")
+        );
+      }) as unknown as any,
       projection,
       tileSize,
       512,
-      false
+      false,
     );
 
     this.riverMaskTex = new THREE.CanvasTexture(canvas);
@@ -55,21 +62,21 @@ export class NaturalThingsCollection extends THREE.Group {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(40, 40);
-          }
+          },
         ),
         // envMap: environmentTarget.texture, // Sky reflection
         transparent: true,
         opacity: 1,
         alphaTest: 0.5,
         alphaMap: this.riverMaskTex,
-      })
+      }),
     );
 
     // const waterMaterial = water.material;
-
     // __world.animate((_, elapsed) => {
     //   // Very subtle movement for a "calm" silvering look
-    //   // waterMaterial.normalMap.offset.x += 0.01 * Math.cos(elapsed);
+    //   waterMaterial.displacementScale =
+    //     Math.sin(elapsed) * demInformation.elevation.span;
     //   // waterMaterial.normalMap.offset.y += 0.01 * Math.sin(elapsed);
     // });
 
@@ -79,11 +86,11 @@ export class NaturalThingsCollection extends THREE.Group {
 }
 
 function rasterPolygons(
-  polygons: gj.Feature[],
+  polygons: gj.Feature<gj.Polygon | gj.MultiPolygon>[],
   project: TileCRSProjection,
   tileSize: THREE.Vector2,
   dimension = 64,
-  mount = true
+  mount = true,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = dimension;
@@ -115,31 +122,38 @@ function rasterPolygons(
     y *= scaleY;
   };
 
+  const renderOnePolygon = (_positions: gj.Position[]) => {
+
+    positions = _positions;
+
+    size = positions.length;
+
+    ctx2d.beginPath();
+
+    cursor = 0;
+
+    line();
+    ctx2d.moveTo(x, y);
+
+    cursor = 1;
+    for (; cursor < size; cursor++) {
+      line();
+      ctx2d.lineTo(x, y);
+    }
+
+    ctx2d.closePath();
+    ctx2d.fill();
+  };
+
   const render = () => {
     for (const { geometry, properties } of polygons) {
-      if (properties.natural !== "water") continue;
-      if (geometry.type !== "Polygon") {
-        continue;
+      if (geometry.type === "Polygon") {
+        renderOnePolygon(geometry.coordinates[0]);
+      } else {
+        for (const positions of geometry.coordinates) {
+          renderOnePolygon(positions[0]);
+        }
       }
-
-      positions = geometry.coordinates[0];
-      size = positions.length;
-
-      ctx2d.beginPath();
-
-      cursor = 0;
-
-      line();
-      ctx2d.moveTo(x, y);
-
-      cursor = 1;
-      for (; cursor < size; cursor++) {
-        line();
-        ctx2d.lineTo(x, y);
-      }
-
-      ctx2d.closePath();
-      ctx2d.fill();
     }
   };
 

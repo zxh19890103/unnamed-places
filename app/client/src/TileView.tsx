@@ -8,12 +8,10 @@ import * as tile from "./geo/tile.js";
 import type { TileElevation, TilePosition } from "./geo/tile.js";
 import { HighwaysCollection } from "./osm/highway.js";
 import { BuildingsCollection } from "./osm/building.js";
-import { WaterwaysCollection } from "./osm/waterway.js";
 import { NaturalThingsCollection } from "./osm/natural.js";
-import { buildGroundGeometry } from "./env/ground.js";
 import { GoogleTileRoot } from "./env/earth.js";
 import { Plants } from "./env/plants.js";
-import { Clouds, LonelyClouds } from "./env/clouds.js";
+import { LonelyBigClouds, SkyClouds } from "./env/clouds.js";
 
 export default function (props: { latlng: L.LatLng }) {
   if (!props.latlng) {
@@ -96,11 +94,11 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
   __world.updateSun(bbox.center.lat, bbox.center.lng);
 
   const elevation: TileElevation = await fetch(
-    `/elevation/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`
+    `/elevation/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`,
   ).then((r) => r.json());
 
   const displacementMap = __textureLoader.load(
-    `/dem/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}?bbox=${bbox.bbox}`
+    `/dem/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}?bbox=${bbox.bbox}`,
   );
 
   displacementMap.magFilter = THREE.LinearFilter;
@@ -115,7 +113,9 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
 
   const tileSize = new THREE.Vector2(meters_in_x, meters_in_y);
 
-  async function renderOsm() {
+  async function renderOsm(
+    onSettled: (river: THREE.Texture, road: THREE.Texture) => void,
+  ) {
     await fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/building?bbox=${bbox.bbox}`)
       .then((r) => r.json())
       .then((geojson) => {
@@ -126,12 +126,15 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
           new THREE.Vector2(segments_in_x, segments_in_y),
           __world,
           demInformation,
-          bbox
+          bbox,
         );
 
         things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
-        earthGround.add(things);
+        // earthGround.add(things);
       });
+
+    let riverTex: THREE.Texture;
+    let roadTex: THREE.Texture;
 
     fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/natural?bbox=${bbox.bbox}`)
       .then((r) => r.json())
@@ -143,11 +146,17 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
           new THREE.Vector2(segments_in_x, segments_in_y),
           demInformation,
           __textureLoader,
-          __world
+          __world,
         );
 
         earthGround.setRiverMaskTex(things.riverMaskTex);
-        earthGround.add(things);
+        riverTex = things.riverMaskTex;
+
+        if (roadTex) {
+          onSettled(riverTex, roadTex);
+        }
+
+        // earthGround.add(things);
       });
 
     fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/highway?bbox=${bbox.bbox}`)
@@ -157,11 +166,17 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
           geojson,
           tileCrsProject,
           tileSize.clone(),
-          demInformation
+          demInformation,
+          __world,
         );
 
+        roadTex = things.bwMaskTex;
+        if (riverTex) {
+          onSettled(riverTex, roadTex);
+        }
+
         things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
-        earthGround.add(things);
+        // earthGround.add(things);
       });
 
     // fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/waterway?bbox=${bbox.bbox}`)
@@ -195,33 +210,42 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
     });
 
     const greenMask = __textureLoader.load(
-      tile.getGoogleTileUrl(tileIndex, true)
+      tile.getGoogleTileUrl(tileIndex, true),
     );
 
     greenMask.magFilter = THREE.NearestFilter;
     greenMask.minFilter = THREE.NearestFilter;
 
-    const plants = new Plants(tileSize, greenMask, demInformation, __world);
+    renderOsm((riverTex, roadTex) => {
+      const plants = new Plants(
+        tileSize,
+        greenMask,
+        riverTex,
+        roadTex,
+        demInformation,
+        __world,
+      );
 
-    plants.position.set(-meters_in_x / 2, -meters_in_y / 2, 0.1);
-    earthGround.add(plants);
-
-    renderOsm();
+      plants.position.set(-meters_in_x / 2, -meters_in_y / 2, 0.1);
+      earthGround.add(plants);
+    });
   });
 
   earthGround.rotation.x = -Math.PI / 2;
   __world.world.add(earthGround);
 
-  // const clouds = new Clouds(
-  //   __world.textureLoader,
-  //   new THREE.Vector3(9000, 9000, 3000),
-  //   new THREE.Vector2(300, 0),
-  //   demInformation
-  // );
+  const cloudsTexture = __textureLoader.load(
+    "/steal/data-vecteezy/clouds/_in-one",
+  );
 
-  // __world.world.add(clouds);
-
-  __world.world.add(new LonelyClouds(tileSize, __world, demInformation));
+  __world.world.add(
+    new SkyClouds(
+      cloudsTexture,
+      3,
+      Math.hypot(tileSize.x * 0.5),
+      demInformation.elevation.minElevation,
+    ),
+  );
 
   return () => {};
 };

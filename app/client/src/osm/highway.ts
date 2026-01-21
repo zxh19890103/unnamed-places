@@ -1,17 +1,28 @@
 import * as THREE from "three";
 import { type DemInformation, type TileCRSProjection } from "@/geo/tile.js";
 import type * as gj from "geojson";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import type { ThreeSetup } from "@/geo/setup.js";
 
 export class HighwaysCollection extends THREE.Group {
+  readonly bwMaskTex: THREE.CanvasTexture;
+
   constructor(
-    geojson: gj.FeatureCollection<gj.LineString>,
+    geojson: gj.FeatureCollection,
     projection: TileCRSProjection,
     tileSize: THREE.Vector2,
-    demInformation: DemInformation
+    demInformation: DemInformation,
+    world: ThreeSetup,
   ) {
     super();
 
-    geojson.features.forEach((feature) => {
+    const features = geojson.features.filter(({ geometry, properties }) => {
+      return properties.highway !== undefined && geometry.type === "LineString";
+    }) as gj.Feature<gj.LineString>[];
+
+    const geometries: THREE.BufferGeometry[] = [];
+
+    features.forEach((feature) => {
       if (feature.geometry.type !== "LineString") {
         return;
       }
@@ -45,7 +56,7 @@ export class HighwaysCollection extends THREE.Group {
       const QuadUvs: number[] = [];
       const picRatio = 680 / 460;
       const riverWidth = 1.5 * 1e3; // on horizon, 1: 1000;
-      const v_per_meter = picRatio / riverWidth; // V varys with the distance of flow.
+      const v_per_meter = 10; // picRatio / riverWidth; // V varys with the distance of flow.
 
       const extrGeom = new THREE.ExtrudeGeometry(shape, {
         depth: 1,
@@ -66,7 +77,7 @@ export class HighwaysCollection extends THREE.Group {
             indexA,
             indexB,
             indexC,
-            indexD
+            indexD,
           ) {
             setP(vertices, indexA, Pa); // bottom left
             setP(vertices, indexB, Pb); // bottom right
@@ -96,47 +107,82 @@ export class HighwaysCollection extends THREE.Group {
       for (let i = 0; i < attriPos.count; i++) {
         QuadUvs.push(
           attriPos.getX(i) / tileSize.x,
-          attriPos.getY(i) / tileSize.y
+          attriPos.getY(i) / tileSize.y,
         );
       }
 
-      extrGeom.setAttribute("uv", new THREE.Float32BufferAttribute(QuadUvs, 2));
+      extrGeom.setAttribute(
+        "uv1",
+        new THREE.Float32BufferAttribute(QuadUvs, 2),
+      );
 
-      const betterUi = new THREE.Mesh(
-        extrGeom,
-        new THREE.ShaderMaterial({
-          uniforms: {
-            displacementMap: { value: demInformation.texture },
-            displacementBias: {
-              value: demInformation.elevation.minElevation + 5,
-            },
-            displacementScale: { value: demInformation.elevation.span },
+      geometries.push(extrGeom);
+    });
+
+    const canvasElement = rasterBWMask(
+      features,
+      projection,
+      tileSize,
+      512,
+      false,
+    );
+
+    this.bwMaskTex = new THREE.CanvasTexture(canvasElement);
+
+    const extrGeoms = mergeGeometries(geometries, false);
+
+    const roadSurface = world.textureLoader.load(
+      "/public/assets/city-roads/png",
+    );
+
+    roadSurface.wrapS = THREE.RepeatWrapping;
+    roadSurface.wrapT = THREE.RepeatWrapping;
+
+    const betterUi = new THREE.Mesh(
+      extrGeoms,
+      new THREE.ShaderMaterial({
+        uniforms: {
+          map: {
+            value: roadSurface,
           },
-          vertexShader: /*glsl */ `
+          roadColor: { value: new THREE.Color("#6E6E6E") },
+          displacementMap: { value: demInformation.texture },
+          displacementBias: {
+            value: demInformation.elevation.minElevation + 5,
+          },
+          displacementScale: { value: demInformation.elevation.span },
+        },
+        vertexShader: /*glsl */ `
+          attribute vec2 uv1;
+          
           uniform sampler2D displacementMap;
           uniform float displacementBias;
           uniform float displacementScale;
 
+          varying vec2 vUv;
+
           void main() {
             vec3 pos = position.xyz;
 
-            float h = texture2D(displacementMap, uv).r;
+            float h = texture2D(displacementMap, uv1).r;
             pos.z += displacementBias + displacementScale * h;
+
+            vUv = uv;
 
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
           }
           `,
-          fragmentShader: `
+        fragmentShader: `
+          uniform vec3 roadColor;
+
           void main() {
-            vec3 roadColor = vec3(0.4, 0.36, 0.32);
-            gl_FragColor = vec4(roadColor * 1.5, 1.0);
+            gl_FragColor = vec4(roadColor, 1.0);
           }
           `,
-        })
-      );
+      }),
+    );
 
-      this.add(betterUi);
-    });
+    this.add(betterUi);
   }
 }
 
@@ -157,6 +203,80 @@ const getWidth = (highway) => {
   return highwayWidthConfig[highway]?.approx_meters ?? 3;
 };
 
-function renderHighways() {
-  
+function rasterBWMask(
+  polygons: gj.Feature<gj.LineString>[],
+  project: TileCRSProjection,
+  tileSize: THREE.Vector2,
+  dimension = 64,
+  mount = true,
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = dimension;
+  canvas.height = dimension;
+
+  const scaleX = dimension / tileSize.x;
+  const scaleY = dimension / tileSize.y;
+  const scale = scaleX;
+
+  const ctx2d = canvas.getContext("2d");
+  ctx2d.fillStyle = "#000000";
+  ctx2d.fillRect(0, 0, dimension, dimension);
+
+  ctx2d.fillStyle = "white";
+  ctx2d.strokeStyle = "white";
+
+  let positions: gj.Position[];
+  let size = 0;
+  let coord: gj.Position;
+  let x: number;
+  let y: number;
+  let cursor = 0;
+
+  const line = () => {
+    coord = positions[cursor];
+    [x, y] = project(coord);
+
+    y = tileSize.y - y;
+
+    x *= scaleX;
+    y *= scaleY;
+  };
+
+  const render = () => {
+    for (const { geometry, properties } of polygons) {
+      positions = geometry.coordinates;
+      size = positions.length;
+
+      ctx2d.beginPath();
+      ctx2d.lineWidth = 2 * scale * getWidth(properties.highway);
+
+      cursor = 0;
+
+      line();
+      ctx2d.moveTo(x, y);
+
+      cursor = 1;
+      for (; cursor < size; cursor++) {
+        line();
+        ctx2d.lineTo(x, y);
+      }
+
+      ctx2d.stroke();
+    }
+  };
+
+  render();
+
+  canvas.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 999;
+  `;
+
+  if (mount) {
+    document.body.appendChild(canvas);
+  }
+
+  return canvas;
 }

@@ -6,9 +6,9 @@
   // "editor.fontFamily": "Wawati TC",
   "editor.fontFamily": "Ubuntu Sans Mono",
   "editor.fontSize": 16,
-  // "workbench.fontAliasing": "antialiased",
+  "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
   "editor.fontWeight": "300",
-  "window.zoomLevel": 0.5,
+  "window.zoomLevel": 1,
   "editor.letterSpacing": 1
 }
