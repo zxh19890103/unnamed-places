@@ -241,7 +241,7 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
   __world.world.add(
     new SkyClouds(
       cloudsTexture,
-      3,
+      10,
       Math.hypot(tileSize.x * 0.5),
       demInformation.elevation.minElevation,
     ),

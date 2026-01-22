@@ -205,9 +205,14 @@ export class SkyClouds extends THREE.Group {
 
     // Attribute for 4x4 sprite selection
     const instanceIndices = new Float32Array(count);
+
+    const randomChoices = [0, 2, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
     for (let i = 0; i < count; i++) {
-      instanceIndices[i] = Math.floor(Math.random() * 16);
+      instanceIndices[i] =
+        randomChoices[Math.floor(Math.random() * randomChoices.length)];
     }
+
     geometry.setAttribute(
       "instanceIndex",
       new THREE.InstancedBufferAttribute(instanceIndices, 1),
@@ -275,26 +280,27 @@ export class SkyClouds extends THREE.Group {
       // 1. Polar Distribution (Around the edge)
       const angle = Math.random() * Math.PI * 2;
       // Radius between 40% and 60% of S to form a ring at the boundary
-      const radius = (1 + Math.random() * 0.2) * S;
+      const radius = 5 * S;
 
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
 
       // 2. Vertical Distribution (Above elevation E)
       // Clouds float between E + small offset and a ceiling
-      const y = E + Math.random() * (S * 0.15);
+      const y = E + Math.random() * (S * 0.34);
 
       position.set(x, y, z);
 
       // 3. Scale & Rotation
       // Since we use billboarding in the shader, rotation in the matrix
       // is only needed if you want to rotate the sprite on its own Z-axis.
-      const s = S * 0.01 + Math.random() * (S * 0.01); // Scale relative to S
-      scale.set(s, s, s);
+      const s = S + Math.random() * S; // Scale relative to S
+      scale.set(s, s, s).multiplyScalar(0.1);
 
       matrix.compose(position, quaternion, scale);
       this.mesh.setMatrixAt(i, matrix);
     }
+
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
