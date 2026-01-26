@@ -1,10 +1,10 @@
 import sharp from "sharp";
 import { join } from "node:path";
 import { __app_root_dir } from "../context.js";
-import spriteElements from "../steal/sprite-elements.js";
+import spriteElements from "../steal/sprite-elements.mjs";
 
-const cat = "clouds";
-const dimension = 4;
+const cat = "plants.autumn";
+const dimension = 8;
 const size = 2048;
 
 const tileSize = size / dimension;

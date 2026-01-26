@@ -5,7 +5,7 @@ const cheerio = require("cheerio");
 
 const { createWriteStream } = fs;
 
-const cat = "plants.autumn";
+const cat = "plants.populus";
 
 const thumbnailsStr = fs.readFileSync(`./vecteezy.${cat}.json`, "utf8");
 const thumbnails = JSON.parse(thumbnailsStr);
@@ -30,6 +30,14 @@ const download = () => {
   }
 
   const saveto = join(folder2save, `./${page}-${i}.png`);
+
+  if (fs.existsSync(saveto)) {
+    console.log("skip", saveto);
+    i++;
+    download();
+    return;
+  }
+
   const file = createWriteStream(saveto);
 
   console.log(`download: ${i} / ${count}`, url);
@@ -83,4 +91,5 @@ const parseHtml = (cb) => {
   );
 };
 
-parseHtml(download);
+download();
+// parseHtml(download);

@@ -13,6 +13,10 @@ import { GoogleTileRoot } from "./env/earth.js";
 import { Plants } from "./env/plants.js";
 import { LonelyBigClouds, SkyClouds } from "./env/clouds.js";
 
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+
 export default function (props: { latlng: L.LatLng }) {
   if (!props.latlng) {
     return <div>no latlng</div>;
@@ -21,7 +25,8 @@ export default function (props: { latlng: L.LatLng }) {
   return (
     <>
       <Load />
-      <Tile latlng={props.latlng} />
+      <SimpleTile latlng={props.latlng} />
+      {/* <Tile latlng={props.latlng} /> */}
     </>
   );
 }
@@ -35,6 +40,19 @@ const Load = memo((props: {}) => {
   useEffect(() => {
     __textureLoader = new THREE.TextureLoader(new THREE.LoadingManager());
     const world = setupThree(elementRef.current);
+
+    const composer = new EffectComposer(world.renderer);
+    composer.addPass(new RenderPass(world.world, world.camera));
+
+    const monetShader = createMonetShader(world.resolution);
+    const monetPass = new ShaderPass(monetShader);
+    monetPass.renderToScreen = true;
+    composer.addPass(monetPass);
+
+    world.onBeforeRender = () => {
+      composer.render();
+    };
+
     __world = world;
 
     return () => {
@@ -45,6 +63,60 @@ const Load = memo((props: {}) => {
 
   return <div ref={elementRef} className=" size-full font-mono" />;
 });
+
+const SimpleTile = (props: { latlng: L.LatLngLiteral }) => {
+  const tileIndex = calc.latLonToTile(props.latlng, calc.ZOOM_BASIS);
+  const key = `${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`;
+  return <SimpleTileRender key={key} {...tileIndex} />;
+};
+
+const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
+  useEffect(() => {
+    (async () => {
+      const tileIndex = props;
+      const url = tile.getGoogleTileUrl(props, false);
+      const bbox = tile.calcTileBBOX(props.x, props.y, props.z);
+
+      const elevation: TileElevation = await fetch(
+        `/elevation/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`,
+      ).then((r) => r.json());
+
+      const displacementMap = __textureLoader.load(
+        `/dem/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}?bbox=${bbox.bbox}`,
+      );
+
+      displacementMap.magFilter = THREE.LinearFilter;
+      displacementMap.minFilter = THREE.LinearFilter;
+
+      const resolution = 8.5;
+      const segments_in_x = Math.ceil(bbox.measureX / resolution);
+      const segments_in_y = Math.ceil(bbox.measureY / resolution);
+
+      __world.ambientLight.intensity = 3.0;
+
+      const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          bbox.measureX,
+          bbox.measureY,
+          segments_in_x,
+          segments_in_y,
+        ),
+        new THREE.MeshStandardMaterial({
+          displacementMap: displacementMap,
+          displacementBias: elevation.minElevation,
+          displacementScale: elevation.span,
+          map: __textureLoader.load(url),
+        }),
+      );
+
+      mesh.rotation.x = -Math.PI / 2;
+
+      __world.world.add(mesh);
+    })();
+  }, []);
+
+  return null;
+};
 
 const Tile = (props: { latlng: L.LatLngLiteral }) => {
   const tileIndex = calc.latLonToTile(props.latlng, calc.ZOOM_BASIS);
@@ -130,7 +202,7 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
         );
 
         things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
-        // earthGround.add(things);
+        earthGround.add(things);
       });
 
     let riverTex: THREE.Texture;
@@ -156,7 +228,7 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
           onSettled(riverTex, roadTex);
         }
 
-        // earthGround.add(things);
+        earthGround.add(things);
       });
 
     fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/highway?bbox=${bbox.bbox}`)
@@ -176,7 +248,7 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
         }
 
         things.position.set(-meters_in_x / 2, -meters_in_y / 2, 5);
-        // earthGround.add(things);
+        earthGround.add(things);
       });
 
     // fetch(`/osm/${bbox.z}/${bbox.x}/${bbox.y}/waterway?bbox=${bbox.bbox}`)
@@ -248,4 +320,60 @@ const createOneTileMap = async (tileIndex: TilePosition) => {
   );
 
   return () => {};
+};
+
+const createMonetShader = (resolution: THREE.Vector2) => {
+  const noiseTexture = __textureLoader.load(
+    "/public/assets/noise/perlin-noise-rgb-256x256.png",
+  );
+  noiseTexture.wrapS = THREE.RepeatWrapping;
+  noiseTexture.wrapT = THREE.RepeatWrapping;
+  noiseTexture.minFilter = THREE.LinearFilter;
+
+  return {
+    uniforms: {
+      tDiffuse: { value: null },
+      uResolution: {
+        value: resolution,
+      },
+      uRadius: { value: 3 }, // Brush size
+      uNoise: {
+        value: noiseTexture,
+      }, // A Perlin noise texture
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform sampler2D uNoise;
+        uniform vec2 uResolution;
+        uniform int uRadius;
+        varying vec2 vUv;
+
+        void main() {
+            vec2 src_size = uResolution;
+
+            // Offset the UVs by a small amount based on noise
+            // vec2 noise = texture2D(uNoise, vUv).gb; 
+            // vec2 uv = vUv + (noise - 0.5) * 0.15;
+
+            vec2 uv = vUv;
+            
+            vec4 texel = texture2D(tDiffuse, uv);
+            float luma = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
+
+            texel.rgb = mix(vec3(luma), texel.rgb, 5.5);
+
+            float levels = 8.0; // Adjust this for more/less detail
+            texel.rgb = floor(texel.rgb * levels) / levels;
+
+            gl_FragColor = vec4(texel.rgb, 1.0);
+        }
+    `,
+  };
 };

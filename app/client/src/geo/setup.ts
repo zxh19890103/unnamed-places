@@ -23,9 +23,13 @@ export class ThreeSetup {
   demXSegments: number;
   demYSegments: number;
 
+  onBeforeRender: (scene: any, renderer: any, camera: any) => void;
+  resolution: THREE.Vector2;
+
   constructor() {
     const mgr = new THREE.LoadingManager();
     this.textureLoader = new THREE.TextureLoader(mgr);
+    this.resolution = new THREE.Vector2();
   }
 
   animate(run: AnimationRun) {
@@ -44,7 +48,7 @@ export const setupThree = (element: HTMLDivElement) => {
     75,
     window.innerWidth / window.innerHeight,
     100,
-    1e6
+    1e6,
   );
 
   camera.position.set(0, 600, 1000);
@@ -62,6 +66,7 @@ export const setupThree = (element: HTMLDivElement) => {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
+    threeSetup.resolution.set(element.clientWidth, element.clientHeight);
   };
 
   const controls = new OrbitControls(camera, element);
@@ -82,6 +87,7 @@ export const setupThree = (element: HTMLDivElement) => {
 
   const animate = () => {
     requestAnimationFrame(animate);
+
     delta = clock.getDelta();
     elapsed = clock.getElapsedTime();
 
@@ -89,8 +95,13 @@ export const setupThree = (element: HTMLDivElement) => {
       run(delta, elapsed);
     }
 
-    renderer.render(scene, camera);
     controls.update(delta);
+
+    if (threeSetup.onBeforeRender) {
+      threeSetup.onBeforeRender(scene, renderer, camera);
+    } else {
+      renderer.render(scene, camera);
+    }
   };
 
   element.appendChild(renderer.domElement);
@@ -117,6 +128,8 @@ export const setupThree = (element: HTMLDivElement) => {
   threeSetup.ambientLight = ambientLight;
   // @ts-ignore
   threeSetup.renderer = renderer;
+
+  threeSetup.resolution.set(element.clientWidth, element.clientHeight);
 
   resize();
   animate();

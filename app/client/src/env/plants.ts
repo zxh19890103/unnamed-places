@@ -45,7 +45,7 @@ export class Plants extends THREE.Group {
     const fog = new THREE.Fog(0x444444, 100, 10000);
 
     const plantsTex = threeSetup.textureLoader.load(
-      "/steal/data-vecteezy/plants/_in-one",
+      "/steal/data-vecteezy/plants.autumn/_in-one",
     );
 
     plantsTex.magFilter = THREE.LinearFilter;
