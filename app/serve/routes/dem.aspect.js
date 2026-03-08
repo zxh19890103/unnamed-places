@@ -34,7 +34,7 @@ export const handler = (req, res, url, params, search) => {
   //   }
 
   const command = `
-    "${_config.cmds.gdal_dem}" aspect "${inputgtifffile}" "${outputgtifffile}" -of GTiff -s 111120 -compute_edges \n
+    "${_config.cmds.gdal_dem}" aspect "${inputgtifffile}" "${outputgtifffile}" -of GTiff -s 100786 -compute_edges \n
 
     "${_config.cmds.gdal_translate}" -ot UInt16 -of PNG -scale 0 360 0 65535  "${outputgtifffile}" "${pngfile}"
     `;

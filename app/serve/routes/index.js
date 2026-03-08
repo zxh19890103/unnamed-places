@@ -5,11 +5,13 @@ import * as _glsl from "./glsl.js";
 import * as _html from "./html.js";
 import * as _gootile from "./gootile.js";
 import * as _gootile_styled from "./gootile.styled.js";
+import * as _gootile_mask from "./gootile.mask.js";
 import * as _dem from "./dem.js";
 import * as _elevation from "./elevation.js";
 import * as _runtime from "./runtime/index.js";
 import * as _osm from "./osm.js";
 import * as _osm_name from "./osm.name.js";
+import * as _osm_mask from "./osm.mask.js";
 import * as _dem_aspect from "./dem.aspect.js";
 import * as _dem_slope from "./dem.slope.js";
 import * as _steal from "./steal.js";
@@ -31,7 +33,9 @@ const routes = Array.prototype.map.call(
     _html,
     _osm,
     _osm_name,
+    _osm_mask,
     _gootile,
+    _gootile_mask,
     _gootile_styled,
     _dem,
     _elevation,
@@ -42,7 +46,7 @@ const routes = Array.prototype.map.call(
   ],
   (route) => {
     return { ...route };
-  }
+  },
 );
 
 routes.forEach((route) => {
@@ -82,7 +86,7 @@ function routeParamsGetter(url) {
   return Object.fromEntries(
     this.paramsKeys.map(({ name }, idx) => {
       return [name, parseParamValue(match[idx + 1])];
-    })
+    }),
   );
 }
 
@@ -96,7 +100,7 @@ function routeSearchGetter(url) {
   return Object.fromEntries(
     entries.map((ent) => {
       return [ent[0], parseParamValue(ent[1])];
-    })
+    }),
   );
 }
 

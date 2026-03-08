@@ -8,6 +8,7 @@
     "@turf/turf": "^7.2.0",
     "chokidar": "3.6.0",
     "express": "^5.2.1",
+    "fabric": "^7.1.0",
     "geotiff-stats": "^0.1.0",
     "get-rgba-palette": "^2.0.1",
     "import-meta-resolve": "^4.1.0",

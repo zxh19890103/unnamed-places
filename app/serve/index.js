@@ -44,13 +44,13 @@ function loadTsConfig(tsconfigPath) {
   const configParseResult = ts.parseJsonConfigFileContent(
     result.config,
     ts.sys,
-    path.dirname(tsconfigPath)
+    path.dirname(tsconfigPath),
   );
 
   if (configParseResult.errors.length) {
     throw new Error(
       "Errors parsing tsconfig.json:\n" +
-        configParseResult.errors.map((e) => e.messageText).join("\n")
+        configParseResult.errors.map((e) => e.messageText).join("\n"),
     );
   }
 
@@ -81,7 +81,7 @@ function importRewriteTransformer(rewriteFn) {
             node.modifiers,
             node.importClause,
             ts.factory.createStringLiteral(newPath),
-            node.assertClause
+            node.assertClause,
           );
         }
       }
@@ -115,7 +115,7 @@ async function compileTsFile(filePath, rewriteFn, config = null) {
 
   // Custom writeFile to capture emitted files in memory
   const writeFile = (fileName, data) => {
-    if (fileName.endsWith(".js") || fileName.endsWith('.mjs')) {
+    if (fileName.endsWith(".js") || fileName.endsWith(".mjs")) {
       outputText = data;
     }
 
@@ -137,7 +137,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader(
     "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate"
+    "no-store, no-cache, must-revalidate, proxy-revalidate",
   );
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
@@ -152,16 +152,32 @@ const server = http.createServer(async (req, res) => {
 
   if (req.url === "/favicon.ico") {
     fs.createReadStream(
-      path.join(__app_root_dir, "./public/assets/tree.png")
+      path.join(__app_root_dir, "./public/assets/tree.png"),
     ).pipe(res);
     return;
   }
 
   for (const route of routes) {
     const url = new URL(`http://unnamed-places.dev${req.url}`);
+
     if (route.enabled && route.matcher.test(url.pathname)) {
       console.log("[routing] welcome to pathname: ", url.pathname);
-      route.handler(req, res, url, route.getParams(url), route._getSearch(url));
+      try {
+        route.handler(
+          req,
+          res,
+          url,
+          route.getParams(url),
+          route._getSearch(url),
+        );
+      } catch (err_) {
+        res.writeHead(500, {
+          "Content-Type": "application/json",
+        });
+
+        res.end(JSON.stringify({ message: err_.message }));
+      }
+
       return;
     }
   }
@@ -258,7 +274,7 @@ const server = http.createServer(async (req, res) => {
                 "@/": "/src/",
               },
             }) +
-            "</script>"
+            "</script>",
         );
 
         moduleCacheSet(req, res, htmlPath, html);

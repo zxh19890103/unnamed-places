@@ -1,0 +1,223 @@
+{
+  "kunming_flora_comprehensive": {
+    "region": "Kunming, Yunnan",
+    "unit_elevation": "meters",
+    "unit_month": "1-12",
+    "large_trees": [
+      {
+        "chinese_name": "云南松",
+        "english_name": "Yunnan Pine",
+        "elevation_range": [1600, 3000],
+        "flowering_months": [4, 5],
+        "features": "昆明山地森林骨干，针叶极长。"
+      },
+      {
+        "chinese_name": "华山松",
+        "english_name": "Armand Pine",
+        "elevation_range": [1500, 3500],
+        "flowering_months": [4, 5],
+        "features": "五针一束，松塔大且含可食用松子。"
+      },
+      {
+        "chinese_name": "滇朴",
+        "english_name": "Yunnan Hackberry",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [3, 4],
+        "features": "著名的长寿古树品种，树冠如巨伞。"
+      },
+      {
+        "chinese_name": "香樟",
+        "english_name": "Camphor Tree",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [4, 5],
+        "features": "四季常青，叶片具有特有的樟脑清香。"
+      },
+      {
+        "chinese_name": "蓝花楹",
+        "english_name": "Jacaranda",
+        "elevation_range": [1800, 2000],
+        "flowering_months": [4, 5],
+        "features": "初夏紫色花海，昆明网红行道树。"
+      },
+      {
+        "chinese_name": "银杏",
+        "english_name": "Ginkgo",
+        "elevation_range": [1500, 2800],
+        "flowering_months": [4, 5],
+        "features": "活化石植物，秋季金黄色叶片。"
+      },
+      {
+        "chinese_name": "雪松",
+        "english_name": "Himalayan Cedar",
+        "elevation_range": [1500, 3000],
+        "flowering_months": [10, 11],
+        "features": "常见于昆明各大公园和老校区，树形挺拔。"
+      },
+      {
+        "chinese_name": "圆柏",
+        "english_name": "Chinese Juniper",
+        "elevation_range": [1500, 3200],
+        "flowering_months": [4, 5],
+        "features": "耐修剪，常见于金殿等古建筑群周边。"
+      },
+      {
+        "chinese_name": "悬铃木",
+        "english_name": "Oriental Plane Tree",
+        "elevation_range": [1500, 2200],
+        "flowering_months": [4, 5],
+        "features": "俗称法桐，昆明老城区主要的遮荫树。"
+      },
+      {
+        "chinese_name": "红花羊蹄甲",
+        "english_name": "Hong Kong Orchid Tree",
+        "elevation_range": [1000, 2000],
+        "flowering_months": [2, 3, 4, 5],
+        "features": "花形如兰花，昆明冬季和春季常见。"
+      }
+    ],
+    "small_trees": [
+      {
+        "chinese_name": "云南樱花",
+        "english_name": "Yunnan Cherry Blossom",
+        "elevation_range": [1500, 2600],
+        "flowering_months": [12, 1],
+        "features": "冬季盛开，色泽深粉，昆明赏樱主力。"
+      },
+      {
+        "chinese_name": "冬樱花",
+        "english_name": "Winter Cherry",
+        "elevation_range": [1800, 2400],
+        "flowering_months": [11, 12],
+        "features": "野生分布较多，花期极早。"
+      },
+      {
+        "chinese_name": "云南山茶",
+        "english_name": "Yunnan Camellia",
+        "elevation_range": [1900, 2600],
+        "flowering_months": [1, 2, 3],
+        "features": "昆明市花，古茶花可长至10米。"
+      },
+      {
+        "chinese_name": "垂丝海棠",
+        "english_name": "Hall Crabapple",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [3, 4],
+        "features": "花梗细长下垂，春天圆通山的主角。"
+      },
+      {
+        "chinese_name": "火棘",
+        "english_name": "Firethorn",
+        "elevation_range": [1500, 2800],
+        "flowering_months": [3, 4, 5],
+        "features": "野生状态下常呈小乔木状，红果经冬不落。"
+      },
+      {
+        "chinese_name": "广玉兰",
+        "english_name": "Southern Magnolia",
+        "elevation_range": [1500, 2200],
+        "flowering_months": [5, 6, 7],
+        "features": "花大如荷花，白色，香气浓郁。"
+      },
+      {
+        "chinese_name": "白兰",
+        "english_name": "White Jade Orchid Tree",
+        "elevation_range": [1000, 2000],
+        "flowering_months": [4, 5, 6, 7, 8, 9],
+        "features": "昆明街头常有老奶奶售卖其香气扑鼻的花苞。"
+      },
+      {
+        "chinese_name": "枇杷",
+        "english_name": "Loquat",
+        "elevation_range": [1000, 2200],
+        "flowering_months": [10, 11, 12],
+        "features": "秋冬开花，春夏果熟，叶大常绿。"
+      },
+      {
+        "chinese_name": "石榴",
+        "english_name": "Pomegranate",
+        "elevation_range": [1500, 2400],
+        "flowering_months": [5, 6],
+        "features": "花果俱佳，昆明院落常见的吉祥树。"
+      },
+      {
+        "chinese_name": "红叶李",
+        "english_name": "Purple-leaf Plum",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [2, 3],
+        "features": "叶片常年紫色，早春开淡紫色小花。"
+      }
+    ],
+    "shrubs": [
+      {
+        "chinese_name": "杜鹃花",
+        "english_name": "Azalea",
+        "elevation_range": [1500, 4000],
+        "flowering_months": [3, 4, 5],
+        "features": "山野间分布极广，有“映山红”之称。"
+      },
+      {
+        "chinese_name": "三角梅",
+        "english_name": "Bougainvillea",
+        "elevation_range": [1000, 2200],
+        "flowering_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "features": "昆明街道景观的“色彩担当”。"
+      },
+      {
+        "chinese_name": "黄连翘",
+        "english_name": "Golden Bell",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [2, 3, 4],
+        "features": "早春满枝金黄，极耐修剪。"
+      },
+      {
+        "chinese_name": "马桑",
+        "english_name": "Coriaria",
+        "elevation_range": [1500, 3200],
+        "flowering_months": [3, 4],
+        "features": "山间极常见原生灌木，果实有毒。"
+      },
+      {
+        "chinese_name": "腊梅",
+        "english_name": "Wintersweet",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [12, 1, 2],
+        "features": "冬季名花，香气极强。"
+      },
+      {
+        "chinese_name": "绣球花",
+        "english_name": "Hydrangea",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [5, 6, 7],
+        "features": "喜阴湿，在郊野公园等地广泛种植。"
+      },
+      {
+        "chinese_name": "南天竹",
+        "english_name": "Sacred Bamboo",
+        "elevation_range": [1500, 2500],
+        "flowering_months": [3, 4, 5, 6],
+        "features": "叶片入冬变红，结红色成串小果。"
+      },
+      {
+        "chinese_name": "月季",
+        "english_name": "Chinese Rose",
+        "elevation_range": [1000, 2500],
+        "flowering_months": [4, 5, 6, 7, 8, 9, 10, 11],
+        "features": "品种极多，昆明街头常见的色块灌木。"
+      },
+      {
+        "chinese_name": "金丝桃",
+        "english_name": "St. John's Wort",
+        "elevation_range": [1500, 2800],
+        "flowering_months": [5, 6, 7, 8],
+        "features": "花朵金黄色，雄蕊极长如金丝。"
+      },
+      {
+        "chinese_name": "夹竹桃",
+        "english_name": "Oleander",
+        "elevation_range": [1000, 2200],
+        "flowering_months": [6, 7, 8, 9, 10],
+        "features": "常见于路边，抗污染能力强，全株有毒。"
+      }
+    ]
+  }
+}

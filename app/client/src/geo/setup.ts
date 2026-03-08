@@ -40,7 +40,7 @@ export class ThreeSetup {
 export const setupThree = (element: HTMLDivElement) => {
   // 1. Scene Setup
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x000000); // Set a dark background color
+  scene.background = new THREE.Color(0xffffff); // Set a dark background color
 
   // 2. Camera Setup
   // PerspectiveCamera( fov, aspect, near, far )
@@ -134,7 +134,7 @@ export const setupThree = (element: HTMLDivElement) => {
   resize();
   animate();
 
-  createSky({ threeSetup, measure: 10000 });
+  // createSky({ threeSetup, measure: 10000 });
 
   scene.add(new THREE.AxesHelper(1e4));
 

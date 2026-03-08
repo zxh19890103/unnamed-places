@@ -50,13 +50,17 @@ export function calcTileBBOX(x: number, y: number, z: number): TileBBOX {
 
   const bbox = `${leftBottom.lat},${leftBottom.lng},${rightTop.lat},${rightTop.lng}`;
   const bbox3857 = `${convert4326To3857(leftBottom)},${convert4326To3857(
-    rightTop
+    rightTop,
   )}`;
 
   const dLng = rightTop.lng - leftBottom.lng;
   const dLat = rightTop.lat - leftBottom.lat;
 
   const meters_per_lon = Meters_per_lon(center.lat);
+
+  console.log("meters_per_lon=", meters_per_lon);
+  console.log("Meters_per_lat=", Meters_per_lat);
+
   const measure_on_x = meters_per_lon * dLng;
   const measure_on_y = Meters_per_lat * dLat;
 
@@ -139,7 +143,7 @@ type TileCoords = [number, number, number];
 type GeoJsonLngLat = [number, number];
 
 export type TileCRSProjection = (
-  lnglat: gj.Position | GeoJsonLngLat
+  lnglat: gj.Position | GeoJsonLngLat,
 ) => TileCoords;
 
 export type DemInformation = {
