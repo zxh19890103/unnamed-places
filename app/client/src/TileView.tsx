@@ -77,8 +77,6 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
         `/elevation/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`,
       ).then((r) => r.json());
 
-      elevation.span *= 3;
-
       const displacementMap = __textureLoader.load(
         `/dem/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}?bbox=${bbox.bbox}`,
       );
@@ -106,6 +104,10 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
 
       const demSlopeTexture = __textureLoader.load(
         `/dem-slope/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`,
+      );
+
+      __textureLoader.load(
+        `/osm-mask/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`,
       );
 
       {
@@ -230,7 +232,7 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
         );
 
         treesUi.rotation.x = -Math.PI / 2;
-        treesUi.visible = false;
+        // treesUi.visible = false;
         __world.world.add(treesUi);
       }
 

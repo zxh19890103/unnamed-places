@@ -6,9 +6,9 @@ const ER = 6.378137 * 1e6;
  * Earth's radius (in meters) on polar
  */
 const EPR = 6.356752 * 1e6;
+const MAX_LAT = 85.05112877980659;
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
-const MAX_LAT = 85.05112877980659;
 
 export const ZOOM_BASIS = 12;
 export const Meters_per_lat = 111132;
