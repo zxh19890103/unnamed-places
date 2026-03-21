@@ -106,8 +106,8 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
         `/dem-slope/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`,
       );
 
-      __textureLoader.load(
-        `/osm-mask/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}`,
+      const highwayMask = __textureLoader.load(
+        `/osm-mask/${tileIndex.z}/${tileIndex.x}/${tileIndex.y}?extents=${bbox.measureX},${bbox.measureY}`,
       );
 
       {
@@ -142,8 +142,11 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
         geometry.setAttribute("meta", new THREE.BufferAttribute(treesMeta, 3));
 
         const plantsTex = __textureLoader.load(
-          "/steal/data-vecteezy/plants.hackberry/_in-one",
+          "/steal/data-vecteezy/flowers/_in-one",
         );
+
+        plantsTex.minFilter = THREE.NearestFilter;
+        plantsTex.magFilter = THREE.LinearFilter;
 
         const treesUi = new THREE.Points(
           geometry,
@@ -151,6 +154,9 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
             uniforms: {
               map: {
                 value: plantsTex,
+              },
+              highwayMask: {
+                value: highwayMask,
               },
               vegetationMask: {
                 value: terrianVegetationMask,
@@ -178,6 +184,7 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
               varying float vSlopeDeg;
               varying float vVegetable;
               varying vec3 vMeta;
+              varying vec2 uUv;
 
               void main() {
                 vec3 iPos = position.xyz;
@@ -185,16 +192,18 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
                 float h = texture2D(displacementMap, uv).r;
                 iPos.z = displacementBias + displacementScale * h;
 
+                uUv = uv;
                 vPos = modelViewMatrix * vec4(iPos, 1.0);
                 vSlopeDeg = texture2D(demSlopeTexture, uv).r * 90.0;
                 vVegetable = texture2D(terrianVegetationMask, uv).g;
                 vMeta = meta;
 
-                gl_PointSize = meta.z * (300.0 / -vPos.z);
+                gl_PointSize = meta.z * (200.0 / -vPos.z);
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(iPos, 1.0);
               }
             `,
             fragmentShader: `
+              uniform sampler2D highwayMask;
               uniform sampler2D map;
               uniform vec2 tileSize;
 
@@ -202,8 +211,13 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
               varying float vSlopeDeg;
               varying float vVegetable;
               varying vec3 vMeta;
+              varying vec2 uUv;
 
               void main() {
+                vec4 isHighway = texture2D(highwayMask, uUv);
+
+                if (isHighway.r > 0.5) discard;
+                if (isHighway.g > 0.5) discard;
                 if (vVegetable < 0.1) discard;
                 if (vSlopeDeg > 45.0) discard;
 
@@ -253,7 +267,7 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
       plantsCovering.wrapS = THREE.RepeatWrapping;
       plantsCovering.wrapT = THREE.RepeatWrapping;
 
-      const mesh = new THREE.Mesh(
+      const groundMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(
           bbox.measureX,
           bbox.measureY,
@@ -262,6 +276,7 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
         ),
         new THREE.ShaderMaterial({
           uniforms: {
+            highwayMask: { value: highwayMask },
             perlinNoise: { value: perlinNoise },
             hillSurface: { value: hillSurface },
             uHealthyColor: { value: new THREE.Color(0x228b22) }, // Forest Green
@@ -284,6 +299,7 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
             ambLightIntensity: { value: 0.3 },
           },
           fragmentShader: `
+            uniform sampler2D highwayMask;
             uniform sampler2D terrianVegetationMask;
             uniform sampler2D perlinNoise;
             uniform sampler2D hillSurface;
@@ -340,7 +356,17 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
               // float diffuse = max(dot(vNormal, dirLightDir), 0.0);
               // vec3 lighting = ambLightColor.rgb * ambLightIntensity + (dirLightColor.rgb * diffuse) * dirLightIntensity;
               // gl_FragColor = vec4(finalColor * lighting, 1.0);
-              
+
+              vec4 isHighway = texture2D(highwayMask, vUv);
+
+              float isHighwayBool = smoothstep(0.5, 0.95, isHighway.r);
+              vec3 waterColor = vec3(0.2745, 0.5098, 0.7058);
+
+              finalColor = mix(finalColor, waterColor, isHighwayBool);
+
+              isHighwayBool = smoothstep(0.5, 0.55, isHighway.g);
+              finalColor = mix(finalColor, vec3(1.0, 1.0, 0.3), isHighwayBool);
+
               gl_FragColor = vec4(finalColor, 1.0);
             }
           `,
@@ -386,8 +412,39 @@ const SimpleTileRender = (props: { x: number; y: number; z: number }) => {
         }),
       );
 
-      mesh.rotation.x = -Math.PI / 2;
-      __world.world.add(mesh);
+      groundMesh.rotation.x = -Math.PI / 2;
+      __world.world.add(groundMesh);
+
+      {
+        const tileCrsProject = tile.createLatlngToTileCoordProjector(bbox);
+
+        const demInformation = {
+          texture: displacementMap,
+          elevation,
+        };
+
+        const tileSize = new THREE.Vector2(bbox.measureX, bbox.measureY);
+
+        await fetch(
+          `/osm/${bbox.z}/${bbox.x}/${bbox.y}/building?bbox=${bbox.bbox}`,
+        )
+          .then((r) => r.json())
+          .then((geojson) => {
+            const things = new BuildingsCollection(
+              geojson,
+              tileCrsProject,
+              tileSize,
+              new THREE.Vector2(segments_in_x, segments_in_y),
+              __world,
+              demInformation,
+              bbox,
+            );
+
+            // things.position.set(-bbox.measureX / 2, -bbox.measureY / 2, 5);
+            // things.rotation.x = -Math.PI / 2;
+            groundMesh.add(things);
+          });
+      }
     })();
   }, []);
 

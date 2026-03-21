@@ -97,8 +97,8 @@ export const createLatlngToTileCoordProjector = (xyz: TilePosition) => {
   const meters_per_lon = Meters_per_lon(bbox.center.lat);
 
   const project = (lnglat: gj.Position | GeoJsonLngLat) => {
-    const dlat = lnglat[1] - bbox.leftBottom.lat;
-    const dlng = lnglat[0] - bbox.leftBottom.lng;
+    const dlat = lnglat[1] - bbox.center.lat;
+    const dlng = lnglat[0] - bbox.center.lng;
 
     const x = meters_per_lon * dlng;
     const y = Meters_per_lat * dlat;

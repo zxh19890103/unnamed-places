@@ -3,57 +3,110 @@ import fs from "node:fs";
 import { join } from "node:path";
 import _config from "../_config.js";
 import { createLatlngToTileCoordProjector } from "../geo/tile.js";
+import sharp from "sharp";
 
 export const route = /^osm-mask/;
 export const enabled = true;
 export const pathmatch = "/osm-mask/:z/:x/:y";
 
+import { pipeline } from "stream/promises";
+
+async function streamToBuffer(readable) {
+  const chunks = [];
+
+  await pipeline(readable, async function* (source) {
+    for await (const chunk of source) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+  });
+
+  return Buffer.concat(chunks);
+}
+
 /**
- * @type {__types__.Handler<__types__.WithXYZ<{}>>}
+ * @type {__types__.Handler<__types__.WithXYZ<{}>, { extents: string }>}
  */
 export const handler = (req, res, url, params, search) => {
+  const extents = search.extents.split(",").map(Number);
+  console.log("extents=", extents);
+
   res.writeHead(200, {
     "Content-Type": "image/png",
     // Optional: Enable CORS so THREE.js can load it from different domains
     "Access-Control-Allow-Origin": "*",
   });
 
-  generateGeoJSONMaskBuffer(
+  const canvas = new fabric.StaticCanvas(null, {
+    width: 512,
+    height: 512,
+    renderOnAddRemove: false,
+    backgroundColor: "#000000",
+    enableRetinaScaling: false, // usually not needed for masks
+  });
+
+  generateGeoJSONMaskStream(
     join(
       _config.paths.osmdata,
       `./highway-${params.z}-${params.x}-${params.y}.geojson`,
     ),
     {
       xyz: params,
-      polygonFillColor: "#fe01a0",
-      backgroundColor: "#faf20e",
-      lineWidth: 2,
+      extents,
+      noPolygon: true,
+      polygonFillColor: "#f1911a",
+      backgroundColor: "#000000",
+      lineColor: "#00ff00",
+      lineWidth: 1,
       canvasWidth: 512,
       canvasHeight: 512,
     },
-  ).then(
-    (buffer) => {
-      buffer.on("end", () => {
-        // canvas.clear();
-        // canvas.dispose();
-      });
-
-      buffer.pipe(res);
-    },
-    (err_) => {
-      console.log(err_);
-    },
-  );
+    () => canvas,
+    false,
+  )
+    .then(() => {
+      return generateGeoJSONMaskStream(
+        join(
+          _config.paths.osmdata,
+          `./natural-${params.z}-${params.x}-${params.y}.geojson`,
+        ),
+        {
+          xyz: params,
+          extents,
+          noPolygon: false,
+          polygonFillColor: "#ff0000",
+          backgroundColor: "#000000",
+          lineColor: "#000000",
+          lineWidth: 0,
+          canvasWidth: 512,
+          canvasHeight: 512,
+        },
+        () => canvas,
+        true,
+      );
+    })
+    .then(
+      () => {
+        canvas
+          .createPNGStream({
+            compressionLevel: 6,
+          })
+          .pipe(res);
+      },
+      (err) => {
+        console.error("Error generating mask:", err);
+        res.end();
+      },
+    );
 };
 
-// ────────────────────────────────────────────────
-//           NEW — collect meter-space extents
-// ────────────────────────────────────────────────
+// mask-generator-fabric-objects.js
+// Uses fabric.Path / fabric.Polygon objects + createPNGStream
 
+// ─── Meter extents ───────────────────────────────────────────────
 function collectMeterExtents(geojson, projector) {
   let minX = Infinity,
-    maxX = -Infinity;
-  let minY = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
     maxY = -Infinity;
 
   const update = (lng, lat) => {
@@ -64,120 +117,76 @@ function collectMeterExtents(geojson, projector) {
     maxY = Math.max(maxY, my);
   };
 
-  const traverse = (coords) => {
-    coords.forEach(([lon, lat]) => update(lon, lat));
-  };
-
   geojson.features?.forEach((f) => {
     const g = f.geometry;
     if (!g?.coordinates) return;
-
-    switch (g.type) {
-      case "Point":
-        update(...g.coordinates);
-        break;
-      case "LineString":
-      case "MultiPoint":
-        g.coordinates.forEach((c) => update(...c));
-        break;
-      case "Polygon":
-        g.coordinates.forEach((ring) => traverse(ring));
-        break;
-      case "MultiLineString":
-        g.coordinates.forEach((line) => traverse(line));
-        break;
-      case "MultiPolygon":
-        g.coordinates.forEach((poly) => poly.forEach((ring) => traverse(ring)));
-        break;
-    }
+    const visit = (coords) => {
+      if (Array.isArray(coords[0])) coords.forEach(visit);
+      else update(...coords);
+    };
+    visit(g.coordinates);
   });
 
-  // Prevent zero-size
-  if (maxX <= minX || maxY <= minY) {
-    throw new Error("All features collapsed to point or empty");
-  }
-
+  if (maxX <= minX || maxY <= minY) throw new Error("Empty/degenerate bounds");
   return { minX, maxX, minY, maxY };
 }
 
-function meterToCanvas([mx, my], meterBBox, canvasWidth, canvasHeight) {
-  // Normalize [minX..maxX] → [0..canvasWidth]
-  const nx = (mx - meterBBox.minX) / (meterBBox.maxX - meterBBox.minX);
-  const ny = (my - meterBBox.minY) / (meterBBox.maxY - meterBBox.minY);
-
-  // Canvas Y is inverted (0 = top)
-  const cx = Math.round(nx * canvasWidth);
-  const cy = Math.round((1 - ny) * canvasHeight); // flip Y
-
-  return { x: cx, y: cy };
+function meterToPixel(mx, my, meterBBox, canvasWidth, canvasHeight) {
+  const nx = mx / meterBBox.x;
+  const ny = my / meterBBox.y;
+  return {
+    x: Math.round(nx * canvasWidth),
+    y: Math.round((1 - ny) * canvasHeight), // north-up
+  };
 }
 
-function createPathString(
-  coords,
-  projector,
-  meterBBox,
-  canvasWidth,
-  canvasHeight,
-  close = false,
-) {
-  let path = "";
+function createPathData(coords, projector, meterBBox, w, h, close = false) {
+  const parts = [];
   coords.forEach(([lon, lat], i) => {
     const [mx, my] = projector([lon, lat]);
-    const { x, y } = meterToCanvas(
-      [mx, my],
-      meterBBox,
-      canvasWidth,
-      canvasHeight,
-    );
-    path += i === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `;
+    const { x, y } = meterToPixel(mx, my, meterBBox, w, h);
+    parts.push(i === 0 ? `M${x} ${y}` : `L${x} ${y}`);
   });
-  if (close) path += "Z ";
-  return path;
+  if (close) parts.push("Z");
+  return parts.join(" ");
 }
 
-/**
- * Main function — now using your tile projector
- */
-export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
+export async function generateGeoJSONMaskStream(
+  geojsonPath,
+  options = {},
+  getCanvas,
+  render = true,
+) {
   const {
-    xyz = { x: 0, y: 0, z: 0 }, // ← pass your tile coordinate here!
+    xyz = { x: 0, y: 0, z: 0 },
     canvasWidth = 2048,
     canvasHeight = 2048,
+    extents = [1, 1],
     lineWidth = 25,
+    noPolygon = false,
     lineColor = "#ffffff",
     polygonFillColor = "#ffffff",
     backgroundColor = "#000000",
+    compressionLevel = 6,
   } = options;
 
-  const geojsonStr = await fs.readFileSync(geojsonPath, "utf8");
-  const geojson = JSON.parse(geojsonStr);
-
-  if (geojson.type !== "FeatureCollection") {
+  const geojson = JSON.parse(await fs.promises.readFile(geojsonPath, "utf8"));
+  if (geojson.type !== "FeatureCollection")
     throw new Error("Expected FeatureCollection");
-  }
 
-  // ─── Your projection ───────────────────────────────────────
   const projector = createLatlngToTileCoordProjector(xyz);
+  const meterBBox = { x: extents[0], y: extents[1] }; // collectMeterExtents(geojson, projector);
 
-  // Compute meter-space extents once (fast)
-  const meterBBox = collectMeterExtents(geojson, projector);
+  const canvas = getCanvas();
 
-  // Fabric canvas
-  const canvas = new fabric.StaticCanvas(null, {
-    width: canvasWidth,
-    height: canvasHeight,
-    renderOnAddRemove: false,
-    backgroundColor,
-  });
-
-  // ─── Render each feature ───────────────────────────────────
-  for (const feature of geojson.features || []) {
-    const geom = feature.geometry;
-    if (!geom) continue;
+  // ─── Add objects ───────────────────────────────────────────────
+  geojson.features.forEach((f) => {
+    const geom = f.geometry;
+    if (!geom) return;
 
     switch (geom.type) {
       case "LineString": {
-        const pathStr = createPathString(
+        const d = createPathData(
           geom.coordinates,
           projector,
           meterBBox,
@@ -185,7 +194,7 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
           canvasHeight,
         );
         canvas.add(
-          new fabric.Path(pathStr, {
+          new fabric.Path(d, {
             fill: "none",
             stroke: lineColor,
             strokeWidth: lineWidth,
@@ -193,6 +202,7 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
             strokeLineJoin: "round",
             selectable: false,
             evented: false,
+            objectCaching: true, // helps on repeated renders
           }),
         );
         break;
@@ -200,7 +210,7 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
 
       case "MultiLineString": {
         geom.coordinates.forEach((lineCoords) => {
-          const pathStr = createPathString(
+          const d = createPathData(
             lineCoords,
             projector,
             meterBBox,
@@ -208,7 +218,7 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
             canvasHeight,
           );
           canvas.add(
-            new fabric.Path(pathStr, {
+            new fabric.Path(d, {
               fill: "none",
               stroke: lineColor,
               strokeWidth: lineWidth,
@@ -216,6 +226,7 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
               strokeLineJoin: "round",
               selectable: false,
               evented: false,
+              objectCaching: true,
             }),
           );
         });
@@ -223,7 +234,9 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
       }
 
       case "Polygon": {
-        let pathStr = createPathString(
+        if (noPolygon) break;
+
+        let d = createPathData(
           geom.coordinates[0],
           projector,
           meterBBox,
@@ -232,30 +245,35 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
           true,
         );
         for (let i = 1; i < geom.coordinates.length; i++) {
-          pathStr += createPathString(
-            geom.coordinates[i],
-            projector,
-            meterBBox,
-            canvasWidth,
-            canvasHeight,
-            true,
-          );
+          d +=
+            " " +
+            createPathData(
+              geom.coordinates[i],
+              projector,
+              meterBBox,
+              canvasWidth,
+              canvasHeight,
+              true,
+            );
         }
         canvas.add(
-          new fabric.Path(pathStr, {
+          new fabric.Path(d, {
             fill: polygonFillColor,
             stroke: "none",
             fillRule: geom.coordinates.length > 1 ? "evenodd" : "nonzero",
             selectable: false,
             evented: false,
+            objectCaching: true,
           }),
         );
         break;
       }
 
       case "MultiPolygon": {
+        if (noPolygon) break;
+
         geom.coordinates.forEach((polyRings) => {
-          let pathStr = createPathString(
+          let d = createPathData(
             polyRings[0],
             projector,
             meterBBox,
@@ -264,33 +282,36 @@ export async function generateGeoJSONMaskBuffer(geojsonPath, options = {}) {
             true,
           );
           for (let i = 1; i < polyRings.length; i++) {
-            pathStr += createPathString(
-              polyRings[i],
-              projector,
-              meterBBox,
-              canvasWidth,
-              canvasHeight,
-              true,
-            );
+            d +=
+              " " +
+              createPathData(
+                polyRings[i],
+                projector,
+                meterBBox,
+                canvasWidth,
+                canvasHeight,
+                true,
+              );
           }
           canvas.add(
-            new fabric.Path(pathStr, {
+            new fabric.Path(d, {
               fill: polygonFillColor,
               stroke: "none",
               fillRule: polyRings.length > 1 ? "evenodd" : "nonzero",
               selectable: false,
               evented: false,
+              objectCaching: true,
             }),
           );
         });
         break;
       }
 
-      // Add Point/MultiPoint as small circles if you want later
+      // Point / MultiPoint could be added as fabric.Circle later if needed
     }
+  });
+
+  if (render) {
+    canvas.renderAll();
   }
-
-  canvas.renderAll();
-
-  return canvas.createPNGStream({});
 }

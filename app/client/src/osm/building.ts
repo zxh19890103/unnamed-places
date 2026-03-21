@@ -190,7 +190,7 @@ export class BuildingsCollection extends THREE.Group {
       this.add(namesDisplay);
     };
 
-    buildNames();
+    // buildNames();
     this.add(ui);
   }
 }
@@ -289,7 +289,7 @@ function buildBuildings(
 
       displacementMap: { value: deminformation.texture },
       displacementScale: { value: deminformation.elevation.span },
-      displacementBias: { value: deminformation.elevation.minElevation + 5 },
+      displacementBias: { value: 0 },
 
       ambLightColor: {
         value: __world.ambientLight.color,
@@ -331,7 +331,7 @@ function buildBuildings(
         vBuildingInformation = aBuildingInformation;
 
         float h = texture2D(displacementMap, uv).r;
-        pos.z += displacementBias + displacementScale * h;
+        pos.z += displacementScale * h;
 
         gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
       }
@@ -367,10 +367,10 @@ function buildBuildings(
         vec3 emissiveColor = vColor * 0.1;
         baseColor += emissiveColor;
 
-        float diffuse = max(dot(vNormal, dirLightDir), 0.0);
-        vec3 lighting = ambLightColor.rgb * ambLightIntensity + (dirLightColor.rgb * diffuse) * dirLightIntensity;
+        // float diffuse = max(dot(vNormal, dirLightDir), 0.0);
+        // vec3 lighting = ambLightColor.rgb * ambLightIntensity + (dirLightColor.rgb * diffuse) * dirLightIntensity;
 
-        gl_FragColor = vec4(baseColor * lighting, 1.0);
+        gl_FragColor = vec4(baseColor, 1.0);
       }
       `,
   });
