@@ -6,6 +6,7 @@ import TileView from "./TileView.js";
 import { GeoMap } from "./GeoMap.js";
 
 import "./glsl-chunks/index.js";
+import { OsmBuildings } from "./OsmBuildings.js";
 
 export function App2() {
   const [latlng, setLatlng] = useState<L.LatLng>(null);
@@ -22,7 +23,7 @@ export function App2() {
   );
 }
 
-const center = L.latLng(29.553982220194015, 106.57553820682898);
+// const center = L.latLng(29.553982220194015, 106.57553820682898);
 // const center = L.latLng(22.182343221117133, 107.03785982550292);
 // const center = L.latLng(22.213771151724906, 106.96811747344715);
 // const center = L.latLng(23.871900680266624, 100.06033123411747);
@@ -34,11 +35,13 @@ const center = L.latLng(29.553982220194015, 106.57553820682898);
 // const center = L.latLng(22.210827162912356, 106.70117382328893);
 // const center = L.latLng(25.048382114245637, 102.70314327756041);
 // const center = L.latLng(25.106396061591024, 102.22238157069054);
+// const center = L.latLng(23.11958562647266, 113.33597609513694); // guangzhou
+const center = L.latLng(25.08982416323488, 102.74375708202602); // kunming
 
 export function App() {
   return (
     <div className=" relative w-screen h-screen">
-      <TileView latlng={center} />
+      <OsmBuildings latlng={center} />
     </div>
   );
 }

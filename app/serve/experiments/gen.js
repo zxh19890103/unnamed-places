@@ -67,15 +67,55 @@ async function generateVegetationMask(inputPath, outputPath) {
 }
 
 async function generateGreyMask(inputPath, outputPath) {
-  sharp(inputPath)
-    .grayscale() //
-    .median()
-    .threshold(80)
-    .toFormat("png")
-    .toFile(outputPath);
+  sharp(inputPath).median(20).sharpen().toFormat("png").toFile(outputPath);
+}
+
+async function cartoonishMapTile(inputPath, outputPath) {
+  try {
+    await sharp(inputPath)
+      // 1. Prep: gentle blur to smooth map gradients (helps vibrant look without noise)
+      .blur(0.9)
+      .median(6)
+      // 2. Make it SHINE here — key parameters!
+      .modulate({
+        saturation: 2.0, // vivid colors
+        brightness: 1.3, // ← MAIN LIGHTEN knob: 1.2–1.5
+        lightness: 30, // ← additive lift: 20–50 for extra brightness
+        hue: 0,
+      })
+
+      // 3. Add contrast for glossy pop (gamma <1 darkens mids + boosts perceived shine)
+      // .gamma(1.85) // 0.8–0.95 → stronger contrast without clipping
+      // .linear(1.25, 40)
+
+      // Alternative contrast methods (pick one):
+      // .linear(1.4, -30)    // slope 1.2–1.6 + negative intercept for punchy contrast
+      // .normalize()         // auto-stretch contrast (sometimes too aggressive)
+
+      // 4. Sharpen to make everything crisp & shiny
+      .sharpen({
+        sigma: 1.3, // 1.0–1.8; higher = more defined "gloss"
+        m1: 1.0,
+        m2: 2.0,
+      })
+
+      // 5. Reduce colors while preserving the boosted vibrancy
+      .png({
+        palette: true,
+        colours: 16, // 8–16 recommended for shining cartoon maps
+        quality: 92, // high to avoid compression dulling the shine
+        effort: 7, // better palette selection
+      })
+
+      .toFile(outputPath);
+
+    console.log("Cartoon-ish tile saved!");
+  } catch (err) {
+    console.error("Error:", err);
+  }
 }
 
 // EXAMPLE USAGE:
 // (Make sure 'satellite_tile.jpg' exists in the same folder)
 // generateVegetationMask("./.data/1767.jpeg", "vegetation_mask.png");
-generateGreyMask("./.data/1767.jpeg", "grey_threhold_mask.png");
+cartoonishMapTile("./.data/tilepic.jpeg", "../../public/assets/tilepic.png");
