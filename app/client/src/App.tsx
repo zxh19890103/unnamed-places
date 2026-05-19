@@ -6,7 +6,8 @@ import TileView from "./TileView.js";
 import { GeoMap } from "./GeoMap.js";
 
 import "./glsl-chunks/index.js";
-import { OsmBuildings } from "./OsmBuildings.js";
+// import { OsmBuildings } from "./OsmBuildings.js";
+import SamTest from "./SamTest.js";
 
 export function App2() {
   const [latlng, setLatlng] = useState<L.LatLng>(null);
@@ -41,7 +42,8 @@ const center = L.latLng(25.08982416323488, 102.74375708202602); // kunming
 export function App() {
   return (
     <div className=" relative w-screen h-screen">
-      <OsmBuildings latlng={center} />
+      {/* <OsmBuildings latlng={center} /> */}
+      <SamTest />
     </div>
   );
 }

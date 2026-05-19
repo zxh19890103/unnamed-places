@@ -30,14 +30,17 @@ Use a two-lane architecture with strict boundaries.
 ### 2.1 Streaming Core (truth lane)
 
 Responsibilities:
+
 - continuously provide coherent world data around camera
 - schedule loading, prefetch, cache, eviction, and LOD transitions
 
 Inputs:
+
 - camera position, velocity, heading
 - quality budget from adaptive controller
 
 Outputs per tile:
+
 - terrain mesh data
 - hydro data (water masks/features)
 - roads
@@ -46,6 +49,7 @@ Outputs per tile:
 - labels metadata
 
 Rules:
+
 - no artistic color decisions
 - deterministic state transitions
 - bounded memory
@@ -54,34 +58,41 @@ Rules:
 ### 2.2 Visual Style Core (look lane)
 
 Responsibilities:
+
 - convert semantic tile outputs into final rendering look
 - enforce scene-wide style coherence
 
 Inputs:
+
 - semantic tile layers from Streaming Core
 - style profile and atmosphere settings
 
 Outputs:
+
 - shader/material parameters
 - post-process grading parameters
 - atmospheric scattering/fog settings
 
 Rules:
+
 - no network or tile scheduling
 - no source-specific parsing
 
 ### 2.3 Tile runtime contract
 
 Tile states:
+
 - requested -> loading -> ready -> visible -> cooling -> evicted
 
 Each tile tracks:
+
 - geometry LOD
 - semantic completeness score
 - style profile version
 - freshness timestamp
 
 Missing data policy:
+
 - missing buildings: neutral proxy massing where settlement is likely
 - missing hydro: DEM-derived drainage tint fallback
 - missing labels: suppress cleanly
@@ -97,6 +108,7 @@ Missing data policy:
 ### 3.2 Canonical internal schema
 
 Normalize all incoming data into a canonical tile object with:
+
 - terrain
 - hydro
 - roads
@@ -105,6 +117,7 @@ Normalize all incoming data into a canonical tile object with:
 - labels
 
 Per-layer metadata:
+
 - source
 - confidence
 - age
@@ -115,11 +128,13 @@ Renderer consumes canonical tiles only.
 ### 3.3 Coverage-aware rendering bands
 
 Each layer has a runtime quality band:
+
 - full: reliable data
 - partial: sparse/noisy data
 - absent: missing data
 
 Rendering behavior:
+
 - full: normal
 - partial: simplified and visually de-emphasized
 - absent: procedural fallback to avoid holes
@@ -150,11 +165,13 @@ Rendering behavior:
 ### 4.2 Style profiles
 
 Profiles:
+
 - Natural-Daylight (default v1)
 - Golden-Hour
 - Overcast-Cool
 
 Profile controls:
+
 - terrain ramps by elevation/slope
 - water color/depth tint
 - building albedo/roughness range
@@ -182,11 +199,13 @@ Profile controls:
 ### 5.1 Global adaptive controller
 
 Track rolling metrics:
+
 - frame time
 - tile load latency
 - memory pressure proxy
 
 Quality states:
+
 - Q3 high
 - Q2 medium
 - Q1 low/stability floor
@@ -207,16 +226,19 @@ State transitions use hysteresis to prevent oscillation.
 ### 5.3 Tile scheduler
 
 Priority score factors:
+
 - visibility/frustum
 - camera motion prediction
 - semantic importance bias
 
 Queues:
+
 - critical
 - prefetch
 - background
 
 Separate concurrency caps for:
+
 - network fetch
 - CPU decode
 - GPU upload
@@ -228,6 +250,7 @@ Separate concurrency caps for:
 - Ring 2: simplified proxies/masks
 
 Bounded churn rule:
+
 - swap/fade no more than N tiles per frame
 
 ### 5.5 Stability guards
@@ -245,6 +268,7 @@ Bounded churn rule:
 - Render boundary: shader/material/geometry initialization issues
 
 Behavior policy:
+
 - never stop camera exploration on tile failure
 - substitute fallback representation
 - log structured error events
@@ -253,6 +277,7 @@ Behavior policy:
 ### 6.2 Debug instrumentation
 
 Toggleable debug HUD:
+
 - FPS/frame time
 - active/loading/evicted tiles
 - cache hit ratio
@@ -260,11 +285,13 @@ Toggleable debug HUD:
 - quality state transitions
 
 Structured logs:
+
 - source failures and retries
 - shader compile issues
 - memory pressure and eviction spikes
 
 Deterministic screenshot mode:
+
 - fixed camera + style seed for regression checks
 
 ## 7. Testing Strategy
@@ -345,6 +372,7 @@ Deterministic screenshot mode:
 ## 11. Approval Summary
 
 Approved decisions captured in this spec:
+
 - Product type: real-time exploratory world.
 - Scope: near-camera streaming window.
 - Data policy: free/open only for v1.
