@@ -4,4 +4,5 @@ dist/
 .temp/
 .data/
 .input/
-.DS_Store.worktrees/
+.DS_Store
+.worktrees/
