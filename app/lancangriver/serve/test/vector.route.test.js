@@ -79,6 +79,32 @@ describe('GET /vector', () => {
     expect(queryVectorFeatures).not.toHaveBeenCalled();
   });
 
+  it('returns 400 when bbox contains malformed numeric tokens', async () => {
+    const malformedBboxes = [
+      '101oops,19,102,20',
+      '99,19x,101,21',
+      '99,19,101.0abc,21',
+      '99,19,101,2_1'
+    ];
+
+    for (const bbox of malformedBboxes) {
+      const queryVectorFeatures = vi.fn();
+      const app = createApp({ queryVectorFeatures });
+
+      const response = await request(app).get('/vector').query({ bbox });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        error: {
+          code: 'INVALID_BBOX',
+          reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
+          bbox
+        }
+      });
+      expect(queryVectorFeatures).not.toHaveBeenCalled();
+    }
+  });
+
   it('returns 500 JSON payload when the db adapter throws', async () => {
     const queryVectorFeatures = vi.fn().mockRejectedValue(new Error('db down'));
     const app = createApp({ queryVectorFeatures });

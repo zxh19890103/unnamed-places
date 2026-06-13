@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { queryVectorFeatures as defaultQueryVectorFeatures } from '../db.js';
 
 const INVALID_BBOX_MESSAGE = 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat';
+const STRICT_NUMERIC_TOKEN_RE = /^[+-]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 function getRawBbox(rawBbox) {
   return typeof rawBbox === 'string' ? rawBbox : null;
@@ -22,9 +23,19 @@ function parseBbox(rawBbox) {
     return null;
   }
 
-  const values = rawBbox.split(',').map((part) => Number.parseFloat(part.trim()));
+  const parts = rawBbox.split(',').map((part) => part.trim());
 
-  if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  if (parts.some((part) => part.length === 0 || !STRICT_NUMERIC_TOKEN_RE.test(part))) {
+    return null;
+  }
+
+  const values = parts.map((part) => Number(part));
+
+  if (values.some((value) => !Number.isFinite(value))) {
     return null;
   }
 
