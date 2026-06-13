@@ -36,7 +36,45 @@ describe('GET /vector', () => {
     expect(response.status).toBe(400);
     expect(response.headers['content-type']).toMatch(/application\/json/);
     expect(response.body).toEqual({
-      error: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat'
+      error: {
+        code: 'INVALID_BBOX',
+        reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
+        bbox: 'bad'
+      }
+    });
+    expect(queryVectorFeatures).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when bbox longitude is out of range', async () => {
+    const queryVectorFeatures = vi.fn();
+    const app = createApp({ queryVectorFeatures });
+
+    const response = await request(app).get('/vector').query({ bbox: '181,10,182,11' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'INVALID_BBOX',
+        reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
+        bbox: '181,10,182,11'
+      }
+    });
+    expect(queryVectorFeatures).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when bbox latitude is out of range', async () => {
+    const queryVectorFeatures = vi.fn();
+    const app = createApp({ queryVectorFeatures });
+
+    const response = await request(app).get('/vector').query({ bbox: '-120,-95,-110,-91' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'INVALID_BBOX',
+        reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
+        bbox: '-120,-95,-110,-91'
+      }
     });
     expect(queryVectorFeatures).not.toHaveBeenCalled();
   });
@@ -49,6 +87,12 @@ describe('GET /vector', () => {
 
     expect(response.status).toBe(500);
     expect(response.headers['content-type']).toMatch(/application\/json/);
-    expect(response.body).toEqual({ error: 'Internal server error' });
+    expect(response.body).toEqual({
+      error: {
+        code: 'VECTOR_QUERY_FAILED',
+        reason: 'Internal server error',
+        bbox: '99,19,101,21'
+      }
+    });
   });
 });

@@ -2,10 +2,15 @@ import { readFileSync } from 'node:fs';
 
 const VECTOR_BBOX_SQL = readFileSync(new URL('./sql/vector_bbox.sql', import.meta.url), 'utf8');
 let pool;
+let poolPromise;
 
 async function getPool() {
   if (pool) {
     return pool;
+  }
+
+  if (poolPromise) {
+    return poolPromise;
   }
 
   const connectionString = process.env.DATABASE_URL?.trim();
@@ -14,10 +19,18 @@ async function getPool() {
     throw new Error('DATABASE_URL is required for vector queries');
   }
 
-  const { Pool } = await import('pg');
-  pool = new Pool({ connectionString });
+  poolPromise = (async () => {
+    const { Pool } = await import('pg');
+    pool = new Pool({ connectionString });
+    return pool;
+  })();
 
-  return pool;
+  try {
+    return await poolPromise;
+  } catch (error) {
+    poolPromise = undefined;
+    throw error;
+  }
 }
 
 function asFeatureCollection(value) {

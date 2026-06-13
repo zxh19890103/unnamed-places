@@ -3,6 +3,20 @@ import { queryVectorFeatures as defaultQueryVectorFeatures } from '../db.js';
 
 const INVALID_BBOX_MESSAGE = 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat';
 
+function getRawBbox(rawBbox) {
+  return typeof rawBbox === 'string' ? rawBbox : null;
+}
+
+function sendVectorError(res, status, code, reason, rawBbox) {
+  res.status(status).json({
+    error: {
+      code,
+      reason,
+      bbox: getRawBbox(rawBbox)
+    }
+  });
+}
+
 function parseBbox(rawBbox) {
   if (typeof rawBbox !== 'string') {
     return null;
@@ -16,6 +30,15 @@ function parseBbox(rawBbox) {
 
   const [minLon, minLat, maxLon, maxLat] = values;
 
+  const lonInRange =
+    minLon >= -180 && minLon <= 180 && maxLon >= -180 && maxLon <= 180;
+  const latInRange =
+    minLat >= -90 && minLat <= 90 && maxLat >= -90 && maxLat <= 90;
+
+  if (!lonInRange || !latInRange) {
+    return null;
+  }
+
   if (minLon >= maxLon || minLat >= maxLat) {
     return null;
   }
@@ -28,10 +51,11 @@ export function createVectorRouter(options = {}) {
   const router = Router();
 
   router.get('/vector', async (req, res) => {
-    const bbox = parseBbox(req.query.bbox);
+    const rawBbox = req.query.bbox;
+    const bbox = parseBbox(rawBbox);
 
     if (!bbox) {
-      res.status(400).json({ error: INVALID_BBOX_MESSAGE });
+      sendVectorError(res, 400, 'INVALID_BBOX', INVALID_BBOX_MESSAGE, rawBbox);
       return;
     }
 
@@ -39,7 +63,7 @@ export function createVectorRouter(options = {}) {
       const featureCollection = await queryVectorFeatures(bbox);
       res.status(200).json(featureCollection);
     } catch (_error) {
-      res.status(500).json({ error: 'Internal server error' });
+      sendVectorError(res, 500, 'VECTOR_QUERY_FAILED', 'Internal server error', rawBbox);
     }
   });
 
