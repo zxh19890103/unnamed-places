@@ -9,6 +9,15 @@ describe('GET /health', () => {
     const response = await request(app).get('/health');
 
     expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
     expect(response.body).toEqual({ status: 'ok' });
+  });
+
+  it('returns 404 for unknown route', async () => {
+    const app = createApp();
+
+    const response = await request(app).get('/not-found');
+
+    expect(response.status).toBe(404);
   });
 });

@@ -1,7 +1,11 @@
 export function getConfig() {
-  const port = Number(process.env.PORT || 3000);
+  const rawPort = process.env.PORT;
+  const normalizedPort = rawPort?.trim() ?? '';
+  const hasIntegerFormat = /^\d+$/.test(normalizedPort);
+  const parsedPort = hasIntegerFormat ? Number.parseInt(normalizedPort, 10) : Number.NaN;
+  const isValidPort = Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535;
 
   return {
-    port: Number.isFinite(port) ? port : 3000
+    port: isValidPort ? parsedPort : 4050
   };
 }
