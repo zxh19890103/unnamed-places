@@ -1,0 +1,17 @@
+{
+  "name": "lancangriver-pilot-corridor",
+  "zoom": 11,
+  "corridor": [
+    {
+      "id": "pilot-001",
+      "bbox": [
+        99.0,
+        21.0,
+        101.5,
+        23.0
+      ],
+      "enabled": true,
+      "priority": 1
+    }
+  ]
+}
