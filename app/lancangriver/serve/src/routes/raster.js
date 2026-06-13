@@ -239,6 +239,24 @@ function sendRasterError(res, status, code, reason) {
   });
 }
 
+async function sendRasterFile(res, filePath, contentType) {
+  const resolvedPath = resolve(filePath);
+
+  res.type(contentType);
+  res.set('Cache-Control', 'public, max-age=3600');
+
+  await new Promise((resolveSend, rejectSend) => {
+    res.sendFile(resolvedPath, (error) => {
+      if (error) {
+        rejectSend(error);
+        return;
+      }
+
+      resolveSend();
+    });
+  });
+}
+
 export function createRasterRouter(options = {}) {
   const rasterOptions = createRasterHandlerOptions(options);
   const router = Router();
@@ -264,6 +282,46 @@ export function createRasterRouter(options = {}) {
     const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
     return runWithInFlight(demPngInFlight, demPngPath, () => renderDemPng(gtiffPath, z, x, y));
   }
+
+  router.get('/raster/satellite/:z/:x/:y.jpeg', async (req, res) => {
+    const z = parseTileCoordinate(req.params.z);
+    const x = parseTileCoordinate(req.params.x);
+    const y = parseTileCoordinate(req.params.y);
+
+    if (!validateTileCoordinates(z, x, y)) {
+      sendRasterError(res, 400, 'INVALID_TILE_COORDINATES', 'Invalid z/x/y tile coordinates');
+      return;
+    }
+
+    try {
+      const satelliteResult = await fetchSatelliteTileOnce(z, x, y);
+      const satellitePath = satelliteResult.satellitePath ?? satelliteResult.path;
+      await sendRasterFile(res, satellitePath, 'image/jpeg');
+    } catch (_error) {
+      sendRasterError(res, 500, 'SATELLITE_TILE_STREAM_FAILED', 'Internal server error');
+    }
+  });
+
+  router.get('/raster/dem/:z/:x/:y.png', async (req, res) => {
+    const z = parseTileCoordinate(req.params.z);
+    const x = parseTileCoordinate(req.params.x);
+    const y = parseTileCoordinate(req.params.y);
+
+    if (!validateTileCoordinates(z, x, y)) {
+      sendRasterError(res, 400, 'INVALID_TILE_COORDINATES', 'Invalid z/x/y tile coordinates');
+      return;
+    }
+
+    try {
+      const gtiffResult = await fetchDemTileOnce(z, x, y);
+      const gtiffPath = gtiffResult.gtiffPath ?? gtiffResult.path;
+      const pngResult = await renderDemPngOnce(gtiffPath, z, x, y);
+      const pngPath = pngResult.pngPath ?? pngResult.path;
+      await sendRasterFile(res, pngPath, 'image/png');
+    } catch (_error) {
+      sendRasterError(res, 500, 'DEM_PNG_STREAM_FAILED', 'Internal server error');
+    }
+  });
 
   router.get('/raster/satellite/:z/:x/:y', async (req, res) => {
     const z = parseTileCoordinate(req.params.z);

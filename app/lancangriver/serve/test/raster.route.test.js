@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/server.js';
@@ -152,6 +155,73 @@ describe('GET /raster/dem/:z/:x/:y', () => {
     expect(renderDemPng).toHaveBeenCalledTimes(1);
     expect(response1.status).toBe(200);
     expect(response2.status).toBe(200);
+  });
+});
+
+describe('GET /raster/satellite/:z/:x/:y.jpeg', () => {
+  it('streams a satellite jpeg response', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
+
+    try {
+      const filePath = join(tempRoot, '11', '1024', '768', 'satellite.jpeg');
+      await mkdir(join(tempRoot, '11', '1024', '768'), { recursive: true });
+      await writeFile(filePath, Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+
+      const fetchTile = vi.fn().mockResolvedValue({ path: filePath, cached: true });
+      const app = createApp({
+        raster: {
+          fetchSatelliteTile: fetchTile,
+          fetchDemTile: vi.fn(),
+          renderDemPng: vi.fn()
+        }
+      });
+
+      const response = await request(app).get('/raster/satellite/11/1024/768.jpeg');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/image\/jpeg/);
+      expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
+      expect(response.body.length).toBeGreaterThan(0);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('GET /raster/dem/:z/:x/:y.png', () => {
+  it('streams a dem png response', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
+
+    try {
+      const gtiffPath = join(tempRoot, '11', '1024', '768', 'dem.gtiff');
+      const pngPath = join(tempRoot, '11', '1024', '768', 'dem.png');
+      await mkdir(join(tempRoot, '11', '1024', '768'), { recursive: true });
+      await writeFile(gtiffPath, Buffer.from('fake-gtiff'));
+      await writeFile(
+        pngPath,
+        Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8wXYAAAAASUVORK5CYII=', 'base64')
+      );
+
+      const fetchDemTile = vi.fn().mockResolvedValue({ gtiffPath, gtiffCached: true });
+      const renderDemPng = vi.fn().mockResolvedValue({ path: pngPath, cached: true });
+      const app = createApp({
+        raster: {
+          fetchSatelliteTile: vi.fn(),
+          fetchDemTile,
+          renderDemPng
+        }
+      });
+
+      const response = await request(app).get('/raster/dem/11/1024/768.png');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/image\/png/);
+      expect(fetchDemTile).toHaveBeenCalledWith(11, 1024, 768);
+      expect(renderDemPng).toHaveBeenCalledWith(gtiffPath, 11, 1024, 768);
+      expect(response.body.length).toBeGreaterThan(0);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });
 

@@ -1,4 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import { getConfig } from './config.js';
 import { createHealthRouter } from './routes/health.js';
 import { createRasterRouter } from './routes/raster.js';
@@ -7,6 +9,7 @@ import { createVectorRouter } from './routes/vector.js';
 export function createApp(options = {}) {
   const app = express();
 
+  app.use(cors());
   app.use(createHealthRouter());
   app.use(createRasterRouter(options));
   app.use(createVectorRouter(options));
