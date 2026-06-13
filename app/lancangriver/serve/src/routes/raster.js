@@ -214,7 +214,7 @@ function createRasterHandlerOptions(options = {}) {
   const rasterOptions = options.raster ?? options;
 
   return {
-    rasterRoot: rasterOptions.rasterRoot ? resolve(rasterOptions.rasterRoot) : resolve('tiles'),
+    rasterRoot: rasterOptions.rasterRoot ? resolve(rasterOptions.rasterRoot) : resolve('.tiles'),
     openTopographyApiKey:
       rasterOptions.openTopographyApiKey ??
       process.env.OPENTOPOGRAPHY_API_KEY ??

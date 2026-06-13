@@ -3,6 +3,17 @@ import request from 'supertest';
 import { createApp } from '../src/server.js';
 import { zxyToBBox } from '../src/routes/raster.js';
 
+async function waitForMockCalled(mockFn, timeoutMs = 500) {
+  const start = Date.now();
+
+  while (mockFn.mock.calls.length === 0) {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('Timed out waiting for mock to be called');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
 describe('zxyToBBox', () => {
   it('returns the EPSG:4326 bbox for a z11 tile', () => {
     expect(zxyToBBox(11, 1024, 768)).toEqual([
@@ -18,7 +29,7 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
   it('downloads and caches the satellite tile to the adopted path', async () => {
     const fetchTile = vi.fn().mockResolvedValue({
       created: true,
-      path: '/tmp/tiles/11/1024/768/satellite.jpeg'
+      path: '/tmp/.tiles/11/1024/768/satellite.jpeg'
     });
     const app = createApp({
       raster: {
@@ -34,7 +45,7 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
     expect(response.body).toEqual({
       ok: true,
       kind: 'satellite',
-      path: '/tmp/tiles/11/1024/768/satellite.jpeg',
+      path: '/tmp/.tiles/11/1024/768/satellite.jpeg',
       created: true
     });
     expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
@@ -58,10 +69,13 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
 
     const first = request(app).get('/raster/satellite/11/1024/768');
     const second = request(app).get('/raster/satellite/11/1024/768');
+    const responsesPromise = Promise.all([first, second]);
 
-    resolveFetch({ created: true, path: '/tmp/tiles/11/1024/768/satellite.jpeg' });
+    await waitForMockCalled(fetchTile);
 
-    const [response1, response2] = await Promise.all([first, second]);
+    resolveFetch({ created: true, path: '/tmp/.tiles/11/1024/768/satellite.jpeg' });
+
+    const [response1, response2] = await responsesPromise;
 
     expect(fetchTile).toHaveBeenCalledTimes(1);
     expect(response1.status).toBe(200);
@@ -72,13 +86,13 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
 describe('GET /raster/dem/:z/:x/:y', () => {
   it('downloads and caches the gtiff and png to the adopted paths', async () => {
     const fetchDemTile = vi.fn().mockResolvedValue({
-      gtiffPath: '/tmp/tiles/11/1024/768/dem.gtiff',
+      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
       gtiffCached: false,
-      pngPath: '/tmp/tiles/11/1024/768/dem.png',
+      pngPath: '/tmp/.tiles/11/1024/768/dem.png',
       pngCached: false
     });
     const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/tiles/11/1024/768/dem.png',
+      path: '/tmp/.tiles/11/1024/768/dem.png',
       cached: false
     });
     const app = createApp({
@@ -95,13 +109,13 @@ describe('GET /raster/dem/:z/:x/:y', () => {
     expect(response.body).toEqual({
       ok: true,
       kind: 'dem',
-      gtiffPath: '/tmp/tiles/11/1024/768/dem.gtiff',
+      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
       gtiffCached: false,
-      pngPath: '/tmp/tiles/11/1024/768/dem.png',
+      pngPath: '/tmp/.tiles/11/1024/768/dem.png',
       pngCached: false
     });
     expect(fetchDemTile).toHaveBeenCalledWith(11, 1024, 768);
-    expect(renderDemPng).toHaveBeenCalledWith('/tmp/tiles/11/1024/768/dem.gtiff', 11, 1024, 768);
+    expect(renderDemPng).toHaveBeenCalledWith('/tmp/.tiles/11/1024/768/dem.gtiff', 11, 1024, 768);
   });
 
   it('dedupes concurrent dem tile generation requests', async () => {
@@ -113,7 +127,7 @@ describe('GET /raster/dem/:z/:x/:y', () => {
         })
     );
     const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/tiles/11/1024/768/dem.png',
+      path: '/tmp/.tiles/11/1024/768/dem.png',
       cached: false
     });
     const app = createApp({
@@ -126,10 +140,13 @@ describe('GET /raster/dem/:z/:x/:y', () => {
 
     const first = request(app).get('/raster/dem/11/1024/768');
     const second = request(app).get('/raster/dem/11/1024/768');
+    const responsesPromise = Promise.all([first, second]);
 
-    resolveFetchDem({ gtiffPath: '/tmp/tiles/11/1024/768/dem.gtiff', gtiffCached: false });
+    await waitForMockCalled(fetchDemTile);
 
-    const [response1, response2] = await Promise.all([first, second]);
+    resolveFetchDem({ gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff', gtiffCached: false });
+
+    const [response1, response2] = await responsesPromise;
 
     expect(fetchDemTile).toHaveBeenCalledTimes(1);
     expect(renderDemPng).toHaveBeenCalledTimes(1);
@@ -141,11 +158,11 @@ describe('GET /raster/dem/:z/:x/:y', () => {
 describe('GET /raster/dem/:z/:x/:y/png', () => {
   it('renders the cached png asset and returns its path', async () => {
     const fetchDemTile = vi.fn().mockResolvedValue({
-      gtiffPath: '/tmp/tiles/11/1024/768/dem.gtiff',
+      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
       gtiffCached: true
     });
     const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/tiles/11/1024/768/dem.png',
+      path: '/tmp/.tiles/11/1024/768/dem.png',
       cached: true
     });
     const app = createApp({
@@ -162,11 +179,11 @@ describe('GET /raster/dem/:z/:x/:y/png', () => {
     expect(response.body).toEqual({
       ok: true,
       kind: 'dem-png',
-      path: '/tmp/tiles/11/1024/768/dem.png',
+      path: '/tmp/.tiles/11/1024/768/dem.png',
       cached: true
     });
     expect(fetchDemTile).toHaveBeenCalledWith(11, 1024, 768);
-    expect(renderDemPng).toHaveBeenCalledWith('/tmp/tiles/11/1024/768/dem.gtiff', 11, 1024, 768);
+    expect(renderDemPng).toHaveBeenCalledWith('/tmp/.tiles/11/1024/768/dem.gtiff', 11, 1024, 768);
   });
 
   it('dedupes concurrent png render requests', async () => {
@@ -178,7 +195,7 @@ describe('GET /raster/dem/:z/:x/:y/png', () => {
         })
     );
     const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/tiles/11/1024/768/dem.png',
+      path: '/tmp/.tiles/11/1024/768/dem.png',
       cached: false
     });
     const app = createApp({
@@ -191,10 +208,13 @@ describe('GET /raster/dem/:z/:x/:y/png', () => {
 
     const first = request(app).get('/raster/dem/11/1024/768/png');
     const second = request(app).get('/raster/dem/11/1024/768/png');
+    const responsesPromise = Promise.all([first, second]);
 
-    resolveFetchDem({ gtiffPath: '/tmp/tiles/11/1024/768/dem.gtiff', gtiffCached: false });
+    await waitForMockCalled(fetchDemTile);
 
-    const [response1, response2] = await Promise.all([first, second]);
+    resolveFetchDem({ gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff', gtiffCached: false });
+
+    const [response1, response2] = await responsesPromise;
 
     expect(fetchDemTile).toHaveBeenCalledTimes(1);
     expect(renderDemPng).toHaveBeenCalledTimes(1);
@@ -204,7 +224,7 @@ describe('GET /raster/dem/:z/:x/:y/png', () => {
 
   it('returns 500 when the raster cannot be normalized into a renderable png', async () => {
     const fetchDemTile = vi.fn().mockResolvedValue({
-      gtiffPath: '/tmp/tiles/11/1024/768/dem.gtiff',
+      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
       gtiffCached: true
     });
     const renderDemPng = vi.fn().mockRejectedValue(new Error('Raster contains no usable elevation values'));

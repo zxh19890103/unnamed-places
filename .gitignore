@@ -6,3 +6,4 @@ dist/
 .input/
 .DS_Store
 .worktrees/
+**/.tiles/

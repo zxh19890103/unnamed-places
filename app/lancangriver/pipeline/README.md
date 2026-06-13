@@ -41,7 +41,7 @@ Expected output:
 
 ## 5) Prefetch DEM + satellite tiles (optional, offline-ready rendering)
 
-This uses the Node script in `serve/scripts/prefetch-tiles.js` and writes to `tiles/{z}/{x}/{y}`.
+This uses the Node script in `serve/scripts/prefetch-tiles.js` and writes to `.tiles/{z}/{x}/{y}`.
 
 From `app/lancangriver/serve`:
 
@@ -52,9 +52,9 @@ npm run prefetch:tiles -- --bbox 99.0,21.0,101.5,23.0 --zoom 11 --concurrency 6
 
 Generated files per tile:
 
-- `tiles/{z}/{x}/{y}/satellite.jpeg`
-- `tiles/{z}/{x}/{y}/dem.gtiff`
-- `tiles/{z}/{x}/{y}/dem.png`
+- `.tiles/{z}/{x}/{y}/satellite.jpeg`
+- `.tiles/{z}/{x}/{y}/dem.gtiff`
+- `.tiles/{z}/{x}/{y}/dem.png`
 
 ## 6) Common options
 

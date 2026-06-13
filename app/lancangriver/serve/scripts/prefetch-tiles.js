@@ -18,7 +18,7 @@ function parseArgs(argv) {
     maxLon: null,
     maxLat: null,
     zoom: 11,
-    root: resolve('tiles'),
+    root: resolve('.tiles'),
     concurrency: 6,
     skipSatellite: false,
     skipDem: false,
@@ -107,7 +107,7 @@ function parseArgs(argv) {
 
 function printUsage() {
   console.log(`
-Prefetch DEM + satellite tiles into tiles/{z}/{x}/{y}/...
+Prefetch DEM + satellite tiles into .tiles/{z}/{x}/{y}/...
 
 Usage:
   npm run prefetch:tiles -- --bbox 99.0,21.0,101.5,23.0 --zoom 11
@@ -115,7 +115,7 @@ Usage:
 Options:
   --bbox <minLon,minLat,maxLon,maxLat>   Required target bbox
   --zoom <z>                              Tile zoom level (default: 11)
-  --root <dir>                            Tile root directory (default: ./tiles)
+  --root <dir>                            Tile root directory (default: ./.tiles)
   --concurrency <n>                       Concurrent tile workers (default: 6)
   --skip-satellite                        Skip satellite download
   --skip-dem                              Skip DEM download/render
