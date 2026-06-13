@@ -27,7 +27,7 @@ Out of scope for Milestone 1:
 Use a three-layer architecture:
 
 1. Data pipeline layer (Python): ingest, normalize, tile prep.
-2. Serving layer (local API + tile endpoints): serve viewport-scoped artifacts.
+2. Serving layer (local API + raster tile endpoints): serve viewport-scoped artifacts.
 3. Rendering layer (Three.js client): request and render tiles progressively by viewport/zoom.
 
 ### 2.2 Core Components
@@ -41,27 +41,26 @@ Data pipeline components:
 Preprocessing/index components:
 
 - PostGIS indexing jobs: spatial indexes and query-ready schemas.
-- Vector tile generation/caching: MVT-compatible artifacts or cache.
 - DEM tile pyramid generation: z/x/y aligned terrain tiles.
 
 Runtime serving components:
 
-- Vector tile API endpoint(s): return only tiles intersecting requested viewport keys.
+- Vector query API endpoint(s): return river/roads/buildings features intersecting requested bbox.
 - DEM tile endpoint(s): return terrain tiles keyed by z/x/y.
 - Imagery endpoint/cache: return imagery tiles with source attribution metadata.
 
 Viewer components:
 
-- Tile scheduler: computes required tile keys from camera state.
+- View scheduler: computes vector query bbox and raster tile keys from camera state.
 - Layer renderers: river, roads, buildings, terrain, imagery.
-- Cache manager: client LRU cache for tile reuse.
+- Cache manager: client LRU cache for bbox query responses and raster tile reuse.
 - Diagnostics overlay (dev mode): pending/failed tile counters and latest errors.
 
 ### 2.3 Responsibilities And Boundaries
 
 - PostGIS is canonical vector geodata storage and query backend.
 - Viewer does not query raw large geometries directly per frame.
-- Runtime consumes tile endpoints only.
+- Runtime consumes vector bbox-query endpoints and raster tile endpoints.
 - Python jobs own expensive transforms and refresh workflows.
 - Viewer owns frame-time-sensitive orchestration and graceful degradation.
 
@@ -69,18 +68,17 @@ Viewer components:
 
 ### 3.1 Shared Tile Key Convention
 
-Use a single z/x/y tile key convention across all runtime layers:
+Use a single z/x/y tile key convention across raster runtime layers:
 
-- Vector tiles
 - DEM tiles
 - Imagery tiles
 
-This guarantees cross-layer spatial alignment and simplifies request scheduling.
+This guarantees terrain-imagery alignment and simplifies raster request scheduling.
 
 ### 3.2 Vector Storage
 
 - Store normalized OSM-derived features in PostGIS tables by thematic layer.
-- Maintain geometry indexes suitable for tile clipping and intersection.
+- Maintain geometry indexes suitable for fast bbox intersection queries.
 - Add metadata fields for source revision and ingest timestamp.
 
 ### 3.3 DEM Storage
@@ -101,28 +99,29 @@ This guarantees cross-layer spatial alignment and simplifies request scheduling.
 
 1. Ingest pilot-corridor data (OSM + DEM + imagery references).
 2. Normalize coordinate systems and feature schemas.
-3. Build serving artifacts and indexes.
-4. Publish tile endpoints over local runtime service.
+3. Build serving indexes and raster artifacts.
+4. Publish vector bbox-query and raster tile endpoints over local runtime service.
 
 ### 4.2 Runtime Viewport Streaming Flow
 
 On camera move/zoom:
 
-1. Compute required tile keys for current viewport and zoom.
-2. Diff against loaded and pending tiles.
-3. Request missing tiles with priority:
+1. Compute current viewport bbox and required raster tile keys for current zoom.
+2. Diff against loaded and pending vector query windows and raster tiles.
+3. Request missing data with priority:
    - viewport center first,
    - near periphery second.
 4. Render progressively:
-   - fallback/coarse first,
-   - refine with higher-detail tiles when available.
+  - current bbox vector set first,
+  - then refine raster detail as higher zoom tiles arrive.
 
 ### 4.3 Client And Server Caching
 
 Client cache:
 
 - Layer-scoped bounded LRU in memory.
-- Keep parent tile visible while child tile loads.
+- Cache bbox-query responses by normalized bbox key for short-term reuse during panning.
+- Keep parent raster tile visible while child raster tile loads.
 
 Server cache:
 
@@ -133,11 +132,11 @@ Server cache:
 
 - Attach request epoch/version metadata to tile responses.
 - Viewer drops stale responses when camera state has advanced.
-- Include tile bounds and source revision in response metadata for debugging.
+- Include bbox or tile bounds and source revision in response metadata for debugging.
 
 ### 4.5 Streaming River Data Strategy
 
-River geometry is served through viewport-dependent vector tiles, not as a monolithic geometry payload. This provides:
+River geometry is served through viewport-dependent bbox queries to PostGIS, not as a monolithic geometry payload. This provides:
 
 - bounded memory usage,
 - predictable network payloads,
@@ -154,9 +153,9 @@ River geometry is served through viewport-dependent vector tiles, not as a monol
 
 ### 5.2 Serving Errors
 
-- Return structured error payloads with z/x/y and reason.
+- Return structured error payloads with bbox or z/x/y and reason.
 - Fallback behavior:
-  - vector tile missing: return empty tile payload,
+  - vector query returns no features: return empty feature collection,
   - DEM missing: return nodata terrain tile.
 
 ### 5.3 Viewer Errors
@@ -182,8 +181,8 @@ Dev diagnostics:
 
 ### 6.2 API Tests
 
-- Contract tests for vector/DEM/imagery endpoints.
-- Spatial correctness checks for bounds and key mapping.
+- Contract tests for vector bbox-query and DEM/imagery endpoints.
+- Spatial correctness checks for bbox filtering and raster key mapping.
 
 ### 6.3 Viewer Tests
 
@@ -204,7 +203,7 @@ Milestone 1 is complete when all conditions below are met:
 
 1. Local viewer starts and supports interactive navigation of pilot corridor.
 2. Viewport-driven streaming works for vector, terrain, and imagery layers.
-3. River, roads, and buildings can be rendered from PostGIS-backed tile serving.
+3. River, roads, and buildings can be rendered from PostGIS-backed bbox querying.
 4. DEM-backed terrain can be rendered from aligned DEM tiles.
 5. Imagery layer can load for local experimental use and is tagged with source metadata.
 6. Data gaps/failures are observable and traceable by tile key, without hard crashes.
@@ -215,7 +214,7 @@ No strict FPS/latency SLA is required in this milestone.
 
 1. Define pilot corridor bounds and zoom range.
 2. Implement minimal ingest and normalized storage path.
-3. Stand up vector/DEM/imagery tile endpoints.
+3. Stand up vector bbox-query endpoint and DEM/imagery tile endpoints.
 4. Implement viewer tile scheduler and per-layer renderers.
 5. Add caching, fallback rendering, and diagnostics overlay.
 6. Validate with fixture tests and end-to-end pilot traversal.
@@ -224,7 +223,7 @@ No strict FPS/latency SLA is required in this milestone.
 ## 9. Risks And Mitigations
 
 - Risk: PostGIS query hotspots during rapid navigation.
-  Mitigation: tile precompute/cache and proper spatial indexing.
+  Mitigation: strict spatial indexing, query simplification, and short-term bbox response caching.
 
 - Risk: DEM and imagery misalignment.
   Mitigation: strict shared z/x/y convention and alignment tests.
