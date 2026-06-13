@@ -1,7 +1,15 @@
 import { computeRequestPlan } from "./view/request-scheduler";
 import { fetchDem, fetchSatellite, fetchVector } from "./data/api";
+import { renderDiagnostics } from "./ui/diagnostics";
 
 const baseUrl = "http://localhost:4050";
+
+function updateApp(text: string) {
+  const app = document.getElementById("app");
+  if (app) {
+    app.textContent = text;
+  }
+}
 
 async function bootstrap() {
   const plan = computeRequestPlan({
@@ -12,17 +20,65 @@ async function bootstrap() {
     viewportHeightPx: 768,
   });
 
-  // Minimal startup flow for Task 5 wiring.
-  const vector = await fetchVector(baseUrl, plan.vectorBbox);
-  const firstTile = plan.rasterTiles[0];
-  const [dem, satellite] = await Promise.all([
-    fetchDem(baseUrl, firstTile),
-    fetchSatellite(baseUrl, firstTile),
-  ]);
+  updateApp(
+    renderDiagnostics({
+      vectorCount: 0,
+      demStatus: "na",
+      satelliteStatus: "na",
+      tileCount: plan.rasterTiles.length,
+      pendingCount: 3,
+      failedCount: 0,
+      lastError: "",
+    }),
+  );
 
-  const app = document.getElementById("app");
-  if (app) {
-    app.textContent = `ready: vector=${Array.isArray(vector?.features) ? vector.features.length : 0} dem=${dem?.ok ? "ok" : "na"} sat=${satellite?.ok ? "ok" : "na"}`;
+  try {
+    const vector = await fetchVector(baseUrl, plan.vectorBbox);
+    const firstTile = plan.rasterTiles[0];
+
+    const [demResult, satelliteResult] = await Promise.allSettled([
+      fetchDem(baseUrl, firstTile),
+      fetchSatellite(baseUrl, firstTile),
+    ]);
+
+    const demOk = demResult.status === "fulfilled" && demResult.value?.ok;
+    const satelliteOk =
+      satelliteResult.status === "fulfilled" && satelliteResult.value?.ok;
+    const failures = [demResult, satelliteResult].filter(
+      (result) => result.status === "rejected",
+    ).length;
+    const lastError =
+      demResult.status === "rejected"
+        ? String(demResult.reason)
+        : satelliteResult.status === "rejected"
+          ? String(satelliteResult.reason)
+          : "";
+
+    updateApp(
+      renderDiagnostics({
+        vectorCount: Array.isArray(vector?.features)
+          ? vector.features.length
+          : 0,
+        demStatus: demOk ? "ok" : "na",
+        satelliteStatus: satelliteOk ? "ok" : "na",
+        tileCount: plan.rasterTiles.length,
+        pendingCount: 0,
+        failedCount: failures,
+        lastError,
+      }),
+    );
+  } catch (error) {
+    updateApp(
+      renderDiagnostics({
+        vectorCount: 0,
+        demStatus: "na",
+        satelliteStatus: "na",
+        tileCount: plan.rasterTiles.length,
+        pendingCount: 0,
+        failedCount: 1,
+        lastError: String(error),
+      }),
+    );
   }
 }
 
