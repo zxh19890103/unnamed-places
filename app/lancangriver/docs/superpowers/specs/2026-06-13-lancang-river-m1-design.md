@@ -112,8 +112,9 @@ On camera move/zoom:
    - viewport center first,
    - near periphery second.
 4. Render progressively:
-  - current bbox vector set first,
-  - then refine raster detail as higher zoom tiles arrive.
+
+- current bbox vector set first,
+- then refine raster detail as higher zoom tiles arrive.
 
 ### 4.3 Client And Server Caching
 
