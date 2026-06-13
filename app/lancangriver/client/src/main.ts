@@ -33,7 +33,7 @@ async function bootstrap() {
   );
 
   try {
-    const vector = await fetchVector(baseUrl, plan.vectorBbox);
+    // const vector = await fetchVector(baseUrl, plan.vectorBbox);
     const firstTile = plan.rasterTiles[0];
 
     const [demResult, satelliteResult] = await Promise.allSettled([
@@ -56,9 +56,7 @@ async function bootstrap() {
 
     updateApp(
       renderDiagnostics({
-        vectorCount: Array.isArray(vector?.features)
-          ? vector.features.length
-          : 0,
+        vectorCount: 0,
         demStatus: demOk ? "ok" : "na",
         satelliteStatus: satelliteOk ? "ok" : "na",
         tileCount: plan.rasterTiles.length,
