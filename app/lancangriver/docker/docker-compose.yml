@@ -1,0 +1,29 @@
+services:
+  postgis:
+    build:
+      context: ./postgis
+      dockerfile: Dockerfile
+    container_name: lancangriver-postgis
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lancangriver}
+      POSTGRES_USER: ${POSTGRES_USER:-lancangriver}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lancangriver_dev_password}
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./postgis/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-lancangriver} -d ${POSTGRES_DB:-lancangriver}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  postgis_data:
