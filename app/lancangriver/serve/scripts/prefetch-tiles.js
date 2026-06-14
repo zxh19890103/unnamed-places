@@ -1,4 +1,4 @@
-import { access, mkdir, rename, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fromFile } from 'geotiff';
 import { PNG } from 'pngjs';
@@ -22,7 +22,8 @@ function parseArgs(argv) {
     concurrency: 6,
     skipSatellite: false,
     skipDem: false,
-    force: false
+    force: false,
+    manifestPath: null
   };
 
   for (let index = 2; index < argv.length; index += 1) {
@@ -35,6 +36,16 @@ function parseArgs(argv) {
         throw new Error('Invalid --bbox. Expected minLon,minLat,maxLon,maxLat');
       }
       [result.minLon, result.minLat, result.maxLon, result.maxLat] = parts;
+      index += 1;
+      continue;
+    }
+
+    if (token === '--manifest') {
+      const next = argv[index + 1];
+      if (!next) {
+        throw new Error('Missing value for --manifest');
+      }
+      result.manifestPath = resolve(next);
       index += 1;
       continue;
     }
@@ -94,11 +105,15 @@ function parseArgs(argv) {
     Number.isFinite(result.maxLon) &&
     Number.isFinite(result.maxLat);
 
-  if (!hasBbox) {
-    throw new Error('Missing --bbox. Expected minLon,minLat,maxLon,maxLat');
+  if (result.manifestPath && hasBbox) {
+    throw new Error('--manifest and --bbox are mutually exclusive');
   }
 
-  if (result.minLon >= result.maxLon || result.minLat >= result.maxLat) {
+  if (!result.manifestPath && !hasBbox) {
+    throw new Error('Missing --bbox or --manifest');
+  }
+
+  if (hasBbox && (result.minLon >= result.maxLon || result.minLat >= result.maxLat)) {
     throw new Error('--bbox bounds are invalid (min must be less than max)');
   }
 
@@ -120,6 +135,7 @@ Options:
   --skip-satellite                        Skip satellite download
   --skip-dem                              Skip DEM download/render
   --force                                 Redownload/rebuild even if cached
+  --manifest <path>                       Read explicit z/x/y tile list JSON
 `);
 }
 
@@ -340,15 +356,39 @@ async function runPool(items, concurrency, worker) {
   await Promise.all(workers);
 }
 
-async function main() {
-  const options = parseArgs(process.argv);
-  const tiles = listTilesForBbox(
+async function loadTiles(options) {
+  if (options.manifestPath) {
+    const raw = await readFile(options.manifestPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      throw new Error('Manifest must be an array of {z,x,y}');
+    }
+
+    return parsed.map((tile, idx) => {
+      if (
+        !tile ||
+        !Number.isInteger(tile.z) ||
+        !Number.isInteger(tile.x) ||
+        !Number.isInteger(tile.y)
+      ) {
+        throw new Error(`Invalid manifest tile at index ${idx}`);
+      }
+      return { z: tile.z, x: tile.x, y: tile.y };
+    });
+  }
+
+  return listTilesForBbox(
     options.minLon,
     options.minLat,
     options.maxLon,
     options.maxLat,
     options.zoom
   );
+}
+
+async function main() {
+  const options = parseArgs(process.argv);
+  const tiles = await loadTiles(options);
 
   const stats = {
     satelliteDownloaded: 0,
@@ -362,9 +402,13 @@ async function main() {
 
   console.log(`[prefetch] root=${options.root}`);
   console.log(`[prefetch] zoom=${options.zoom} tiles=${tiles.length} concurrency=${options.concurrency}`);
-  console.log(
-    `[prefetch] bbox=${options.minLon},${options.minLat},${options.maxLon},${options.maxLat}`
-  );
+  if (options.manifestPath) {
+    console.log(`[prefetch] manifest=${options.manifestPath}`);
+  } else {
+    console.log(
+      `[prefetch] bbox=${options.minLon},${options.minLat},${options.maxLon},${options.maxLat}`
+    );
+  }
 
   await runPool(tiles, options.concurrency, async (tile, idx) => {
     try {
@@ -395,7 +439,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error && error.stack ? error.stack : error);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+  main().catch((error) => {
+    console.error(error && error.stack ? error.stack : error);
+    process.exit(1);
+  });
+}
+
+export { parseArgs };
