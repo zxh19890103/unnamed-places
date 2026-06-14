@@ -15,6 +15,14 @@ def _validate_bbox(bbox: Any) -> None:
         raise ValueError('bbox bounds are invalid')
 
 
+def _validate_point(name: str, point: Any) -> None:
+    if not isinstance(point, list) or len(point) != 2:
+        raise ValueError(f'{name} must contain 2 numbers')
+
+    if any(not isinstance(value, (int, float)) for value in point):
+        raise ValueError(f'{name} values must be numbers')
+
+
 def load_corridor(path: str) -> dict[str, Any]:
     config_path = Path(path)
     with config_path.open('r', encoding='utf-8') as file:
@@ -23,6 +31,11 @@ def load_corridor(path: str) -> dict[str, Any]:
     zoom = data.get('zoom')
     if not isinstance(zoom, int) or zoom < 0:
         raise ValueError('zoom must be a non-negative integer')
+
+    origin = data.get('origin')
+    end = data.get('end')
+    _validate_point('origin', origin)
+    _validate_point('end', end)
 
     corridor = data.get('corridor')
     if not isinstance(corridor, list) or len(corridor) == 0:
