@@ -345,14 +345,16 @@ async function bootstrap() {
   const { app, canvasHost, diagnostics } = createAppShell();
   let satelliteLodFrozen = false;
 
-  const { scene, camera, renderer, controls, destroyCameraGui } =
-    createScene(canvasHost, (frozen) => {
+  const { scene, camera, renderer, controls, destroyCameraGui } = createScene(
+    canvasHost,
+    (frozen) => {
       satelliteLodFrozen = frozen;
       if (!satelliteLodFrozen) {
         updateSatelliteLodForVisibleTerrain();
         refreshDiagnostics();
       }
-    });
+    },
+  );
 
   const origin = lonLatToTile(
     START_CENTER_LON,

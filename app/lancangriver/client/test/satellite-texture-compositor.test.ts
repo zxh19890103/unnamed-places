@@ -19,6 +19,12 @@ describe("enumerateSatelliteCoverage", () => {
 
     expect(result).toHaveLength(256);
     expect(result[0]).toEqual({ z: 15, x: 48, y: 80, offsetX: 0, offsetY: 0 });
-    expect(result[255]).toEqual({ z: 15, x: 63, y: 95, offsetX: 15, offsetY: 15 });
+    expect(result[255]).toEqual({
+      z: 15,
+      x: 63,
+      y: 95,
+      offsetX: 15,
+      offsetY: 15,
+    });
   });
 });
