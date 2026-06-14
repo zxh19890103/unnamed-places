@@ -6,17 +6,6 @@ import request from 'supertest';
 import { createApp } from '../src/server.js';
 import { zxyToBBox } from '../src/routes/raster.js';
 
-async function waitForMockCalled(mockFn, timeoutMs = 500) {
-  const start = Date.now();
-
-  while (mockFn.mock.calls.length === 0) {
-    if (Date.now() - start > timeoutMs) {
-      throw new Error('Timed out waiting for mock to be called');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  }
-}
-
 describe('zxyToBBox', () => {
   it('returns the EPSG:4326 bbox for a z11 tile', () => {
     expect(zxyToBBox(11, 1024, 768)).toEqual([
@@ -29,16 +18,14 @@ describe('zxyToBBox', () => {
 });
 
 describe('GET /raster/satellite/:z/:x/:y', () => {
-  it('downloads and caches the satellite tile to the adopted path', async () => {
+  it('delegates satellite loading and returns json metadata', async () => {
     const fetchTile = vi.fn().mockResolvedValue({
       created: true,
       path: '/tmp/.tiles/11/1024/768/satellite.jpeg'
     });
     const app = createApp({
       raster: {
-        fetchSatelliteTile: fetchTile,
-        fetchDemTile: vi.fn(),
-        renderDemPng: vi.fn()
+        fetchSatelliteTile: fetchTile
       }
     });
 
@@ -53,162 +40,27 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
     });
     expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
   });
-
-  it('dedupes concurrent downloads for the same satellite tile', async () => {
-    let resolveFetch;
-    const fetchTile = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveFetch = resolve;
-        })
-    );
-    const app = createApp({
-      raster: {
-        fetchSatelliteTile: fetchTile,
-        fetchDemTile: vi.fn(),
-        renderDemPng: vi.fn()
-      }
-    });
-
-    const first = request(app).get('/raster/satellite/11/1024/768');
-    const second = request(app).get('/raster/satellite/11/1024/768');
-    const responsesPromise = Promise.all([first, second]);
-
-    await waitForMockCalled(fetchTile);
-
-    resolveFetch({ created: true, path: '/tmp/.tiles/11/1024/768/satellite.jpeg' });
-
-    const [response1, response2] = await responsesPromise;
-
-    expect(fetchTile).toHaveBeenCalledTimes(1);
-    expect(response1.status).toBe(200);
-    expect(response2.status).toBe(200);
-  });
-});
-
-describe('GET /raster/dem/:z/:x/:y', () => {
-  it('downloads and caches the gtiff and png to the adopted paths', async () => {
-    const fetchDemTile = vi.fn().mockResolvedValue({
-      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
-      gtiffCached: false,
-      pngPath: '/tmp/.tiles/11/1024/768/dem.png',
-      pngCached: false
-    });
-    const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/.tiles/11/1024/768/dem.png',
-      cached: false
-    });
-    const app = createApp({
-      raster: {
-        fetchSatelliteTile: vi.fn(),
-        fetchDemTile,
-        renderDemPng
-      }
-    });
-
-    const response = await request(app).get('/raster/dem/11/1024/768');
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      ok: true,
-      kind: 'dem',
-      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
-      gtiffCached: false,
-      pngPath: '/tmp/.tiles/11/1024/768/dem.png',
-      pngCached: false
-    });
-    expect(fetchDemTile).toHaveBeenCalledWith(11, 1024, 768);
-    expect(renderDemPng).toHaveBeenCalledWith('/tmp/.tiles/11/1024/768/dem.gtiff', 11, 1024, 768);
-  });
-
-  it('dedupes concurrent dem tile generation requests', async () => {
-    let resolveFetchDem;
-    const fetchDemTile = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveFetchDem = resolve;
-        })
-    );
-    const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/.tiles/11/1024/768/dem.png',
-      cached: false
-    });
-    const app = createApp({
-      raster: {
-        fetchSatelliteTile: vi.fn(),
-        fetchDemTile,
-        renderDemPng
-      }
-    });
-
-    const first = request(app).get('/raster/dem/11/1024/768');
-    const second = request(app).get('/raster/dem/11/1024/768');
-    const responsesPromise = Promise.all([first, second]);
-
-    await waitForMockCalled(fetchDemTile);
-
-    resolveFetchDem({ gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff', gtiffCached: false });
-
-    const [response1, response2] = await responsesPromise;
-
-    expect(fetchDemTile).toHaveBeenCalledTimes(1);
-    expect(renderDemPng).toHaveBeenCalledTimes(1);
-    expect(response1.status).toBe(200);
-    expect(response2.status).toBe(200);
-  });
-});
-
-describe('GET /raster/satellite/:z/:x/:y.jpeg', () => {
-  it('streams a satellite jpeg response', async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
-
-    try {
-      const filePath = join(tempRoot, '11', '1024', '768', 'satellite.jpeg');
-      await mkdir(join(tempRoot, '11', '1024', '768'), { recursive: true });
-      await writeFile(filePath, Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
-
-      const fetchTile = vi.fn().mockResolvedValue({ path: filePath, cached: true });
-      const app = createApp({
-        raster: {
-          fetchSatelliteTile: fetchTile,
-          fetchDemTile: vi.fn(),
-          renderDemPng: vi.fn()
-        }
-      });
-
-      const response = await request(app).get('/raster/satellite/11/1024/768.jpeg');
-
-      expect(response.status).toBe(200);
-      expect(response.headers['content-type']).toMatch(/image\/jpeg/);
-      expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
-      expect(response.body.length).toBeGreaterThan(0);
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
-  });
 });
 
 describe('GET /raster/dem/:z/:x/:y.png', () => {
-  it('streams a dem png response', async () => {
+  it('streams an existing dem.png from the zxy folder', async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
 
     try {
-      const gtiffPath = join(tempRoot, '11', '1024', '768', 'dem.gtiff');
       const pngPath = join(tempRoot, '11', '1024', '768', 'dem.png');
       await mkdir(join(tempRoot, '11', '1024', '768'), { recursive: true });
-      await writeFile(gtiffPath, Buffer.from('fake-gtiff'));
       await writeFile(
         pngPath,
-        Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8wXYAAAAASUVORK5CYII=', 'base64')
+        Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8wXYAAAAASUVORK5CYII=',
+          'base64'
+        )
       );
 
-      const fetchDemTile = vi.fn().mockResolvedValue({ gtiffPath, gtiffCached: true });
-      const renderDemPng = vi.fn().mockResolvedValue({ path: pngPath, cached: true });
       const app = createApp({
         raster: {
-          fetchSatelliteTile: vi.fn(),
-          fetchDemTile,
-          renderDemPng
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
         }
       });
 
@@ -216,9 +68,63 @@ describe('GET /raster/dem/:z/:x/:y.png', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/image\/png/);
-      expect(fetchDemTile).toHaveBeenCalledWith(11, 1024, 768);
-      expect(renderDemPng).toHaveBeenCalledWith(gtiffPath, 11, 1024, 768);
       expect(response.body.length).toBeGreaterThan(0);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('returns 404 when dem.png is missing', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
+
+    try {
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const response = await request(app).get('/raster/dem/11/1024/768.png');
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({
+        error: {
+          code: 'DEM_PNG_NOT_FOUND',
+          reason: 'dem.png file was not found for tile'
+        }
+      });
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('GET /raster/dem/:z/:x/:y', () => {
+  it('returns dem png metadata from local zxy folder', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
+
+    try {
+      const pngPath = join(tempRoot, '11', '1024', '768', 'dem.png');
+      await mkdir(join(tempRoot, '11', '1024', '768'), { recursive: true });
+      await writeFile(pngPath, Buffer.from('png'));
+
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const response = await request(app).get('/raster/dem/11/1024/768');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        ok: true,
+        kind: 'dem',
+        pngPath,
+        pngCached: true
+      });
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }
@@ -226,94 +132,32 @@ describe('GET /raster/dem/:z/:x/:y.png', () => {
 });
 
 describe('GET /raster/dem/:z/:x/:y/png', () => {
-  it('renders the cached png asset and returns its path', async () => {
-    const fetchDemTile = vi.fn().mockResolvedValue({
-      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
-      gtiffCached: true
-    });
-    const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/.tiles/11/1024/768/dem.png',
-      cached: true
-    });
-    const app = createApp({
-      raster: {
-        fetchSatelliteTile: vi.fn(),
-        fetchDemTile,
-        renderDemPng
-      }
-    });
+  it('returns dem png metadata from local zxy folder', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
 
-    const response = await request(app).get('/raster/dem/11/1024/768/png');
+    try {
+      const pngPath = join(tempRoot, '11', '1024', '768', 'dem.png');
+      await mkdir(join(tempRoot, '11', '1024', '768'), { recursive: true });
+      await writeFile(pngPath, Buffer.from('png'));
 
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      ok: true,
-      kind: 'dem-png',
-      path: '/tmp/.tiles/11/1024/768/dem.png',
-      cached: true
-    });
-    expect(fetchDemTile).toHaveBeenCalledWith(11, 1024, 768);
-    expect(renderDemPng).toHaveBeenCalledWith('/tmp/.tiles/11/1024/768/dem.gtiff', 11, 1024, 768);
-  });
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
 
-  it('dedupes concurrent png render requests', async () => {
-    let resolveFetchDem;
-    const fetchDemTile = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveFetchDem = resolve;
-        })
-    );
-    const renderDemPng = vi.fn().mockResolvedValue({
-      path: '/tmp/.tiles/11/1024/768/dem.png',
-      cached: false
-    });
-    const app = createApp({
-      raster: {
-        fetchSatelliteTile: vi.fn(),
-        fetchDemTile,
-        renderDemPng
-      }
-    });
+      const response = await request(app).get('/raster/dem/11/1024/768/png');
 
-    const first = request(app).get('/raster/dem/11/1024/768/png');
-    const second = request(app).get('/raster/dem/11/1024/768/png');
-    const responsesPromise = Promise.all([first, second]);
-
-    await waitForMockCalled(fetchDemTile);
-
-    resolveFetchDem({ gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff', gtiffCached: false });
-
-    const [response1, response2] = await responsesPromise;
-
-    expect(fetchDemTile).toHaveBeenCalledTimes(1);
-    expect(renderDemPng).toHaveBeenCalledTimes(1);
-    expect(response1.status).toBe(200);
-    expect(response2.status).toBe(200);
-  });
-
-  it('returns 500 when the raster cannot be normalized into a renderable png', async () => {
-    const fetchDemTile = vi.fn().mockResolvedValue({
-      gtiffPath: '/tmp/.tiles/11/1024/768/dem.gtiff',
-      gtiffCached: true
-    });
-    const renderDemPng = vi.fn().mockRejectedValue(new Error('Raster contains no usable elevation values'));
-    const app = createApp({
-      raster: {
-        fetchSatelliteTile: vi.fn(),
-        fetchDemTile,
-        renderDemPng
-      }
-    });
-
-    const response = await request(app).get('/raster/dem/11/1024/768/png');
-
-    expect(response.status).toBe(500);
-    expect(response.body).toEqual({
-      error: {
-        code: 'DEM_PNG_RENDER_FAILED',
-        reason: 'Internal server error'
-      }
-    });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        ok: true,
+        kind: 'dem-png',
+        path: pngPath,
+        cached: true
+      });
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });

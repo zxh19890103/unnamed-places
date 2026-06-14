@@ -55,3 +55,42 @@ describe('GET /geo/centerline', () => {
     });
   });
 });
+
+describe('GET /geo/tiles-manifest', () => {
+  it('returns 200 and serves tile manifest json', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-tiles-manifest-'));
+
+    try {
+      const manifestPath = join(tempRoot, 'z11_manifest.json');
+      const manifest = [
+        { z: 11, x: 1584, y: 852 },
+        { z: 11, x: 1584, y: 853 }
+      ];
+
+      await writeFile(manifestPath, JSON.stringify(manifest), 'utf8');
+
+      const app = createApp({ tilesManifestPath: manifestPath });
+      const response = await request(app).get('/geo/tiles-manifest');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/application\/json/);
+      expect(response.body).toEqual(manifest);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('returns 404 when tile manifest file does not exist', async () => {
+    const app = createApp({ tilesManifestPath: '/tmp/does-not-exist-z11-manifest.json' });
+    const response = await request(app).get('/geo/tiles-manifest');
+
+    expect(response.status).toBe(404);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual({
+      error: {
+        code: 'TILES_MANIFEST_NOT_FOUND',
+        reason: 'Tiles manifest file was not found'
+      }
+    });
+  });
+});

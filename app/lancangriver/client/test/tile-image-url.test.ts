@@ -17,6 +17,6 @@ describe("tileImageUrl", () => {
     expect(satelliteUrl).toBe(
       "http://localhost:4050/raster/satellite/11/1234/678.jpeg",
     );
-    expect(demUrl).toBe("http://localhost:4050/raster/dem/11/1234/678/png");
+    expect(demUrl).toBe("http://localhost:4050/raster/dem/11/1234/678.png");
   });
 });

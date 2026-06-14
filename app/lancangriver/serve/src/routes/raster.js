@@ -1,12 +1,8 @@
 import { Router } from 'express';
 import { access, mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fromFile } from 'geotiff';
-import { PNG } from 'pngjs';
 
 const DEFAULT_SATELLITE_URL_TEMPLATE = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=4';
-const DEFAULT_OPENTOPOGRAPHY_URL_TEMPLATE =
-  'https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&south={south}&north={north}&west={west}&east={east}&outputFormat=GTiff&API_Key={apiKey}';
 
 function templateUrl(template, values) {
   return template.replace(/\{([^}]+)\}/g, (_match, key) => {
@@ -92,7 +88,6 @@ export function buildRasterPaths(rasterRoot, z, x, y) {
   return {
     tileRoot,
     satellitePath: join(tileRoot, 'satellite.jpeg'),
-    demGtiffPath: join(tileRoot, 'dem.gtiff'),
     demPngPath: join(tileRoot, 'dem.png')
   };
 }
@@ -123,91 +118,20 @@ async function defaultFetchSatelliteTile(z, x, y, rasterOptions) {
   return downloadToFile(url, satellitePath, fetchImpl);
 }
 
-async function defaultFetchDemTile(z, x, y, rasterOptions) {
-  const { rasterRoot, fetchImpl, openTopographyApiKey, openTopographyUrlTemplate } = rasterOptions;
-
-  if (!openTopographyApiKey) {
-    throw new Error('OPEN_TOPOGRAPHY_API_KEY is required for DEM tiles');
-  }
-
-  const { demGtiffPath } = buildRasterPaths(rasterRoot, z, x, y);
-  const [west, south, east, north] = zxyToBBox(z, x, y);
-  const url = templateUrl(openTopographyUrlTemplate, {
-    apiKey: openTopographyApiKey,
-    west,
-    south,
-    east,
-    north
-  });
-
-  return downloadToFile(url, demGtiffPath, fetchImpl);
-}
-
-async function normalizeRaster(values) {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-
-  for (const value of values) {
-    if (!Number.isFinite(value)) {
-      continue;
-    }
-
-    if (value < min) {
-      min = value;
-    }
-
-    if (value > max) {
-      max = value;
-    }
-  }
-
-  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
-    throw new Error('Raster contains no usable elevation values');
-  }
-
-  const scale = 255 / (max - min);
-  return values.map((value) => {
-    if (!Number.isFinite(value)) {
-      return 0;
-    }
-
-    const normalized = Math.round((value - min) * scale);
-    return Math.max(0, Math.min(255, normalized));
-  });
-}
-
-async function defaultRenderDemPng(gtiffPath, z, x, y, rasterOptions) {
+async function defaultResolveDemPngPath(z, x, y, rasterOptions) {
   const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
+  const exists = await isExistingPath(demPngPath);
 
-  if (await isExistingPath(demPngPath)) {
-    return { path: demPngPath, cached: true };
+  if (!exists) {
+    const error = new Error('dem.png file was not found for tile');
+    error.code = 'DEM_PNG_NOT_FOUND';
+    throw error;
   }
 
-  await ensureDirectory(demPngPath);
-  const tiff = await fromFile(gtiffPath);
-  const image = await tiff.getImage();
-  const width = image.getWidth();
-  const height = image.getHeight();
-  const [raster] = await image.readRasters({ samples: [0] });
-  const pixels = await normalizeRaster(raster);
-  const png = new PNG({ width, height });
-
-  for (let index = 0; index < pixels.length; index += 1) {
-    const offset = index * 4;
-    const value = pixels[index];
-    png.data[offset] = value;
-    png.data[offset + 1] = value;
-    png.data[offset + 2] = value;
-    png.data[offset + 3] = 255;
-  }
-
-  await writeAtomicFile(demPngPath, PNG.sync.write(png));
-
-  return { path: demPngPath, cached: false };
+  return { path: demPngPath, cached: true };
 }
 
 const satelliteInFlight = createInFlightMap();
-const demInFlight = createInFlightMap();
 const demPngInFlight = createInFlightMap();
 
 function createRasterHandlerOptions(options = {}) {
@@ -215,18 +139,10 @@ function createRasterHandlerOptions(options = {}) {
 
   return {
     rasterRoot: rasterOptions.rasterRoot ? resolve(rasterOptions.rasterRoot) : resolve('.tiles'),
-    openTopographyApiKey:
-      rasterOptions.openTopographyApiKey ??
-      process.env.OPENTOPOGRAPHY_API_KEY ??
-      process.env.OPEN_TOPOGRAPHY_API_KEY ??
-      '',
-    openTopographyUrlTemplate:
-      rasterOptions.openTopographyUrlTemplate ?? DEFAULT_OPENTOPOGRAPHY_URL_TEMPLATE,
     satelliteUrlTemplate: rasterOptions.satelliteUrlTemplate ?? DEFAULT_SATELLITE_URL_TEMPLATE,
     fetchImpl: rasterOptions.fetchImpl ?? fetch,
     fetchSatelliteTile: rasterOptions.fetchSatelliteTile,
-    fetchDemTile: rasterOptions.fetchDemTile,
-    renderDemPng: rasterOptions.renderDemPng
+    resolveDemPngPath: rasterOptions.resolveDemPngPath
   };
 }
 
@@ -263,24 +179,17 @@ export function createRasterRouter(options = {}) {
 
   const fetchSatelliteTile =
     rasterOptions.fetchSatelliteTile ?? ((z, x, y) => defaultFetchSatelliteTile(z, x, y, rasterOptions));
-  const fetchDemTile =
-    rasterOptions.fetchDemTile ?? ((z, x, y) => defaultFetchDemTile(z, x, y, rasterOptions));
-  const renderDemPng =
-    rasterOptions.renderDemPng ?? ((gtiffPath, z, x, y) => defaultRenderDemPng(gtiffPath, z, x, y, rasterOptions));
+  const resolveDemPngPath =
+    rasterOptions.resolveDemPngPath ?? ((z, x, y) => defaultResolveDemPngPath(z, x, y, rasterOptions));
 
   async function fetchSatelliteTileOnce(z, x, y) {
     const { satellitePath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
     return runWithInFlight(satelliteInFlight, satellitePath, () => fetchSatelliteTile(z, x, y));
   }
 
-  async function fetchDemTileOnce(z, x, y) {
-    const { demGtiffPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
-    return runWithInFlight(demInFlight, demGtiffPath, () => fetchDemTile(z, x, y));
-  }
-
-  async function renderDemPngOnce(gtiffPath, z, x, y) {
+  async function resolveDemPngPathOnce(z, x, y) {
     const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
-    return runWithInFlight(demPngInFlight, demPngPath, () => renderDemPng(gtiffPath, z, x, y));
+    return runWithInFlight(demPngInFlight, demPngPath, () => resolveDemPngPath(z, x, y));
   }
 
   router.get('/raster/satellite/:z/:x/:y.jpeg', async (req, res) => {
@@ -313,13 +222,15 @@ export function createRasterRouter(options = {}) {
     }
 
     try {
-      const gtiffResult = await fetchDemTileOnce(z, x, y);
-      const gtiffPath = gtiffResult.gtiffPath ?? gtiffResult.path;
-      const pngResult = await renderDemPngOnce(gtiffPath, z, x, y);
+      const pngResult = await resolveDemPngPathOnce(z, x, y);
       const pngPath = pngResult.pngPath ?? pngResult.path;
       await sendRasterFile(res, pngPath, 'image/png');
-    } catch (_error) {
-      console.error(_error);
+    } catch (error) {
+      if (error && typeof error === 'object' && error.code === 'DEM_PNG_NOT_FOUND') {
+        sendRasterError(res, 404, 'DEM_PNG_NOT_FOUND', 'dem.png file was not found for tile');
+        return;
+      }
+
       sendRasterError(res, 500, 'DEM_PNG_STREAM_FAILED', 'Internal server error');
     }
   });
@@ -357,19 +268,20 @@ export function createRasterRouter(options = {}) {
     }
 
     try {
-      const gtiffResult = await fetchDemTileOnce(z, x, y);
-      const gtiffPath = gtiffResult.gtiffPath ?? gtiffResult.path;
-      const pngResult = await renderDemPngOnce(gtiffPath, z, x, y);
+      const pngResult = await resolveDemPngPathOnce(z, x, y);
 
       res.status(200).json({
         ok: true,
         kind: 'dem',
-        gtiffPath,
-        gtiffCached: gtiffResult.gtiffCached ?? gtiffResult.cached ?? false,
         pngPath: pngResult.pngPath ?? pngResult.path,
-        pngCached: pngResult.pngCached ?? pngResult.cached ?? false
+        pngCached: pngResult.pngCached ?? pngResult.cached ?? true
       });
-    } catch (_error) {
+    } catch (error) {
+      if (error && typeof error === 'object' && error.code === 'DEM_PNG_NOT_FOUND') {
+        sendRasterError(res, 404, 'DEM_PNG_NOT_FOUND', 'dem.png file was not found for tile');
+        return;
+      }
+
       sendRasterError(res, 500, 'DEM_TILE_FAILED', 'Internal server error');
     }
   });
@@ -385,17 +297,20 @@ export function createRasterRouter(options = {}) {
     }
 
     try {
-      const gtiffResult = await fetchDemTileOnce(z, x, y);
-      const gtiffPath = gtiffResult.gtiffPath ?? gtiffResult.path;
-      const pngResult = await renderDemPngOnce(gtiffPath, z, x, y);
+      const pngResult = await resolveDemPngPathOnce(z, x, y);
 
       res.status(200).json({
         ok: true,
         kind: 'dem-png',
         path: pngResult.pngPath ?? pngResult.path,
-        cached: pngResult.pngCached ?? pngResult.cached ?? false
+        cached: pngResult.pngCached ?? pngResult.cached ?? true
       });
-    } catch (_error) {
+    } catch (error) {
+      if (error && typeof error === 'object' && error.code === 'DEM_PNG_NOT_FOUND') {
+        sendRasterError(res, 404, 'DEM_PNG_NOT_FOUND', 'dem.png file was not found for tile');
+        return;
+      }
+
       sendRasterError(res, 500, 'DEM_PNG_RENDER_FAILED', 'Internal server error');
     }
   });

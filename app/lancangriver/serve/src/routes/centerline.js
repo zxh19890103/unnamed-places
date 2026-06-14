@@ -8,6 +8,7 @@ const defaultCenterlineGeojsonPath = resolve(
   routesDir,
   '../../../pipeline/output/centerline/lancang_main_stem.geojson'
 );
+const defaultTilesManifestPath = resolve(routesDir, '../../../pipeline/output/tiles/z11_manifest.json');
 
 function sendCenterlineError(res, status, code, reason) {
   res.status(status).json({
@@ -23,6 +24,10 @@ export function createCenterlineRouter(options = {}) {
     typeof options.centerlineGeojsonPath === 'string' && options.centerlineGeojsonPath.length > 0
       ? resolve(options.centerlineGeojsonPath)
       : defaultCenterlineGeojsonPath;
+  const tilesManifestPath =
+    typeof options.tilesManifestPath === 'string' && options.tilesManifestPath.length > 0
+      ? resolve(options.tilesManifestPath)
+      : defaultTilesManifestPath;
 
   const router = Router();
 
@@ -39,6 +44,22 @@ export function createCenterlineRouter(options = {}) {
       }
 
       sendCenterlineError(res, 500, 'CENTERLINE_READ_FAILED', 'Internal server error');
+    }
+  });
+
+  router.get('/geo/tiles-manifest', async (_req, res) => {
+    try {
+      const rawManifest = await readFile(tilesManifestPath, 'utf8');
+      const parsedManifest = JSON.parse(rawManifest);
+
+      res.status(200).json(parsedManifest);
+    } catch (error) {
+      if (error && typeof error === 'object' && error.code === 'ENOENT') {
+        sendCenterlineError(res, 404, 'TILES_MANIFEST_NOT_FOUND', 'Tiles manifest file was not found');
+        return;
+      }
+
+      sendCenterlineError(res, 500, 'TILES_MANIFEST_READ_FAILED', 'Internal server error');
     }
   });
 

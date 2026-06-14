@@ -1,4 +1,5 @@
 import type { TileKey } from "../view/request-scheduler";
+import type { ManifestTileEntry } from "../view/manifest-tiles";
 
 export function tileImageUrl(
   baseUrl: string,
@@ -9,7 +10,7 @@ export function tileImageUrl(
     return `${baseUrl}/raster/satellite/${tile.z}/${tile.x}/${tile.y}.jpeg`;
   }
 
-  return `${baseUrl}/raster/dem/${tile.z}/${tile.x}/${tile.y}/png`;
+  return `${baseUrl}/raster/dem/${tile.z}/${tile.x}/${tile.y}.png`;
 }
 
 export async function fetchVector(
@@ -42,4 +43,13 @@ export async function fetchSatellite(baseUrl: string, tile: TileKey) {
     throw new Error(`satellite request failed: ${response.status}`);
   }
   return response.json();
+}
+
+export async function fetchTilesManifest(baseUrl: string) {
+  const response = await fetch(`${baseUrl}/geo/tiles-manifest`);
+  if (!response.ok) {
+    throw new Error(`tiles manifest request failed: ${response.status}`);
+  }
+
+  return (await response.json()) as ManifestTileEntry[];
 }
