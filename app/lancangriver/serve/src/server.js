@@ -2,6 +2,7 @@ import './env.js';
 import express from 'express';
 import cors from 'cors';
 import { getConfig } from './config.js';
+import { createCenterlineRouter } from './routes/centerline.js';
 import { createHealthRouter } from './routes/health.js';
 import { createRasterRouter } from './routes/raster.js';
 import { createVectorRouter } from './routes/vector.js';
@@ -11,6 +12,7 @@ export function createApp(options = {}) {
 
   app.use(cors());
   app.use(createHealthRouter());
+  app.use(createCenterlineRouter(options));
   app.use(createRasterRouter(options));
   app.use(createVectorRouter(options));
 
