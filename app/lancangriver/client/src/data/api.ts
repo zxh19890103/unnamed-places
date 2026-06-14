@@ -1,5 +1,17 @@
 import type { TileKey } from "../view/request-scheduler";
 
+export function tileImageUrl(
+  baseUrl: string,
+  kind: "satellite" | "dem",
+  tile: TileKey,
+) {
+  if (kind === "satellite") {
+    return `${baseUrl}/raster/satellite/${tile.z}/${tile.x}/${tile.y}.jpeg`;
+  }
+
+  return `${baseUrl}/raster/dem/${tile.z}/${tile.x}/${tile.y}/png`;
+}
+
 export async function fetchVector(
   baseUrl: string,
   bbox: [number, number, number, number],

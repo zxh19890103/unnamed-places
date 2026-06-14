@@ -4,6 +4,7 @@ export type ViewState = {
   zoom: number;
   viewportWidthPx: number;
   viewportHeightPx: number;
+  haloTiles?: number;
 };
 
 export type TileKey = {
@@ -52,6 +53,18 @@ function tileIndexRange(
   return [Math.min(min, max), Math.max(min, max)];
 }
 
+function expandRange(
+  min: number,
+  max: number,
+  haloTiles: number,
+  limit: number,
+): [number, number] {
+  const safeHaloTiles = Math.max(0, Math.floor(haloTiles));
+  const expandedMin = Math.max(0, min - safeHaloTiles);
+  const expandedMax = Math.min(limit - 1, max + safeHaloTiles);
+  return [expandedMin, expandedMax];
+}
+
 function tileBounds4326(
   z: number,
   x: number,
@@ -71,6 +84,7 @@ function tileBounds4326(
 export function computeRequestPlan(view: ViewState): RequestPlan {
   const z = Math.max(0, Math.floor(view.zoom));
   const center = lonLatToWorldPixel(view.centerLon, view.centerLat, z);
+  const haloTiles = Math.max(0, Math.floor(view.haloTiles ?? 1));
 
   const minPxX = center.x - view.viewportWidthPx / 2;
   const maxPxX = center.x + view.viewportWidthPx / 2;
@@ -78,8 +92,20 @@ export function computeRequestPlan(view: ViewState): RequestPlan {
   const maxPxY = center.y + view.viewportHeightPx / 2;
 
   const tileCount = 2 ** z;
-  const [minX, maxX] = tileIndexRange(minPxX, maxPxX, tileCount);
-  const [minY, maxY] = tileIndexRange(minPxY, maxPxY, tileCount);
+  const [visibleMinX, visibleMaxX] = tileIndexRange(minPxX, maxPxX, tileCount);
+  const [visibleMinY, visibleMaxY] = tileIndexRange(minPxY, maxPxY, tileCount);
+  const [minX, maxX] = expandRange(
+    visibleMinX,
+    visibleMaxX,
+    haloTiles,
+    tileCount,
+  );
+  const [minY, maxY] = expandRange(
+    visibleMinY,
+    visibleMaxY,
+    haloTiles,
+    tileCount,
+  );
 
   const rasterTiles: TileKey[] = [];
   for (let x = minX; x <= maxX; x += 1) {
