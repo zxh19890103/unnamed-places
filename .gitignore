@@ -8,3 +8,4 @@ dist/
 .worktrees/
 **/.tiles/
 **/.env.local
+**/pipeline/output/
