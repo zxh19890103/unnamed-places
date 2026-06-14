@@ -1,28 +1,26 @@
-import requests
+import argparse
+import json
+from pathlib import Path
 from shapely.geometry import LineString, Point
 from typing import Optional
 
-OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter'
+from pipeline.src.common.config import load_corridor
+
 ALLOWED_NAMES = {'澜沧江', 'lancang jiang', 'lancang river'}
 
 
-def build_river_query(bbox: list[float]) -> str:
-    min_lon, min_lat, max_lon, max_lat = bbox
-    return (
-        '[out:json][timeout:120];\n'
-        f'way["waterway"="river"]({min_lat},{min_lon},{max_lat},{max_lon});\n'
-        'out geom tags;'
-    )
+def load_osm_payload(input_json: str) -> dict:
+    input_path = Path(input_json)
+    if not input_path.exists():
+        raise FileNotFoundError(f'OSM input json not found: {input_json}')
 
+    with input_path.open('r', encoding='utf-8') as file:
+        payload = json.load(file)
 
-def fetch_overpass(query: str) -> dict:
-    response = requests.post(
-        OVERPASS_ENDPOINT,
-        data={'data': query},
-        timeout=180,
-    )
-    response.raise_for_status()
-    return response.json()
+    if not isinstance(payload, dict):
+        raise ValueError('OSM input json must be an object payload')
+
+    return payload
 
 
 def filter_lancang_ways(elements: list[dict]) -> list[dict]:
@@ -136,3 +134,45 @@ def to_feature(
             'gap_count': gap_count,
         },
     }
+
+
+def write_feature(output_dir: str, feature: dict) -> Path:
+    directory = Path(output_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    file_path = directory / 'lancang_main_stem.geojson'
+    with file_path.open('w', encoding='utf-8') as file:
+        json.dump(feature, file)
+    return file_path
+
+
+def run(config_path: str, output_dir: str, input_json: str) -> Path:
+    cfg = load_corridor(config_path)
+    origin = cfg['origin']
+    end = cfg['end']
+    payload = load_osm_payload(input_json)
+    ways = filter_lancang_ways(payload.get('elements', []))
+    if len(ways) == 0:
+        raise ValueError('No Lancang river ways matched the configured name filter')
+
+    coords, gap_count = stitch_centerline(ways, origin, end)
+    if len(coords) < 2:
+        raise ValueError('Failed to stitch a centerline with at least two points')
+
+    clipped = clip_between_points(coords, origin, end)
+    feature = to_feature(clipped, origin, end, gap_count)
+    return write_feature(output_dir, feature)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='pipeline/config/pilot_corridor.json')
+    parser.add_argument('--input-json', default='pipeline/input/osm/lancang_river.osm.json')
+    parser.add_argument('--output-dir', default='pipeline/output/centerline')
+    args = parser.parse_args()
+
+    output = run(args.config, args.output_dir, args.input_json)
+    print(f'centerline -> {output}')
+
+
+if __name__ == '__main__':
+    main()
