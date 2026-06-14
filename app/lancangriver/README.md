@@ -76,6 +76,27 @@ Default tile cache root is `.tiles/` (git-ignored):
 - `.tiles/{z}/{x}/{y}/dem.gtiff`
 - `.tiles/{z}/{x}/{y}/dem.png`
 
+## DEM Encoding Notes
+
+Terrarium (`--dem-provider terrarium`) stores elevation in RGB PNG channels.
+
+Decode formula (meters):
+
+```text
+(red * 256 + green + blue / 256) - 32768
+```
+
+OpenTopography (`--dem-provider opentopo`) uses GeoTIFF where elevation is stored directly as raster values in meters (no RGB decode formula).
+
+- `dem.gtiff`: use raster value directly as elevation meters.
+- `dem.png`: this project generates a grayscale preview from `dem.gtiff` using per-tile min/max normalization. It is a visualization artifact, not raw elevation.
+
+Normalized preview relation:
+
+```text
+png = round((elevation - min_elevation) * 255 / (max_elevation - min_elevation))
+```
+
 ## Test Commands
 
 Service tests:

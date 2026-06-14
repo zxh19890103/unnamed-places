@@ -1,7 +1,11 @@
 import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import dotenv from 'dotenv';
 import { fromFile } from 'geotiff';
 import { PNG } from 'pngjs';
+
+dotenv.config({ path: '.env' });
+dotenv.config({ path: '.env.local' });
 
 const SATELLITE_TEMPLATE =
   process.env.SATELLITE_URL_TEMPLATE ||
@@ -10,6 +14,10 @@ const SATELLITE_TEMPLATE =
 const OPENTOPOGRAPHY_TEMPLATE =
   process.env.OPENTOPOGRAPHY_URL_TEMPLATE ||
   'https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&south={south}&north={north}&west={west}&east={east}&outputFormat=GTiff&API_Key={apiKey}';
+
+const TERRARIUM_TEMPLATE =
+  process.env.TERRARIUM_URL_TEMPLATE ||
+  'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 
 function parseArgs(argv) {
   const result = {
@@ -23,7 +31,8 @@ function parseArgs(argv) {
     skipSatellite: false,
     skipDem: false,
     force: false,
-    manifestPath: null
+    manifestPath: null,
+    demProvider: 'opentopo'
   };
 
   for (let index = 2; index < argv.length; index += 1) {
@@ -83,6 +92,16 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (token === '--dem-provider') {
+      const next = argv[index + 1];
+      if (!next) {
+        throw new Error('Missing value for --dem-provider');
+      }
+      result.demProvider = next;
+      index += 1;
+      continue;
+    }
+
     if (token === '--help' || token === '-h') {
       printUsage();
       process.exit(0);
@@ -97,6 +116,10 @@ function parseArgs(argv) {
 
   if (!Number.isInteger(result.concurrency) || result.concurrency < 1) {
     throw new Error('--concurrency must be >= 1');
+  }
+
+  if (!['opentopo', 'terrarium'].includes(result.demProvider)) {
+    throw new Error('--dem-provider must be one of: opentopo, terrarium');
   }
 
   const hasBbox =
@@ -134,6 +157,7 @@ Options:
   --concurrency <n>                       Concurrent tile workers (default: 6)
   --skip-satellite                        Skip satellite download
   --skip-dem                              Skip DEM download/render
+  --dem-provider <opentopo|terrarium>     DEM source provider (default: opentopo)
   --force                                 Redownload/rebuild even if cached
   --manifest <path>                       Read explicit z/x/y tile list JSON
 `);
@@ -307,33 +331,43 @@ async function prefetchOneTile(tile, options, stats) {
   }
 
   if (!options.skipDem) {
-    const apiKey =
-      process.env.OPENTOPOGRAPHY_API_KEY || process.env.OPEN_TOPOGRAPHY_API_KEY || '';
-    if (!apiKey) {
-      throw new Error('Missing OPENTOPOGRAPHY_API_KEY or OPEN_TOPOGRAPHY_API_KEY');
-    }
-
-    const bbox = zxyToBbox(z, x, y);
-    const demUrl = fillTemplate(OPENTOPOGRAPHY_TEMPLATE, {
-      apiKey,
-      south: bbox.south,
-      north: bbox.north,
-      west: bbox.west,
-      east: bbox.east
-    });
-
-    const gtiffResult = await downloadFile(demUrl, paths.demGtiff, options.force);
-    if (gtiffResult.cached) {
-      stats.demGtiffCached += 1;
+    if (options.demProvider === 'terrarium') {
+      const terrariumUrl = fillTemplate(TERRARIUM_TEMPLATE, { z, x, y });
+      const pngResult = await downloadFile(terrariumUrl, paths.demPng, options.force);
+      if (pngResult.cached) {
+        stats.demPngCached += 1;
+      } else {
+        stats.demPngDownloaded += 1;
+      }
     } else {
-      stats.demGtiffDownloaded += 1;
-    }
+      const apiKey =
+        process.env.OPENTOPOGRAPHY_API_KEY || process.env.OPEN_TOPOGRAPHY_API_KEY || '';
+      if (!apiKey) {
+        throw new Error('Missing OPENTOPOGRAPHY_API_KEY or OPEN_TOPOGRAPHY_API_KEY');
+      }
 
-    const pngResult = await renderGtiffToPng(paths.demGtiff, paths.demPng, options.force);
-    if (pngResult.cached) {
-      stats.demPngCached += 1;
-    } else {
-      stats.demPngRendered += 1;
+      const bbox = zxyToBbox(z, x, y);
+      const demUrl = fillTemplate(OPENTOPOGRAPHY_TEMPLATE, {
+        apiKey,
+        south: bbox.south,
+        north: bbox.north,
+        west: bbox.west,
+        east: bbox.east
+      });
+
+      const gtiffResult = await downloadFile(demUrl, paths.demGtiff, options.force);
+      if (gtiffResult.cached) {
+        stats.demGtiffCached += 1;
+      } else {
+        stats.demGtiffDownloaded += 1;
+      }
+
+      const pngResult = await renderGtiffToPng(paths.demGtiff, paths.demPng, options.force);
+      if (pngResult.cached) {
+        stats.demPngCached += 1;
+      } else {
+        stats.demPngRendered += 1;
+      }
     }
   }
 }
@@ -395,12 +429,14 @@ async function main() {
     satelliteCached: 0,
     demGtiffDownloaded: 0,
     demGtiffCached: 0,
+    demPngDownloaded: 0,
     demPngRendered: 0,
     demPngCached: 0,
     failures: 0
   };
 
   console.log(`[prefetch] root=${options.root}`);
+  console.log(`[prefetch] dem-provider=${options.demProvider}`);
   console.log(`[prefetch] zoom=${options.zoom} tiles=${tiles.length} concurrency=${options.concurrency}`);
   if (options.manifestPath) {
     console.log(`[prefetch] manifest=${options.manifestPath}`);
@@ -431,7 +467,9 @@ async function main() {
   console.log(
     `[prefetch] dem.gtiff downloaded=${stats.demGtiffDownloaded} cached=${stats.demGtiffCached}`
   );
-  console.log(`[prefetch] dem.png rendered=${stats.demPngRendered} cached=${stats.demPngCached}`);
+  console.log(
+    `[prefetch] dem.png downloaded=${stats.demPngDownloaded} rendered=${stats.demPngRendered} cached=${stats.demPngCached}`
+  );
   console.log(`[prefetch] failures=${stats.failures}`);
 
   if (stats.failures > 0) {
