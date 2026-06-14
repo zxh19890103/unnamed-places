@@ -7,11 +7,16 @@ import { attachCameraGui } from "./ui/camera-gui";
 import { createTilesManifestModal } from "./ui/tiles-manifest-modal";
 import type { TileKey } from "./view/request-scheduler";
 import {
+  createSatelliteRequestBudget,
+  type SatelliteTextureRequest,
+} from "./view/satellite-request-budget";
+import {
   type ManifestTileEntry,
   createManifestTileSet,
   isTileInManifest,
   toTileId,
 } from "./view/manifest-tiles";
+import { chooseSatelliteZoom, enumerateChildTiles } from "./view/satellite-lod";
 import { createTileViewportController } from "./view/tile-viewport-controller";
 
 const baseUrl = "http://localhost:4050";
@@ -24,6 +29,7 @@ const MANIFEST_HIT_OUTLINE_COLOR = 0x00ff66;
 const FIXED_VIEW_ANGLE = Math.PI / 4;
 const START_CENTER_LON = 97.17658060985056;
 const START_CENTER_LAT = 31.13551645138972;
+const textureLoader = new THREE.TextureLoader();
 
 function lonLatToTile(lon: number, lat: number, zoom: number): TileKey {
   const tileCount = 2 ** zoom;
@@ -155,15 +161,55 @@ function createTileMesh(
   return mesh;
 }
 
-async function loadTileTextures(tile: TileKey) {
-  const textureLoader = new THREE.TextureLoader();
-  const [satelliteTexture, demTexture] = await Promise.all([
-    textureLoader.loadAsync(tileImageUrl(baseUrl, "satellite", tile)),
-    textureLoader.loadAsync(tileImageUrl(baseUrl, "dem", tile)),
-  ]);
+async function loadDemTexture(tile: TileKey) {
+  return textureLoader.loadAsync(tileImageUrl(baseUrl, "dem", tile));
+}
 
-  satelliteTexture.colorSpace = THREE.SRGBColorSpace;
-  return { satelliteTexture, demTexture };
+async function loadSatelliteTextureForDemTile(
+  demTile: TileKey,
+  satelliteZoom: number,
+) {
+  if (satelliteZoom <= demTile.z) {
+    const texture = await textureLoader.loadAsync(
+      tileImageUrl(baseUrl, "satellite", demTile),
+    );
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  const childTiles = enumerateChildTiles(demTile, satelliteZoom);
+  const factor = 2 ** (satelliteZoom - demTile.z);
+  const canvas = document.createElement("canvas");
+  canvas.width = TILE_SIZE * factor;
+  canvas.height = TILE_SIZE * factor;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("2d canvas context is unavailable");
+  }
+
+  const loadedTiles = await Promise.all(
+    childTiles.map(async (tile) => {
+      const texture = await textureLoader.loadAsync(
+        tileImageUrl(baseUrl, "satellite", tile),
+      );
+      return { texture, tile };
+    }),
+  );
+
+  for (const { texture, tile } of loadedTiles) {
+    context.drawImage(
+      texture.image,
+      tile.offsetX * TILE_SIZE,
+      tile.offsetY * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+    );
+    texture.dispose();
+  }
+
+  const compositeTexture = new THREE.CanvasTexture(canvas);
+  compositeTexture.colorSpace = THREE.SRGBColorSpace;
+  return compositeTexture;
 }
 
 function createDebugTileMaterial(tile: TileKey) {
@@ -281,6 +327,7 @@ async function bootstrap() {
   );
   const tileGroup = new THREE.Group();
   scene.add(tileGroup);
+  const satelliteRequestBudget = createSatelliteRequestBudget(2, 4);
 
   let manifestTiles: ManifestTileEntry[] = [];
   let manifestTileSet = new Set<string>();
@@ -330,6 +377,110 @@ async function bootstrap() {
   let sampleMiss = "";
 
   const loggedHitTiles = new Set<string>();
+  type TerrainRuntime = {
+    tile: TileKey;
+    tileId: string;
+    mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.Material | THREE.Material[]>;
+    hitOutline: THREE.LineSegments;
+    material?: THREE.ShaderMaterial;
+    demTexture?: THREE.Texture;
+    satelliteTexture?: THREE.Texture;
+    satelliteZoom: number;
+    requestedZoom: number;
+    pending: boolean;
+    requestSeq: number;
+    disposed: boolean;
+  };
+  const terrainRuntimeById = new Map<string, TerrainRuntime>();
+
+  function applySatelliteTexture(
+    runtime: TerrainRuntime,
+    request: SatelliteTextureRequest,
+    nextTexture: THREE.Texture,
+  ) {
+    if (runtime.disposed || runtime.requestSeq !== request.generation) {
+      nextTexture.dispose();
+      return;
+    }
+
+    const previousTexture = runtime.satelliteTexture;
+    runtime.satelliteTexture = nextTexture;
+    runtime.satelliteZoom = request.targetZoom;
+
+    if (runtime.material) {
+      runtime.material.uniforms.uSatelliteTexture.value = nextTexture;
+      runtime.material.needsUpdate = true;
+    } else if (runtime.demTexture) {
+      const terrainMaterial = createTerrainMaterial(nextTexture, runtime.demTexture);
+      runtime.mesh.material = terrainMaterial;
+      runtime.material = terrainMaterial;
+      runtime.material.needsUpdate = true;
+    }
+
+    if (previousTexture) {
+      previousTexture.dispose();
+    }
+  }
+
+  function processSatelliteRequestBudget() {
+    satelliteRequestBudget.startFrame();
+
+    while (true) {
+      const request = satelliteRequestBudget.takeNext();
+      if (!request) {
+        return;
+      }
+
+      const runtime = terrainRuntimeById.get(request.tileId);
+      if (!runtime || runtime.disposed) {
+        satelliteRequestBudget.complete(request);
+        continue;
+      }
+
+      void loadSatelliteTextureForDemTile(runtime.tile, request.targetZoom)
+        .then((nextTexture) => {
+          applySatelliteTexture(runtime, request, nextTexture);
+        })
+        .catch((error: unknown) => {
+          console.warn("satellite lod update failed", runtime.tileId, error);
+        })
+        .finally(() => {
+          satelliteRequestBudget.complete(request);
+          if (!runtime.disposed && runtime.requestSeq === request.generation) {
+            runtime.pending = false;
+          }
+        });
+    }
+  }
+
+  function updateSatelliteLodForVisibleTerrain() {
+    for (const runtime of terrainRuntimeById.values()) {
+      if (runtime.disposed || !runtime.demTexture) {
+        continue;
+      }
+
+      const distanceToTile = camera.position.distanceTo(runtime.mesh.position);
+      const desiredZoom = chooseSatelliteZoom(
+        distanceToTile,
+        runtime.satelliteZoom,
+      );
+      if (desiredZoom === runtime.requestedZoom) {
+        continue;
+      }
+
+      runtime.pending = true;
+      const requestSeq = runtime.requestSeq + 1;
+      runtime.requestSeq = requestSeq;
+      runtime.requestedZoom = desiredZoom;
+
+      satelliteRequestBudget.enqueue({
+        tileId: runtime.tileId,
+        distance: distanceToTile,
+        targetZoom: desiredZoom,
+        generation: requestSeq,
+      });
+    }
+  }
 
   const controller = createTileViewportController(async (tile) => {
     const mesh = createTileMesh(tile, origin);
@@ -372,11 +523,49 @@ async function bootstrap() {
     }
 
     const hitOutline = createManifestHitOutline(mesh);
+    const runtime: TerrainRuntime = {
+      tile,
+      tileId,
+      mesh,
+      hitOutline,
+      satelliteZoom: FIXED_TILE_ZOOM,
+      requestedZoom: FIXED_TILE_ZOOM,
+      pending: false,
+      requestSeq: 0,
+      disposed: false,
+    };
+    terrainRuntimeById.set(tileId, runtime);
 
-    void loadTileTextures(tile)
-      .then(({ satelliteTexture, demTexture }) => {
-        mesh.material = createTerrainMaterial(satelliteTexture, demTexture);
-        mesh.material.needsUpdate = true;
+    void loadDemTexture(tile)
+      .then(async (demTexture) => {
+        if (runtime.disposed) {
+          demTexture.dispose();
+          return;
+        }
+
+        const distanceToTile = camera.position.distanceTo(mesh.position);
+        const satelliteZoom = chooseSatelliteZoom(distanceToTile);
+        runtime.demTexture = demTexture;
+        runtime.satelliteZoom = satelliteZoom;
+        if (runtime.satelliteTexture) {
+          const terrainMaterial = createTerrainMaterial(
+            runtime.satelliteTexture,
+            demTexture,
+          );
+          mesh.material = terrainMaterial;
+          runtime.material = terrainMaterial;
+          terrainMaterial.needsUpdate = true;
+        } else {
+          runtime.pending = true;
+          runtime.requestSeq += 1;
+          runtime.requestedZoom = satelliteZoom;
+          satelliteRequestBudget.enqueue({
+            tileId,
+            distance: distanceToTile,
+            targetZoom: satelliteZoom,
+            generation: runtime.requestSeq,
+          });
+        }
       })
       .catch((error: unknown) => {
         lastSnapshot = controller.getSnapshot();
@@ -393,9 +582,19 @@ async function bootstrap() {
 
     return {
       dispose: () => {
+        runtime.disposed = true;
+        terrainRuntimeById.delete(tileId);
         tileGroup.remove(mesh);
         mesh.geometry.dispose();
-        if (Array.isArray(mesh.material)) {
+        if (runtime.demTexture) {
+          runtime.demTexture.dispose();
+        }
+        if (runtime.satelliteTexture) {
+          runtime.satelliteTexture.dispose();
+        }
+        if (runtime.material) {
+          runtime.material.dispose();
+        } else if (Array.isArray(mesh.material)) {
           for (const material of mesh.material) {
             material.dispose();
           }
@@ -417,6 +616,7 @@ async function bootstrap() {
       window.innerHeight,
     );
     controller.sync(viewTiles);
+    updateSatelliteLodForVisibleTerrain();
     lastSnapshot = controller.getSnapshot();
 
     manifestHits = 0;
@@ -459,6 +659,7 @@ async function bootstrap() {
 
   const animate = () => {
     controls.update();
+    processSatelliteRequestBudget();
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
   };
