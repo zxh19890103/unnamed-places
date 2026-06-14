@@ -319,6 +319,7 @@ export function createRasterRouter(options = {}) {
       const pngPath = pngResult.pngPath ?? pngResult.path;
       await sendRasterFile(res, pngPath, 'image/png');
     } catch (_error) {
+      console.error(_error);
       sendRasterError(res, 500, 'DEM_PNG_STREAM_FAILED', 'Internal server error');
     }
   });

@@ -49,6 +49,7 @@ node --input-type=module -e "import('./src/db.js').then(async (m) => { try { awa
 ## Notes
 
 - Init scripts run only when volume is first created.
+- Docker init scripts provision PostGIS basics only; app tables such as `public.vector_features` are created by service migrations.
 - If you change init scripts after first run, reset volume:
 
 ```bash

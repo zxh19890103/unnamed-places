@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "migrate:db": "node scripts/migrate.js",
     "prefetch:tiles": "node scripts/prefetch-tiles.js",
     "test": "vitest run"
   },

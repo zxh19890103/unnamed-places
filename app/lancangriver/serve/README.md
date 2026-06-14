@@ -27,6 +27,17 @@ npm run dev
 
 Default listen port is `4050`.
 
+## Migrations
+
+From `app/lancangriver/serve`:
+
+```bash
+export DATABASE_URL='postgres://lancangriver:lancangriver_dev_password@localhost:5432/lancangriver'
+npm run migrate:db
+```
+
+This applies SQL files in `src/sql/migrations/` and creates `public.vector_features` plus indexes.
+
 ## Environment Variables
 
 - `PORT`: service port (default `4050`)
@@ -42,6 +53,17 @@ Default listen port is `4050`.
 - `GET /raster/satellite/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y/png`
+
+## Vector table contract
+
+`/vector` reads from `public.vector_features` with these required columns:
+
+- `feature_id` (`TEXT`, primary key)
+- `feature_type` (`TEXT`)
+- `tags` (`JSONB`)
+- `geom` (`geometry(Geometry, 4326)`)
+
+Additional columns are returned automatically as GeoJSON properties.
 
 ## Tile Cache Layout
 

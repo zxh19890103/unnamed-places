@@ -1,6 +1,6 @@
 # Lancangriver Pipeline
 
-This folder contains the baseline data pipeline for corridor config validation and OSM ingestion.
+This folder contains the baseline data pipeline for corridor config validation, OSM ingestion, and loading vector features into PostGIS.
 
 ## 1) Prerequisites
 
@@ -56,7 +56,22 @@ Generated files per tile:
 - `.tiles/{z}/{x}/{y}/dem.gtiff`
 - `.tiles/{z}/{x}/{y}/dem.png`
 
-## 6) Common options
+## 6) Load OSM output into `public.vector_features`
+
+From `app/lancangriver`:
+
+```bash
+export DATABASE_URL='postgres://lancangriver:lancangriver_dev_password@localhost:5432/lancangriver'
+pipeline/.venv/bin/python -m pipeline.src.ingest.load_vector_features --input-dir pipeline/output/osm --truncate
+```
+
+Notes:
+
+- Run `npm run migrate:db` in `app/lancangriver/serve` first to create the target table.
+- Loader performs upsert by `feature_id` (`<osm_type>/<osm_id>`).
+- Use `--truncate` for a full refresh before upsert.
+
+## 7) Common options
 
 OSM ingest:
 
@@ -70,7 +85,13 @@ Tile prefetch:
 npm run prefetch:tiles -- --help
 ```
 
-## 7) Notes
+Vector loader:
+
+```bash
+pipeline/.venv/bin/python -m pipeline.src.ingest.load_vector_features --help
+```
+
+## 8) Notes
 
 - Corridor segments are configured in `pipeline/config/pilot_corridor.json`.
 - Only segments with `"enabled": true` are ingested.

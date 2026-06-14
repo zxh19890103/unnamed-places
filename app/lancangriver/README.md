@@ -32,10 +32,20 @@ cd app/lancangriver/serve
 npm install
 export DATABASE_URL='postgres://lancangriver:lancangriver_dev_password@localhost:5432/lancangriver'
 export OPENTOPOGRAPHY_API_KEY='YOUR_KEY'
+npm run migrate:db
 npm run dev
 ```
 
-3. Start client
+3. Load vector features (required for `/vector`)
+
+```bash
+cd app/lancangriver
+pipeline/.venv/bin/python -m pipeline.src.ingest.osm_ingest --config pipeline/config/pilot_corridor.json --output-dir pipeline/output/osm
+export DATABASE_URL='postgres://lancangriver:lancangriver_dev_password@localhost:5432/lancangriver'
+pipeline/.venv/bin/python -m pipeline.src.ingest.load_vector_features --input-dir pipeline/output/osm --truncate
+```
+
+4. Start client
 
 ```bash
 cd app/lancangriver/client
@@ -43,7 +53,7 @@ npm install
 npm run dev
 ```
 
-4. Run smoke check
+5. Run smoke check
 
 ```bash
 cd app/lancangriver
@@ -91,7 +101,7 @@ pipeline/.venv/bin/python -m pytest pipeline/tests/test_corridor_config.py pipel
 
 ## Known Development Note
 
-The `/vector` endpoint expects data in `public.vector_features`. If that table is not created/populated yet, vector requests will fail even when PostGIS is running.
+The `/vector` endpoint reads from `public.vector_features`. Create it with `npm run migrate:db` in `app/lancangriver/serve`, then load data via `pipeline.src.ingest.load_vector_features`.
 
 ## Documentation Map
 
