@@ -4,8 +4,10 @@ export type DiagnosticsSnapshot = {
   satelliteStatus: "ok" | "na";
   tileCount: number;
   pendingCount: number;
+  satellitePendingCount?: number;
   failedCount: number;
   lastError: string;
+  satelliteZoomDistribution?: string;
   manifestSize?: number;
   manifestHits?: number;
   manifestMisses?: number;
@@ -20,9 +22,16 @@ export function renderDiagnostics(snapshot: DiagnosticsSnapshot): string {
     `sat=${snapshot.satelliteStatus}`,
     `tiles=${snapshot.tileCount}`,
     `pending=${snapshot.pendingCount}`,
+    ...(typeof snapshot.satellitePendingCount === "number"
+      ? [`satPending=${snapshot.satellitePendingCount}`]
+      : []),
     `failed=${snapshot.failedCount}`,
     `error=${snapshot.lastError || "none"}`,
   ];
+
+  if (snapshot.satelliteZoomDistribution) {
+    parts.push(`lod=${snapshot.satelliteZoomDistribution}`);
+  }
 
   if (typeof snapshot.manifestSize === "number") {
     parts.push(`manifestSize=${snapshot.manifestSize}`);

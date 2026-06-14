@@ -20,6 +20,11 @@ type CameraGuiState = {
   zoomSpeed: number;
   minDistance: number;
   maxDistance: number;
+  freezeSatelliteLod: boolean;
+};
+
+type CameraGuiOptions = {
+  onSatelliteLodFreezeChange?: (frozen: boolean) => void;
 };
 
 function createInitialState(
@@ -42,12 +47,14 @@ function createInitialState(
     zoomSpeed: controls.zoomSpeed,
     minDistance: controls.minDistance,
     maxDistance: controls.maxDistance,
+    freezeSatelliteLod: false,
   };
 }
 
 export function attachCameraGui(
   camera: THREE.PerspectiveCamera,
   controls: MapControls,
+  options: CameraGuiOptions = {},
 ) {
   const gui = new GUI({ title: "Camera" });
   const state = createInitialState(camera, controls);
@@ -108,9 +115,20 @@ export function attachCameraGui(
   controlsFolder.add(state, "minDistance", 10, 50000, 10).onChange(apply);
   controlsFolder.add(state, "maxDistance", 100, 100000, 10).onChange(apply);
 
+  const debugFolder = gui.addFolder("Debug");
+  debugFolder
+    .add(state, "freezeSatelliteLod")
+    .name("freezeSatelliteLod")
+    .onChange(() => {
+      options.onSatelliteLodFreezeChange?.(state.freezeSatelliteLod);
+    });
+
   const resetDefaults = {
     reset: () => {
-      Object.assign(state, createInitialState(camera, controls));
+      const freezeSatelliteLod = state.freezeSatelliteLod;
+      Object.assign(state, createInitialState(camera, controls), {
+        freezeSatelliteLod,
+      });
       apply();
       for (const controller of gui.controllersRecursive()) {
         controller.updateDisplay();
@@ -122,6 +140,7 @@ export function attachCameraGui(
   movement.open();
   lens.close();
   controlsFolder.close();
+  debugFolder.close();
 
   apply();
 

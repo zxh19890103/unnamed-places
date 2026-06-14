@@ -88,7 +88,10 @@ function createAppShell() {
   return { app, canvasHost, diagnostics };
 }
 
-function createScene(canvasHost: HTMLElement) {
+function createScene(
+  canvasHost: HTMLElement,
+  onSatelliteLodFreezeChange?: (frozen: boolean) => void,
+) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#0b1120");
 
@@ -117,7 +120,9 @@ function createScene(canvasHost: HTMLElement) {
   controls.target.set(0, 0, 0);
   controls.update();
 
-  const destroyCameraGui = attachCameraGui(camera, controls);
+  const destroyCameraGui = attachCameraGui(camera, controls, {
+    onSatelliteLodFreezeChange,
+  });
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
   scene.add(ambientLight);
@@ -314,11 +319,40 @@ function computeViewportTiles(
   return tiles;
 }
 
+function summarizeSatelliteZoomDistribution(
+  runtimes: Iterable<{ satelliteZoom: number }>,
+): string {
+  const counts = new Map<number, number>();
+
+  for (const runtime of runtimes) {
+    counts.set(
+      runtime.satelliteZoom,
+      (counts.get(runtime.satelliteZoom) ?? 0) + 1,
+    );
+  }
+
+  if (counts.size === 0) {
+    return "none";
+  }
+
+  return Array.from(counts.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map(([zoom, count]) => `z${zoom}:${count}`)
+    .join(",");
+}
+
 async function bootstrap() {
   const { app, canvasHost, diagnostics } = createAppShell();
+  let satelliteLodFrozen = false;
 
   const { scene, camera, renderer, controls, destroyCameraGui } =
-    createScene(canvasHost);
+    createScene(canvasHost, (frozen) => {
+      satelliteLodFrozen = frozen;
+      if (!satelliteLodFrozen) {
+        updateSatelliteLodForVisibleTerrain();
+        refreshDiagnostics();
+      }
+    });
 
   const origin = lonLatToTile(
     START_CENTER_LON,
@@ -332,12 +366,14 @@ async function bootstrap() {
   let manifestTiles: ManifestTileEntry[] = [];
   let manifestTileSet = new Set<string>();
   let manifestError = "";
+  let lastError = "";
 
   try {
     manifestTiles = await fetchTilesManifest(baseUrl);
     manifestTileSet = createManifestTileSet(manifestTiles);
   } catch (error) {
     manifestError = String(error);
+    lastError = manifestError;
   }
 
   const tilesManifestModal = createTilesManifestModal({
@@ -411,7 +447,10 @@ async function bootstrap() {
       runtime.material.uniforms.uSatelliteTexture.value = nextTexture;
       runtime.material.needsUpdate = true;
     } else if (runtime.demTexture) {
-      const terrainMaterial = createTerrainMaterial(nextTexture, runtime.demTexture);
+      const terrainMaterial = createTerrainMaterial(
+        nextTexture,
+        runtime.demTexture,
+      );
       runtime.mesh.material = terrainMaterial;
       runtime.material = terrainMaterial;
       runtime.material.needsUpdate = true;
@@ -420,6 +459,34 @@ async function bootstrap() {
     if (previousTexture) {
       previousTexture.dispose();
     }
+  }
+
+  function refreshDiagnostics() {
+    const satelliteBudgetSnapshot = satelliteRequestBudget.getSnapshot();
+
+    diagnostics.textContent = renderDiagnostics({
+      vectorCount: 0,
+      demStatus: lastSnapshot.loadedCount > 0 ? "ok" : "na",
+      satelliteStatus: lastSnapshot.loadedCount > 0 ? "ok" : "na",
+      tileCount: lastSnapshot.desiredCount,
+      pendingCount: lastSnapshot.pendingCount,
+      satellitePendingCount:
+        satelliteBudgetSnapshot.queuedCount +
+        satelliteBudgetSnapshot.inFlightCount,
+      failedCount: lastSnapshot.failedCount,
+      lastError:
+        lastError ||
+        manifestError ||
+        (lastSnapshot.failedCount > 0 ? "tile load failure" : ""),
+      manifestSize: manifestTileSet.size,
+      manifestHits,
+      manifestMisses,
+      sampleHit,
+      sampleMiss,
+      satelliteZoomDistribution: summarizeSatelliteZoomDistribution(
+        terrainRuntimeById.values(),
+      ),
+    });
   }
 
   function processSatelliteRequestBudget() {
@@ -449,11 +516,18 @@ async function bootstrap() {
           if (!runtime.disposed && runtime.requestSeq === request.generation) {
             runtime.pending = false;
           }
+          refreshDiagnostics();
         });
     }
+
+    refreshDiagnostics();
   }
 
   function updateSatelliteLodForVisibleTerrain() {
+    if (satelliteLodFrozen) {
+      return;
+    }
+
     for (const runtime of terrainRuntimeById.values()) {
       if (runtime.disposed || !runtime.demTexture) {
         continue;
@@ -568,16 +642,9 @@ async function bootstrap() {
         }
       })
       .catch((error: unknown) => {
+        lastError = String(error);
         lastSnapshot = controller.getSnapshot();
-        diagnostics.textContent = renderDiagnostics({
-          vectorCount: 0,
-          demStatus: "na",
-          satelliteStatus: "na",
-          tileCount: lastSnapshot.desiredCount,
-          pendingCount: lastSnapshot.pendingCount,
-          failedCount: lastSnapshot.failedCount + 1,
-          lastError: String(error),
-        });
+        refreshDiagnostics();
       });
 
     return {
@@ -616,7 +683,6 @@ async function bootstrap() {
       window.innerHeight,
     );
     controller.sync(viewTiles);
-    updateSatelliteLodForVisibleTerrain();
     lastSnapshot = controller.getSnapshot();
 
     manifestHits = 0;
@@ -637,22 +703,11 @@ async function bootstrap() {
       }
     }
 
-    diagnostics.textContent = renderDiagnostics({
-      vectorCount: 0,
-      demStatus: lastSnapshot.loadedCount > 0 ? "ok" : "na",
-      satelliteStatus: lastSnapshot.loadedCount > 0 ? "ok" : "na",
-      tileCount: lastSnapshot.desiredCount,
-      pendingCount: lastSnapshot.pendingCount,
-      failedCount: lastSnapshot.failedCount,
-      manifestSize: manifestTileSet.size,
-      manifestHits,
-      manifestMisses,
-      sampleHit,
-      sampleMiss,
-      lastError:
-        manifestError ||
-        (lastSnapshot.failedCount > 0 ? "tile load failure" : ""),
-    });
+    if (!satelliteLodFrozen) {
+      updateSatelliteLodForVisibleTerrain();
+    }
+
+    refreshDiagnostics();
   }
 
   syncViewport();
