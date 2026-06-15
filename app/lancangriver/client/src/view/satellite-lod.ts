@@ -11,13 +11,11 @@ type SatelliteZoomBand = {
   upperDistance: number;
 };
 
+const MIN_SATELLITE_ZOOM = 11;
+const MAX_SATELLITE_ZOOM = 11;
+
 const SATELLITE_ZOOM_BANDS: SatelliteZoomBand[] = [
   { zoom: 11, minDistance: 120_000, upperDistance: Number.POSITIVE_INFINITY },
-  { zoom: 12, minDistance: 70_000, upperDistance: 120_000 },
-  { zoom: 13, minDistance: 40_000, upperDistance: 70_000 },
-  { zoom: 14, minDistance: 22_000, upperDistance: 40_000 },
-  { zoom: 15, minDistance: 12_000, upperDistance: 22_000 },
-  { zoom: 16, minDistance: 0, upperDistance: 12_000 },
 ];
 
 const HYSTERESIS_DISTANCE = 5_000;
@@ -29,7 +27,7 @@ function chooseZoomForDistance(distanceToTile: number): number {
     }
   }
 
-  return 16;
+  return MAX_SATELLITE_ZOOM;
 }
 
 function getUpperDistanceForZoom(zoom: number): number | undefined {
@@ -40,38 +38,9 @@ export function chooseSatelliteZoom(
   distanceToTile: number,
   currentZoom?: number,
 ): number {
-  const desiredZoom = chooseZoomForDistance(distanceToTile);
-
-  if (currentZoom == null || currentZoom === desiredZoom) {
-    return desiredZoom;
-  }
-
-  if (currentZoom < 11 || currentZoom > 16) {
-    return desiredZoom;
-  }
-
-  if (Math.abs(currentZoom - desiredZoom) > 1) {
-    return desiredZoom;
-  }
-
-  const boundary =
-    desiredZoom > currentZoom
-      ? getUpperDistanceForZoom(desiredZoom)
-      : getUpperDistanceForZoom(currentZoom);
-
-  if (boundary == null) {
-    return desiredZoom;
-  }
-
-  if (desiredZoom > currentZoom) {
-    return distanceToTile >= boundary - HYSTERESIS_DISTANCE
-      ? currentZoom
-      : desiredZoom;
-  }
-
-  return distanceToTile <= boundary + HYSTERESIS_DISTANCE
-    ? currentZoom
-    : desiredZoom;
+  void distanceToTile;
+  void currentZoom;
+  return MIN_SATELLITE_ZOOM;
 }
 
 export function enumerateChildTiles(

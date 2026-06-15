@@ -6,44 +6,23 @@ import {
 } from "../src/view/satellite-lod";
 
 describe("chooseSatelliteZoom", () => {
-  test.each([
-    [130_000, 11],
-    [95_000, 12],
-    [55_000, 13],
-    [30_000, 14],
-    [15_000, 15],
-    [5_000, 16],
-  ])("maps distance %i to z%i", (distanceToTile, expectedZoom) => {
-    expect(chooseSatelliteZoom(distanceToTile)).toBe(expectedZoom);
-  });
-
-  test.each([
-    [11, 118_000, 11],
-    [11, 114_000, 12],
-    [12, 122_000, 12],
-    [12, 126_000, 11],
-    [12, 68_000, 12],
-    [12, 64_000, 13],
-    [13, 72_000, 13],
-    [13, 76_000, 12],
-    [13, 38_000, 13],
-    [13, 34_000, 14],
-    [14, 24_000, 14],
-    [14, 16_000, 15],
-    [15, 14_000, 15],
-    [15, 6_000, 16],
-  ])(
-    "holds z%i around a boundary at distance %i",
-    (currentZoom, distanceToTile, expectedZoom) => {
-      expect(chooseSatelliteZoom(distanceToTile, currentZoom)).toBe(
-        expectedZoom,
-      );
+  test.each([130_000, 95_000, 55_000, 30_000, 15_000, 5_000])(
+    "always returns z11 at distance %i",
+    (distanceToTile) => {
+      expect(chooseSatelliteZoom(distanceToTile)).toBe(11);
     },
   );
 
-  test("jumps directly to the matching band when current zoom is far away", () => {
-    expect(chooseSatelliteZoom(55_000, 11)).toBe(13);
-    expect(chooseSatelliteZoom(15_000, 11)).toBe(15);
+  test.each([11, 12, 13, 14, 15, 16])(
+    "ignores current zoom %i and stays z11",
+    (currentZoom) => {
+      expect(chooseSatelliteZoom(12_000, currentZoom)).toBe(11);
+    },
+  );
+
+  test("remains z11 for very large and very small distances", () => {
+    expect(chooseSatelliteZoom(0)).toBe(11);
+    expect(chooseSatelliteZoom(1_000_000)).toBe(11);
   });
 });
 
