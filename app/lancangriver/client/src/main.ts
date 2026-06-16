@@ -342,6 +342,24 @@ function summarizeSatelliteZoomDistribution(
     .join(",");
 }
 
+function computeProjectedMeshCount(
+  runtimes: Map<string, { disposed: boolean; targetZoom: number }>,
+  profile: { maxVisibleChildMeshes: number },
+): number {
+  let totalMeshes = 0;
+
+  for (const runtime of runtimes.values()) {
+    if (runtime.disposed) {
+      continue;
+    }
+
+    const meshCount = Math.pow(4, runtime.targetZoom - 11);
+    totalMeshes += meshCount;
+  }
+
+  return totalMeshes;
+}
+
 async function bootstrap() {
   const { app, canvasHost, diagnostics } = createAppShell();
   let satelliteLodFrozen = false;
@@ -575,6 +593,20 @@ async function bootstrap() {
         generation: requestSeq,
       });
     }
+
+    const projectedMeshCount = computeProjectedMeshCount(
+      terrainRuntimeById,
+      lodProfile,
+    );
+
+    if (projectedMeshCount > lodProfile.maxVisibleChildMeshes) {
+      meshBudgetSnapshot.budgetExceededFrames += 1;
+      // TODO Phase B: implement demotion logic to reduce mesh count
+    } else {
+      meshBudgetSnapshot.budgetExceededFrames = 0;
+    }
+
+    meshBudgetSnapshot.projectedChildMeshes = projectedMeshCount;
   }
 
   const controller = createTileViewportController(async (tile) => {
