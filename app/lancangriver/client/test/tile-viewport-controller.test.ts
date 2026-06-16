@@ -35,7 +35,9 @@ describe("createTileViewportController", () => {
   });
 
   it("disposes a tile after it finishes loading if it was evicted", async () => {
-    let resolveLoad: ((handle: { dispose: () => void }) => void) | null = null;
+    let resolveLoad: (handle: { dispose: () => void }) => void = () => {
+      throw new Error("expected load resolver to be captured");
+    };
     const dispose = vi.fn();
     const loadTile = vi.fn(
       () =>
@@ -48,7 +50,7 @@ describe("createTileViewportController", () => {
     controller.sync([tileA]);
     controller.sync([]);
 
-    resolveLoad?.({ dispose });
+    resolveLoad({ dispose });
     await flushMicrotasks();
 
     expect(dispose).toHaveBeenCalledTimes(1);
