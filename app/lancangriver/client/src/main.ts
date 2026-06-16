@@ -10,6 +10,7 @@ import {
   createSatelliteRequestBudget,
   type SatelliteTextureRequest,
 } from "./view/satellite-request-budget";
+import { DEFAULT_LOD_PROFILE, type LODProfile } from "./view/lod-profile";
 import {
   type ManifestTileEntry,
   createManifestTileSet,
@@ -364,6 +365,14 @@ async function bootstrap() {
   const tileGroup = new THREE.Group();
   scene.add(tileGroup);
   const satelliteRequestBudget = createSatelliteRequestBudget(2, 4);
+  let meshBudgetSnapshot = {
+    visibleChildMeshes: 0,
+    projectedChildMeshes: 0,
+    splitOpsThisFrame: 0,
+    mergeOpsThisFrame: 0,
+    budgetExceededFrames: 0,
+  };
+  const lodProfile = DEFAULT_LOD_PROFILE;
 
   let manifestTiles: ManifestTileEntry[] = [];
   let manifestTileSet = new Set<string>();
@@ -428,6 +437,11 @@ async function bootstrap() {
     pending: boolean;
     requestSeq: number;
     disposed: boolean;
+    parentTileId?: string;
+    childTileIds: string[];
+    isChildReady: boolean;
+    targetZoom: number;
+    zoomState: "stable" | "splitting" | "merging";
   };
   const terrainRuntimeById = new Map<string, TerrainRuntime>();
 
@@ -609,6 +623,11 @@ async function bootstrap() {
       pending: false,
       requestSeq: 0,
       disposed: false,
+      childTileIds: [],
+      isChildReady: false,
+      targetZoom: FIXED_TILE_ZOOM,
+      zoomState: "stable",
+      parentTileId: undefined,
     };
     terrainRuntimeById.set(tileId, runtime);
 
