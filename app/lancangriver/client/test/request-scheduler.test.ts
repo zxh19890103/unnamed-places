@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  computeRequestPlan,
-  tileCenterToLonLat,
-} from "../src/view/request-scheduler";
+import { computeRequestPlan } from "../src/view/request-scheduler";
 
 describe("computeRequestPlan", () => {
   it("returns bbox and raster tiles for viewport", () => {
