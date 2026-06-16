@@ -544,6 +544,9 @@ async function bootstrap() {
       return;
     }
 
+    meshBudgetSnapshot.splitOpsThisFrame = 0;
+    meshBudgetSnapshot.mergeOpsThisFrame = 0;
+
     for (const runtime of terrainRuntimeById.values()) {
       if (runtime.disposed || !runtime.demTexture) {
         continue;
@@ -552,8 +555,10 @@ async function bootstrap() {
       const distanceToTile = camera.position.distanceTo(runtime.mesh.position);
       const desiredZoom = chooseSatelliteZoom(
         distanceToTile,
-        runtime.satelliteZoom,
+        runtime.requestedZoom,
+        lodProfile,
       );
+      runtime.targetZoom = desiredZoom;
       if (desiredZoom === runtime.requestedZoom) {
         continue;
       }
@@ -639,9 +644,10 @@ async function bootstrap() {
         }
 
         const distanceToTile = camera.position.distanceTo(mesh.position);
-        const satelliteZoom = chooseSatelliteZoom(distanceToTile);
+        const satelliteZoom = chooseSatelliteZoom(distanceToTile, undefined, lodProfile);
         runtime.demTexture = demTexture;
         runtime.satelliteZoom = satelliteZoom;
+        runtime.targetZoom = satelliteZoom;
         if (runtime.satelliteTexture) {
           const terrainMaterial = createTerrainMaterial(
             runtime.satelliteTexture,
