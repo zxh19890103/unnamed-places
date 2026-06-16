@@ -78,7 +78,7 @@ export const AGGRESSIVE_PROFILE: LODProfile = {
     },
     {
       zoom: 14,
-      minDistance: 0.5 * TILE_SPAN,
+      minDistance: 0,
       maxDistance: TILE_SPAN,
       splitThreshold: 0.95 * 0.5 * TILE_SPAN,
       mergeThreshold: 1.05 * 0.5 * TILE_SPAN,

@@ -15,7 +15,10 @@ export function chooseSatelliteZoom(
   // Find the distance band containing distanceToTile
   let selectedBand = profile.bands[0];
   for (const band of profile.bands) {
-    if (distanceToTile >= band.minDistance && distanceToTile < band.maxDistance) {
+    if (
+      distanceToTile >= band.minDistance &&
+      distanceToTile < band.maxDistance
+    ) {
       selectedBand = band;
       break;
     }
@@ -28,8 +31,8 @@ export function chooseSatelliteZoom(
 
   // Apply hysteresis
   if (selectedBand.zoom < currentZoom) {
-    // Attempting to go coarser (merge): only change if distance is below merge threshold
-    if (distanceToTile < selectedBand.mergeThreshold) {
+    // Attempting to go coarser (merge): only change if distance is beyond merge threshold
+    if (distanceToTile >= selectedBand.mergeThreshold) {
       return selectedBand.zoom;
     }
     return currentZoom;
