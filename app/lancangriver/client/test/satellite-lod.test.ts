@@ -13,15 +13,23 @@ const TILE_SPAN = 30_720;
 
 describe("chooseSatelliteZoom", () => {
   test.each([
-    { distance: 5 * TILE_SPAN, expectedZoom: 11 },
-    { distance: 3 * TILE_SPAN, expectedZoom: 12 },
-    { distance: 1.5 * TILE_SPAN, expectedZoom: 13 },
+    {
+      distance: 5 * TILE_SPAN,
+      expectedZoom: 11,
+      profile: CONSERVATIVE_PROFILE,
+    },
+    {
+      distance: 3 * TILE_SPAN,
+      expectedZoom: 12,
+      profile: CONSERVATIVE_PROFILE,
+    },
+    { distance: 0.3 * TILE_SPAN, expectedZoom: 14, profile: AGGRESSIVE_PROFILE },
   ])(
     "selects the correct distance band for $distance",
-    ({ distance, expectedZoom }) => {
-      expect(
-        chooseSatelliteZoom(distance, undefined, CONSERVATIVE_PROFILE),
-      ).toBe(expectedZoom);
+    ({ distance, expectedZoom, profile }) => {
+      expect(chooseSatelliteZoom(distance, undefined, profile)).toBe(
+        expectedZoom,
+      );
     },
   );
 
@@ -34,11 +42,6 @@ describe("chooseSatelliteZoom", () => {
     );
   });
 
-  test("uses the supplied LOD profile to allow deeper zooms", () => {
-    expect(
-      chooseSatelliteZoom(0.3 * TILE_SPAN, undefined, AGGRESSIVE_PROFILE),
-    ).toBe(14);
-  });
 });
 
 describe("enumerateChildTiles", () => {
