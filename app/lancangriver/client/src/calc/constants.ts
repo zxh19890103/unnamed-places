@@ -1,0 +1,10 @@
+export const BASE_URL = "http://localhost:4050";
+export const FIXED_TILE_ZOOM = 11;
+export const TILE_SIZE = 256;
+export const TILE_SCALE = 120;
+export const TERRAIN_SEGMENTS = 64;
+export const ELEVATION_SCALE = 1;
+export const MANIFEST_HIT_OUTLINE_COLOR = 0x00ff66;
+export const FIXED_VIEW_ANGLE = Math.PI / 4;
+export const START_CENTER_LON = 97.17658060985056;
+export const START_CENTER_LAT = 31.13551645138972;

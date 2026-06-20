@@ -15,7 +15,7 @@ export type LODProfile = {
   bands: DistanceBand[];
 };
 
-const TILE_SPAN = 30_720; // 256 * 120
+const TILE_SPAN = 256 * 30;
 
 export const CONSERVATIVE_PROFILE: LODProfile = {
   name: "conservative",

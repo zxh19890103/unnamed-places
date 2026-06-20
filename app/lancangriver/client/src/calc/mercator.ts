@@ -1,4 +1,4 @@
-import type { TileKey } from "./request-scheduler";
+import type { SphereTileKey } from "./types";
 
 const MIN_LAT = -85.05112878;
 const MAX_LAT = 85.05112878;
@@ -37,7 +37,7 @@ export function worldPixelToLonLat(
   return { lon, lat };
 }
 
-export function tileCenterToWorldPixel(tile: TileKey): {
+export function tileCenterToWorldPixel(tile: SphereTileKey): {
   x: number;
   y: number;
 } {
@@ -47,7 +47,7 @@ export function tileCenterToWorldPixel(tile: TileKey): {
   };
 }
 
-export function tileCenterToLonLat(tile: TileKey): {
+export function tileCenterToLonLat(tile: SphereTileKey): {
   lon: number;
   lat: number;
 } {
@@ -64,3 +64,60 @@ export function tileBounds4326(
   const southeast = worldPixelToLonLat((x + 1) * 256, (y + 1) * 256, z);
   return [northwest.lon, southeast.lat, southeast.lon, northwest.lat];
 }
+
+export function latlngToTilekey(
+  lon: number,
+  lat: number,
+  zoom: number,
+): SphereTileKey {
+  const tileCount = 2 ** zoom;
+  const { x, y } = lonLatToWorldPixel(lon, lat, zoom);
+
+  const tileX = Math.floor(x / 256);
+  const tileY = Math.floor(y / 256);
+
+  return {
+    z: zoom,
+    x: Math.max(0, Math.min(tileCount - 1, tileX)),
+    y: Math.max(0, Math.min(tileCount - 1, tileY)),
+  };
+}
+
+export function enumerateChildTiles(
+  baseTile: SphereTileKey,
+  targetZoom: number,
+): SphereTileKey[] {
+  if (targetZoom <= baseTile.z) {
+    return [baseTile];
+  }
+
+  const factor = 2 ** (targetZoom - baseTile.z);
+  const startX = baseTile.x * factor;
+  const startY = baseTile.y * factor;
+  const children: SphereTileKey[] = [];
+
+  for (let y = 0; y < factor; y += 1) {
+    for (let x = 0; x < factor; x += 1) {
+      children.push({
+        z: targetZoom,
+        x: startX + x,
+        y: startY + y,
+      });
+    }
+  }
+
+  return children;
+}
+
+export function getZoomLvFromDistance(distance: number, min = 0, max = 19) {
+  if (!Number.isFinite(distance) || distance <= 0) {
+    return min;
+  }
+
+  const rawZoom = max - Math.log2(distance / referenceDistanceMeters);
+  const zoom = Math.floor(rawZoom);
+
+  return Math.max(min, Math.min(max, zoom));
+}
+
+const referenceDistanceMeters = 1_00;

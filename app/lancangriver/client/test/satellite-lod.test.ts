@@ -23,7 +23,11 @@ describe("chooseSatelliteZoom", () => {
       expectedZoom: 12,
       profile: CONSERVATIVE_PROFILE,
     },
-    { distance: 0.3 * TILE_SPAN, expectedZoom: 14, profile: AGGRESSIVE_PROFILE },
+    {
+      distance: 0.3 * TILE_SPAN,
+      expectedZoom: 14,
+      profile: AGGRESSIVE_PROFILE,
+    },
   ])(
     "selects the correct distance band for $distance",
     ({ distance, expectedZoom, profile }) => {
@@ -37,11 +41,10 @@ describe("chooseSatelliteZoom", () => {
     const distance = 1.95 * TILE_SPAN;
 
     expect(chooseSatelliteZoom(distance, 13, CONSERVATIVE_PROFILE)).toBe(13);
-    expect(chooseSatelliteZoom(2.15 * TILE_SPAN, 13, CONSERVATIVE_PROFILE)).toBe(
-      12,
-    );
+    expect(
+      chooseSatelliteZoom(2.15 * TILE_SPAN, 13, CONSERVATIVE_PROFILE),
+    ).toBe(12);
   });
-
 });
 
 describe("enumerateChildTiles", () => {

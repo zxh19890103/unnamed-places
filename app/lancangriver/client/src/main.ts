@@ -1,9 +1,20 @@
 import * as THREE from "three";
-import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 
-import { fetchTilesManifest, tileImageUrl } from "./data/api";
+import { fetchTilesManifest } from "./data/api";
+import { lonLatToTile, tileToWorldPosition } from "./calc";
+import {
+  BASE_URL,
+  FIXED_TILE_ZOOM,
+  START_CENTER_LAT,
+  START_CENTER_LON,
+  ELEVATION_SCALE,
+  FIXED_VIEW_ANGLE,
+  MANIFEST_HIT_OUTLINE_COLOR,
+  TERRAIN_SEGMENTS,
+  TILE_SCALE,
+  TILE_SIZE,
+} from "./calc/constants";
 import { renderDiagnostics } from "./ui/diagnostics";
-import { attachCameraGui } from "./ui/camera-gui";
 import { createTilesManifestModal } from "./ui/tiles-manifest-modal";
 import type { TileKey } from "./view/request-scheduler";
 import {
@@ -17,35 +28,14 @@ import {
   isTileInManifest,
   toTileId,
 } from "./view/manifest-tiles";
-import { chooseSatelliteZoom, enumerateChildTiles } from "./view/satellite-lod";
+import { chooseSatelliteZoom } from "./view/satellite-lod";
 import { createTileViewportController } from "./view/tile-viewport-controller";
 
-const baseUrl = "http://localhost:4050";
-const FIXED_TILE_ZOOM = 11;
-const TILE_SIZE = 256;
-const TILE_SCALE = 120;
-const TERRAIN_SEGMENTS = 64;
-const ELEVATION_SCALE = 1;
-const MANIFEST_HIT_OUTLINE_COLOR = 0x00ff66;
-const FIXED_VIEW_ANGLE = Math.PI / 4;
-const START_CENTER_LON = 97.17658060985056;
-const START_CENTER_LAT = 31.13551645138972;
-const textureLoader = new THREE.TextureLoader();
+import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 
-function lonLatToTile(lon: number, lat: number, zoom: number): TileKey {
-  const tileCount = 2 ** zoom;
-  const x = Math.floor(((lon + 180) / 360) * tileCount);
-  const latRad = (lat * Math.PI) / 180;
-  const mercatorY =
-    (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2;
-  const y = Math.floor(mercatorY * tileCount);
-
-  return {
-    z: zoom,
-    x: Math.max(0, Math.min(tileCount - 1, x)),
-    y: Math.max(0, Math.min(tileCount - 1, y)),
-  };
-}
+import { tileImageUrl } from "./data/api";
+import { attachCameraGui } from "./ui/camera-gui";
+import { enumerateChildTiles } from "./view/satellite-lod";
 
 function ensureAppRoot(): HTMLElement {
   let app = document.getElementById("app");
@@ -83,285 +73,17 @@ function createAppShell() {
     "12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace";
   diagnostics.style.borderRadius = "10px";
   diagnostics.style.zIndex = "10";
+  diagnostics.style.whiteSpace = "pre-wrap";
+
   diagnostics.textContent = "booting...";
   app.appendChild(diagnostics);
 
   return { app, canvasHost, diagnostics };
 }
 
-function createScene(
-  canvasHost: HTMLElement,
-  onSatelliteLodFreezeChange?: (frozen: boolean) => void,
-) {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#0b1120");
-
-  const camera = new THREE.PerspectiveCamera(
-    120,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    50000,
-  );
-
-  camera.position.set(0, 1800, 1800);
-  camera.up.set(0, 1, 0);
-  camera.lookAt(0, 0, 0);
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  canvasHost.appendChild(renderer.domElement);
-
-  const controls = new MapControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.screenSpacePanning = false;
-  controls.enableRotate = false;
-  controls.minPolarAngle = FIXED_VIEW_ANGLE;
-  controls.maxPolarAngle = FIXED_VIEW_ANGLE;
-  controls.target.set(0, 0, 0);
-  controls.update();
-
-  const destroyCameraGui = attachCameraGui(camera, controls, {
-    onSatelliteLodFreezeChange,
-  });
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
-  scene.add(ambientLight);
-
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
-  directionalLight.position.set(250, 500, 300);
-  scene.add(directionalLight);
-
-  return { scene, camera, renderer, controls, destroyCameraGui };
-}
-
-function tileToWorldPosition(tile: TileKey, origin: TileKey) {
-  return {
-    x: (tile.x - origin.x) * TILE_SIZE * TILE_SCALE,
-    z: (tile.y - origin.y) * TILE_SIZE * TILE_SCALE,
-  };
-}
-
-function createTileMesh(
-  tile: TileKey,
-  origin: TileKey,
-): THREE.Mesh<THREE.PlaneGeometry, THREE.Material | THREE.Material[]> {
-  const geometry = new THREE.PlaneGeometry(
-    TILE_SIZE * TILE_SCALE,
-    TILE_SIZE * TILE_SCALE,
-    TERRAIN_SEGMENTS,
-    TERRAIN_SEGMENTS,
-  );
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x334455,
-    roughness: 1,
-    metalness: 0,
-  });
-  const mesh: THREE.Mesh<
-    THREE.PlaneGeometry,
-    THREE.Material | THREE.Material[]
-  > = new THREE.Mesh(geometry, material);
-  mesh.rotation.x = -Math.PI / 2;
-  const position = tileToWorldPosition(tile, origin);
-  mesh.position.set(position.x, 0, position.z);
-  return mesh;
-}
-
-async function loadDemTexture(tile: TileKey) {
-  return textureLoader.loadAsync(tileImageUrl(baseUrl, "dem", tile));
-}
-
-async function loadSatelliteTextureForDemTile(
-  demTile: TileKey,
-  satelliteZoom: number,
-) {
-  if (satelliteZoom <= demTile.z) {
-    const texture = await textureLoader.loadAsync(
-      tileImageUrl(baseUrl, "satellite", demTile),
-    );
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }
-
-  const childTiles = enumerateChildTiles(demTile, satelliteZoom);
-  const factor = 2 ** (satelliteZoom - demTile.z);
-  const canvas = document.createElement("canvas");
-  canvas.width = TILE_SIZE * factor;
-  canvas.height = TILE_SIZE * factor;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("2d canvas context is unavailable");
-  }
-
-  const loadedTiles = await Promise.all(
-    childTiles.map(async (tile) => {
-      const texture = await textureLoader.loadAsync(
-        tileImageUrl(baseUrl, "satellite", tile),
-      );
-      return { texture, tile };
-    }),
-  );
-
-  for (const { texture, tile } of loadedTiles) {
-    context.drawImage(
-      texture.image,
-      tile.offsetX * TILE_SIZE,
-      tile.offsetY * TILE_SIZE,
-      TILE_SIZE,
-      TILE_SIZE,
-    );
-    texture.dispose();
-  }
-
-  const compositeTexture = new THREE.CanvasTexture(canvas);
-  compositeTexture.colorSpace = THREE.SRGBColorSpace;
-  return compositeTexture;
-}
-
-function createDebugTileMaterial(tile: TileKey) {
-  const hash =
-    ((tile.x * 73856093) ^ (tile.y * 19349663) ^ (tile.z * 83492791)) >>> 0;
-  const hue = (hash % 360) / 360;
-  const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
-
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness: 1,
-    metalness: 0,
-  });
-}
-
-function createManifestHitOutline(
-  mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.Material | THREE.Material[]>,
-) {
-  const edges = new THREE.EdgesGeometry(mesh.geometry);
-  const material = new THREE.LineBasicMaterial({
-    color: MANIFEST_HIT_OUTLINE_COLOR,
-    transparent: true,
-    opacity: 0.9,
-  });
-  const lines = new THREE.LineSegments(edges, material);
-  lines.renderOrder = 5;
-  mesh.add(lines);
-  return lines;
-}
-
-function createTerrainMaterial(
-  satelliteTexture: THREE.Texture,
-  demTexture: THREE.Texture,
-) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uSatelliteTexture: { value: satelliteTexture },
-      uDemTexture: { value: demTexture },
-      uElevationScale: { value: ELEVATION_SCALE },
-    },
-    vertexShader: `
-      uniform sampler2D uDemTexture;
-      uniform float uElevationScale;
-
-      varying vec2 vUv;
-
-      void main() {
-        vUv = uv;
-
-        vec3 demRgb = texture2D(uDemTexture, uv).rgb * 255.0;
-        float elevation = (demRgb.r * 256.0 + demRgb.g + demRgb.b / 256.0) - 32768.0;
-
-        vec3 displaced = position;
-        displaced.z += elevation * uElevationScale;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform sampler2D uSatelliteTexture;
-      varying vec2 vUv;
-
-      void main() {
-        vec4 color = texture2D(uSatelliteTexture, vUv);
-        gl_FragColor = vec4(color.rgb, 1.0);
-      }
-    `,
-  });
-}
-
-function computeViewportTiles(
-  origin: TileKey,
-  targetX: number,
-  targetZ: number,
-  viewportWidthPx: number,
-  viewportHeightPx: number,
-): TileKey[] {
-  const tileScale = TILE_SIZE * TILE_SCALE;
-  const centerTileX = origin.x + Math.round(targetX / tileScale);
-  const centerTileY = origin.y + Math.round(targetZ / tileScale);
-  const radius = Math.max(
-    1,
-    Math.ceil(Math.max(viewportWidthPx, viewportHeightPx) / tileScale / 2) + 1,
-  );
-  const tileCount = 2 ** FIXED_TILE_ZOOM;
-  const tiles: TileKey[] = [];
-
-  for (
-    let x = Math.max(0, centerTileX - radius);
-    x <= Math.min(tileCount - 1, centerTileX + radius);
-    x += 1
-  ) {
-    for (
-      let y = Math.max(0, centerTileY - radius);
-      y <= Math.min(tileCount - 1, centerTileY + radius);
-      y += 1
-    ) {
-      tiles.push({ z: FIXED_TILE_ZOOM, x, y });
-    }
-  }
-
-  return tiles;
-}
-
-function summarizeSatelliteZoomDistribution(
-  runtimes: Iterable<{ satelliteZoom: number }>,
-): string {
-  const counts = new Map<number, number>();
-
-  for (const runtime of runtimes) {
-    counts.set(
-      runtime.satelliteZoom,
-      (counts.get(runtime.satelliteZoom) ?? 0) + 1,
-    );
-  }
-
-  if (counts.size === 0) {
-    return "none";
-  }
-
-  return Array.from(counts.entries())
-    .sort((left, right) => left[0] - right[0])
-    .map(([zoom, count]) => `z${zoom}:${count}`)
-    .join(",");
-}
-
-function computeProjectedMeshCount(
-  runtimes: Map<string, { disposed: boolean; targetZoom: number }>,
-  profile: { maxVisibleChildMeshes: number },
-): number {
-  let totalMeshes = 0;
-
-  for (const runtime of runtimes.values()) {
-    if (runtime.disposed) {
-      continue;
-    }
-
-    const meshCount = Math.pow(4, runtime.targetZoom - 11);
-    totalMeshes += meshCount;
-  }
-
-  return totalMeshes;
-}
-
 async function bootstrap() {
   const { app, canvasHost, diagnostics } = createAppShell();
+  const textureLoader = new THREE.TextureLoader();
   let satelliteLodFrozen = false;
 
   const { scene, camera, renderer, controls, destroyCameraGui } = createScene(
@@ -398,7 +120,7 @@ async function bootstrap() {
   let lastError = "";
 
   try {
-    manifestTiles = await fetchTilesManifest(baseUrl);
+    manifestTiles = await fetchTilesManifest(BASE_URL);
     manifestTileSet = createManifestTileSet(manifestTiles);
   } catch (error) {
     manifestError = String(error);
@@ -538,7 +260,11 @@ async function bootstrap() {
         continue;
       }
 
-      void loadSatelliteTextureForDemTile(runtime.tile, request.targetZoom)
+      void loadSatelliteTextureForDemTile(
+        textureLoader,
+        runtime.tile,
+        request.targetZoom,
+      )
         .then((nextTexture) => {
           applySatelliteTexture(runtime, request, nextTexture);
         })
@@ -576,7 +302,9 @@ async function bootstrap() {
         runtime.requestedZoom,
         lodProfile,
       );
+
       runtime.targetZoom = desiredZoom;
+
       if (desiredZoom === runtime.requestedZoom) {
         continue;
       }
@@ -668,7 +396,7 @@ async function bootstrap() {
     };
     terrainRuntimeById.set(tileId, runtime);
 
-    void loadDemTexture(tile)
+    void loadDemTexture(textureLoader, tile)
       .then(async (demTexture) => {
         if (runtime.disposed) {
           demTexture.dispose();
@@ -676,10 +404,16 @@ async function bootstrap() {
         }
 
         const distanceToTile = camera.position.distanceTo(mesh.position);
-        const satelliteZoom = chooseSatelliteZoom(distanceToTile, undefined, lodProfile);
+        const satelliteZoom = chooseSatelliteZoom(
+          distanceToTile,
+          undefined,
+          lodProfile,
+        );
+
         runtime.demTexture = demTexture;
         runtime.satelliteZoom = satelliteZoom;
         runtime.targetZoom = satelliteZoom;
+
         if (runtime.satelliteTexture) {
           const terrainMaterial = createTerrainMaterial(
             runtime.satelliteTexture,
@@ -692,6 +426,7 @@ async function bootstrap() {
           runtime.pending = true;
           runtime.requestSeq += 1;
           runtime.requestedZoom = satelliteZoom;
+
           satelliteRequestBudget.enqueue({
             tileId,
             distance: distanceToTile,
@@ -799,6 +534,276 @@ async function bootstrap() {
     },
     { once: true },
   );
+}
+
+export function createScene(
+  canvasHost: HTMLElement,
+  onSatelliteLodFreezeChange?: (frozen: boolean) => void,
+) {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color("#0b1120");
+
+  const camera = new THREE.PerspectiveCamera(
+    120,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    50000,
+  );
+
+  camera.position.set(0, 1800, 1800);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  canvasHost.appendChild(renderer.domElement);
+
+  const controls = new MapControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.screenSpacePanning = false;
+  controls.enableRotate = false;
+  controls.minPolarAngle = FIXED_VIEW_ANGLE;
+  controls.maxPolarAngle = FIXED_VIEW_ANGLE;
+  controls.target.set(0, 0, 0);
+  controls.update();
+
+  const destroyCameraGui = attachCameraGui(camera, controls, {
+    onSatelliteLodFreezeChange,
+  });
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+  scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
+  directionalLight.position.set(250, 500, 300);
+  scene.add(directionalLight);
+
+  return { scene, camera, renderer, controls, destroyCameraGui };
+}
+
+export function createTileMesh(
+  tile: TileKey,
+  origin: TileKey,
+): THREE.Mesh<THREE.PlaneGeometry, THREE.Material | THREE.Material[]> {
+  const geometry = new THREE.PlaneGeometry(
+    TILE_SIZE * TILE_SCALE,
+    TILE_SIZE * TILE_SCALE,
+    TERRAIN_SEGMENTS,
+    TERRAIN_SEGMENTS,
+  );
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x334455,
+    roughness: 1,
+    metalness: 0,
+  });
+  const mesh: THREE.Mesh<
+    THREE.PlaneGeometry,
+    THREE.Material | THREE.Material[]
+  > = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  const position = tileToWorldPosition(tile, origin);
+  mesh.position.set(position.x, 0, position.z);
+  return mesh;
+}
+
+export async function loadDemTexture(
+  textureLoader: THREE.TextureLoader,
+  tile: TileKey,
+) {
+  return textureLoader.loadAsync(tileImageUrl(BASE_URL, "dem", tile));
+}
+
+export async function loadSatelliteTextureForDemTile(
+  textureLoader: THREE.TextureLoader,
+  demTile: TileKey,
+  satelliteZoom: number,
+) {
+  if (satelliteZoom <= demTile.z) {
+    const texture = await textureLoader.loadAsync(
+      tileImageUrl(BASE_URL, "satellite", demTile),
+    );
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  const childTiles = enumerateChildTiles(demTile, satelliteZoom);
+  const factor = 2 ** (satelliteZoom - demTile.z);
+  const canvas = document.createElement("canvas");
+  canvas.width = TILE_SIZE * factor;
+  canvas.height = TILE_SIZE * factor;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("2d canvas context is unavailable");
+  }
+
+  const loadedTiles = await Promise.all(
+    childTiles.map(async (tile) => {
+      const texture = await textureLoader.loadAsync(
+        tileImageUrl(BASE_URL, "satellite", tile),
+      );
+      return { texture, tile };
+    }),
+  );
+
+  for (const { texture, tile } of loadedTiles) {
+    context.drawImage(
+      texture.image,
+      tile.offsetX * TILE_SIZE,
+      tile.offsetY * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+    );
+    texture.dispose();
+  }
+
+  const compositeTexture = new THREE.CanvasTexture(canvas);
+  compositeTexture.colorSpace = THREE.SRGBColorSpace;
+  return compositeTexture;
+}
+
+export function createDebugTileMaterial(tile: TileKey) {
+  const hash =
+    ((tile.x * 73856093) ^ (tile.y * 19349663) ^ (tile.z * 83492791)) >>> 0;
+  const hue = (hash % 360) / 360;
+  const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: 1,
+    metalness: 0,
+  });
+}
+
+export function createManifestHitOutline(
+  mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.Material | THREE.Material[]>,
+) {
+  const edges = new THREE.EdgesGeometry(mesh.geometry);
+  const material = new THREE.LineBasicMaterial({
+    color: MANIFEST_HIT_OUTLINE_COLOR,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const lines = new THREE.LineSegments(edges, material);
+  lines.renderOrder = 5;
+  mesh.add(lines);
+  return lines;
+}
+
+export function createTerrainMaterial(
+  satelliteTexture: THREE.Texture,
+  demTexture: THREE.Texture,
+) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(0 ^ (Math.random() * 0xffffff)) },
+      uSatelliteTexture: { value: satelliteTexture },
+      uDemTexture: { value: demTexture },
+      uElevationScale: { value: ELEVATION_SCALE },
+    },
+    vertexShader: `
+      uniform sampler2D uDemTexture;
+      uniform float uElevationScale;
+
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+
+        vec3 demRgb = texture2D(uDemTexture, uv).rgb * 255.0;
+        float elevation = (demRgb.r * 256.0 + demRgb.g + demRgb.b / 256.0) - 32768.0;
+
+        vec3 displaced = position;
+        displaced.z += elevation * uElevationScale;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform sampler2D uSatelliteTexture;
+      varying vec2 vUv;
+
+      void main() {
+        vec4 color = texture2D(uSatelliteTexture, vUv);
+        gl_FragColor = vec4(color.rgb, 1.0);
+      }
+    `,
+  });
+}
+
+export function computeViewportTiles(
+  origin: TileKey,
+  targetX: number,
+  targetZ: number,
+  viewportWidthPx: number,
+  viewportHeightPx: number,
+): TileKey[] {
+  const tileScale = TILE_SIZE * TILE_SCALE;
+  const centerTileX = origin.x + Math.round(targetX / tileScale);
+  const centerTileY = origin.y + Math.round(targetZ / tileScale);
+  const radius = Math.max(
+    1,
+    Math.ceil(Math.max(viewportWidthPx, viewportHeightPx) / tileScale / 2) + 1,
+  );
+  const tileCount = 2 ** FIXED_TILE_ZOOM;
+  const tiles: TileKey[] = [];
+
+  for (
+    let x = Math.max(0, centerTileX - radius);
+    x <= Math.min(tileCount - 1, centerTileX + radius);
+    x += 1
+  ) {
+    for (
+      let y = Math.max(0, centerTileY - radius);
+      y <= Math.min(tileCount - 1, centerTileY + radius);
+      y += 1
+    ) {
+      tiles.push({ z: FIXED_TILE_ZOOM, x, y });
+    }
+  }
+
+  return tiles;
+}
+
+export function summarizeSatelliteZoomDistribution(
+  runtimes: Iterable<{ satelliteZoom: number }>,
+): string {
+  const counts = new Map<number, number>();
+
+  for (const runtime of runtimes) {
+    counts.set(
+      runtime.satelliteZoom,
+      (counts.get(runtime.satelliteZoom) ?? 0) + 1,
+    );
+  }
+
+  if (counts.size === 0) {
+    return "none";
+  }
+
+  return Array.from(counts.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map(([zoom, count]) => `z${zoom}:${count}`)
+    .join(",");
+}
+
+export function computeProjectedMeshCount(
+  runtimes: Map<string, { disposed: boolean; targetZoom: number }>,
+  profile: LODProfile = DEFAULT_LOD_PROFILE,
+): number {
+  let totalMeshes = 0;
+
+  for (const runtime of runtimes.values()) {
+    if (runtime.disposed) {
+      continue;
+    }
+
+    const meshCount = Math.pow(4, runtime.targetZoom - FIXED_TILE_ZOOM);
+    totalMeshes += meshCount;
+  }
+
+  return totalMeshes;
 }
 
 void bootstrap();
