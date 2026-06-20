@@ -25,9 +25,13 @@ declare module "three" {
 export class Sphere extends THREE.Group {
   readonly lods: Record<string, unknown> = {};
   readonly radius: number;
+
   private lastStats: SphereStatsPayload | null = null;
 
-  constructor(radius = EARTH_RADIUS) {
+  constructor(
+    readonly textureLoader: THREE.TextureLoader,
+    radius = EARTH_RADIUS,
+  ) {
     super();
     this.radius = radius;
   }
@@ -37,7 +41,7 @@ export class Sphere extends THREE.Group {
   }
 
   createTileByKey(tile: SphereTileKey) {
-    return new SphereTile(tile, {
+    return new SphereTile(this.textureLoader, tile, {
       radius: this.radius,
     });
   }

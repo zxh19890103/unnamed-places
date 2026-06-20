@@ -23,6 +23,8 @@ export function createScene(container: HTMLElement) {
   camera.position.set(0, 0, EARTH_RADIUS * 1.5);
   camera.lookAt(0, 0, 0);
 
+  const textureLoader = new THREE.TextureLoader(new THREE.LoadingManager());
+
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(container.clientWidth, container.clientHeight, true);
@@ -44,10 +46,10 @@ export function createScene(container: HTMLElement) {
   controls.rotateSpeed = 0.1;
   controls.zoomSpeed = 0.1;
 
-  const sphereGlobal = new Sphere();
+  const sphereGlobal = new Sphere(textureLoader);
   scene.add(sphereGlobal);
-
   const tileManager = new TilesManager();
+
   tileManager.onTileCreate = (node) => {
     const tile = sphereGlobal.createTileByKey(node.key);
     tile.$tNode = node;

@@ -19,9 +19,9 @@ export function latlngToSphere(
   const cosLat = Math.cos(latRad);
 
   return {
-    x: radius * cosLat * Math.cos(lngRad),
+    x: radius * cosLat * Math.sin(lngRad),
     y: radius * Math.sin(latRad),
-    z: radius * cosLat * Math.sin(lngRad),
+    z: radius * cosLat * Math.cos(lngRad),
   };
 }
 
@@ -33,7 +33,7 @@ export function sphereToLatlng(x: number, y: number, z: number): LatLng {
   }
 
   const lat = Math.asin(y / radius) * RAD_TO_DEG;
-  const lng = Math.atan2(z, x) * RAD_TO_DEG;
+  const lng = Math.atan2(x, z) * RAD_TO_DEG;
 
   return { lat, lng: normalizeLongitude(lng) };
 }

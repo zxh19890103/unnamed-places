@@ -7,7 +7,7 @@ function clampLat(lat: number): number {
   return Math.max(MIN_LAT, Math.min(MAX_LAT, lat));
 }
 
-export function worldPixelSize(zoom: number): number {
+function worldPixelSize(zoom: number): number {
   return 256 * 2 ** zoom;
 }
 
@@ -25,7 +25,7 @@ export function lonLatToWorldPixel(
   return { x, y };
 }
 
-export function worldPixelToLonLat(
+function worldPixelToLonLat(
   x: number,
   y: number,
   zoom: number,
@@ -35,24 +35,6 @@ export function worldPixelToLonLat(
   const mercator = Math.PI - (2 * Math.PI * y) / size;
   const lat = (180 / Math.PI) * Math.atan(Math.sinh(mercator));
   return { lon, lat };
-}
-
-export function tileCenterToWorldPixel(tile: SphereTileKey): {
-  x: number;
-  y: number;
-} {
-  return {
-    x: (tile.x + 0.5) * 256,
-    y: (tile.y + 0.5) * 256,
-  };
-}
-
-export function tileCenterToLonLat(tile: SphereTileKey): {
-  lon: number;
-  lat: number;
-} {
-  const center = tileCenterToWorldPixel(tile);
-  return worldPixelToLonLat(center.x, center.y, tile.z);
 }
 
 export function tileBounds4326(
@@ -65,7 +47,7 @@ export function tileBounds4326(
   return [northwest.lon, southeast.lat, southeast.lon, northwest.lat];
 }
 
-export function latlngToTilekey(
+export function latlngToTilekey2(
   lon: number,
   lat: number,
   zoom: number,
@@ -81,6 +63,23 @@ export function latlngToTilekey(
     x: Math.max(0, Math.min(tileCount - 1, tileX)),
     y: Math.max(0, Math.min(tileCount - 1, tileY)),
   };
+}
+
+export function latlngToTilekey(
+  lng: number,
+  lat: number,
+  zoom: number,
+): SphereTileKey {
+  const latRad = (lat * Math.PI) / 180;
+  const lng_ = ((lng + 180) % 360) / 360;
+  const n = Math.pow(2, zoom);
+
+  const x = Math.floor(lng_ * n);
+  const y = Math.floor(
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
+  );
+
+  return { x, y, z: zoom };
 }
 
 export function enumerateChildTiles(
