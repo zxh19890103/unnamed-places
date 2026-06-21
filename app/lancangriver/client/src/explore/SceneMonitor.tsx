@@ -30,6 +30,16 @@ function formatTileCount(visibleTilesCount: number | null) {
   return `${visibleTilesCount}`;
 }
 
+function formatControlMode(
+  controlMode: SphereStatsPayload["controlMode"] | null,
+) {
+  if (!controlMode) {
+    return "--";
+  }
+
+  return controlMode;
+}
+
 export function SceneMonitor({ sphere }: SceneMonitorProps) {
   const [stats, setStats] = useState<SphereStatsPayload | null>(null);
 
@@ -58,6 +68,7 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
   const distanceMeters = stats?.cameraDistanceMeters ?? null;
   const zoomLevel = stats?.zoomLevel ?? null;
   const visibleTilesCount = stats?.visibleTilesCount ?? null;
+  const controlMode = stats?.controlMode ?? null;
 
   return (
     <aside
@@ -92,6 +103,10 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
         <div>
           <div style={{ opacity: 0.68 }}>Visible tiles</div>
           <div>{formatTileCount(visibleTilesCount)}</div>
+        </div>
+        <div>
+          <div style={{ opacity: 0.68 }}>Controls mode</div>
+          <div>{formatControlMode(controlMode)}</div>
         </div>
       </div>
     </aside>

@@ -13,6 +13,15 @@ export class TileNode implements ITileNode {
    */
   tile?: SphereTile;
 
+  /**
+   * Fly-mode specific metadata (resolution mode).
+   * Used to track satellite texture composition state.
+   */
+  satelliteCurrentZoom?: number; // Current composite zoom level
+  satelliteTargetZoom?: number; // Desired zoom level based on camera distance
+  satellitePending?: boolean; // Composition request in flight
+  satelliteRequestSeq?: number; // Generation counter for dedup
+
   constructor(readonly key: SphereTileKey) {
     this.x = key.x;
     this.y = key.y;
@@ -147,5 +156,20 @@ export class TilesManager {
     if (didChange) {
       this.scheduleApplyUpdates();
     }
+  }
+
+  /**
+   * Get the count of currently visible (attached) tiles.
+   */
+  getVisibleCount(): number {
+    return this.nodes.filter((node) => node.state === TileNodeState.attached)
+      .length;
+  }
+
+  /**
+   * Get all currently attached tile nodes.
+   */
+  getAttachedNodes(): TileNode[] {
+    return this.nodes.filter((node) => node.state === TileNodeState.attached);
   }
 }

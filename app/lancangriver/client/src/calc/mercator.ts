@@ -119,4 +119,9 @@ export function getZoomLvFromDistance(distance: number, min = 0, max = 19) {
   return Math.max(min, Math.min(max, zoom));
 }
 
+export function zoomToDistance(zoomLevel: number, min = 0, max = 19): number {
+  const z = Math.max(min, Math.min(max, zoomLevel));
+  return referenceDistanceMeters * 2 ** (max - z);
+}
+
 const referenceDistanceMeters = 1_00;

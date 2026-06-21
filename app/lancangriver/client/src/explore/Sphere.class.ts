@@ -4,11 +4,13 @@ import { EARTH_RADIUS } from "../calc/sphere";
 import { SphereTile } from "./SphereTile.class";
 import { latlngToTilekey } from "../calc/mercator";
 import { SphereTileKey } from "../calc/types";
+import { ControlMode } from "./ControlsManager.class";
 
 export type SphereStatsPayload = {
   cameraDistanceMeters: number;
   zoomLevel: number;
   visibleTilesCount: number;
+  controlMode: ControlMode;
 };
 
 export type SphereStatsEvent = Event & {

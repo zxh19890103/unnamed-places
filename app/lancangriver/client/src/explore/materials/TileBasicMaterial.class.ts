@@ -7,12 +7,13 @@ type Parameters = {
 };
 
 export class TileBasicMaterial extends THREE.ShaderMaterial {
+  private pendingImage: HTMLImageElement | null = null;
+
   constructor(textureLoader: THREE.TextureLoader, parameters: Parameters) {
     const { tileKey } = parameters;
 
-    const satelliteTexture = textureLoader.load(
-      `${BASE_URL}/raster/satellite/${tileKey.z}/${tileKey.x}/${tileKey.y}.jpeg`,
-    );
+    const satelliteTexture = new THREE.Texture();
+    // satelliteTexture.colorSpace = THREE.SRGBColorSpace;
 
     super({
       side: THREE.BackSide,
@@ -51,5 +52,41 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
       }
     `,
     });
+
+    const imageLoader = new THREE.ImageLoader(textureLoader.manager);
+    this.pendingImage = imageLoader.load(
+      `${BASE_URL}/raster/satellite/${tileKey.z}/${tileKey.x}/${tileKey.y}.jpeg`,
+      (image) => {
+        if (!this.pendingImage) {
+          return;
+        }
+
+        satelliteTexture.image = image;
+        satelliteTexture.needsUpdate = true;
+        this.pendingImage = null;
+      },
+      undefined,
+      () => {
+        this.pendingImage = null;
+      },
+    );
+  }
+
+  override dispose(): void {
+    if (this.pendingImage) {
+      this.pendingImage.onload = null;
+      this.pendingImage.onerror = null;
+
+      // Cancel in-flight image fetch when tile churn disposes this material.
+      this.pendingImage.src = "";
+      this.pendingImage = null;
+    }
+
+    const satelliteTexture = this.uniforms.uSatelliteTexture.value;
+    if (satelliteTexture instanceof THREE.Texture) {
+      satelliteTexture.dispose();
+    }
+
+    super.dispose();
   }
 }

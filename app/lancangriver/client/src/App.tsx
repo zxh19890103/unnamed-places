@@ -18,12 +18,15 @@ export default function App() {
       scene,
       camera,
       renderer,
-      controls,
+      controlsManager,
       sphere: sceneSphere,
       stats,
+      tileManager,
+      compositor,
       resize,
       destroyCameraGui,
       destroyStats,
+      cleanup,
     } = createScene(host);
 
     setSphere(sceneSphere);
@@ -32,9 +35,34 @@ export default function App() {
     window.addEventListener("resize", handleResize);
 
     let frameId = 0;
+    let lastTime = performance.now();
+    // let lastCompositorUpdate = 0;
+
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
-      controls.update();
+      const now = performance.now();
+      const delta = Math.min((now - lastTime) / 1000, 0.016); // Cap at 16ms
+      lastTime = now;
+
+      controlsManager.update(delta);
+
+      // Update compositor in fly mode (throttled)
+      // if (controlsManager.isFlyMode() && now - lastCompositorUpdate > 100) {
+      //   const attachedNodes = tileManager.getAttachedNodes();
+      //   const tilesToCompose = attachedNodes
+      //     .filter((node) => node.tile)
+      //     .map((node) => ({
+      //       node,
+      //       tile: node.tile!,
+      //       cameraDistance: camera.position.distanceTo(node.tile!.position),
+      //     }));
+
+      //   if (tilesToCompose.length > 0) {
+      //     void compositor.updateForTiles(tilesToCompose);
+      //   }
+      //   lastCompositorUpdate = now;
+      // }
+
       stats.update();
       renderer.render(scene, camera);
     };
@@ -47,7 +75,7 @@ export default function App() {
       window.cancelAnimationFrame(frameId);
       destroyCameraGui();
       destroyStats();
-      controls.dispose();
+      cleanup();
       renderer.dispose();
       host.removeChild(renderer.domElement);
       setSphere(null);
