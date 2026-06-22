@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { TileNode } from "./lod";
 import type { SphereTile } from "./SphereTile.class";
 import type { SphereTileKey } from "../calc/types";
-import { enumerateChildTiles, getZoomLvFromDistance } from "../calc/mercator";
+import { enumerateChildTiles, disatanceToZoom } from "../calc/mercator";
 import { BASE_URL } from "../calc/constants";
 
 const TILE_SIZE = 256;
@@ -46,7 +46,7 @@ export class FlySatelliteCompositor {
   ): Promise<void> {
     for (const { node, tile, cameraDistance } of parentTiles) {
       // Compute desired satellite zoom based on distance
-      const targetZoom = getZoomLvFromDistance(cameraDistance);
+      const targetZoom = disatanceToZoom(cameraDistance);
 
       // Skip if already at target or if request is pending
       const tileKey = `${node.z}/${node.x}/${node.y}`;

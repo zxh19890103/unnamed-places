@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 def speak_hi() -> None:
-	message = "Hi, I need your help!"
+	message = "Help!"
 	try:
 		subprocess.run(["say", message], check=True)
 	except FileNotFoundError:

@@ -18,8 +18,9 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
     super({
       side: THREE.BackSide,
       uniforms: {
-        uColor: { value: new THREE.Color(0 ^ (Math.random() * 0xffffff)) },
+        uColor: { value: new THREE.Color(0xffffff) },
         uSatelliteTexture: { value: satelliteTexture },
+        uTextureReady: { value: 0 },
         uDemTexture: { value: null },
         uElevationScale: { value: 0 },
       },
@@ -43,12 +44,16 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
     `,
       fragmentShader: `
       uniform vec3 uColor;
+      uniform float uTextureReady;
       uniform sampler2D uSatelliteTexture;
+
       varying vec2 vUv;
 
       void main() {
         vec4 color = texture2D(uSatelliteTexture, vUv);
-        gl_FragColor = vec4(color.rgb, 1.0);
+        vec3 outputColor = mix(uColor, color.rgb, uTextureReady);
+
+        gl_FragColor = vec4(outputColor, 1.0);
       }
     `,
     });
@@ -61,8 +66,10 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
           return;
         }
 
+        this.uniforms.uTextureReady.value = 1;
         satelliteTexture.image = image;
         satelliteTexture.needsUpdate = true;
+
         this.pendingImage = null;
       },
       undefined,

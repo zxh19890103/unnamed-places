@@ -4,7 +4,7 @@ import Stats from "three/examples/jsm/libs/stats.module.js";
 
 import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "../calc/sphere";
 import { Sphere } from "./Sphere.class";
-import { getZoomLvFromDistance, zoomToDistance } from "../calc/mercator";
+import { disatanceToZoom, zoomToDistance } from "../calc/mercator";
 import { TilesManager } from "./lod";
 import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
@@ -101,7 +101,7 @@ export function createScene(container: HTMLElement) {
 
   const refreshVisibleTilesAndStats = () => {
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-    const zoomLevel = getZoomLvFromDistance(cameraDistanceMeters);
+    const zoomLevel = disatanceToZoom(cameraDistanceMeters);
     camera.updateMatrixWorld(true);
 
     // Check altitude-based control switching
@@ -163,7 +163,7 @@ export function createScene(container: HTMLElement) {
   };
 
   const zoomState = {
-    zoomLevel: getZoomLvFromDistance(
+    zoomLevel: disatanceToZoom(
       Math.max(1, camera.position.length() - EARTH_RADIUS),
       GUI_ZOOM_MIN,
       GUI_ZOOM_MAX,
@@ -187,7 +187,7 @@ export function createScene(container: HTMLElement) {
       camera.lookAt(0, 0, 0);
       camera.updateMatrixWorld(true);
 
-      zoomState.zoomLevel = getZoomLvFromDistance(
+      zoomState.zoomLevel = disatanceToZoom(
         altitude,
         GUI_ZOOM_MIN,
         GUI_ZOOM_MAX,
@@ -199,7 +199,7 @@ export function createScene(container: HTMLElement) {
 
   const syncNavigationStateFromCamera = () => {
     syncGeoFromCamera();
-    zoomState.zoomLevel = getZoomLvFromDistance(
+    zoomState.zoomLevel = disatanceToZoom(
       Math.max(1, camera.position.length() - EARTH_RADIUS),
       GUI_ZOOM_MIN,
       GUI_ZOOM_MAX,

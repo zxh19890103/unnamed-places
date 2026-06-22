@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { EARTH_RADIUS } from "../../calc/sphere";
-import { getZoomLvFromDistance, zoomToDistance } from "../../calc/mercator";
+import { disatanceToZoom, zoomToDistance } from "../../calc/mercator";
 
 export interface PointerControlsOptions {
   enabled?: boolean;
@@ -137,7 +137,7 @@ export class PointerControls extends EventTarget {
       1,
       this.camera.position.length() - EARTH_RADIUS,
     );
-    const currentZoom = getZoomLvFromDistance(currentAltitude, 1, 19);
+    const currentZoom = disatanceToZoom(currentAltitude, 1, 19);
     const nextZoom = Math.min(19, currentZoom + 1);
     const nextAltitude = zoomToDistance(nextZoom, 1, 19);
     const nextRadius = EARTH_RADIUS + nextAltitude;

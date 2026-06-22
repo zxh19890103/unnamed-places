@@ -3,6 +3,8 @@ import type { SphereTileKey } from "./types";
 const MIN_LAT = -85.05112878;
 const MAX_LAT = 85.05112878;
 
+const referenceDistanceMeters = 1_00;
+
 function clampLat(lat: number): number {
   return Math.max(MIN_LAT, Math.min(MAX_LAT, lat));
 }
@@ -108,7 +110,7 @@ export function enumerateChildTiles(
   return children;
 }
 
-export function getZoomLvFromDistance(distance: number, min = 0, max = 19) {
+export function disatanceToZoom(distance: number, min = 0, max = 19) {
   if (!Number.isFinite(distance) || distance <= 0) {
     return min;
   }
@@ -121,7 +123,9 @@ export function getZoomLvFromDistance(distance: number, min = 0, max = 19) {
 
 export function zoomToDistance(zoomLevel: number, min = 0, max = 19): number {
   const z = Math.max(min, Math.min(max, zoomLevel));
-  return referenceDistanceMeters * 2 ** (max - z);
-}
 
-const referenceDistanceMeters = 1_00;
+  // Return the midpoint of the [z, z+1] distance band so round-tripping is stable.
+  const upper = referenceDistanceMeters * 2 ** (max - z);
+  const lower = referenceDistanceMeters * 2 ** (max - (z + 1));
+  return (upper + lower) / 2;
+}
