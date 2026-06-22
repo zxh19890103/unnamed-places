@@ -2,10 +2,17 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { FlyControls } from "three/examples/jsm/controls/FlyControls.js";
+import { FLY_MOVEMENT_SPEED, FLY_ROLL_SPEED } from "../calc/constants";
 import { EARTH_RADIUS } from "../calc/sphere";
 import { PointerControls } from "./controls/PointerControls.class";
 
-export type ControlMode = "none" | "pointer" | "orbit" | "map" | "fly";
+export type ControlMode =
+  | "none"
+  | "pointer"
+  | "orbit"
+  | "groundOrbit"
+  | "map"
+  | "fly";
 
 export interface ControlsManagerOptions {
   camera: THREE.Camera;
@@ -17,6 +24,7 @@ export interface ControlsManagerOptions {
 export class ControlsManager {
   private camera: THREE.Camera;
   private orbitControls: OrbitControls;
+  private groundOrbitControls: OrbitControls;
   private mapControls: MapControls;
   private flyControls: FlyControls;
   private pointerControls: PointerControls;
@@ -60,6 +68,14 @@ export class ControlsManager {
     this.orbitControls.zoomSpeed = 0.1;
     this.orbitControls.enabled = enabled;
 
+    this.groundOrbitControls = new OrbitControls(camera, domElement);
+    this.groundOrbitControls.enableDamping = true;
+    this.groundOrbitControls.enablePan = true;
+    this.groundOrbitControls.enableZoom = true;
+    this.groundOrbitControls.rotateSpeed = 0.25;
+    this.groundOrbitControls.zoomSpeed = 1;
+    this.groundOrbitControls.enabled = false;
+
     this.mapControls = new MapControls(camera, domElement);
     this.mapControls.enableDamping = true;
     this.mapControls.target.set(0, 0, 0);
@@ -76,8 +92,8 @@ export class ControlsManager {
     this.mapControls.maxPolarAngle = Math.PI / 6;
 
     this.flyControls = new FlyControls(camera, domElement);
-    this.flyControls.movementSpeed = 1;
-    this.flyControls.rollSpeed = 0.01;
+    this.flyControls.movementSpeed = FLY_MOVEMENT_SPEED;
+    this.flyControls.rollSpeed = FLY_ROLL_SPEED;
     this.flyControls.dragToLook = true;
     this.flyControls.enabled = false;
 
@@ -152,6 +168,27 @@ export class ControlsManager {
     this.switchMode("fly");
   }
 
+  enterGroundOrbit(target: THREE.Vector3, position: THREE.Vector3): void {
+    if (!this._enabled) {
+      return;
+    }
+
+    this.switchMode("groundOrbit");
+    this.groundOrbitControls.target.copy(target);
+    this.camera.position.copy(position);
+    this.camera.lookAt(target);
+    this.camera.updateMatrixWorld(true);
+    this.groundOrbitControls.update();
+  }
+
+  exitGroundOrbit(): void {
+    if (!this._enabled || this._mode !== "groundOrbit") {
+      return;
+    }
+
+    this.switchMode("map");
+  }
+
   /**
    * Enable fly mode (user-triggered). Only valid when altitude < A2.
    */
@@ -214,6 +251,9 @@ export class ControlsManager {
         this.updateMapInteractionParameters(delta);
         this.mapControls.update();
         break;
+      case "groundOrbit":
+        this.groundOrbitControls.update();
+        break;
       case "fly":
         // Adapt fly movement speed to altitude
         // const speed = Math.max(1, this._lastAltitude / 100);
@@ -272,6 +312,10 @@ export class ControlsManager {
       return this.mapControls.target.clone();
     }
 
+    if (mode === "groundOrbit") {
+      return this.groundOrbitControls.target.clone();
+    }
+
     // FlyControls has no target; derive one from camera forward ray onto globe.
     const origin = this.camera.position.clone();
     const direction = new THREE.Vector3(0, 0, -1)
@@ -308,6 +352,12 @@ export class ControlsManager {
       this.mapControls.target.copy(target);
       this.updateMapInteractionParameters(1 / 60, true);
       this.mapControls.update();
+      return;
+    }
+
+    if (mode === "groundOrbit") {
+      this.groundOrbitControls.target.copy(target);
+      this.groundOrbitControls.update();
     }
   }
 
@@ -388,6 +438,7 @@ export class ControlsManager {
     if (!this._enabled || this._mode === "none") {
       this.setControlEnabled("pointer", false);
       this.setControlEnabled("orbit", false);
+      this.setControlEnabled("groundOrbit", false);
       this.setControlEnabled("map", false);
       this.setControlEnabled("fly", false);
       return;
@@ -395,6 +446,7 @@ export class ControlsManager {
 
     this.setControlEnabled("pointer", this._mode === "pointer");
     this.setControlEnabled("orbit", this._mode === "orbit");
+    this.setControlEnabled("groundOrbit", this._mode === "groundOrbit");
     this.setControlEnabled("map", this._mode === "map");
     this.setControlEnabled("fly", this._mode === "fly");
   }
@@ -412,6 +464,9 @@ export class ControlsManager {
       case "orbit":
         this.orbitControls.enabled = enabled;
         break;
+      case "groundOrbit":
+        this.groundOrbitControls.enabled = enabled;
+        break;
       case "map":
         this.mapControls.enabled = enabled;
         break;
@@ -426,6 +481,7 @@ export class ControlsManager {
    */
   dispose(): void {
     this.orbitControls.dispose();
+    this.groundOrbitControls.dispose();
     this.mapControls.dispose();
     this.flyControls.dispose();
     this.pointerControls.dispose();
@@ -478,5 +534,9 @@ export class ControlsManager {
    */
   isFlyMode(): boolean {
     return this._mode === "fly";
+  }
+
+  isGroundOrbitMode(): boolean {
+    return this._mode === "groundOrbit";
   }
 }

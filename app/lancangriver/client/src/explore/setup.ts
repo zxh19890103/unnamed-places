@@ -1,19 +1,58 @@
 import * as THREE from "three";
-import { GUI } from "lil-gui";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 
-import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "../calc/sphere";
+import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
 import { Sphere } from "./Sphere.class";
-import { disatanceToZoom, zoomToDistance } from "../calc/mercator";
+import { disatanceToZoom } from "../calc/mercator";
 import { TilesManager } from "./lod";
 import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
 import { FlySatelliteCompositor } from "./FlySatelliteCompositor.class";
+import { attachExploreGui, type ExploreGuiHandle } from "./gui";
+import {
+  MAX_DEM_ZOOM,
+  START_CENTER_LAT,
+  START_CENTER_LON,
+} from "../calc/constants";
 
-const GUI_ZOOM_MIN = 1;
-const GUI_ZOOM_MAX = 19;
-const GUI_ZOOM_STEP = 1;
-const REFERENCE_DISTANCE_METERS = 100;
+const GROUND_ORBIT_DISTANCE_METERS = 1_000;
+
+function getLocalBasisAtPoint(target: THREE.Vector3) {
+  const up = target.clone().normalize();
+  const worldNorth = new THREE.Vector3(0, 1, 0);
+  let east = worldNorth.clone().cross(up);
+
+  if (east.lengthSq() < 1e-10) {
+    east = new THREE.Vector3(1, 0, 0).cross(up);
+  }
+
+  east.normalize();
+  const north = up.clone().cross(east).normalize();
+  return { up, east, north };
+}
+
+function computeOrbitPositionFromAzimuthAltitude(
+  target: THREE.Vector3,
+  azimuthDeg: number,
+  altitudeDeg: number,
+  distanceMeters: number,
+) {
+  const { up, east, north } = getLocalBasisAtPoint(target);
+  const azimuthRad = THREE.MathUtils.degToRad(azimuthDeg);
+  const altitudeRad = THREE.MathUtils.degToRad(altitudeDeg);
+
+  const horizontal = east
+    .clone()
+    .multiplyScalar(Math.sin(azimuthRad))
+    .add(north.clone().multiplyScalar(Math.cos(azimuthRad)));
+
+  const viewDirection = horizontal
+    .multiplyScalar(Math.cos(altitudeRad))
+    .add(up.multiplyScalar(Math.sin(altitudeRad)))
+    .normalize();
+
+  return target.clone().addScaledVector(viewDirection, distanceMeters);
+}
 
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
@@ -26,7 +65,16 @@ export function createScene(container: HTMLElement) {
     EARTH_RADIUS * 2,
   );
 
-  camera.position.set(0, 0, EARTH_RADIUS * 1.5);
+  const startCameraPosition = latlngToSphere(
+    START_CENTER_LAT,
+    START_CENTER_LON,
+    EARTH_RADIUS * 1.5,
+  );
+  camera.position.set(
+    startCameraPosition.x,
+    startCameraPosition.y,
+    startCameraPosition.z,
+  );
   camera.lookAt(0, 0, 0);
 
   const textureLoader = new THREE.TextureLoader(new THREE.LoadingManager());
@@ -48,15 +96,22 @@ export function createScene(container: HTMLElement) {
     renderer,
   });
 
+  const groundOrbitState = {
+    enabled: false,
+    azimuthDeg: 0,
+    altitudeDeg: 30,
+  };
+
   let tileModeLazy = true; // false when fly mode is active (resolution mode)
 
   const compositor = new FlySatelliteCompositor(textureLoader);
 
   controlsManager.onModeChange = (from: ControlMode, to: ControlMode) => {
     console.log(`[Controls] Mode change: ${from} → ${to}`);
-    if (to === "fly") {
+    if (to === "fly" || to === "groundOrbit") {
       tileModeLazy = false;
-      console.log("[Tiles] Entering resolution mode (fly compositor)");
+      const modeLabel = to === "fly" ? "fly compositor" : "ground orbit";
+      console.log(`[Tiles] Entering resolution mode (${modeLabel})`);
     } else {
       tileModeLazy = true;
       compositor.disposeComposedTextures();
@@ -74,9 +129,35 @@ export function createScene(container: HTMLElement) {
   scene.add(sphereGlobal);
   const tileManager = new TilesManager();
 
+  const terrainState = {
+    demEnabled: false,
+  };
+  let guiHandle: ExploreGuiHandle | null = null;
+
+  const applyDemModeToAttachedTiles = (enabled: boolean) => {
+    for (const node of tileManager.getAttachedNodes()) {
+      node.tile?.setDemMaterialEnabled(enabled);
+    }
+  };
+
+  const applyDemMode = (requested: boolean, zoomLevel: number) => {
+    if (requested && zoomLevel > MAX_DEM_ZOOM) {
+      terrainState.demEnabled = false;
+      console.warn(
+        `[Terrain] DEM material is disabled above z=${MAX_DEM_ZOOM} (current z=${zoomLevel})`,
+      );
+      applyDemModeToAttachedTiles(false);
+      return;
+    }
+
+    terrainState.demEnabled = requested;
+    applyDemModeToAttachedTiles(terrainState.demEnabled);
+  };
+
   tileManager.onTileCreate = (node) => {
     const tile = sphereGlobal.createTileByKey(node.key);
     tile.$tNode = node;
+    tile.setDemMaterialEnabled(terrainState.demEnabled);
     node.tile = tile;
   };
 
@@ -104,6 +185,11 @@ export function createScene(container: HTMLElement) {
     const zoomLevel = disatanceToZoom(cameraDistanceMeters);
     camera.updateMatrixWorld(true);
 
+    if (terrainState.demEnabled && zoomLevel > MAX_DEM_ZOOM) {
+      applyDemMode(false, zoomLevel);
+      guiHandle?.syncTerrainState();
+    }
+
     // Check altitude-based control switching
     controlsManager.checkAltitude(cameraDistanceMeters);
 
@@ -124,210 +210,67 @@ export function createScene(container: HTMLElement) {
     });
   };
 
-  const gui = new GUI({ title: "Explore Camera" });
-  const cameraFolder = gui.addFolder("Camera");
-  const navigationFolder = gui.addFolder("Navigation");
+  const getGroundCenter = () => {
+    const center = camera.position
+      .clone()
+      .normalize()
+      .multiplyScalar(EARTH_RADIUS);
+    return center;
+  };
 
-  cameraFolder
-    .add(camera, "fov", 20, 120, 1)
-    .name("fov")
-    .onChange(() => camera.updateProjectionMatrix());
-
-  const applyZoomLevel = (zoomLevel: number) => {
-    const z = THREE.MathUtils.clamp(
-      Math.round(zoomLevel),
-      GUI_ZOOM_MIN,
-      GUI_ZOOM_MAX,
+  const applyGroundOrbitPlacement = () => {
+    const center = getGroundCenter();
+    const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
+      center,
+      groundOrbitState.azimuthDeg,
+      groundOrbitState.altitudeDeg,
+      GROUND_ORBIT_DISTANCE_METERS,
     );
 
-    zoomState.zoomLevel = z;
-
-    const altitude = zoomToDistance(z, GUI_ZOOM_MIN, GUI_ZOOM_MAX);
-    const nextRadius = EARTH_RADIUS + altitude;
-    camera.position.normalize().multiplyScalar(nextRadius);
-    camera.lookAt(0, 0, 0);
-    camera.updateMatrixWorld(true);
-
+    controlsManager.enterGroundOrbit(center, orbitPosition);
     refreshVisibleTilesAndStats();
   };
 
-  const syncGeoFromCamera = () => {
-    const latlng = sphereToLatlng(
-      camera.position.x,
-      camera.position.y,
-      camera.position.z,
-    );
-
-    geoState.lat = Number(latlng.lat.toFixed(6));
-    geoState.lng = Number(latlng.lng.toFixed(6));
+  const enterGroundOrbit = (azimuthDeg: number, altitudeDeg: number) => {
+    groundOrbitState.azimuthDeg = azimuthDeg;
+    groundOrbitState.altitudeDeg = altitudeDeg;
+    groundOrbitState.enabled = true;
+    applyGroundOrbitPlacement();
   };
 
-  const zoomState = {
-    zoomLevel: disatanceToZoom(
-      Math.max(1, camera.position.length() - EARTH_RADIUS),
-      GUI_ZOOM_MIN,
-      GUI_ZOOM_MAX,
-    ),
-    zoomIn: () => applyZoomLevel(zoomState.zoomLevel + GUI_ZOOM_STEP),
-    zoomOut: () => applyZoomLevel(zoomState.zoomLevel - GUI_ZOOM_STEP),
+  const randomizeGroundOrbitAngles = () => {
+    const azimuthDeg = Math.random() * 360;
+    const altitudeDeg = 10 + Math.random() * 65;
+    enterGroundOrbit(azimuthDeg, altitudeDeg);
   };
 
-  const geoState = {
-    lat: 0,
-    lng: 0,
-    go: () => {
-      const lat = THREE.MathUtils.clamp(geoState.lat, -85, 85);
-      const lng = ((((geoState.lng + 180) % 360) + 360) % 360) - 180;
-      geoState.lat = lat;
-      geoState.lng = lng;
-
-      const altitude = Math.max(1, camera.position.length() - EARTH_RADIUS);
-      const next = latlngToSphere(lat, lng, EARTH_RADIUS + altitude);
-      camera.position.set(next.x, next.y, next.z);
-      camera.lookAt(0, 0, 0);
-      camera.updateMatrixWorld(true);
-
-      zoomState.zoomLevel = disatanceToZoom(
-        altitude,
-        GUI_ZOOM_MIN,
-        GUI_ZOOM_MAX,
-      );
-
-      refreshVisibleTilesAndStats();
-    },
-  };
-
-  const syncNavigationStateFromCamera = () => {
-    syncGeoFromCamera();
-    zoomState.zoomLevel = disatanceToZoom(
-      Math.max(1, camera.position.length() - EARTH_RADIUS),
-      GUI_ZOOM_MIN,
-      GUI_ZOOM_MAX,
-    );
-  };
-
-  const rotateCameraPosition = (
-    axis: THREE.Vector3,
-    deltaRad: number,
-    clampLatitude = false,
-  ) => {
-    camera.position.applyAxisAngle(axis, deltaRad);
-
-    if (clampLatitude) {
-      const altitude = Math.max(1, camera.position.length() - EARTH_RADIUS);
-      const latlng = sphereToLatlng(
-        camera.position.x,
-        camera.position.y,
-        camera.position.z,
-      );
-      const clampedLat = THREE.MathUtils.clamp(latlng.lat, -85, 85);
-      const clamped = latlngToSphere(
-        clampedLat,
-        latlng.lng,
-        EARTH_RADIUS + altitude,
-      );
-      camera.position.set(clamped.x, clamped.y, clamped.z);
+  const setGroundOrbitEnabled = (enabled: boolean) => {
+    if (enabled) {
+      if (!controlsManager.isGroundOrbitMode()) {
+        randomizeGroundOrbitAngles();
+      }
+      return;
     }
 
-    camera.lookAt(0, 0, 0);
-    camera.updateMatrixWorld(true);
-    syncNavigationStateFromCamera();
+    groundOrbitState.enabled = false;
+    controlsManager.exitGroundOrbit();
     refreshVisibleTilesAndStats();
   };
 
-  const altitudeState = {
-    stepMeters: 100,
-    increaseAltitude: () => {
-      const step = Math.max(1, altitudeState.stepMeters);
-      const currentAltitude = Math.max(
-        1,
-        camera.position.length() - EARTH_RADIUS,
-      );
-      const nextRadius = EARTH_RADIUS + currentAltitude + step;
-
-      camera.position.normalize().multiplyScalar(nextRadius);
-      camera.lookAt(0, 0, 0);
-      camera.updateMatrixWorld(true);
-      syncNavigationStateFromCamera();
-    },
-    decreaseAltitude: () => {
-      const step = Math.max(1, altitudeState.stepMeters);
-      const currentAltitude = Math.max(
-        1,
-        camera.position.length() - EARTH_RADIUS,
-      );
-      const nextAltitude = Math.max(1, currentAltitude - step);
-      const nextRadius = EARTH_RADIUS + nextAltitude;
-
-      camera.position.normalize().multiplyScalar(nextRadius);
-      camera.lookAt(0, 0, 0);
-      camera.updateMatrixWorld(true);
-      syncNavigationStateFromCamera();
-    },
-  };
-
-  const rotationState = {
-    deltaDeg: 15,
-    rotatePositiveY: () => {
-      const deltaRad = THREE.MathUtils.degToRad(rotationState.deltaDeg);
-      rotateCameraPosition(new THREE.Vector3(0, 1, 0), deltaRad);
-    },
-    rotateNegativeY: () => {
-      const deltaRad = THREE.MathUtils.degToRad(-rotationState.deltaDeg);
-      rotateCameraPosition(new THREE.Vector3(0, 1, 0), deltaRad);
-    },
-    rotateUp: () => {
-      const forward = camera.position.clone().normalize().negate();
-      const right = forward.cross(new THREE.Vector3(0, 1, 0)).normalize();
-      const axis = right.lengthSq() > 0 ? right : new THREE.Vector3(1, 0, 0);
-      const deltaRad = THREE.MathUtils.degToRad(rotationState.deltaDeg);
-      rotateCameraPosition(axis, deltaRad, true);
-    },
-    rotateDown: () => {
-      const forward = camera.position.clone().normalize().negate();
-      const right = forward.cross(new THREE.Vector3(0, 1, 0)).normalize();
-      const axis = right.lengthSq() > 0 ? right : new THREE.Vector3(1, 0, 0);
-      const deltaRad = THREE.MathUtils.degToRad(-rotationState.deltaDeg);
-      rotateCameraPosition(axis, deltaRad, true);
-    },
-  };
-
-  syncGeoFromCamera();
-
-  navigationFolder
-    .add(zoomState, "zoomLevel", GUI_ZOOM_MIN, GUI_ZOOM_MAX, GUI_ZOOM_STEP)
-    .name("zoom")
-    .onChange((value: number) => applyZoomLevel(value));
-  navigationFolder.add(zoomState, "zoomIn").name("zoom +");
-  navigationFolder.add(zoomState, "zoomOut").name("zoom -");
-  navigationFolder.add(geoState, "lat", -85, 85, 0.000001).name("lat");
-  navigationFolder.add(geoState, "lng", -180, 180, 0.000001).name("lng");
-  navigationFolder.add(geoState, "go").name("GO");
-  navigationFolder.add(rotationState, "deltaDeg", 1, 180, 1).name("rotate Δ");
-  navigationFolder.add(rotationState, "rotatePositiveY").name("rotate +Y");
-  navigationFolder.add(rotationState, "rotateNegativeY").name("rotate -Y");
-  navigationFolder.add(rotationState, "rotateUp").name("rotate up");
-  navigationFolder.add(rotationState, "rotateDown").name("rotate down");
-  navigationFolder
-    .add(altitudeState, "stepMeters", 1, 100000, 1)
-    .name("alt step (m)");
-  navigationFolder.add(altitudeState, "increaseAltitude").name("alt +");
-  navigationFolder.add(altitudeState, "decreaseAltitude").name("alt -");
-
-  const flyControlsState = {
-    toggle: () => {
-      if (controlsManager.isFlyMode()) {
-        controlsManager.disableFly();
-      } else {
-        controlsManager.forceFly();
-      }
-    },
-  };
-
-  cameraFolder.add(flyControlsState, "toggle").name("fly controls on/off");
-
-  cameraFolder.open();
-  navigationFolder.open();
+  guiHandle = attachExploreGui({
+    camera,
+    controlsManager,
+    onRefreshVisibleTilesAndStats: refreshVisibleTilesAndStats,
+    getDemEnabled: () => terrainState.demEnabled,
+    applyDemMode,
+    getGroundOrbitEnabled: () => groundOrbitState.enabled,
+    setGroundOrbitEnabled,
+    onRandomizeGroundOrbit: randomizeGroundOrbitAngles,
+    getGroundOrbitAngles: () => ({
+      azimuthDeg: groundOrbitState.azimuthDeg,
+      altitudeDeg: groundOrbitState.altitudeDeg,
+    }),
+  });
 
   const resize = () => {
     const width = container.clientWidth;
@@ -337,7 +280,7 @@ export function createScene(container: HTMLElement) {
     renderer.setSize(width, height, true);
   };
 
-  const destroyCameraGui = () => gui.destroy();
+  const destroyCameraGui = () => guiHandle?.destroy();
   const destroyStats = () => {
     if (stats.dom.parentElement === container) {
       container.removeChild(stats.dom);
