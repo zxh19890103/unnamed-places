@@ -3,6 +3,8 @@ import { access, mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 const DEFAULT_SATELLITE_URL_TEMPLATE = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=4';
+const DEFAULT_DEM_PNG_URL_TEMPLATE = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+const MAX_DEM_ZOOM = 15;
 
 function templateUrl(template, values) {
   return template.replace(/\{([^}]+)\}/g, (_match, key) => {
@@ -118,17 +120,12 @@ async function defaultFetchSatelliteTile(z, x, y, rasterOptions) {
   return downloadToFile(url, satellitePath, fetchImpl);
 }
 
-async function defaultResolveDemPngPath(z, x, y, rasterOptions) {
-  const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
-  const exists = await isExistingPath(demPngPath);
+async function defaultFetchDemPngTile(z, x, y, rasterOptions) {
+  const { rasterRoot, fetchImpl, demPngUrlTemplate } = rasterOptions;
+  const { demPngPath } = buildRasterPaths(rasterRoot, z, x, y);
+  const url = templateUrl(demPngUrlTemplate, { z, x, y });
 
-  if (!exists) {
-    const error = new Error('dem.png file was not found for tile');
-    error.code = 'DEM_PNG_NOT_FOUND';
-    throw error;
-  }
-
-  return { path: demPngPath, cached: true };
+  return downloadToFile(url, demPngPath, fetchImpl);
 }
 
 const satelliteInFlight = createInFlightMap();
@@ -140,9 +137,10 @@ function createRasterHandlerOptions(options = {}) {
   return {
     rasterRoot: rasterOptions.rasterRoot ? resolve(rasterOptions.rasterRoot) : resolve('.tiles'),
     satelliteUrlTemplate: rasterOptions.satelliteUrlTemplate ?? DEFAULT_SATELLITE_URL_TEMPLATE,
+    demPngUrlTemplate: rasterOptions.demPngUrlTemplate ?? DEFAULT_DEM_PNG_URL_TEMPLATE,
     fetchImpl: rasterOptions.fetchImpl ?? fetch,
     fetchSatelliteTile: rasterOptions.fetchSatelliteTile,
-    resolveDemPngPath: rasterOptions.resolveDemPngPath
+    fetchDemPngTile: rasterOptions.fetchDemPngTile
   };
 }
 
@@ -179,17 +177,17 @@ export function createRasterRouter(options = {}) {
 
   const fetchSatelliteTile =
     rasterOptions.fetchSatelliteTile ?? ((z, x, y) => defaultFetchSatelliteTile(z, x, y, rasterOptions));
-  const resolveDemPngPath =
-    rasterOptions.resolveDemPngPath ?? ((z, x, y) => defaultResolveDemPngPath(z, x, y, rasterOptions));
+  const fetchDemPngTile =
+    rasterOptions.fetchDemPngTile ?? ((z, x, y) => defaultFetchDemPngTile(z, x, y, rasterOptions));
 
   async function fetchSatelliteTileOnce(z, x, y) {
     const { satellitePath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
     return runWithInFlight(satelliteInFlight, satellitePath, () => fetchSatelliteTile(z, x, y));
   }
 
-  async function resolveDemPngPathOnce(z, x, y) {
+  async function fetchDemPngTileOnce(z, x, y) {
     const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
-    return runWithInFlight(demPngInFlight, demPngPath, () => resolveDemPngPath(z, x, y));
+    return runWithInFlight(demPngInFlight, demPngPath, () => fetchDemPngTile(z, x, y));
   }
 
   router.get('/raster/satellite/:z/:x/:y.jpeg', async (req, res) => {
@@ -221,16 +219,16 @@ export function createRasterRouter(options = {}) {
       return;
     }
 
+    if (z > MAX_DEM_ZOOM) {
+      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'DEM tiles only support zoom levels up to 15');
+      return;
+    }
+
     try {
-      const pngResult = await resolveDemPngPathOnce(z, x, y);
+      const pngResult = await fetchDemPngTileOnce(z, x, y);
       const pngPath = pngResult.pngPath ?? pngResult.path;
       await sendRasterFile(res, pngPath, 'image/png');
     } catch (error) {
-      if (error && typeof error === 'object' && error.code === 'DEM_PNG_NOT_FOUND') {
-        sendRasterError(res, 404, 'DEM_PNG_NOT_FOUND', 'dem.png file was not found for tile');
-        return;
-      }
-
       sendRasterError(res, 500, 'DEM_PNG_STREAM_FAILED', 'Internal server error');
     }
   });
@@ -267,8 +265,13 @@ export function createRasterRouter(options = {}) {
       return;
     }
 
+    if (z > MAX_DEM_ZOOM) {
+      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'DEM tiles only support zoom levels up to 15');
+      return;
+    }
+
     try {
-      const pngResult = await resolveDemPngPathOnce(z, x, y);
+      const pngResult = await fetchDemPngTileOnce(z, x, y);
 
       res.status(200).json({
         ok: true,
@@ -277,11 +280,6 @@ export function createRasterRouter(options = {}) {
         pngCached: pngResult.pngCached ?? pngResult.cached ?? true
       });
     } catch (error) {
-      if (error && typeof error === 'object' && error.code === 'DEM_PNG_NOT_FOUND') {
-        sendRasterError(res, 404, 'DEM_PNG_NOT_FOUND', 'dem.png file was not found for tile');
-        return;
-      }
-
       sendRasterError(res, 500, 'DEM_TILE_FAILED', 'Internal server error');
     }
   });
@@ -296,8 +294,13 @@ export function createRasterRouter(options = {}) {
       return;
     }
 
+    if (z > MAX_DEM_ZOOM) {
+      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'DEM tiles only support zoom levels up to 15');
+      return;
+    }
+
     try {
-      const pngResult = await resolveDemPngPathOnce(z, x, y);
+      const pngResult = await fetchDemPngTileOnce(z, x, y);
 
       res.status(200).json({
         ok: true,
@@ -306,11 +309,6 @@ export function createRasterRouter(options = {}) {
         cached: pngResult.pngCached ?? pngResult.cached ?? true
       });
     } catch (error) {
-      if (error && typeof error === 'object' && error.code === 'DEM_PNG_NOT_FOUND') {
-        sendRasterError(res, 404, 'DEM_PNG_NOT_FOUND', 'dem.png file was not found for tile');
-        return;
-      }
-
       sendRasterError(res, 500, 'DEM_PNG_RENDER_FAILED', 'Internal server error');
     }
   });

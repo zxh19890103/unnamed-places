@@ -43,8 +43,12 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
 });
 
 describe('GET /raster/dem/:z/:x/:y.png', () => {
-  it('streams an existing dem.png from the zxy folder', async () => {
+  it('downloads and streams a dem png when it is missing locally', async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
+    const fetchTile = vi.fn().mockResolvedValue({
+      path: join(tempRoot, '11', '1024', '768', 'dem.png'),
+      cached: false
+    });
 
     try {
       const pngPath = join(tempRoot, '11', '1024', '768', 'dem.png');
@@ -60,7 +64,7 @@ describe('GET /raster/dem/:z/:x/:y.png', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
+          fetchDemPngTile: fetchTile
         }
       });
 
@@ -69,34 +73,28 @@ describe('GET /raster/dem/:z/:x/:y.png', () => {
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/image\/png/);
       expect(response.body.length).toBeGreaterThan(0);
+      expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }
   });
+  it('rejects dem zoom levels above 15', async () => {
+    const app = createApp({
+      raster: {
+        fetchDemPngTile: vi.fn(),
+        fetchSatelliteTile: vi.fn()
+      }
+    });
 
-  it('returns 404 when dem.png is missing', async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
+    const response = await request(app).get('/raster/dem/16/0/0.png');
 
-    try {
-      const app = createApp({
-        raster: {
-          rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
-        }
-      });
-
-      const response = await request(app).get('/raster/dem/11/1024/768.png');
-
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({
-        error: {
-          code: 'DEM_PNG_NOT_FOUND',
-          reason: 'dem.png file was not found for tile'
-        }
-      });
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true });
-    }
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'DEM_ZOOM_TOO_HIGH',
+        reason: 'DEM tiles only support zoom levels up to 15'
+      }
+    });
   });
 });
 

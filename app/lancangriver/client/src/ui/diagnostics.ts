@@ -49,5 +49,5 @@ export function renderDiagnostics(snapshot: DiagnosticsSnapshot): string {
     parts.push(`miss=${snapshot.sampleMiss}`);
   }
 
-  return parts.join(" ");
+  return parts.join("\n");
 }

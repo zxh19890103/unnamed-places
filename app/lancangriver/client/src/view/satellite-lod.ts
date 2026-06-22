@@ -1,46 +1,51 @@
 import type { TileKey } from "./request-scheduler";
+import type { LODProfile } from "./lod-profile";
+import { DEFAULT_LOD_PROFILE } from "./lod-profile";
 
 export type ChildTile = TileKey & {
   offsetX: number;
   offsetY: number;
 };
 
-type SatelliteZoomBand = {
-  zoom: number;
-  minDistance: number;
-  upperDistance: number;
-};
-
-const MIN_SATELLITE_ZOOM = 11;
-const MAX_SATELLITE_ZOOM = 11;
-
-const SATELLITE_ZOOM_BANDS: SatelliteZoomBand[] = [
-  { zoom: 11, minDistance: 120_000, upperDistance: Number.POSITIVE_INFINITY },
-];
-
-const HYSTERESIS_DISTANCE = 5_000;
-
-function chooseZoomForDistance(distanceToTile: number): number {
-  for (const band of SATELLITE_ZOOM_BANDS) {
-    if (distanceToTile >= band.minDistance) {
-      return band.zoom;
-    }
-  }
-
-  return MAX_SATELLITE_ZOOM;
-}
-
-function getUpperDistanceForZoom(zoom: number): number | undefined {
-  return SATELLITE_ZOOM_BANDS.find((band) => band.zoom === zoom)?.upperDistance;
-}
-
 export function chooseSatelliteZoom(
   distanceToTile: number,
   currentZoom?: number,
+  profile: LODProfile = DEFAULT_LOD_PROFILE,
 ): number {
-  void distanceToTile;
-  void currentZoom;
-  return MIN_SATELLITE_ZOOM;
+  // Find the distance band containing distanceToTile
+  let selectedBand = profile.bands[0];
+  for (const band of profile.bands) {
+    if (
+      distanceToTile >= band.minDistance &&
+      distanceToTile < band.maxDistance
+    ) {
+      selectedBand = band;
+      break;
+    }
+  }
+
+  // If no current zoom, return the selected band's zoom directly
+  if (currentZoom === undefined) {
+    return selectedBand.zoom;
+  }
+
+  // Apply hysteresis
+  if (selectedBand.zoom < currentZoom) {
+    // Attempting to go coarser (merge): only change if distance is beyond merge threshold
+    if (distanceToTile >= selectedBand.mergeThreshold) {
+      return selectedBand.zoom;
+    }
+    return currentZoom;
+  } else if (selectedBand.zoom > currentZoom) {
+    // Attempting to go finer (split): only change if distance is above split threshold
+    if (distanceToTile > selectedBand.splitThreshold) {
+      return selectedBand.zoom;
+    }
+    return currentZoom;
+  }
+
+  // Same zoom level
+  return currentZoom;
 }
 
 export function enumerateChildTiles(

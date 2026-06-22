@@ -1,3 +1,6 @@
+import { lonLatToWorldPixel, tileBounds4326 } from "../calc/mercator";
+import { SphereTileKey } from "../calc/types";
+
 export type ViewState = {
   centerLon: number;
   centerLat: number;
@@ -7,41 +10,12 @@ export type ViewState = {
   haloTiles?: number;
 };
 
-export type TileKey = {
-  z: number;
-  x: number;
-  y: number;
-};
+export type TileKey = SphereTileKey;
 
 export type RequestPlan = {
   vectorBbox: [number, number, number, number];
   rasterTiles: TileKey[];
 };
-
-const MIN_LAT = -85.05112878;
-const MAX_LAT = 85.05112878;
-
-function clampLat(lat: number): number {
-  return Math.max(MIN_LAT, Math.min(MAX_LAT, lat));
-}
-
-function worldPixelSize(zoom: number): number {
-  return 256 * 2 ** zoom;
-}
-
-function lonLatToWorldPixel(
-  lon: number,
-  lat: number,
-  zoom: number,
-): { x: number; y: number } {
-  const latClamped = clampLat(lat);
-  const sinLat = Math.sin((latClamped * Math.PI) / 180);
-  const size = worldPixelSize(zoom);
-  const x = ((lon + 180) / 360) * size;
-  const y =
-    (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * size;
-  return { x, y };
-}
 
 function tileIndexRange(
   minPx: number,
@@ -63,22 +37,6 @@ function expandRange(
   const expandedMin = Math.max(0, min - safeHaloTiles);
   const expandedMax = Math.min(limit - 1, max + safeHaloTiles);
   return [expandedMin, expandedMax];
-}
-
-function tileBounds4326(
-  z: number,
-  x: number,
-  y: number,
-): [number, number, number, number] {
-  const tileCount = 2 ** z;
-  const west = (x / tileCount) * 360 - 180;
-  const east = ((x + 1) / tileCount) * 360 - 180;
-  const north =
-    (180 / Math.PI) * Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / tileCount)));
-  const south =
-    (180 / Math.PI) *
-    Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / tileCount)));
-  return [west, south, east, north];
 }
 
 export function computeRequestPlan(view: ViewState): RequestPlan {

@@ -4,25 +4,46 @@ import {
   chooseSatelliteZoom,
   enumerateChildTiles,
 } from "../src/view/satellite-lod";
+import {
+  AGGRESSIVE_PROFILE,
+  CONSERVATIVE_PROFILE,
+} from "../src/view/lod-profile";
+
+const TILE_SPAN = 30_720;
 
 describe("chooseSatelliteZoom", () => {
-  test.each([130_000, 95_000, 55_000, 30_000, 15_000, 5_000])(
-    "always returns z11 at distance %i",
-    (distanceToTile) => {
-      expect(chooseSatelliteZoom(distanceToTile)).toBe(11);
+  test.each([
+    {
+      distance: 5 * TILE_SPAN,
+      expectedZoom: 11,
+      profile: CONSERVATIVE_PROFILE,
+    },
+    {
+      distance: 3 * TILE_SPAN,
+      expectedZoom: 12,
+      profile: CONSERVATIVE_PROFILE,
+    },
+    {
+      distance: 0.3 * TILE_SPAN,
+      expectedZoom: 14,
+      profile: AGGRESSIVE_PROFILE,
+    },
+  ])(
+    "selects the correct distance band for $distance",
+    ({ distance, expectedZoom, profile }) => {
+      expect(chooseSatelliteZoom(distance, undefined, profile)).toBe(
+        expectedZoom,
+      );
     },
   );
 
-  test.each([11, 12, 13, 14, 15, 16])(
-    "ignores current zoom %i and stays z11",
-    (currentZoom) => {
-      expect(chooseSatelliteZoom(12_000, currentZoom)).toBe(11);
-    },
-  );
+  test("applies hysteresis near a band boundary", () => {
+    const distance = 1.95 * TILE_SPAN;
 
-  test("remains z11 for very large and very small distances", () => {
-    expect(chooseSatelliteZoom(0)).toBe(11);
-    expect(chooseSatelliteZoom(1_000_000)).toBe(11);
+    expect(chooseSatelliteZoom(distance, 13, CONSERVATIVE_PROFILE)).toBe(13);
+    expect(
+      chooseSatelliteZoom(2.15 * TILE_SPAN, 13, CONSERVATIVE_PROFILE),
+    ).toBe(12);
   });
 });
 
