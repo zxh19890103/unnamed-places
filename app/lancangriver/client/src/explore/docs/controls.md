@@ -93,8 +93,8 @@ Two altitude thresholds govern camera control switching and tile loading behavio
 
 Fly-mode metadata added to `TileNode`:
 
-- `satelliteCurrentZoom?: number` — current composed satellite detail level.
-- `satelliteTargetZoom?: number` — desired zoom based on camera distance.
+- `lowAltitudeZoom?: number` — current composed satellite detail level.
+- `targetLowAltitudeZoom?: number` — desired detail level based on camera distance.
 - `satellitePending?: boolean` — composition in progress.
 - `satelliteRequestSeq?: number` — generation counter for request dedup.
 

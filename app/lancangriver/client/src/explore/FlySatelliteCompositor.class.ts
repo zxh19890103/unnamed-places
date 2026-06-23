@@ -2,7 +2,10 @@ import * as THREE from "three";
 import type { TileNode } from "./lod";
 import type { SphereTile } from "./SphereTile.class";
 import type { SphereTileKey } from "../calc/types";
-import { enumerateChildTiles, disatanceToZoom } from "../calc/mercator";
+import {
+  enumerateChildTiles,
+  distanceToLowAltitudeZoom,
+} from "../calc/mercator";
 import { BASE_URL } from "../calc/constants";
 
 const TILE_SIZE = 256;
@@ -50,15 +53,18 @@ export class FlySatelliteCompositor {
     }>,
   ): Promise<void> {
     for (const { node, tile, cameraDistance } of parentTiles) {
-      // Compute desired satellite zoom based on distance
-      const targetZoom = disatanceToZoom(cameraDistance);
+      // Compute desired low-altitude zoom based on distance
+      const targetLowAltitudeZoom = distanceToLowAltitudeZoom(cameraDistance);
 
       // Skip if already at target or if request is pending
       const tileKey = `${node.z}/${node.x}/${node.y}`;
 
-      if (node.satelliteCurrentZoom === targetZoom && !node.satellitePending) {
+      if (
+        node.lowAltitudeZoom === targetLowAltitudeZoom &&
+        !node.satellitePending
+      ) {
         console.log(
-          `[Compositor] Tile ${tileKey} already at target zoom ${targetZoom}, skipping...`,
+          `[Compositor] Tile ${tileKey} already at target zoom ${targetLowAltitudeZoom}, skipping...`,
         );
 
         continue;
@@ -71,7 +77,7 @@ export class FlySatelliteCompositor {
       }
 
       // Set target and mark pending
-      node.satelliteTargetZoom = targetZoom;
+      node.targetLowAltitudeZoom = targetLowAltitudeZoom;
       node.satellitePending = true;
       node.satelliteRequestSeq = (node.satelliteRequestSeq ?? 0) + 1;
       const requestSeq = node.satelliteRequestSeq;
@@ -84,7 +90,7 @@ export class FlySatelliteCompositor {
       this.composeAndApplyTexture(
         tile,
         node,
-        targetZoom,
+        targetLowAltitudeZoom,
         requestSeq,
         controller.signal,
       );
@@ -97,7 +103,7 @@ export class FlySatelliteCompositor {
   private async composeAndApplyTexture(
     tile: SphereTile,
     node: TileNode,
-    targetZoom: number,
+    targetLowAltitudeZoom: number,
     requestSeq: number,
     signal: AbortSignal,
   ): Promise<void> {
@@ -106,7 +112,7 @@ export class FlySatelliteCompositor {
     try {
       const composedTexture = await this.composeChildTiles(
         node.key,
-        targetZoom,
+        targetLowAltitudeZoom,
         signal,
       );
 
@@ -135,7 +141,7 @@ export class FlySatelliteCompositor {
 
         this.composedTextures.set(tileKey, composedTexture);
 
-        node.satelliteCurrentZoom = targetZoom;
+        node.lowAltitudeZoom = targetLowAltitudeZoom;
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {

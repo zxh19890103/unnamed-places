@@ -129,3 +129,14 @@ export function zoomToDistance(zoomLevel: number, min = 0, max = 19): number {
   const lower = referenceDistanceMeters * 2 ** (max - (z + 1));
   return (upper + lower) / 2;
 }
+
+/**
+ * Compute satellite composition detail level (lowAltitudeZoom) from camera distance.
+ * Used in fly and groundOrbit modes to determine how many child tiles to composite.
+ * lowAltitudeZoom: 1 = 1×1 (parent only), 2 = 2×2 grid, 3 = 4×4 grid, etc.
+ */
+export function distanceToLowAltitudeZoom(distance: number): number {
+  if (distance > 30_000) return 1;
+  if (distance > 10_000) return 2;
+  return 3;
+}

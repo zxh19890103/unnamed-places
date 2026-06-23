@@ -14,11 +14,12 @@ export class TileNode implements ITileNode {
   tile?: SphereTile;
 
   /**
-   * Fly-mode specific metadata (resolution mode).
-   * Used to track satellite texture composition state.
+   * Low-altitude satellite composition detail level (1, 2, 3...).
+   * Used in fly/groundOrbit modes to track composition state.
    */
-  satelliteCurrentZoom?: number; // Current composite zoom level
-  satelliteTargetZoom?: number; // Desired zoom level based on camera distance
+  lowAltitudeZoom?: number; // Current composite detail level
+  targetLowAltitudeZoom?: number; // Desired detail level based on camera distance
+
   satellitePending?: boolean; // Composition request in flight
   satelliteRequestSeq?: number; // Generation counter for dedup
 
