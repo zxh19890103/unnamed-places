@@ -30,11 +30,13 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         uSatelliteReady: { value: 0 },
         uDemReady: { value: 0 },
         uElevationScale: { value: elevationScale },
+        uDemTexelSize: { value: new THREE.Vector2(1 / 256, 1 / 256) },
       },
       vertexShader: `
       uniform sampler2D uDemTexture;
       uniform float uDemReady;
       uniform float uElevationScale;
+      uniform vec2 uDemTexelSize;
 
       varying vec2 vUv;
 
@@ -44,7 +46,8 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         vec3 displaced = position;
 
         if (uDemReady > 0.5) {
-          vec3 demRgb = texture2D(uDemTexture, uv).rgb * 255.0;
+          vec2 demUv = uv * (vec2(1.0) - uDemTexelSize) + (uDemTexelSize * 0.5);
+          vec3 demRgb = texture2D(uDemTexture, demUv).rgb * 255.0;
           float elevation = (demRgb.r * 256.0 + demRgb.g + demRgb.b / 256.0) - 32768.0;
           displaced = position + normal * (elevation * uElevationScale);
         }
@@ -94,6 +97,13 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         }
 
         this.uniforms.uDemReady.value = 1;
+        // Heightmaps should use edge-clamped nearest sampling without mipmaps
+        // to reduce border interpolation artifacts between adjacent tiles.
+        demTexture.wrapS = THREE.ClampToEdgeWrapping;
+        demTexture.wrapT = THREE.ClampToEdgeWrapping;
+        demTexture.magFilter = THREE.NearestFilter;
+        demTexture.minFilter = THREE.NearestFilter;
+        demTexture.generateMipmaps = false;
         demTexture.image = image;
         demTexture.needsUpdate = true;
         this.pendingDemImage = null;
