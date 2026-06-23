@@ -78,4 +78,35 @@ describe("TileGeometry", () => {
 
     expect(delta).toBeLessThan(1);
   });
+
+  it("adds skirt geometry when skirtDepth is set", () => {
+    const geometry = new TileGeometry({
+      southwest: { lat: 0, lng: 0 },
+      northeast: { lat: 1, lng: 1 },
+      latSegments: 1,
+      lngSegments: 1,
+      radius: 1,
+      skirtDepth: 0.2,
+    });
+
+    const position = geometry.getAttribute("position");
+    const index = geometry.getIndex();
+
+    expect(position.count).toBeGreaterThan((1 + 1) * (1 + 1));
+    expect(index?.count ?? 0).toBeGreaterThan(1 * 1 * 6);
+
+    let hasInsetVertex = false;
+    for (let i = 0; i < position.count; i += 1) {
+      const x = position.getX(i);
+      const y = position.getY(i);
+      const z = position.getZ(i);
+      const radius = Math.hypot(x, y, z);
+      if (radius < 0.95) {
+        hasInsetVertex = true;
+        break;
+      }
+    }
+
+    expect(hasInsetVertex).toBe(true);
+  });
 });

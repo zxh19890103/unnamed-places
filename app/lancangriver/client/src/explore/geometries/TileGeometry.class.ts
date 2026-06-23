@@ -8,6 +8,7 @@ type Parameters = {
   latSegments?: number;
   lngSegments?: number;
   radius?: number;
+  skirtDepth?: number;
 };
 
 function validateSegments(name: string, value: number): number {
@@ -23,6 +24,7 @@ export class TileGeometry extends THREE.BufferGeometry {
     super();
 
     const { southwest, northeast, radius = 1 } = parameters;
+    const skirtDepth = Math.max(0, parameters.skirtDepth ?? 0);
 
     const latSegments = validateSegments(
       "latSegments",
@@ -40,14 +42,25 @@ export class TileGeometry extends THREE.BufferGeometry {
       northeast.lng < westLng ? northeast.lng + 360 : northeast.lng;
     const lngDelta = eastLng - westLng;
 
-    const vertexCount = (latSegments + 1) * (lngSegments + 1);
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const uvs: number[] = [];
 
-    const positions = new Float32Array(vertexCount * 3);
-    const normals = new Float32Array(vertexCount * 3);
-    const uvs = new Float32Array(vertexCount * 2);
-
-    let vertexOffset = 0;
-    let uvOffset = 0;
+    const addVertex = (
+      x: number,
+      y: number,
+      z: number,
+      nx: number,
+      ny: number,
+      nz: number,
+      u: number,
+      v: number,
+    ): number => {
+      positions.push(x, y, z);
+      normals.push(nx, ny, nz);
+      uvs.push(u, v);
+      return positions.length / 3 - 1;
+    };
 
     for (let latIndex = 0; latIndex <= latSegments; latIndex += 1) {
       const latT = latIndex / latSegments;
@@ -58,28 +71,21 @@ export class TileGeometry extends THREE.BufferGeometry {
         const lng = westLng + lngDelta * lngT;
         const { x, y, z } = latlngToSphere(lat, lng, radius);
 
-        positions[vertexOffset] = x;
-        positions[vertexOffset + 1] = y;
-        positions[vertexOffset + 2] = z;
-
         const invLength = 1 / Math.hypot(x, y, z);
-        normals[vertexOffset] = x * invLength;
-        normals[vertexOffset + 1] = y * invLength;
-        normals[vertexOffset + 2] = z * invLength;
-
-        uvs[uvOffset] = lngT;
-        uvs[uvOffset + 1] = latT;
-
-        vertexOffset += 3;
-        uvOffset += 2;
+        addVertex(
+          x,
+          y,
+          z,
+          x * invLength,
+          y * invLength,
+          z * invLength,
+          lngT,
+          latT,
+        );
       }
     }
 
-    const indexCount = latSegments * lngSegments * 6;
-    const indexArrayType = vertexCount > 65_535 ? Uint32Array : Uint16Array;
-    const indices = new indexArrayType(indexCount);
-
-    let indexOffset = 0;
+    const indices: number[] = [];
     const verticesPerRow = lngSegments + 1;
 
     for (let latIndex = 0; latIndex < latSegments; latIndex += 1) {
@@ -92,22 +98,90 @@ export class TileGeometry extends THREE.BufferGeometry {
         const c = nextRowStart + lngIndex;
         const d = c + 1;
 
-        indices[indexOffset] = a;
-        indices[indexOffset + 1] = c;
-        indices[indexOffset + 2] = b;
-
-        indices[indexOffset + 3] = b;
-        indices[indexOffset + 4] = c;
-        indices[indexOffset + 5] = d;
-
-        indexOffset += 6;
+        indices.push(a, c, b, b, c, d);
       }
     }
 
-    this.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    this.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-    this.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    this.setIndex(new THREE.BufferAttribute(indices, 1));
+    if (skirtDepth > 0) {
+      const southEdge: number[] = [];
+      const northEdge: number[] = [];
+      const westEdge: number[] = [];
+      const eastEdge: number[] = [];
+
+      for (let lngIndex = 0; lngIndex <= lngSegments; lngIndex += 1) {
+        southEdge.push(lngIndex);
+        northEdge.push(latSegments * verticesPerRow + lngIndex);
+      }
+
+      for (let latIndex = 0; latIndex <= latSegments; latIndex += 1) {
+        westEdge.push(latIndex * verticesPerRow);
+        eastEdge.push(latIndex * verticesPerRow + lngSegments);
+      }
+
+      const addSkirtStrip = (edge: number[]) => {
+        if (edge.length < 2) {
+          return;
+        }
+
+        const skirtEdge: number[] = [];
+
+        for (const topVertex of edge) {
+          const p = topVertex * 3;
+          const u = topVertex * 2;
+          const px = positions[p];
+          const py = positions[p + 1];
+          const pz = positions[p + 2];
+          const nx = normals[p];
+          const ny = normals[p + 1];
+          const nz = normals[p + 2];
+
+          skirtEdge.push(
+            addVertex(
+              px - nx * skirtDepth,
+              py - ny * skirtDepth,
+              pz - nz * skirtDepth,
+              nx,
+              ny,
+              nz,
+              uvs[u],
+              uvs[u + 1],
+            ),
+          );
+        }
+
+        for (let i = 0; i < edge.length - 1; i += 1) {
+          const t0 = edge[i];
+          const t1 = edge[i + 1];
+          const b0 = skirtEdge[i];
+          const b1 = skirtEdge[i + 1];
+
+          indices.push(t0, t1, b0, t1, b1, b0);
+          indices.push(b0, t1, t0, b0, b1, t1);
+        }
+      };
+
+      addSkirtStrip(southEdge);
+      addSkirtStrip(northEdge);
+      addSkirtStrip(westEdge);
+      addSkirtStrip(eastEdge);
+    }
+
+    const vertexCount = positions.length / 3;
+    const indexArrayType = vertexCount > 65_535 ? Uint32Array : Uint16Array;
+
+    this.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(positions), 3),
+    );
+    this.setAttribute(
+      "normal",
+      new THREE.BufferAttribute(new Float32Array(normals), 3),
+    );
+    this.setAttribute(
+      "uv",
+      new THREE.BufferAttribute(new Float32Array(uvs), 2),
+    );
+    this.setIndex(new THREE.BufferAttribute(new indexArrayType(indices), 1));
     this.computeBoundingSphere();
   }
 }

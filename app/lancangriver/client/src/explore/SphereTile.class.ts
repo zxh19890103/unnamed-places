@@ -18,6 +18,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   centerLatlng: { lat: number; lng: number };
 
   static readonly MAX_DEM_ZOOM = 15;
+  static readonly SKIRT_DEPTH_METERS = 400;
 
   constructor(
     readonly textureLoader: THREE.TextureLoader,
@@ -31,6 +32,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
       southwest: { lat: south, lng: west },
       northeast: { lat: north, lng: east },
       radius: parameters.radius ?? 1,
+      skirtDepth: SphereTile.SKIRT_DEPTH_METERS,
     });
 
     const material = new TileBasicMaterial(textureLoader, {
