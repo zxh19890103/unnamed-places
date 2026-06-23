@@ -10,11 +10,6 @@ import { BASE_URL } from "../calc/constants";
 
 const TILE_SIZE = 256;
 
-export type ChildTile = SphereTileKey & {
-  offsetX: number;
-  offsetY: number;
-};
-
 /**
  * Compositor for fly-mode satellite textures.
  * Updates parent tile satellite textures with higher-resolution child composites
@@ -63,16 +58,10 @@ export class FlySatelliteCompositor {
         node.lowAltitudeZoom === targetLowAltitudeZoom &&
         !node.satellitePending
       ) {
-        console.log(
-          `[Compositor] Tile ${tileKey} already at target zoom ${targetLowAltitudeZoom}, skipping...`,
-        );
-
         continue;
       }
 
       if (node.satellitePending) {
-        console.log(`[Compositor] Tile ${tileKey} request pending, waiting...`);
-
         continue; // Wait for previous request
       }
 
@@ -167,7 +156,7 @@ export class FlySatelliteCompositor {
    */
   private async composeChildTiles(
     parentTile: SphereTileKey,
-    targetZoom: number,
+    targetLowAltitudeZoom: number,
     signal: AbortSignal,
   ): Promise<THREE.CanvasTexture | THREE.Texture> {
     if (signal.aborted) {
@@ -175,18 +164,21 @@ export class FlySatelliteCompositor {
     }
 
     // If target zoom <= parent zoom, no compositing needed
-    if (targetZoom <= parentTile.z) {
+    if (targetLowAltitudeZoom <= 1) {
       const texture = await this.loadTextureAsync(
         this.tileImageUrl(parentTile),
         signal,
       );
-      texture.colorSpace = THREE.SRGBColorSpace;
       return texture;
     }
 
     // Enumerate child tiles
-    const childTiles = enumerateChildTiles(parentTile, targetZoom);
-    const factor = 2 ** (targetZoom - parentTile.z);
+    const childTiles = enumerateChildTilesToScaleTo(
+      parentTile,
+      targetLowAltitudeZoom,
+    );
+
+    const factor = 2 ** (targetLowAltitudeZoom - 1);
 
     // Resize canvas for composition
     this.canvas.width = TILE_SIZE * factor;
@@ -204,7 +196,6 @@ export class FlySatelliteCompositor {
     );
 
     for (const { texture, child } of loadedChildren) {
-      const offsetChild = child as ChildTile;
       const image = texture.image as CanvasImageSource | null;
       if (!image) {
         texture.dispose();
@@ -213,17 +204,17 @@ export class FlySatelliteCompositor {
 
       this.canvasContext.drawImage(
         image,
-        offsetChild.offsetX * TILE_SIZE,
-        offsetChild.offsetY * TILE_SIZE,
+        child.offsetX * this.canvas.width,
+        child.offsetY * this.canvas.height,
         TILE_SIZE,
         TILE_SIZE,
       );
+
       texture.dispose();
     }
 
     // Create canvas texture
     const compositeTexture = new THREE.CanvasTexture(this.canvas);
-    compositeTexture.colorSpace = THREE.SRGBColorSpace;
     return compositeTexture;
   }
 
@@ -256,7 +247,6 @@ export class FlySatelliteCompositor {
           signal.removeEventListener("abort", onAbort);
           const texture = new THREE.Texture(loadedImage);
           texture.needsUpdate = true;
-          texture.colorSpace = THREE.SRGBColorSpace;
           resolve(texture);
         },
         undefined,
@@ -299,4 +289,12 @@ export class FlySatelliteCompositor {
     this.disposeComposedTextures();
     this.canvas.remove();
   }
+}
+
+function enumerateChildTilesToScaleTo(
+  tile: SphereTileKey,
+  // 1, 2, 3... (1 = no composition, 2 = 2x2, 3 = 4x4, etc.)
+  scale: number,
+) {
+  return enumerateChildTiles(tile, tile.z + Math.max(0, scale - 1));
 }

@@ -143,13 +143,13 @@ export function createScene(container: HTMLElement) {
       tileManager.frozen = false;
       compositor.disposeComposedTextures();
       console.log("[Tiles] Tile finding resumed");
-      refreshVisibleTilesAndStats();
+      refreshVisibleTiles();
     }
   };
 
   // Wire pointer controls change event
   controlsManager.getPointerControls().onChange = () => {
-    refreshVisibleTilesAndStats();
+    refreshVisibleTiles();
   };
 
   const tileManager = new TilesManager();
@@ -215,7 +215,7 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  const refreshVisibleTilesAndStats = () => {
+  const refreshVisibleTiles = () => {
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
     const zoomLevel = disatanceToZoom(cameraDistanceMeters);
     camera.updateMatrixWorld(true);
@@ -257,7 +257,7 @@ export function createScene(container: HTMLElement) {
     );
 
     controlsManager.enterGroundOrbit(center, orbitPosition);
-    refreshVisibleTilesAndStats();
+    refreshVisibleTiles();
   };
 
   const enterGroundOrbit = (azimuthDeg: number, altitudeDeg: number) => {
@@ -283,13 +283,13 @@ export function createScene(container: HTMLElement) {
 
     groundOrbitState.enabled = false;
     controlsManager.exitGroundOrbit();
-    refreshVisibleTilesAndStats();
+    refreshVisibleTiles();
   };
 
   guiHandle = attachExploreGui({
     camera,
     controlsManager,
-    onRefreshVisibleTilesAndStats: refreshVisibleTilesAndStats,
+    onRefreshVisibleTilesAndStats: refreshVisibleTiles,
     getDemEnabled: () => terrainState.demEnabled,
     applyDemMode,
     getGroundOrbitEnabled: () => groundOrbitState.enabled,
@@ -316,7 +316,7 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  refreshVisibleTilesAndStats();
+  refreshVisibleTiles();
 
   return {
     scene,

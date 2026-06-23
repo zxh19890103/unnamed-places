@@ -1,4 +1,4 @@
-import type { SphereTileKey } from "./types";
+import type { ChildSphereTileKey, SphereTileKey } from "./types";
 
 const MIN_LAT = -85.05112878;
 const MAX_LAT = 85.05112878;
@@ -87,15 +87,21 @@ export function latlngToTilekey(
 export function enumerateChildTiles(
   baseTile: SphereTileKey,
   targetZoom: number,
-): SphereTileKey[] {
+): ChildSphereTileKey[] {
   if (targetZoom <= baseTile.z) {
-    return [baseTile];
+    return [
+      {
+        ...baseTile,
+        offsetX: 0,
+        offsetY: 0,
+      },
+    ];
   }
 
   const factor = 2 ** (targetZoom - baseTile.z);
   const startX = baseTile.x * factor;
   const startY = baseTile.y * factor;
-  const children: SphereTileKey[] = [];
+  const children: ChildSphereTileKey[] = [];
 
   for (let y = 0; y < factor; y += 1) {
     for (let x = 0; x < factor; x += 1) {
@@ -103,6 +109,8 @@ export function enumerateChildTiles(
         z: targetZoom,
         x: startX + x,
         y: startY + y,
+        offsetX: x / factor,
+        offsetY: y / factor,
       });
     }
   }
@@ -136,7 +144,7 @@ export function zoomToDistance(zoomLevel: number, min = 0, max = 19): number {
  * lowAltitudeZoom: 1 = 1×1 (parent only), 2 = 2×2 grid, 3 = 4×4 grid, etc.
  */
 export function distanceToLowAltitudeZoom(distance: number): number {
-  if (distance > 30_000) return 1;
-  if (distance > 10_000) return 2;
-  return 3;
+  // if (distance > 30_000) return 1;
+  // if (distance > 10_000) return 2;
+  return 1;
 }

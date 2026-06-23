@@ -649,8 +649,8 @@ export async function loadSatelliteTextureForDemTile(
   for (const { texture, tile } of loadedTiles) {
     context.drawImage(
       texture.image,
-      tile.offsetX * TILE_SIZE,
-      tile.offsetY * TILE_SIZE,
+      tile.offsetX * canvas.width,
+      tile.offsetY * canvas.height,
       TILE_SIZE,
       TILE_SIZE,
     );

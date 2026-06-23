@@ -245,14 +245,14 @@ export class ControlsManager {
         // Event-driven, no per-frame update
         break;
       case "orbit":
-        this.orbitControls.update();
+        this.orbitControls.update(delta);
         break;
       case "map":
         this.updateMapInteractionParameters(delta);
-        this.mapControls.update();
+        this.mapControls.update(delta);
         break;
       case "groundOrbit":
-        this.groundOrbitControls.update();
+        this.groundOrbitControls.update(delta);
         break;
       case "fly":
         // Adapt fly movement speed to altitude

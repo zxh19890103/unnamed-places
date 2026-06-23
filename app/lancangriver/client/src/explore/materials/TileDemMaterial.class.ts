@@ -75,7 +75,6 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         }
 
         this.uniforms.uSatelliteReady.value = 1;
-        satelliteTexture.colorSpace = THREE.SRGBColorSpace;
         satelliteTexture.image = image;
         satelliteTexture.needsUpdate = true;
 

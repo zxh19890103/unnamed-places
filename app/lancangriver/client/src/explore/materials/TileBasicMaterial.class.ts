@@ -57,7 +57,6 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
 
         this.uniforms.uTextureReady.value = 1;
         satelliteTexture.image = image;
-        satelliteTexture.colorSpace = THREE.SRGBColorSpace;
         satelliteTexture.needsUpdate = true;
 
         this.pendingImage = null;
