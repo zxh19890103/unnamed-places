@@ -9,3 +9,4 @@ dist/
 **/.tiles/
 **/.env.local
 **/pipeline/output/
+__legacy
