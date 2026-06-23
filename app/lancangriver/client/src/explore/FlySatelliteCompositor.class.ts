@@ -19,13 +19,18 @@ export type ChildTile = SphereTileKey & {
  */
 export class FlySatelliteCompositor {
   private textureLoader: THREE.TextureLoader;
+  private imageLoader: THREE.ImageLoader;
   private canvas: HTMLCanvasElement;
   private canvasContext: CanvasRenderingContext2D;
   private composedTextures: Map<string, THREE.Texture> = new Map();
   private requestControllers: Map<string, AbortController> = new Map();
 
-  constructor(textureLoader: THREE.TextureLoader) {
+  constructor(
+    textureLoader: THREE.TextureLoader,
+    imageLoader: THREE.ImageLoader,
+  ) {
     this.textureLoader = textureLoader;
+    this.imageLoader = imageLoader;
     this.canvas = document.createElement("canvas");
     this.canvasContext = this.canvas.getContext("2d")!;
     if (!this.canvasContext) {
@@ -52,10 +57,16 @@ export class FlySatelliteCompositor {
       const tileKey = `${node.z}/${node.x}/${node.y}`;
 
       if (node.satelliteCurrentZoom === targetZoom && !node.satellitePending) {
+        console.log(
+          `[Compositor] Tile ${tileKey} already at target zoom ${targetZoom}, skipping...`,
+        );
+
         continue;
       }
 
       if (node.satellitePending) {
+        console.log(`[Compositor] Tile ${tileKey} request pending, waiting...`);
+
         continue; // Wait for previous request
       }
 
@@ -220,7 +231,6 @@ export class FlySatelliteCompositor {
         return;
       }
 
-      const imageLoader = new THREE.ImageLoader(this.textureLoader.manager);
       let image: HTMLImageElement | null = null;
 
       const onAbort = () => {
@@ -234,7 +244,7 @@ export class FlySatelliteCompositor {
 
       signal.addEventListener("abort", onAbort, { once: true });
 
-      image = imageLoader.load(
+      image = this.imageLoader.load(
         url,
         (loadedImage) => {
           signal.removeEventListener("abort", onAbort);

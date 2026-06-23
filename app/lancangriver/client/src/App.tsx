@@ -36,7 +36,7 @@ export default function App() {
 
     let frameId = 0;
     let lastTime = performance.now();
-    // let lastCompositorUpdate = 0;
+    let lastCompositorUpdate = 0;
 
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
@@ -46,22 +46,27 @@ export default function App() {
 
       controlsManager.update(delta);
 
-      // Update compositor in fly mode (throttled)
-      // if (controlsManager.isFlyMode() && now - lastCompositorUpdate > 100) {
-      //   const attachedNodes = tileManager.getAttachedNodes();
-      //   const tilesToCompose = attachedNodes
-      //     .filter((node) => node.tile)
-      //     .map((node) => ({
-      //       node,
-      //       tile: node.tile!,
-      //       cameraDistance: camera.position.distanceTo(node.tile!.position),
-      //     }));
+      // Update compositor when tiles are frozen (fly or groundOrbit mode), throttled
+      if (tileManager.frozen && now - lastCompositorUpdate > 100) {
+        const attachedNodes = tileManager.getAttachedNodes();
 
-      //   if (tilesToCompose.length > 0) {
-      //     void compositor.updateForTiles(tilesToCompose);
-      //   }
-      //   lastCompositorUpdate = now;
-      // }
+        const tilesToCompose = attachedNodes
+          .filter((node) => node.tile)
+          .map((node) => ({
+            node,
+            tile: node.tile!,
+            cameraDistance: camera.position.distanceTo(node.tile!.center),
+          }));
+
+        if (tilesToCompose.length > 0) {
+          console.log(
+            `[Compositor] Updating composed textures for ${tilesToCompose.length} tiles...`,
+          );
+          void compositor.updateForTiles(tilesToCompose);
+        }
+
+        lastCompositorUpdate = now;
+      }
 
       stats.update();
       renderer.render(scene, camera);

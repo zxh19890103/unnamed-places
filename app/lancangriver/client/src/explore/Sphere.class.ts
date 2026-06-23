@@ -1,16 +1,23 @@
 import * as THREE from "three";
 
 import { EARTH_RADIUS } from "../calc/sphere";
+import { disatanceToZoom } from "../calc/mercator";
 import { SphereTile } from "./SphereTile.class";
 import { latlngToTilekey } from "../calc/mercator";
 import { SphereTileKey } from "../calc/types";
-import { ControlMode } from "./ControlsManager.class";
+import { ControlMode, ControlsManager } from "./ControlsManager.class";
+import type { TilesManager } from "./lod";
 
 export type SphereStatsPayload = {
   cameraDistanceMeters: number;
   zoomLevel: number;
   visibleTilesCount: number;
   controlMode: ControlMode;
+  loadingLoaded: number;
+  loadingTotal: number;
+  loadingActive: boolean;
+  loadingErrors: number;
+  loadingLastErrorUrl: string | null;
 };
 
 export type SphereStatsEvent = Event & {
@@ -24,18 +31,58 @@ declare module "three" {
   }
 }
 
+type SphereOptions = {
+  radius?: number;
+  camera: THREE.Camera;
+  tilesManager: TilesManager;
+  controlsManager: ControlsManager;
+  getLoadingSnapshot: () => {
+    loaded: number;
+    total: number;
+    active: boolean;
+    errors: number;
+    lastErrorUrl: string | null;
+  };
+};
+
 export class Sphere extends THREE.Group {
   readonly lods: Record<string, unknown> = {};
   readonly radius: number;
 
   private lastStats: SphereStatsPayload | null = null;
+  private _statsTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     readonly textureLoader: THREE.TextureLoader,
-    radius = EARTH_RADIUS,
+    readonly imageLoader: THREE.ImageLoader,
+    options: SphereOptions,
   ) {
     super();
+    const {
+      radius = EARTH_RADIUS,
+      camera,
+      tilesManager,
+      controlsManager,
+      getLoadingSnapshot,
+    } = options;
     this.radius = radius;
+
+    this._statsTimer = setInterval(() => {
+      const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
+      const zoomLevel = disatanceToZoom(cameraDistanceMeters);
+      const loadingSnapshot = getLoadingSnapshot();
+      this.dispatchStats({
+        cameraDistanceMeters,
+        zoomLevel,
+        visibleTilesCount: tilesManager.getVisibleCount?.() ?? 0,
+        controlMode: controlsManager.mode,
+        loadingLoaded: loadingSnapshot.loaded,
+        loadingTotal: loadingSnapshot.total,
+        loadingActive: loadingSnapshot.active,
+        loadingErrors: loadingSnapshot.errors,
+        loadingLastErrorUrl: loadingSnapshot.lastErrorUrl,
+      });
+    }, 1_000);
   }
 
   private keyOf(tile: SphereTileKey): string {
@@ -43,7 +90,7 @@ export class Sphere extends THREE.Group {
   }
 
   createTileByKey(tile: SphereTileKey) {
-    return new SphereTile(this.textureLoader, tile, {
+    return new SphereTile(this.textureLoader, this.imageLoader, tile, {
       radius: this.radius,
     });
   }
@@ -78,6 +125,13 @@ export class Sphere extends THREE.Group {
 
   removeStatsListener(listener: (event: SphereStatsEvent) => void) {
     this.removeEventListener("stats", listener as EventListener);
+  }
+
+  dispose() {
+    if (this._statsTimer !== null) {
+      clearInterval(this._statsTimer);
+      this._statsTimer = null;
+    }
   }
 
   disposeTile(tile: SphereTile) {

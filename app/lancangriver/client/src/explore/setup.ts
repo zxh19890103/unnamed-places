@@ -77,7 +77,36 @@ export function createScene(container: HTMLElement) {
   );
   camera.lookAt(0, 0, 0);
 
-  const textureLoader = new THREE.TextureLoader(new THREE.LoadingManager());
+  const loadingManager = new THREE.LoadingManager();
+  const loadingSnapshot = {
+    loaded: 0,
+    total: 0,
+    active: false,
+    errors: 0,
+    lastErrorUrl: null as string | null,
+  };
+
+  loadingManager.onStart = (_url, loaded, total) => {
+    loadingSnapshot.active = true;
+    loadingSnapshot.loaded = loaded;
+    loadingSnapshot.total = total;
+  };
+  loadingManager.onProgress = (_url, loaded, total) => {
+    loadingSnapshot.active = true;
+    loadingSnapshot.loaded = loaded;
+    loadingSnapshot.total = total;
+  };
+  loadingManager.onLoad = () => {
+    loadingSnapshot.active = false;
+  };
+  loadingManager.onError = (url) => {
+    loadingSnapshot.active = true;
+    loadingSnapshot.errors += 1;
+    loadingSnapshot.lastErrorUrl = url;
+  };
+
+  const textureLoader = new THREE.TextureLoader(loadingManager);
+  const imageLoader = new THREE.ImageLoader(loadingManager);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -102,20 +131,18 @@ export function createScene(container: HTMLElement) {
     altitudeDeg: 30,
   };
 
-  let tileModeLazy = true; // false when fly mode is active (resolution mode)
-
-  const compositor = new FlySatelliteCompositor(textureLoader);
+  const compositor = new FlySatelliteCompositor(textureLoader, imageLoader);
 
   controlsManager.onModeChange = (from: ControlMode, to: ControlMode) => {
     console.log(`[Controls] Mode change: ${from} → ${to}`);
     if (to === "fly" || to === "groundOrbit") {
-      tileModeLazy = false;
+      tileManager.frozen = true;
       const modeLabel = to === "fly" ? "fly compositor" : "ground orbit";
       console.log(`[Tiles] Entering resolution mode (${modeLabel})`);
     } else {
-      tileModeLazy = true;
+      tileManager.frozen = false;
       compositor.disposeComposedTextures();
-      console.log("[Tiles] Entering lazy mode (visibleTiles.ts)");
+      console.log("[Tiles] Tile finding resumed");
       refreshVisibleTilesAndStats();
     }
   };
@@ -125,13 +152,21 @@ export function createScene(container: HTMLElement) {
     refreshVisibleTilesAndStats();
   };
 
-  const sphereGlobal = new Sphere(textureLoader);
-  scene.add(sphereGlobal);
   const tileManager = new TilesManager();
+
+  const sphereGlobal = new Sphere(textureLoader, imageLoader, {
+    camera,
+    tilesManager: tileManager,
+    controlsManager,
+    getLoadingSnapshot: () => loadingSnapshot,
+  });
+
+  scene.add(sphereGlobal);
 
   const terrainState = {
     demEnabled: false,
   };
+
   let guiHandle: ExploreGuiHandle | null = null;
 
   const applyDemModeToAttachedTiles = (enabled: boolean) => {
@@ -193,21 +228,12 @@ export function createScene(container: HTMLElement) {
     // Check altitude-based control switching
     controlsManager.checkAltitude(cameraDistanceMeters);
 
-    // Only update visible tiles if not in fly mode (lazy mode)
-    if (tileModeLazy) {
+    // Only update visible tiles when not frozen (fly / groundOrbit freeze tile finding)
+    if (!tileManager.frozen) {
       const visibleTileKeys = getVisibleTiles(camera, zoomLevel, EARTH_RADIUS);
       console.log("visibleTileKeys = ", visibleTileKeys.length);
       tileManager.setNodes(visibleTileKeys);
-    } else {
-      // In fly mode, tile updates are handled by the compositor (Phase 5)
     }
-
-    sphereGlobal.dispatchStats({
-      cameraDistanceMeters,
-      zoomLevel,
-      visibleTilesCount: tileManager.getVisibleCount?.() ?? 0,
-      controlMode: controlsManager.mode,
-    });
   };
 
   const getGroundCenter = () => {
@@ -220,11 +246,14 @@ export function createScene(container: HTMLElement) {
 
   const applyGroundOrbitPlacement = () => {
     const center = getGroundCenter();
+
+    const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
+
     const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
       center,
       groundOrbitState.azimuthDeg,
       groundOrbitState.altitudeDeg,
-      GROUND_ORBIT_DISTANCE_METERS,
+      cameraDistanceMeters,
     );
 
     controlsManager.enterGroundOrbit(center, orbitPosition);
@@ -302,6 +331,7 @@ export function createScene(container: HTMLElement) {
     destroyCameraGui,
     destroyStats,
     cleanup: () => {
+      sphereGlobal.dispose();
       compositor.dispose();
       controlsManager.dispose();
     },

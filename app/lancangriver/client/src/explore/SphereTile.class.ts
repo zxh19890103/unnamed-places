@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { ITileNode, SphereTileKey } from "../calc/types";
 import { tileBounds4326 } from "../calc/mercator";
+import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
 import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
@@ -13,11 +14,14 @@ type Parameters = {
 
 export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   $tNode: ITileNode;
+  center: THREE.Vector3;
+  centerLatlng: { lat: number; lng: number };
 
   static readonly MAX_DEM_ZOOM = 15;
 
   constructor(
     readonly textureLoader: THREE.TextureLoader,
+    readonly imageLoader: THREE.ImageLoader,
     readonly tile: SphereTileKey,
     readonly parameters: Parameters,
   ) {
@@ -33,9 +37,19 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
       tileKey: tile,
     });
 
+    const centerLat = (south + north) / 2;
+    const centerLng = (west + east) / 2;
+    const centerPoint = latlngToSphere(centerLat, centerLng, EARTH_RADIUS);
+
     super(geometry, material);
 
     this.userData.tile = { ...tile };
+    this.centerLatlng = { lat: centerLat, lng: centerLng };
+    this.center = new THREE.Vector3(
+      centerPoint.x,
+      centerPoint.y,
+      centerPoint.z,
+    );
   }
 
   canUseDemMaterial(): boolean {
@@ -56,7 +70,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     }
 
     const nextMaterial: TileSurfaceMaterial = enabled
-      ? new TileDemMaterial(this.textureLoader, {
+      ? new TileDemMaterial(this.textureLoader, this.imageLoader, {
           tileKey: this.tile,
         })
       : new TileBasicMaterial(this.textureLoader, {

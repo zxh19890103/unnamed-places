@@ -30,6 +30,8 @@ export class TileNode implements ITileNode {
 }
 
 export class TilesManager {
+  frozen = false;
+
   private nodes: TileNode[];
   private updateTimer: ReturnType<typeof setTimeout> | null;
 

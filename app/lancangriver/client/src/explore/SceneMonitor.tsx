@@ -40,6 +40,24 @@ function formatControlMode(
   return controlMode;
 }
 
+function formatLoadingProgress(stats: SphereStatsPayload | null) {
+  if (!stats) {
+    return "--";
+  }
+
+  const pending = stats.loadingTotal - stats.loadingLoaded;
+  const errSuffix =
+    stats.loadingErrors > 0
+      ? `, ${stats.loadingErrors} error${stats.loadingErrors === 1 ? "" : "s"}`
+      : "";
+
+  if (pending <= 0) {
+    return `idle${errSuffix}`;
+  }
+
+  return `${pending}${errSuffix}`;
+}
+
 export function SceneMonitor({ sphere }: SceneMonitorProps) {
   const [stats, setStats] = useState<SphereStatsPayload | null>(null);
 
@@ -107,6 +125,10 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
         <div>
           <div style={{ opacity: 0.68 }}>Controls mode</div>
           <div>{formatControlMode(controlMode)}</div>
+        </div>
+        <div>
+          <div style={{ opacity: 0.68 }}>Asset loading</div>
+          <div>{formatLoadingProgress(stats)}</div>
         </div>
       </div>
     </aside>

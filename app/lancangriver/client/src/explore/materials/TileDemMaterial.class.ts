@@ -12,7 +12,11 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
 
   private pendingDemImage: HTMLImageElement | null = null;
 
-  constructor(textureLoader: THREE.TextureLoader, parameters: Parameters) {
+  constructor(
+    textureLoader: THREE.TextureLoader,
+    imageLoader: THREE.ImageLoader,
+    parameters: Parameters,
+  ) {
     const { tileKey, elevationScale = ELEVATION_SCALE } = parameters;
 
     const satelliteTexture = new THREE.Texture();
@@ -63,8 +67,6 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
     `,
     });
 
-    const imageLoader = new THREE.ImageLoader(textureLoader.manager);
-
     this.pendingSatelliteImage = imageLoader.load(
       `${BASE_URL}/raster/satellite/${tileKey.z}/${tileKey.x}/${tileKey.y}.jpeg`,
       (image) => {
@@ -73,8 +75,10 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         }
 
         this.uniforms.uSatelliteReady.value = 1;
+        satelliteTexture.colorSpace = THREE.SRGBColorSpace;
         satelliteTexture.image = image;
         satelliteTexture.needsUpdate = true;
+
         this.pendingSatelliteImage = null;
       },
       undefined,
