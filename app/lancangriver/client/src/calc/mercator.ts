@@ -144,7 +144,7 @@ export function zoomToDistance(zoomLevel: number, min = 0, max = 19): number {
  * lowAltitudeZoom: 1 = 1×1 (parent only), 2 = 2×2 grid, 3 = 4×4 grid, etc.
  */
 export function distanceToLowAltitudeZoom(distance: number): number {
-  // if (distance > 30_000) return 1;
-  // if (distance > 10_000) return 2;
-  return 1;
+  if (distance > 30_000) return 1;
+  if (distance > 10_000) return 2;
+  return 2;
 }

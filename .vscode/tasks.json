@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev: lancangriver client",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/app/lancangriver/client"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: lancangriver serve",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/app/lancangriver/serve"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: lancangriver all",
+      "dependsOn": [
+        "dev: lancangriver client",
+        "dev: lancangriver serve"
+      ],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "dev: external lancangriver client",
+      "type": "shell",
+      "command": "osascript -e 'tell application \"Terminal\"' -e 'activate' -e 'if not (exists front window) then do script \"\"' -e 'do script \"cd ${workspaceFolder}/app/lancangriver/client && npm run dev\" in front window' -e 'end tell'",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: external lancangriver serve",
+      "type": "shell",
+      "command": "osascript -e 'tell application \"Terminal\"' -e 'activate' -e 'if not (exists front window) then do script \"\"' -e 'do script \"cd ${workspaceFolder}/app/lancangriver/serve && npm run dev\" in front window' -e 'end tell'",
+      "problemMatcher": [],
+    },
+    {
+      "label": "dev: external lancangriver all",
+      "dependsOn": [
+        "dev: external lancangriver client",
+        "dev: external lancangriver serve"
+      ],
+      "dependsOrder": "parallel"
+    }
+  ]
+}

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
 
 import { createScene } from "./explore/setup";
 import { SceneMonitor } from "./explore/SceneMonitor";
 import type { Sphere } from "./explore/Sphere.class";
+import type { TileNode } from "./explore/lod";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -37,6 +39,40 @@ export default function App() {
     let frameId = 0;
     let lastTime = performance.now();
     let lastCompositorUpdate = 0;
+    const centerRaycaster = new THREE.Raycaster();
+    const centerNdc = new THREE.Vector2(0, 0);
+
+    const getCenterLookedTileNode = (
+      attachedNodes: TileNode[],
+    ): TileNode | null => {
+      const tileMeshes: THREE.Object3D[] = [];
+      const meshToNode = new Map<THREE.Object3D, TileNode>();
+
+      for (const node of attachedNodes) {
+        if (!node.tile) {
+          continue;
+        }
+
+        tileMeshes.push(node.tile);
+        meshToNode.set(node.tile, node);
+      }
+
+      if (tileMeshes.length === 0) {
+        return null;
+      }
+
+      centerRaycaster.setFromCamera(centerNdc, camera);
+      const hits = centerRaycaster.intersectObjects(tileMeshes, false);
+
+      for (const hit of hits) {
+        const node = meshToNode.get(hit.object);
+        if (node) {
+          return node;
+        }
+      }
+
+      return null;
+    };
 
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
@@ -47,21 +83,31 @@ export default function App() {
       controlsManager.update(delta);
 
       // Update compositor when tiles are frozen (fly or groundOrbit mode), throttled
-      if (tileManager.frozen && now - lastCompositorUpdate > 100) {
+      if (tileManager.frozen && now - lastCompositorUpdate > 300) {
         const attachedNodes = tileManager.getAttachedNodes();
+        const lookedAtNode = getCenterLookedTileNode(attachedNodes);
 
         const tilesToCompose = attachedNodes
           .filter((node) => node.tile)
-          .map((node) => ({
-            node,
-            tile: node.tile!,
-            cameraDistance: camera.position.distanceTo(node.tile!.center),
-          }));
+          .map((node) => {
+            return {
+              node,
+              tile: node.tile!,
+              // for testing
+              cameraDistance: node === lookedAtNode ? 11_000 : 31_000,
+            };
+          })
+          .sort((a, b) => {
+            if (a.node === lookedAtNode) {
+              return -1;
+            }
+            if (b.node === lookedAtNode) {
+              return 1;
+            }
+            return 0;
+          });
 
         if (tilesToCompose.length > 0) {
-          console.log(
-            `[Compositor] Updating composed textures for ${tilesToCompose.length} tiles...`,
-          );
           void compositor.updateForTiles(tilesToCompose);
         }
 

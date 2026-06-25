@@ -176,6 +176,15 @@ export class ControlsManager {
     this.switchMode("groundOrbit");
     this.groundOrbitControls.target.copy(target);
     this.camera.position.copy(position);
+
+    const up =
+      target.lengthSq() > 0
+        ? target.clone().normalize()
+        : position.clone().normalize();
+    if (up.lengthSq() > 0) {
+      this.camera.up.copy(up);
+    }
+
     this.camera.lookAt(target);
     this.camera.updateMatrixWorld(true);
     this.groundOrbitControls.update();
