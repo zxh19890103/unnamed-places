@@ -2,7 +2,7 @@ import { app, BrowserWindow } from "electron";
 
 import path, { join } from "node:path";
 
-import { __dirname } from "./context.js";
+import { __dirname } from "./__deprecated/context.js";
 
 const createWindow = async () => {
   const win = new BrowserWindow({
