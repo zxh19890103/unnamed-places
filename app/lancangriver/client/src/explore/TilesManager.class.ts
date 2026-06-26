@@ -22,6 +22,8 @@ export class TileNode implements ITileNode {
 
   satellitePending?: boolean; // Composition request in flight
   satelliteRequestSeq?: number; // Generation counter for dedup
+  satelliteFailureCount?: number; // Consecutive composition failures
+  satelliteRetryExhausted?: boolean; // Retry cap reached for current target
 
   constructor(readonly key: SphereTileKey) {
     this.x = key.x;

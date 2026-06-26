@@ -9,6 +9,7 @@ import {
 import { BASE_URL } from "../calc/constants";
 
 const TILE_SIZE = 256;
+const MAX_RETRY_ATTEMPTS = 5;
 
 /**
  * Compositor for fly-mode satellite textures.
@@ -50,6 +51,16 @@ export class FlySatelliteCompositor {
     for (const { node, tile, cameraDistance } of parentTiles) {
       // Compute desired low-altitude zoom based on distance
       const targetLowAltitudeZoom = distanceToLowAltitudeZoom(cameraDistance);
+
+      // New targets get a fresh retry budget.
+      if (node.targetLowAltitudeZoom !== targetLowAltitudeZoom) {
+        node.satelliteFailureCount = 0;
+        node.satelliteRetryExhausted = false;
+      }
+
+      if (node.satelliteRetryExhausted) {
+        continue;
+      }
 
       // Skip if already at target or if request is pending
       const tileKey = `${node.z}/${node.x}/${node.y}`;
@@ -131,14 +142,30 @@ export class FlySatelliteCompositor {
         this.composedTextures.set(tileKey, composedTexture);
 
         node.lowAltitudeZoom = targetLowAltitudeZoom;
+        node.satelliteFailureCount = 0;
+        node.satelliteRetryExhausted = false;
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return;
       }
 
+      const failureCount = (node.satelliteFailureCount ?? 0) + 1;
+      node.satelliteFailureCount = failureCount;
+
+      if (failureCount >= MAX_RETRY_ATTEMPTS) {
+        if (!node.satelliteRetryExhausted) {
+          console.error(
+            `[Compositor] Retry limit exceeded for tile ${node.z}/${node.x}/${node.y} after ${MAX_RETRY_ATTEMPTS} attempts`,
+            error,
+          );
+        }
+        node.satelliteRetryExhausted = true;
+        return;
+      }
+
       console.warn(
-        `[Compositor] Failed to compose texture for tile ${node.z}/${node.x}/${node.y}:`,
+        `[Compositor] Failed to compose texture for tile ${node.z}/${node.x}/${node.y} (attempt ${failureCount}/${MAX_RETRY_ATTEMPTS})`,
         error,
       );
     } finally {
