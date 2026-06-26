@@ -251,8 +251,8 @@ export function createScene(container: HTMLElement) {
 
     const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
       center,
-      groundOrbitState.azimuthDeg,
-      groundOrbitState.altitudeDeg,
+      180,
+      45,
       cameraDistanceMeters,
     );
 

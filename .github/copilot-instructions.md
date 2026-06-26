@@ -1,3 +1,10 @@
+# Ignore Folders
+
+- \_\_legacy/
+- \_\_deprecated/
+
+All folder above are considered legacy or deprecated and should not be used for new development.
+
 # Unnamed Places Agent Instructions
 
 This repository contains two active stacks with different workflows. Confirm which stack a task targets before editing.
