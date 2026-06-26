@@ -92,21 +92,21 @@ export class TilesManager {
     }
 
     this.nodes = reconciled;
-    this.scheduleApplyUpdates();
+    this.scheduleNodeStateTransitionProcessing();
   }
 
-  private scheduleApplyUpdates() {
+  private scheduleNodeStateTransitionProcessing() {
     if (this.updateTimer !== null) {
       return;
     }
 
     this.updateTimer = setTimeout(() => {
       this.updateTimer = null;
-      this.applyUpdates();
+      this.processNodeStateTransitions();
     }, 0);
   }
 
-  applyUpdates() {
+  private processNodeStateTransitions() {
     let didChange = false;
 
     for (const node of this.nodes) {
@@ -157,7 +157,7 @@ export class TilesManager {
     );
 
     if (didChange) {
-      this.scheduleApplyUpdates();
+      this.scheduleNodeStateTransitionProcessing();
     }
   }
 

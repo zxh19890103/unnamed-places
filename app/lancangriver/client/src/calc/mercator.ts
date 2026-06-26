@@ -74,7 +74,7 @@ export function latlngToTilekey(
 ): SphereTileKey {
   const latClamped = clampLat(lat);
   const latRad = (latClamped * Math.PI) / 180;
-  const lng_ = (((lng + 180) % 360) + 360) % 360 / 360;
+  const lng_ = ((((lng + 180) % 360) + 360) % 360) / 360;
   const n = Math.pow(2, zoom);
 
   const x = Math.floor(lng_ * n);

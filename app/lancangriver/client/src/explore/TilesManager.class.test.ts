@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SphereTileKey, TileNodeState } from "../calc/types";
-import { TilesManager } from "./lod";
+import { TilesManager } from "./TilesManager.class";
 
 function makeKey(z: number, x: number, y: number): SphereTileKey {
   return { z, x, y };

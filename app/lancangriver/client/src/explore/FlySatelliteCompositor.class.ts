@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { TileNode } from "./lod";
+import type { TileNode } from "./TilesManager.class";
 import type { SphereTile } from "./SphereTile.class";
 import type { SphereTileKey } from "../calc/types";
 import {

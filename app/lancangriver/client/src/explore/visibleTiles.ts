@@ -317,6 +317,5 @@ export const getVisibleTiles = (
     }
   }
 
-  visible.sort((a, b) => a.y - b.y || a.x - b.x);
   return visible;
 };

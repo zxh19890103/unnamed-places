@@ -28,6 +28,17 @@ function createCamera(
 }
 
 describe("getVisibleTiles", () => {
+  it("returns center tile first for center-facing views", () => {
+    const zoom = 4;
+    const camera = createCamera(0, 0);
+    const centerKey = latlngToTilekey(0, 0, zoom);
+
+    const result = getVisibleTiles(camera, zoom, EARTH_RADIUS);
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0]).toEqual(centerKey);
+  });
+
   it("returns visible tiles in front of the camera", () => {
     const zoom = 4;
     const tileCount = 2 ** zoom;

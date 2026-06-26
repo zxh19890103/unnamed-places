@@ -4,7 +4,7 @@ import Stats from "three/examples/jsm/libs/stats.module.js";
 import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
 import { Sphere } from "./Sphere.class";
 import { disatanceToZoom } from "../calc/mercator";
-import { TilesManager } from "./lod";
+import { TilesManager } from "./TilesManager.class";
 import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
 import { FlySatelliteCompositor } from "./FlySatelliteCompositor.class";

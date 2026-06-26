@@ -6,7 +6,7 @@ import { SphereTile } from "./SphereTile.class";
 import { latlngToTilekey } from "../calc/mercator";
 import { SphereTileKey } from "../calc/types";
 import { ControlMode, ControlsManager } from "./ControlsManager.class";
-import type { TilesManager } from "./lod";
+import type { TilesManager } from "./TilesManager.class";
 
 export type SphereStatsPayload = {
   cameraDistanceMeters: number;
