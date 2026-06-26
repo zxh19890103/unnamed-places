@@ -77,7 +77,14 @@ function wrapX(x: number, tileCount: number): number {
 }
 
 function modDistance(a: number, b: number, modulo: number): number {
-  const d = Math.abs(a - b);
+  if (modulo <= 0) {
+    return 0;
+  }
+
+  const normalize = (v: number) => ((Math.floor(v) % modulo) + modulo) % modulo;
+  const aa = normalize(a);
+  const bb = normalize(b);
+  const d = Math.abs(aa - bb);
   return Math.min(d, modulo - d);
 }
 

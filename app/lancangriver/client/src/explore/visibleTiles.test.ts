@@ -70,4 +70,17 @@ describe("getVisibleTiles", () => {
     const hasHighX = result.some((key) => key.x >= tileCount - 2);
     expect(hasLowX && hasHighX).toBe(true);
   });
+
+  it("keeps seam coverage for negative dateline views", () => {
+    const zoom = 4;
+    const tileCount = 2 ** zoom;
+    const camera = createCamera(5, -179.5);
+
+    const result = getVisibleTiles(camera, zoom, EARTH_RADIUS);
+
+    expect(result.length).toBeGreaterThan(0);
+    const hasLowX = result.some((key) => key.x <= 1);
+    const hasHighX = result.some((key) => key.x >= tileCount - 2);
+    expect(hasLowX && hasHighX).toBe(true);
+  });
 });

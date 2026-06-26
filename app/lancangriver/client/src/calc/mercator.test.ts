@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { disatanceToZoom, zoomToDistance } from "./mercator";
+import { latlngToTilekey } from "./mercator";
 
 const MIN_ZOOM = 0;
 const MAX_ZOOM = 19;
@@ -65,5 +66,29 @@ describe("mercator distance/zoom mapping", () => {
     expect(zoomToDistance(MAX_ZOOM + 10, MIN_ZOOM, MAX_ZOOM)).toBe(
       zoomToDistance(MAX_ZOOM, MIN_ZOOM, MAX_ZOOM),
     );
+  });
+});
+
+describe("mercator tile key wrapping", () => {
+  it("wraps longitudes below -180 into valid tile x", () => {
+    const zoom = 5;
+    const tileCount = 2 ** zoom;
+
+    const key = latlngToTilekey(-181, 0, zoom);
+
+    expect(key.x).toBeGreaterThanOrEqual(0);
+    expect(key.x).toBeLessThan(tileCount);
+    expect(key.y).toBeGreaterThanOrEqual(0);
+    expect(key.y).toBeLessThan(tileCount);
+  });
+
+  it("keeps periodic longitude equivalence", () => {
+    const zoom = 7;
+
+    const keyA = latlngToTilekey(-181, 12.5, zoom);
+    const keyB = latlngToTilekey(179, 12.5, zoom);
+
+    expect(keyA.x).toBe(keyB.x);
+    expect(keyA.y).toBe(keyB.y);
   });
 });
