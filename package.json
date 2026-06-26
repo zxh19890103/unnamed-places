@@ -13,12 +13,38 @@
     "dev:serve": "npm --prefix app/lancangriver/serve run dev",
     "dev:electron": "electron .",
     "dev": "concurrently -k -n client,serve,electron -c cyan,green,magenta \"npm run dev:client\" \"npm run dev:serve\" \"npm run dev:electron\"",
-    "build:client": "npm --prefix app/lancangriver/client run build",
+    "build:client": "npm --prefix app/lancangriver/client run build -- --base ./",
     "build": "npm run build:client",
+    "pack": "npm run build:client && electron-builder --dir",
+    "pack:mac": "npm run build:client && electron-builder --mac",
+    "pack:mac:zip": "npm run build:client && electron-builder --mac zip",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",
+    "electron-builder": "^25.1.8",
     "electron": "^39.2.7"
+  },
+  "build": {
+    "appId": "com.singhi.unnamedplaces",
+    "productName": "Unnamed Places",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "files": [
+      "app/main.js",
+      "app/preload.js",
+      "app/context.js",
+      "app/lancangriver/client/dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.graphics-design"
+    }
   }
 }
