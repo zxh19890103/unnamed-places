@@ -2,22 +2,27 @@ import { app, BrowserWindow } from "electron";
 
 import path, { join } from "node:path";
 
-import { __dirname } from "./__deprecated/context.js";
+import { __dirname } from "./context.js";
+
+const DEV_CLIENT_URL = process.env.ELECTRON_RENDERER_URL || "http://localhost:5173";
 
 const createWindow = async () => {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1280,
+    height: 800,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       sandbox: true,
     },
   });
 
-  await win.loadFile(join(__dirname, "index.html"));
+  if (!app.isPackaged) {
+    await win.loadURL(DEV_CLIENT_URL);
+    // win.webContents.openDevTools();
+    return;
+  }
 
-  // --- ADD THIS LINE ---
-  // win.webContents.openDevTools();
+  await win.loadFile(join(__dirname, "lancangriver", "client", "dist", "index.html"));
 };
 
 app.whenReady().then(() => {

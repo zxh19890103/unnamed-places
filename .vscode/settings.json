@@ -10,7 +10,15 @@
   "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
   "editor.fontWeight": "300",
-  "window.zoomLevel": 1,
+  "window.zoomLevel": 0,
   "editor.letterSpacing": 1,
-  "js/ts.tsdk.path": "./app/serve/node_modules/typescript/lib"
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/node_modules": false,
+  },
+  "js/ts.tsdk.path": "./app/__deprecated/serve/node_modules/typescript/lib"
 }

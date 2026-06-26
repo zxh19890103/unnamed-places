@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lancangriver (Dev Shell)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --fg: #e5e7eb;
+      --muted: #9ca3af;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top, #1f2937 0%, var(--bg) 55%);
+      color: var(--fg);
+      font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .shell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #app-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: none;
+      background: #000;
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(680px, 92vw);
+      background: color-mix(in oklab, var(--panel) 92%, black 8%);
+      border: 1px solid #374151;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    p {
+      margin: 8px 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .line {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #0b1220;
+      border: 1px solid #1f2937;
+      color: var(--fg);
+      font-size: 13px;
+    }
+
+    .ok {
+      color: var(--ok);
+    }
+
+    .warn {
+      color: var(--warn);
+    }
+
+    .actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: var(--btn);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    button:hover {
+      background: var(--btn-hover);
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+    <iframe id="app-frame" title="Lancangriver Client"></iframe>
+
+    <section class="status" id="status-panel" aria-live="polite">
+      <div class="card">
+        <h1>Lancangriver Electron Dev Shell</h1>
+        <p>This window is configured for development mode only.</p>
+        <p>Expected client URL: <strong>http://localhost:5173</strong></p>
+        <p>Expected service URL: <strong>http://localhost:4050</strong></p>
+        <div class="line" id="status-line">Checking Vite dev server...</div>
+        <div class="actions">
+          <button id="retry-btn" type="button">Retry Connection</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const DEV_CLIENT_URL = "http://localhost:5173";
+
+    const frame = document.getElementById("app-frame");
+    const statusPanel = document.getElementById("status-panel");
+    const statusLine = document.getElementById("status-line");
+    const retryBtn = document.getElementById("retry-btn");
+
+    async function connectClient() {
+      statusLine.innerHTML = "Checking Vite dev server...";
+
+      try {
+        const response = await fetch(DEV_CLIENT_URL, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        frame.src = DEV_CLIENT_URL;
+        frame.style.display = "block";
+        statusPanel.style.display = "none";
+      } catch (error) {
+        frame.style.display = "none";
+        statusPanel.style.display = "grid";
+        statusLine.innerHTML = `<span class="warn">Cannot reach ${DEV_CLIENT_URL}</span><br/>Start the client: <code>cd app/lancangriver/client && npm run dev</code>`;
+      }
+    }
+
+    retryBtn.addEventListener("click", connectClient);
+    connectClient();
+  </script>
+</body>
+
+</html>

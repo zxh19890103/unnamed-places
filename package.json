@@ -9,10 +9,16 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dev": "node app/serve",
+    "dev:client": "npm --prefix app/lancangriver/client run dev",
+    "dev:serve": "npm --prefix app/lancangriver/serve run dev",
+    "dev:electron": "electron .",
+    "dev": "concurrently -k -n client,serve,electron -c cyan,green,magenta \"npm run dev:client\" \"npm run dev:serve\" \"npm run dev:electron\"",
+    "build:client": "npm --prefix app/lancangriver/client run build",
+    "build": "npm run build:client",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
+    "concurrently": "^9.0.1",
     "electron": "^39.2.7"
   }
 }

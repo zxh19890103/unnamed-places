@@ -50,7 +50,7 @@ function loadTsConfig(tsconfigPath) {
   if (configParseResult.errors.length) {
     throw new Error(
       "Errors parsing tsconfig.json:\n" +
-        configParseResult.errors.map((e) => e.messageText).join("\n"),
+      configParseResult.errors.map((e) => e.messageText).join("\n"),
     );
   }
 
@@ -267,14 +267,14 @@ const server = http.createServer(async (req, res) => {
         html = html.replace(
           /<script\s+type="importmap">[\s\S]+?<\/script>/,
           '<script type="importmap">' +
-            JSON.stringify({
-              imports: {
-                ...config.importmaps.imports,
-                "$npm/": "/$npm/",
-                "@/": "/src/",
-              },
-            }) +
-            "</script>",
+          JSON.stringify({
+            imports: {
+              ...config.importmaps.imports,
+              "$npm/": "/$npm/",
+              "@/": "/src/",
+            },
+          }) +
+          "</script>",
         );
 
         moduleCacheSet(req, res, htmlPath, html);
