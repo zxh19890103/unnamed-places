@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
 import { Sphere } from "./Sphere.class";
@@ -7,7 +8,7 @@ import { disatanceToZoom } from "../calc/mercator";
 import { TilesManager } from "./TilesManager.class";
 import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
-import { FlySatelliteCompositor } from "./FlySatelliteCompositor.class";
+import { LowAltitudeTileCompositor } from "./LowAltitudeTileCompositor.class";
 import { attachExploreGui, type ExploreGuiHandle } from "./gui";
 import {
   MAX_DEM_ZOOM,
@@ -15,7 +16,12 @@ import {
   START_CENTER_LON,
 } from "../calc/constants";
 
-const GROUND_ORBIT_DISTANCE_METERS = 1_000;
+const SKY_DISTANCE = EARTH_RADIUS * 8;
+const SKY_COLOR = new THREE.Color("#b9d9ff");
+const FOG_COLOR = new THREE.Color("#c9e2ff");
+const SKY_SCALE_MULTIPLIER = 8;
+const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
+const SKY_MAX_SCALE = EARTH_RADIUS * 12;
 
 function getLocalBasisAtPoint(target: THREE.Vector3) {
   const up = target.clone().normalize();
@@ -56,7 +62,28 @@ function computeOrbitPositionFromAzimuthAltitude(
 
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("white");
+  scene.background = SKY_COLOR.clone();
+  scene.fog = new THREE.FogExp2(FOG_COLOR, 0.000012);
+
+  const sky = new Sky();
+  sky.scale.setScalar(SKY_DISTANCE);
+  scene.add(sky);
+
+  const sunDirection = new THREE.Vector3(0.35, 0.2, -1).normalize();
+  const skyUniforms = sky.material.uniforms;
+  skyUniforms.turbidity.value = 2;
+  skyUniforms.rayleigh.value = 1;
+  skyUniforms.mieCoefficient.value = 0.005;
+  skyUniforms.mieDirectionalG.value = 0.8;
+  skyUniforms.sunPosition.value.copy(sunDirection);
+  skyUniforms.up.value.set(0, 1, 0);
+
+  // const ambientLight = new THREE.HemisphereLight("#d9ecff", "#93a36a", 1.3);
+  // scene.add(ambientLight);
+
+  const sunLight = new THREE.DirectionalLight("#fff2d6", 2.2);
+  sunLight.position.copy(sunDirection).multiplyScalar(SKY_DISTANCE * 0.25);
+  scene.add(sunLight);
 
   const camera = new THREE.PerspectiveCamera(
     75,
@@ -131,7 +158,7 @@ export function createScene(container: HTMLElement) {
     altitudeDeg: 30,
   };
 
-  const compositor = new FlySatelliteCompositor(textureLoader, imageLoader);
+  const compositor = new LowAltitudeTileCompositor(textureLoader, imageLoader);
 
   controlsManager.onModeChange = (from: ControlMode, to: ControlMode) => {
     console.log(`[Controls] Mode change: ${from} → ${to}`);
@@ -215,10 +242,30 @@ export function createScene(container: HTMLElement) {
     }
   };
 
+  const syncSkyWithCamera = (cameraDistanceMeters: number) => {
+    const scale = THREE.MathUtils.clamp(
+      cameraDistanceMeters * SKY_SCALE_MULTIPLIER,
+      SKY_MIN_SCALE,
+      SKY_MAX_SCALE,
+    );
+
+    sky.scale.setScalar(scale);
+    sky.position.copy(camera.position);
+    sky.rotation.set(0, 0, 0);
+
+    const cameraLengthSq = camera.position.lengthSq();
+    if (cameraLengthSq > 1e-6) {
+      skyUniforms.up.value.copy(camera.position).normalize();
+    } else {
+      skyUniforms.up.value.set(0, 1, 0);
+    }
+  };
+
   const refreshVisibleTiles = () => {
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
     const zoomLevel = disatanceToZoom(cameraDistanceMeters);
     camera.updateMatrixWorld(true);
+    syncSkyWithCamera(cameraDistanceMeters);
 
     if (terrainState.demEnabled && zoomLevel > MAX_DEM_ZOOM) {
       applyDemMode(false, zoomLevel);
@@ -248,6 +295,7 @@ export function createScene(container: HTMLElement) {
     const center = getGroundCenter();
 
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
+    syncSkyWithCamera(cameraDistanceMeters);
 
     const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
       center,
