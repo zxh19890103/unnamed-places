@@ -16,9 +16,12 @@
     "lil-gui": "^0.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "three": "^0.167.1"
+    "suncalc": "^2.0.0",
+    "three": "^0.167.1",
+    "tz-lookup": "^6.1.25"
   },
   "devDependencies": {
+    "@types/suncalc": "^1.9.2",
     "@types/three": "^0.184.1",
     "typescript": "^5.5.4",
     "vite": "^5.4.1",

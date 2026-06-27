@@ -1,8 +1,9 @@
 import * as THREE from "three";
+import * as SunCalc from "suncalc";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 
-import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
+import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "../calc/sphere";
 import { Sphere } from "./Sphere.class";
 import { disatanceToZoom } from "../calc/mercator";
 import { TilesManager } from "./TilesManager.class";
@@ -15,6 +16,8 @@ import {
   START_CENTER_LAT,
   START_CENTER_LON,
 } from "../calc/constants";
+import { getDateForLocalTimeAtLatLng } from "../calc/timezone";
+import { LatLng } from "../calc/types";
 
 const SKY_DISTANCE = EARTH_RADIUS * 8;
 const SKY_COLOR = new THREE.Color("#b9d9ff");
@@ -60,6 +63,53 @@ function computeOrbitPositionFromAzimuthAltitude(
   return target.clone().addScaledVector(viewDirection, distanceMeters);
 }
 
+function computeSunDirectionForLocation(
+  date: Date,
+  latitude: number,
+  longitude: number,
+) {
+  const observerSurfacePointRaw = latlngToSphere(
+    latitude,
+    longitude,
+    EARTH_RADIUS,
+  );
+  const observerSurfacePoint = new THREE.Vector3(
+    observerSurfacePointRaw.x,
+    observerSurfacePointRaw.y,
+    observerSurfacePointRaw.z,
+  );
+  const { up, east, north } = getLocalBasisAtPoint(observerSurfacePoint);
+  const { azimuth, altitude } = SunCalc.getPosition(date, latitude, longitude);
+  const azimuthRad = THREE.MathUtils.degToRad(azimuth);
+  const altitudeRad = THREE.MathUtils.degToRad(altitude);
+
+  // SunCalc v2: azimuth is clockwise from north, and altitude is above horizon.
+  const horizontal = north
+    .clone()
+    .multiplyScalar(Math.cos(azimuthRad))
+    .add(east.clone().multiplyScalar(Math.sin(azimuthRad)));
+
+  return horizontal
+    .multiplyScalar(Math.cos(altitudeRad))
+    .add(up.multiplyScalar(Math.sin(altitudeRad)))
+    .normalize();
+}
+
+function getDefaultCenterLatlng(): LatLng {
+  const latlngExpr = `25.0389,102.7183`;
+  const [lat, lng] = latlngExpr.split(",").map((seg) => Number(seg));
+
+  return {
+    lat: lat ?? START_CENTER_LAT,
+    lng: lng ?? START_CENTER_LON,
+  };
+}
+
+function getLatlngNow(latlng: LatLng) {
+  const localTime = `07:32`;
+  return getDateForLocalTimeAtLatLng(latlng, localTime);
+}
+
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
   scene.background = SKY_COLOR.clone();
@@ -69,12 +119,19 @@ export function createScene(container: HTMLElement) {
   sky.scale.setScalar(SKY_DISTANCE);
   scene.add(sky);
 
-  const sunDirection = new THREE.Vector3(0.35, 0.2, -1).normalize();
+  const initialCenter = getDefaultCenterLatlng();
+
+  const sunDirection = computeSunDirectionForLocation(
+    getLatlngNow(initialCenter),
+    initialCenter.lat,
+    initialCenter.lng,
+  );
+
   const skyUniforms = sky.material.uniforms;
-  skyUniforms.turbidity.value = 2;
-  skyUniforms.rayleigh.value = 1;
+  skyUniforms.turbidity.value = 1;
+  skyUniforms.rayleigh.value = 0.8;
   skyUniforms.mieCoefficient.value = 0.005;
-  skyUniforms.mieDirectionalG.value = 0.8;
+  skyUniforms.mieDirectionalG.value = 0.7;
   skyUniforms.sunPosition.value.copy(sunDirection);
   skyUniforms.up.value.set(0, 1, 0);
 
@@ -93,8 +150,8 @@ export function createScene(container: HTMLElement) {
   );
 
   const startCameraPosition = latlngToSphere(
-    START_CENTER_LAT,
-    START_CENTER_LON,
+    initialCenter.lat,
+    initialCenter.lng,
     EARTH_RADIUS * 1.5,
   );
   camera.position.set(
@@ -242,7 +299,10 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  const syncSkyWithCamera = (cameraDistanceMeters: number) => {
+  const syncSkyWithCamera = (
+    orbitCenter: THREE.Vector3,
+    cameraDistanceMeters: number,
+  ) => {
     const scale = THREE.MathUtils.clamp(
       cameraDistanceMeters * SKY_SCALE_MULTIPLIER,
       SKY_MIN_SCALE,
@@ -250,22 +310,27 @@ export function createScene(container: HTMLElement) {
     );
 
     sky.scale.setScalar(scale);
-    sky.position.copy(camera.position);
+    sky.position.copy(orbitCenter);
     sky.rotation.set(0, 0, 0);
 
-    const cameraLengthSq = camera.position.lengthSq();
-    if (cameraLengthSq > 1e-6) {
-      skyUniforms.up.value.copy(camera.position).normalize();
-    } else {
-      skyUniforms.up.value.set(0, 1, 0);
-    }
+    const latlng = sphereToLatlng(orbitCenter.x, orbitCenter.y, orbitCenter.z);
+
+    console.log("location:", latlng.lat, latlng.lng);
+
+    const sunDirection = computeSunDirectionForLocation(
+      getLatlngNow(latlng),
+      latlng.lat,
+      latlng.lng,
+    );
+
+    skyUniforms.sunPosition.value.copy(sunDirection);
+    skyUniforms.up.value.copy(orbitCenter).normalize();
   };
 
   const refreshVisibleTiles = () => {
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
     const zoomLevel = disatanceToZoom(cameraDistanceMeters);
     camera.updateMatrixWorld(true);
-    syncSkyWithCamera(cameraDistanceMeters);
 
     if (terrainState.demEnabled && zoomLevel > MAX_DEM_ZOOM) {
       applyDemMode(false, zoomLevel);
@@ -295,7 +360,8 @@ export function createScene(container: HTMLElement) {
     const center = getGroundCenter();
 
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-    syncSkyWithCamera(cameraDistanceMeters);
+
+    syncSkyWithCamera(center, cameraDistanceMeters);
 
     const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
       center,

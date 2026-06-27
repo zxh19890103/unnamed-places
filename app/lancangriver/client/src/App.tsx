@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { createScene } from "./explore/setup";
-import { SceneMonitor } from "./explore/SceneMonitor";
+import { SceneMonitor } from "./explore/dom/SceneMonitor";
 import type { Sphere } from "./explore/Sphere.class";
 import type { TileNode } from "./explore/TilesManager.class";
 

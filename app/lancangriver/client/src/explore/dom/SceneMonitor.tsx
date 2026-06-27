@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import type { Sphere, SphereStatsPayload } from "./Sphere.class";
+import type { Sphere, SphereStatsPayload } from "../Sphere.class";
+import { TilesBytes } from "./TilesBytes";
 
 type SceneMonitorProps = {
   sphere: Sphere | null;
@@ -101,12 +102,12 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
         background: "rgba(8, 10, 14, 0.88)",
         color: "#ffffff",
         boxShadow: "0 12px 30px rgba(0, 0, 0, 0.28)",
-        pointerEvents: "none",
+        pointerEvents: "auto",
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
       }}
     >
-      <div style={{ fontSize: 12, letterSpacing: 0.08, opacity: 0.72 }}>
+      <div style={{ fontSize: 16, letterSpacing: 0.08, opacity: 0.72 }}>
         Runtime Monitor
       </div>
       <div style={{ marginTop: 10, display: "grid", gap: 8, fontSize: 13 }}>
@@ -130,6 +131,7 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
           <div style={{ opacity: 0.68 }}>Asset loading</div>
           <div>{formatLoadingProgress(stats)}</div>
         </div>
+        <TilesBytes />
       </div>
     </aside>
   );
