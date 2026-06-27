@@ -3,9 +3,14 @@ import * as SunCalc from "suncalc";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 
-import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "../calc/sphere";
+import {
+  EARTH_RADIUS,
+  getLocalBasisAtPoint,
+  latlngToSphere,
+  sphereToLatlng,
+} from "../calc/sphere";
 import { Sphere } from "./Sphere.class";
-import { disatanceToZoom } from "../calc/mercator";
+import { disatanceToZoom, tileBounds4326 } from "../calc/mercator";
 import { TilesManager } from "./TilesManager.class";
 import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
@@ -18,27 +23,15 @@ import {
 } from "../calc/constants";
 import { getDateForLocalTimeAtLatLng } from "../calc/timezone";
 import { LatLng } from "../calc/types";
+import { CloudGeometry } from "./geometries/CloudGeometry.class";
+import { CloudMaterial } from "./materials/CloudMaterial.class";
 
 const SKY_DISTANCE = EARTH_RADIUS * 8;
 const SKY_COLOR = new THREE.Color("#b9d9ff");
-const FOG_COLOR = new THREE.Color("#c9e2ff");
+const FOG_COLOR = new THREE.Color("#c7dcf5");
 const SKY_SCALE_MULTIPLIER = 8;
 const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
 const SKY_MAX_SCALE = EARTH_RADIUS * 12;
-
-function getLocalBasisAtPoint(target: THREE.Vector3) {
-  const up = target.clone().normalize();
-  const worldNorth = new THREE.Vector3(0, 1, 0);
-  let east = worldNorth.clone().cross(up);
-
-  if (east.lengthSq() < 1e-10) {
-    east = new THREE.Vector3(1, 0, 0).cross(up);
-  }
-
-  east.normalize();
-  const north = up.clone().cross(east).normalize();
-  return { up, east, north };
-}
 
 function computeOrbitPositionFromAzimuthAltitude(
   target: THREE.Vector3,
@@ -113,7 +106,7 @@ function getLatlngNow(latlng: LatLng) {
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
   scene.background = SKY_COLOR.clone();
-  scene.fog = new THREE.FogExp2(FOG_COLOR, 0.000012);
+  scene.fog = new THREE.FogExp2(FOG_COLOR, 0.000015);
 
   const sky = new Sky();
   sky.scale.setScalar(SKY_DISTANCE);
@@ -128,17 +121,17 @@ export function createScene(container: HTMLElement) {
   );
 
   const skyUniforms = sky.material.uniforms;
-  skyUniforms.turbidity.value = 1;
-  skyUniforms.rayleigh.value = 0.8;
-  skyUniforms.mieCoefficient.value = 0.005;
-  skyUniforms.mieDirectionalG.value = 0.7;
+  skyUniforms.turbidity.value = 0.01;
+  skyUniforms.rayleigh.value = 0.1;
+  skyUniforms.mieCoefficient.value = 0.00015;
+  skyUniforms.mieDirectionalG.value = 0.05;
   skyUniforms.sunPosition.value.copy(sunDirection);
   skyUniforms.up.value.set(0, 1, 0);
 
   // const ambientLight = new THREE.HemisphereLight("#d9ecff", "#93a36a", 1.3);
   // scene.add(ambientLight);
 
-  const sunLight = new THREE.DirectionalLight("#fff2d6", 2.2);
+  const sunLight = new THREE.DirectionalLight("#fff2d6", 0.45);
   sunLight.position.copy(sunDirection).multiplyScalar(SKY_DISTANCE * 0.25);
   scene.add(sunLight);
 
@@ -191,6 +184,11 @@ export function createScene(container: HTMLElement) {
 
   const textureLoader = new THREE.TextureLoader(loadingManager);
   const imageLoader = new THREE.ImageLoader(loadingManager);
+  const cloudAtlasTexture = textureLoader.load("/clouds_in-one.png");
+  cloudAtlasTexture.wrapS = THREE.ClampToEdgeWrapping;
+  cloudAtlasTexture.wrapT = THREE.ClampToEdgeWrapping;
+  cloudAtlasTexture.magFilter = THREE.LinearFilter;
+  cloudAtlasTexture.minFilter = THREE.LinearMipmapLinearFilter;
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -251,6 +249,8 @@ export function createScene(container: HTMLElement) {
     demEnabled: false,
   };
 
+  let groundOrbitClouds: THREE.Points<CloudGeometry, CloudMaterial> | null =
+    null;
   let guiHandle: ExploreGuiHandle | null = null;
 
   const applyDemModeToAttachedTiles = (enabled: boolean) => {
@@ -343,8 +343,8 @@ export function createScene(container: HTMLElement) {
     // Only update visible tiles when not frozen (fly / groundOrbit freeze tile finding)
     if (!tileManager.frozen) {
       const visibleTileKeys = getVisibleTiles(camera, zoomLevel, EARTH_RADIUS);
-      console.log("visibleTileKeys = ", visibleTileKeys.length);
       tileManager.setNodes(visibleTileKeys);
+      return;
     }
   };
 
@@ -356,8 +356,20 @@ export function createScene(container: HTMLElement) {
     return center;
   };
 
+  const clearGroundOrbitClouds = () => {
+    if (!groundOrbitClouds) {
+      return;
+    }
+
+    scene.remove(groundOrbitClouds);
+    groundOrbitClouds.geometry.dispose();
+    groundOrbitClouds.material.dispose();
+    groundOrbitClouds = null;
+  };
+
   const applyGroundOrbitPlacement = () => {
     const center = getGroundCenter();
+    const centerLatlng = sphereToLatlng(center.x, center.y, center.z);
 
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
 
@@ -369,6 +381,32 @@ export function createScene(container: HTMLElement) {
       45,
       cameraDistanceMeters,
     );
+
+    clearGroundOrbitClouds();
+
+    const cloudRadius = 10 * cameraDistanceMeters;
+
+    const cloudGeometry = new CloudGeometry({
+      latlng: centerLatlng,
+      radius: cloudRadius,
+      count: 100,
+      maxAltitudeDeg: 8,
+      bandWidth: 0,
+    });
+    const cloudMaterial = new CloudMaterial({
+      color: "#ffffff",
+      size: 300,
+      opacity: 0.55,
+      softness: 0.6,
+      sizeAttenuation: false,
+      viewportHeight: container.clientHeight,
+      atlasTexture: cloudAtlasTexture,
+      atlasGrid: 4,
+    });
+    groundOrbitClouds = new THREE.Points(cloudGeometry, cloudMaterial);
+    groundOrbitClouds.position.copy(center);
+
+    scene.add(groundOrbitClouds);
 
     controlsManager.enterGroundOrbit(center, orbitPosition);
     refreshVisibleTiles();
@@ -396,6 +434,7 @@ export function createScene(container: HTMLElement) {
     }
 
     groundOrbitState.enabled = false;
+    clearGroundOrbitClouds();
     controlsManager.exitGroundOrbit();
     refreshVisibleTiles();
   };
@@ -421,6 +460,13 @@ export function createScene(container: HTMLElement) {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, true);
+
+    if (groundOrbitClouds) {
+      groundOrbitClouds.material.uniforms.uViewportHeight.value = Math.max(
+        1,
+        height,
+      );
+    }
   };
 
   const destroyCameraGui = () => guiHandle?.destroy();
@@ -445,6 +491,7 @@ export function createScene(container: HTMLElement) {
     destroyCameraGui,
     destroyStats,
     cleanup: () => {
+      clearGroundOrbitClouds();
       sphereGlobal.dispose();
       compositor.dispose();
       controlsManager.dispose();
