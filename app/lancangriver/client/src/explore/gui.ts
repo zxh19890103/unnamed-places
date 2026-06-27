@@ -174,21 +174,7 @@ export function attachExploreGui(
       onRandomizeGroundOrbit();
       terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
       groundOrbitToggleController.updateDisplay();
-      syncGroundOrbitAngles();
     },
-  };
-
-  const groundOrbitAnglesState = {
-    azimuthDeg: 0,
-    altitudeDeg: 0,
-  };
-
-  const syncGroundOrbitAngles = () => {
-    const next = getGroundOrbitAngles();
-    groundOrbitAnglesState.azimuthDeg = Number(next.azimuthDeg.toFixed(1));
-    groundOrbitAnglesState.altitudeDeg = Number(next.altitudeDeg.toFixed(1));
-    groundOrbitAzimuthController.updateDisplay();
-    groundOrbitAltitudeController.updateDisplay();
   };
 
   const groundOrbitToggleController = terrainFolder
@@ -198,24 +184,7 @@ export function attachExploreGui(
       setGroundOrbitEnabled(value);
       terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
       groundOrbitToggleController.updateDisplay();
-      syncGroundOrbitAngles();
     });
-
-  terrainFolder
-    .add(terrainState, "randomizeGroundOrbit")
-    .name("random azimuth/alt");
-
-  const groundOrbitAzimuthController = terrainFolder
-    .add(groundOrbitAnglesState, "azimuthDeg")
-    .name("azimuth (deg)")
-    .listen()
-    .disable();
-
-  const groundOrbitAltitudeController = terrainFolder
-    .add(groundOrbitAnglesState, "altitudeDeg")
-    .name("altitude (deg)")
-    .listen()
-    .disable();
 
   const demToggleController = terrainFolder
     .add(terrainState, "demEnabled")
@@ -269,7 +238,6 @@ export function attachExploreGui(
       demToggleController.updateDisplay();
       terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
       groundOrbitToggleController.updateDisplay();
-      syncGroundOrbitAngles();
     },
   };
 }

@@ -101,7 +101,4 @@ Do not hand-edit generated data unless a task explicitly asks for it.
 
 Follow the local skill policy already used in this repo:
 
-- Call skill hi when:
-  - user approval is needed,
-  - an error occurs,
-  - a task is completed.
+- use Skill `skills/hi/SKILL.md` to greet the user and set context at the beginning of a task.

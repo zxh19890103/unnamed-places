@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FlySatelliteCompositor } from "./FlySatelliteCompositor.class";
-import { TileNode } from "./TilesManager.class";
-import { distanceToLowAltitudeZoom } from "../calc/mercator";
+import { LowAltitudeTileCompositor } from "./LowAltitudeTileCompositor.class.js";
+import { TileNode } from "./TilesManager.class.js";
+import { distanceToLowAltitudeZoom } from "../calc/mercator.js";
 
 function makeTileNode(): TileNode {
   return new TileNode({ z: 11, x: 1, y: 2 });
@@ -37,7 +37,7 @@ describe("FlySatelliteCompositor retry bounds", () => {
   });
 
   it("marks retries exhausted after 5 failed attempts and logs error", async () => {
-    const compositor = new FlySatelliteCompositor({} as any, {} as any);
+    const compositor = new LowAltitudeTileCompositor({} as any, {} as any);
     const node = makeTileNode();
     const tile = makeTile();
 
@@ -72,7 +72,7 @@ describe("FlySatelliteCompositor retry bounds", () => {
   });
 
   it("skips scheduling retries when exhausted for unchanged target", async () => {
-    const compositor = new FlySatelliteCompositor({} as any, {} as any);
+    const compositor = new LowAltitudeTileCompositor({} as any, {} as any);
     const node = makeTileNode();
     const tile = makeTile();
     const cameraDistance = 11_000;

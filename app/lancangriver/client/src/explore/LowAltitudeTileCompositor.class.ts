@@ -1,14 +1,14 @@
 import * as THREE from "three";
-import type { TileNode } from "./TilesManager.class";
-import type { SphereTile } from "./SphereTile.class";
-import type { SphereTileKey } from "../calc/types";
+import type { TileNode } from "./TilesManager.class.js";
+import type { SphereTile } from "./SphereTile.class.js";
+import type { SphereTileKey } from "../calc/types.js";
 import {
   enumerateChildTiles,
   distanceToLowAltitudeZoom,
-} from "../calc/mercator";
-import { BASE_URL } from "../calc/constants";
+} from "../calc/mercator.js";
+import { BASE_URL } from "../calc/constants.js";
 
-const TILE_SIZE = 256;
+const TILE_SIZE = 1024;
 const MAX_RETRY_ATTEMPTS = 5;
 
 /**
@@ -16,7 +16,7 @@ const MAX_RETRY_ATTEMPTS = 5;
  * Updates parent tile satellite textures with higher-resolution child composites
  * without creating new mesh geometry (stays within same parent mesh).
  */
-export class FlySatelliteCompositor {
+export class LowAltitudeTileCompositor {
   private textureLoader: THREE.TextureLoader;
   private imageLoader: THREE.ImageLoader;
   private canvas: HTMLCanvasElement;

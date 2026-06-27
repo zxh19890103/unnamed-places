@@ -28,12 +28,12 @@ export class TileGeometry extends THREE.BufferGeometry {
 
     const latSegments = validateSegments(
       "latSegments",
-      parameters.latSegments ?? 16,
+      parameters.latSegments ?? 32,
     );
 
     const lngSegments = validateSegments(
       "lngSegments",
-      parameters.lngSegments ?? 16,
+      parameters.lngSegments ?? 32,
     );
 
     const latDelta = northeast.lat - southwest.lat;

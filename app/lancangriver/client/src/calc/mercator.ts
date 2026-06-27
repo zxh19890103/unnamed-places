@@ -49,24 +49,6 @@ export function tileBounds4326(
   return [northwest.lon, southeast.lat, southeast.lon, northwest.lat];
 }
 
-export function latlngToTilekey2(
-  lon: number,
-  lat: number,
-  zoom: number,
-): SphereTileKey {
-  const tileCount = 2 ** zoom;
-  const { x, y } = lonLatToWorldPixel(lon, lat, zoom);
-
-  const tileX = Math.floor(x / 256);
-  const tileY = Math.floor(y / 256);
-
-  return {
-    z: zoom,
-    x: Math.max(0, Math.min(tileCount - 1, tileX)),
-    y: Math.max(0, Math.min(tileCount - 1, tileY)),
-  };
-}
-
 export function latlngToTilekey(
   lng: number,
   lat: number,
@@ -150,6 +132,6 @@ export function zoomToDistance(zoomLevel: number, min = 0, max = 19): number {
  */
 export function distanceToLowAltitudeZoom(distance: number): number {
   if (distance > 30_000) return 1;
-  if (distance > 10_000) return 2;
-  return 2;
+  if (distance > 10_000) return 1;
+  return 1;
 }

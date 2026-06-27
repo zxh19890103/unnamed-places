@@ -72,6 +72,12 @@ export class ControlsManager {
     this.groundOrbitControls.enableDamping = true;
     this.groundOrbitControls.enablePan = true;
     this.groundOrbitControls.enableZoom = true;
+
+    this.groundOrbitControls.minAzimuthAngle = -Math.PI;
+    this.groundOrbitControls.maxAzimuthAngle = Math.PI;
+    // this.groundOrbitControls.minPolarAngle = 0.05;
+    // this.groundOrbitControls.maxPolarAngle = Math.PI / 2 - 0.05;
+
     this.groundOrbitControls.rotateSpeed = 0.25;
     this.groundOrbitControls.zoomSpeed = 1;
     this.groundOrbitControls.enabled = false;
