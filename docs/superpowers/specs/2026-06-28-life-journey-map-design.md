@@ -7,12 +7,14 @@ Add a storytelling-first Life Journey Map to the Lancangriver client that turns 
 ## Scope
 
 In scope:
+
 - Client-only timeline derivation from already loaded photo records.
 - Day-based grouping with support for multi-place chips inside a day.
 - Left side panel timeline UI.
 - Day-card click focuses the globe using existing ground-orbit camera flow.
 
 Out of scope:
+
 - Backend schema or endpoint changes.
 - Reverse geocoding/place-name services.
 - New camera system or control mode implementation.
@@ -47,6 +49,7 @@ Out of scope:
 ## Components and File Plan
 
 Create:
+
 - `app/lancangriver/client/src/photos/journey.ts`
   - Pure transform utilities from `PhotoRecord[]` to journey day nodes.
 - `app/lancangriver/client/src/photos/JourneyPanel.tsx`
@@ -55,12 +58,14 @@ Create:
   - Unit tests for grouping and aggregation.
 
 Modify:
+
 - `app/lancangriver/client/src/App.tsx`
   - Manage journey state, render panel, handle day-card click focus.
 - `app/lancangriver/client/src/photos/types.ts`
   - Add journey node types if needed.
 
 Optional test file (if test stack already supports component tests cleanly):
+
 - `app/lancangriver/client/src/photos/JourneyPanel.test.tsx`
 
 ## Data Model
@@ -68,6 +73,7 @@ Optional test file (if test stack already supports component tests cleanly):
 ### Input (existing)
 
 `PhotoRecord`
+
 - `id: string`
 - `filePath: string`
 - `lat: number`
@@ -77,6 +83,7 @@ Optional test file (if test stack already supports component tests cleanly):
 ### New Derived Types
 
 `JourneyDayNode`
+
 - `dayKey: string` (for example `2026-06-28` or `unknown-date`)
 - `displayLabel: string` (human-readable day label)
 - `photoCount: number`
@@ -86,6 +93,7 @@ Optional test file (if test stack already supports component tests cleanly):
 - `photoIds: string[]`
 
 `JourneyBuildResult`
+
 - `days: JourneyDayNode[]`
 - `skippedInvalidCoordinateCount: number`
 
@@ -155,6 +163,7 @@ Optional test file (if test stack already supports component tests cleanly):
 ### Unit Tests (required)
 
 `journey.test.ts`
+
 - groups valid `takenAt` photos by day.
 - places missing/invalid `takenAt` into unknown bucket.
 - computes representative centroid correctly.
