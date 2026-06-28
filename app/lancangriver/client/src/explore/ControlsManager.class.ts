@@ -140,7 +140,7 @@ export class ControlsManager {
 
     // If in fly mode and altitude rises above A2, auto-exit to map
     if (this._mode === "fly" && altitudeMeters > this.A2) {
-      this.disableFly();
+      this.exitFly();
       return;
     }
 
@@ -201,13 +201,13 @@ export class ControlsManager {
       return;
     }
 
-    this.switchMode("map");
+    this.switchMode("pointer");
   }
 
   /**
    * Enable fly mode (user-triggered). Only valid when altitude < A2.
    */
-  enableFly(): void {
+  enterFly(): void {
     if (!this._enabled) {
       return;
     }
@@ -230,7 +230,7 @@ export class ControlsManager {
    * Disable fly mode (user-triggered or auto-triggered on altitude rise).
    * Returns to map mode.
    */
-  disableFly(): void {
+  exitFly(): void {
     if (!this._enabled) {
       return;
     }
@@ -239,7 +239,7 @@ export class ControlsManager {
       return; // Not in fly mode
     }
 
-    this.switchMode("map");
+    this.switchMode("pointer");
   }
 
   /**
@@ -270,9 +270,6 @@ export class ControlsManager {
         this.groundOrbitControls.update(delta);
         break;
       case "fly":
-        // Adapt fly movement speed to altitude
-        // const speed = Math.max(1, this._lastAltitude / 100);
-        // this.flyControls.movementSpeed = speed;
         this.flyControls.update(delta);
         break;
     }
@@ -315,66 +312,10 @@ export class ControlsManager {
   }
 
   private getHandoffTarget(mode: ControlMode): THREE.Vector3 {
-    if (mode === "none" || mode === "pointer") {
-      return new THREE.Vector3(0, 0, 0);
-    }
-
-    if (mode === "orbit") {
-      return this.orbitControls.target.clone();
-    }
-
-    if (mode === "map") {
-      return this.mapControls.target.clone();
-    }
-
-    if (mode === "groundOrbit") {
-      return this.groundOrbitControls.target.clone();
-    }
-
-    // FlyControls has no target; derive one from camera forward ray onto globe.
-    const origin = this.camera.position.clone();
-    const direction = new THREE.Vector3(0, 0, -1)
-      .applyQuaternion(this.camera.quaternion)
-      .normalize();
-
-    const a = direction.dot(direction);
-    const b = 2 * origin.dot(direction);
-    const c = origin.dot(origin) - EARTH_RADIUS * EARTH_RADIUS;
-    const discriminant = b * b - 4 * a * c;
-
-    if (discriminant >= 0) {
-      const sqrtD = Math.sqrt(discriminant);
-      const t1 = (-b - sqrtD) / (2 * a);
-      const t2 = (-b + sqrtD) / (2 * a);
-      const t = t1 > 0 ? t1 : t2 > 0 ? t2 : Number.POSITIVE_INFINITY;
-
-      if (Number.isFinite(t)) {
-        return origin.addScaledVector(direction, t);
-      }
-    }
-
     return new THREE.Vector3(0, 0, 0);
   }
 
-  private applyHandoffTarget(mode: ControlMode, target: THREE.Vector3): void {
-    if (mode === "orbit") {
-      this.orbitControls.target.copy(target);
-      this.orbitControls.update();
-      return;
-    }
-
-    if (mode === "map") {
-      this.mapControls.target.copy(target);
-      this.updateMapInteractionParameters(1 / 60, true);
-      this.mapControls.update();
-      return;
-    }
-
-    if (mode === "groundOrbit") {
-      this.groundOrbitControls.target.copy(target);
-      this.groundOrbitControls.update();
-    }
-  }
+  private applyHandoffTarget(mode: ControlMode, target: THREE.Vector3): void {}
 
   private updateMapInteractionParameters(
     delta: number,
@@ -431,22 +372,6 @@ export class ControlsManager {
     );
 
     return [panSpeed, zoomSpeed];
-  }
-
-  /**
-   * Switch to none mode: all controls disabled even if manager is enabled.
-   */
-  setNone(): void {
-    this.switchMode("none");
-  }
-
-  setEnabled(enabled: boolean): void {
-    if (this._enabled === enabled) {
-      return;
-    }
-
-    this._enabled = enabled;
-    this.applyEnabledState();
   }
 
   private applyEnabledState(): void {
@@ -535,13 +460,6 @@ export class ControlsManager {
    */
   getA2Threshold(): number {
     return this.A2;
-  }
-
-  /**
-   * Check if fly mode is available at current altitude.
-   */
-  canEnableFly(): boolean {
-    return this._enabled && this._lastAltitude < this.A2;
   }
 
   /**

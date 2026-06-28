@@ -14,6 +14,9 @@ export default function App() {
   const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
   const [flatFrameUrl, setFlatFrameUrl] = useState("/flat.html");
   const currentCenterGetterRef = useRef<null | (() => Promise<LatLng>)>(null);
+  const focusGroundOrbitAtLatLngRef = useRef<
+    null | ((centerLatlng: LatLng) => Promise<void>)
+  >(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -32,12 +35,14 @@ export default function App() {
       compositor,
       resize,
       getCurrentCenterLatLng,
+      focusGroundOrbitAtLatLng,
       destroyCameraGui,
       destroyStats,
       cleanup,
     } = createScene(host);
 
     currentCenterGetterRef.current = getCurrentCenterLatLng;
+    focusGroundOrbitAtLatLngRef.current = focusGroundOrbitAtLatLng;
 
     setSphere(sceneSphere);
 
@@ -131,6 +136,7 @@ export default function App() {
 
     return () => {
       currentCenterGetterRef.current = null;
+      focusGroundOrbitAtLatLngRef.current = null;
       window.removeEventListener("resize", handleResize);
       window.cancelAnimationFrame(frameId);
       destroyCameraGui();
@@ -160,8 +166,12 @@ export default function App() {
         return;
       }
 
-      // Intentionally left as a NOOP hook for later scene synchronization work.
-      void center;
+      if (!focusGroundOrbitAtLatLngRef.current) {
+        return;
+      }
+
+      void focusGroundOrbitAtLatLngRef.current(center);
+
       setIsFlatModalOpen(false);
     };
 

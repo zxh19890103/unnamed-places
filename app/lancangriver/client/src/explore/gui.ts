@@ -16,8 +16,6 @@ type AttachExploreGuiParameters = {
   applyDemMode: (requested: boolean, zoomLevel: number) => void;
   getGroundOrbitEnabled: () => boolean;
   setGroundOrbitEnabled: (enabled: boolean) => void;
-  onRandomizeGroundOrbit: () => void;
-  getGroundOrbitAngles: () => { azimuthDeg: number; altitudeDeg: number };
 };
 
 export type ExploreGuiHandle = {
@@ -36,8 +34,6 @@ export function attachExploreGui(
     applyDemMode,
     getGroundOrbitEnabled,
     setGroundOrbitEnabled,
-    onRandomizeGroundOrbit,
-    getGroundOrbitAngles,
   } = parameters;
 
   const gui = new GUI({ title: "Explore Camera" });
@@ -170,11 +166,6 @@ export function attachExploreGui(
   const terrainState = {
     demEnabled: getDemEnabled(),
     groundOrbitEnabled: getGroundOrbitEnabled(),
-    randomizeGroundOrbit: () => {
-      onRandomizeGroundOrbit();
-      terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
-      groundOrbitToggleController.updateDisplay();
-    },
   };
 
   const groundOrbitToggleController = terrainFolder
@@ -200,7 +191,7 @@ export function attachExploreGui(
   const flyControlsState = {
     toggle: () => {
       if (controlsManager.isFlyMode()) {
-        controlsManager.disableFly();
+        controlsManager.exitFly();
       } else {
         controlsManager.forceFly();
       }

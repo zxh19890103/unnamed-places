@@ -116,6 +116,11 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
           return;
         }
 
+        if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+          this.pendingSatelliteImage = null;
+          return;
+        }
+
         this.uniforms.uSatelliteReady.value = 1;
         satelliteTexture.image = image;
         satelliteTexture.needsUpdate = true;

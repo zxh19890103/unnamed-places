@@ -10,7 +10,11 @@ import {
   sphereToLatlng,
 } from "../calc/sphere";
 import { Sphere } from "./Sphere.class";
-import { disatanceToZoom, tileBounds4326 } from "../calc/mercator";
+import {
+  disatanceToZoom,
+  latlngToTilekey,
+  zoomToDistance,
+} from "../calc/mercator";
 import { TilesManager } from "./TilesManager.class";
 import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
@@ -32,6 +36,8 @@ const FOG_COLOR = new THREE.Color("#ffffff");
 const SKY_SCALE_MULTIPLIER = 8;
 const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
 const SKY_MAX_SCALE = EARTH_RADIUS * 12;
+const FOCUS_TILE_ZOOM = 12;
+const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
 
 function computeOrbitPositionFromAzimuthAltitude(
   target: THREE.Vector3,
@@ -89,7 +95,8 @@ function computeSunDirectionForLocation(
 }
 
 function getDefaultCenterLatlng(): LatLng {
-  const latlngExpr = `25.0389,102.7183`;
+  // const latlngExpr = `25.0389,102.7183`;
+  const latlngExpr = `40.746,14.498`;
   const [lat, lng] = latlngExpr.split(",").map((seg) => Number(seg));
 
   return {
@@ -209,7 +216,7 @@ export function createScene(container: HTMLElement) {
 
   const groundOrbitState = {
     enabled: false,
-    azimuthDeg: 0,
+    azimuthDeg: 180,
     altitudeDeg: 30,
   };
 
@@ -374,8 +381,18 @@ export function createScene(container: HTMLElement) {
     groundOrbitClouds = null;
   };
 
-  const applyGroundOrbitPlacement = async () => {
-    const center = await getGroundLookAtPoint();
+  const applyGroundOrbitPlacement = async (targetLatlng?: LatLng) => {
+    const center = targetLatlng
+      ? await (async () => {
+          const altitude = await fetchTileAvgAltitude(null);
+          const point = latlngToSphere(
+            targetLatlng.lat,
+            targetLatlng.lng,
+            EARTH_RADIUS + altitude,
+          );
+          return new THREE.Vector3(point.x, point.y, point.z);
+        })()
+      : await getGroundLookAtPoint();
 
     const centerLatlng = sphereToLatlng(center.x, center.y, center.z);
 
@@ -385,8 +402,8 @@ export function createScene(container: HTMLElement) {
 
     const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
       center,
-      180,
-      45,
+      groundOrbitState.azimuthDeg,
+      groundOrbitState.altitudeDeg,
       cameraDistanceMeters,
     );
 
@@ -420,6 +437,82 @@ export function createScene(container: HTMLElement) {
     refreshVisibleTiles();
   };
 
+  const keyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
+
+  const getFocusNeighborTiles = (centerLatlng: LatLng): SphereTileKey[] => {
+    const centerKey = latlngToTilekey(
+      centerLatlng.lng,
+      centerLatlng.lat,
+      FOCUS_TILE_ZOOM,
+    );
+
+    const n = 2 ** FOCUS_TILE_ZOOM;
+    const result: SphereTileKey[] = [];
+
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        const wrappedX = (((centerKey.x + dx) % n) + n) % n;
+        const clampedY = Math.max(0, Math.min(n - 1, centerKey.y + dy));
+
+        result.push({ z: FOCUS_TILE_ZOOM, x: wrappedX, y: clampedY });
+      }
+    }
+
+    return result;
+  };
+
+  const waitForAttachedTiles = async (
+    targetKeys: SphereTileKey[],
+    timeoutMs = FOCUS_TILE_WAIT_TIMEOUT_MS,
+  ) => {
+    const target = new Set(targetKeys.map(keyId));
+    const start = performance.now();
+
+    await new Promise<void>((resolve, reject) => {
+      const check = () => {
+        const attached = tileManager.getAttachedNodes();
+        const attachedIds = new Set(attached.map((node) => keyId(node.key)));
+        const ready = [...target].every((id) => attachedIds.has(id));
+
+        if (ready) {
+          resolve();
+          return;
+        }
+
+        if (performance.now() - start > timeoutMs) {
+          reject(new Error("Timed out waiting for focused tiles to attach"));
+          return;
+        }
+
+        window.requestAnimationFrame(check);
+      };
+
+      check();
+    });
+  };
+
+  const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
+    // Freeze immediately to disable interaction-driven tile loading.
+    tileManager.frozen = true;
+
+    const focusTiles = getFocusNeighborTiles(centerLatlng);
+    tileManager.setNodes(focusTiles);
+
+    try {
+      waitForAttachedTiles(focusTiles);
+    } catch (error) {
+      console.warn("[Tiles] Focused tile preload timed out", error);
+    }
+
+    const camDistance = zoomToDistance(12);
+    const moveCamTo = camera.position.clone();
+    moveCamTo.normalize().setLength(EARTH_RADIUS + camDistance);
+    camera.position.copy(moveCamTo);
+
+    groundOrbitState.enabled = true;
+    await applyGroundOrbitPlacement(centerLatlng);
+  };
+
   const enterGroundOrbit = (azimuthDeg: number, altitudeDeg: number) => {
     groundOrbitState.azimuthDeg = azimuthDeg;
     groundOrbitState.altitudeDeg = altitudeDeg;
@@ -427,16 +520,10 @@ export function createScene(container: HTMLElement) {
     applyGroundOrbitPlacement();
   };
 
-  const randomizeGroundOrbitAngles = () => {
-    const azimuthDeg = Math.random() * 360;
-    const altitudeDeg = 10 + Math.random() * 65;
-    enterGroundOrbit(azimuthDeg, altitudeDeg);
-  };
-
   const setGroundOrbitEnabled = (enabled: boolean) => {
     if (enabled) {
       if (!controlsManager.isGroundOrbitMode()) {
-        randomizeGroundOrbitAngles();
+        enterGroundOrbit(180, 30);
       }
       return;
     }
@@ -455,11 +542,6 @@ export function createScene(container: HTMLElement) {
     applyDemMode,
     getGroundOrbitEnabled: () => groundOrbitState.enabled,
     setGroundOrbitEnabled,
-    onRandomizeGroundOrbit: randomizeGroundOrbitAngles,
-    getGroundOrbitAngles: () => ({
-      azimuthDeg: groundOrbitState.azimuthDeg,
-      altitudeDeg: groundOrbitState.altitudeDeg,
-    }),
   });
 
   const resize = () => {
@@ -502,6 +584,7 @@ export function createScene(container: HTMLElement) {
     compositor,
     resize,
     getCurrentCenterLatLng,
+    focusGroundOrbitAtLatLng,
     destroyCameraGui,
     destroyStats,
     cleanup: () => {
