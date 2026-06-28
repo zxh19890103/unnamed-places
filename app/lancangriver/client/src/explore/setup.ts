@@ -22,7 +22,7 @@ import {
   START_CENTER_LON,
 } from "../calc/constants";
 import { getDateForLocalTimeAtLatLng } from "../calc/timezone";
-import { LatLng } from "../calc/types";
+import { LatLng, SphereTileKey } from "../calc/types";
 import { CloudGeometry } from "./geometries/CloudGeometry.class";
 import { CloudMaterial } from "./materials/CloudMaterial.class";
 
@@ -348,12 +348,19 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  const getGroundCenter = () => {
+  const getGroundLookAtPoint = async () => {
+    const altitude = await fetchTileAvgAltitude(null);
+
     const center = camera.position
       .clone()
       .normalize()
-      .multiplyScalar(EARTH_RADIUS);
+      .multiplyScalar(EARTH_RADIUS + altitude);
+
     return center;
+  };
+
+  const fetchTileAvgAltitude = async (tile: SphereTileKey) => {
+    return 3200;
   };
 
   const clearGroundOrbitClouds = () => {
@@ -367,8 +374,9 @@ export function createScene(container: HTMLElement) {
     groundOrbitClouds = null;
   };
 
-  const applyGroundOrbitPlacement = () => {
-    const center = getGroundCenter();
+  const applyGroundOrbitPlacement = async () => {
+    const center = await getGroundLookAtPoint();
+
     const centerLatlng = sphereToLatlng(center.x, center.y, center.z);
 
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
@@ -390,12 +398,12 @@ export function createScene(container: HTMLElement) {
       latlng: centerLatlng,
       radius: cloudRadius,
       count: 100,
-      maxAltitudeDeg: 8,
+      maxAltitudeDeg: 1,
       bandWidth: 0,
     });
     const cloudMaterial = new CloudMaterial({
       color: "#ffffff",
-      size: 300,
+      size: 600,
       opacity: 0.55,
       softness: 0.6,
       sizeAttenuation: false,

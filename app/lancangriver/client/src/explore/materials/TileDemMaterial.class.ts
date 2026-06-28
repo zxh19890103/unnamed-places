@@ -24,14 +24,21 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
 
     super({
       side: THREE.BackSide,
-      uniforms: {
-        uSatelliteTexture: { value: satelliteTexture },
-        uDemTexture: { value: demTexture },
-        uSatelliteReady: { value: 0 },
-        uDemReady: { value: 0 },
-        uElevationScale: { value: elevationScale },
-        uDemTexelSize: { value: new THREE.Vector2(1 / 256, 1 / 256) },
-      },
+      fog: true,
+      uniforms: THREE.UniformsUtils.merge([
+        THREE.UniformsLib.fog,
+        {
+          uSatelliteTexture: { value: satelliteTexture },
+          uDemTexture: { value: demTexture },
+          uSatelliteReady: { value: 0 },
+          uDemReady: { value: 0 },
+          uElevationScale: { value: elevationScale },
+          uDemTexelSize: { value: new THREE.Vector2(1 / 256, 1 / 256) },
+          uSaturation: { value: 1.0 },
+          uContrast: { value: 1.0 },
+          uGamma: { value: 1.0 },
+        },
+      ]),
       vertexShader: `
       uniform sampler2D uDemTexture;
       uniform float uDemReady;
@@ -40,10 +47,13 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
 
       varying vec2 vUv;
 
+      #include <fog_pars_vertex>
+
       void main() {
         vUv = uv;
 
         vec3 displaced = position;
+
 
         if (uDemReady > 0.5) {
           vec3 demRgb = texture2D(uDemTexture, uv).rgb * 255.0;
@@ -51,20 +61,50 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
           displaced = position + normal * (elevation * uElevationScale);
         }
 
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+        vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+
+        #include <fog_vertex>
       }
     `,
       fragmentShader: `
       uniform sampler2D uSatelliteTexture;
       uniform float uSatelliteReady;
+      uniform vec2 uDemTexelSize;
+      uniform float uSaturation;
+      uniform float uContrast;
+      uniform float uGamma;
 
       varying vec2 vUv;
+
+      #include <fog_pars_fragment>
+
+      vec3 applySaturation(vec3 color, float saturation) {
+        float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+        return mix(vec3(luma), color, saturation);
+      }
+
+      vec3 applyContrast(vec3 color, float contrast) {
+        return clamp((color - 0.5) * contrast + 0.5, 0.0, 1.0);
+      }
+
+      vec3 applyGamma(vec3 color, float gammaValue) {
+        float safeGamma = max(gammaValue, 0.001);
+        return pow(max(color, vec3(0.0)), vec3(1.0 / safeGamma));
+      }
 
       void main() {
         vec3 fallbackColor = vec3(0.2, 0.2, 0.2);
         vec3 satColor = texture2D(uSatelliteTexture, vUv).rgb;
         vec3 outputColor = mix(fallbackColor, satColor, uSatelliteReady);
+
+        outputColor = applyContrast(outputColor, uContrast);
+        outputColor = applySaturation(outputColor, uSaturation);
+        outputColor = applyGamma(outputColor, uGamma);
+
         gl_FragColor = vec4(outputColor, 1.0);
+
+        #include <fog_fragment>
       }
     `,
     });
@@ -92,6 +132,11 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
       `${BASE_URL}/raster/dem/${tileKey.z}/${tileKey.x}/${tileKey.y}.png`,
       (image) => {
         if (!this.pendingDemImage) {
+          return;
+        }
+
+        if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+          this.pendingDemImage = null;
           return;
         }
 
