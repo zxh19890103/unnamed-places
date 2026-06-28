@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { normalizePhotoRecords } from "./normalize";
 import { fetchGeotaggedPhotos, getProdPhotosViaElectron } from "./sources";
+import type { RawPhotoRecord } from "./types";
 import { vi } from "vitest";
 
 afterEach(() => {
@@ -64,12 +65,14 @@ describe("getProdPhotosViaElectron", () => {
 
 describe("fetchGeotaggedPhotos", () => {
   it("uses DEV service adapter when mode is dev", async () => {
+    const photosPayload: RawPhotoRecord[] = [
+      { filePath: "/tmp/a.jpg", lat: 40.7, lng: 14.4, takenAt: null },
+    ];
+
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        photos: [
-          { filePath: "/tmp/a.jpg", lat: 40.7, lng: 14.4, takenAt: null },
-        ],
+      json: async (): Promise<{ photos: RawPhotoRecord[] }> => ({
+        photos: photosPayload,
       }),
     });
 
@@ -107,7 +110,7 @@ describe("fetchGeotaggedPhotos", () => {
     });
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ photos: [] }),
+      json: async (): Promise<{ photos: RawPhotoRecord[] }> => ({ photos: [] }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
