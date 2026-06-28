@@ -61,6 +61,7 @@ function formatLoadingProgress(stats: SphereStatsPayload | null) {
 
 export function SceneMonitor({ sphere }: SceneMonitorProps) {
   const [stats, setStats] = useState<SphereStatsPayload | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!sphere) {
@@ -91,48 +92,50 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
 
   return (
     <aside
-      style={{
-        position: "fixed",
-        left: 12,
-        bottom: 12,
-        zIndex: 30,
-        minWidth: 220,
-        padding: "12px 14px",
-        borderRadius: 12,
-        background: "rgba(8, 10, 14, 0.88)",
-        color: "#ffffff",
-        boxShadow: "0 12px 30px rgba(0, 0, 0, 0.28)",
-        pointerEvents: "auto",
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-      }}
+      className={`fixed bottom-3 left-3 z-30 rounded-xl bg-[rgba(8,10,14,0.88)] px-3.5 py-3 text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] pointer-events-auto font-mono ${
+        isCollapsed ? "min-w-0" : "min-w-56"
+      }`}
     >
-      <div style={{ fontSize: 16, letterSpacing: 0.08, opacity: 0.72 }}>
-        Runtime Monitor
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-base tracking-[0.08em] opacity-70">
+          Runtime Monitor
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed((prev) => !prev)}
+          className="cursor-pointer rounded-lg border border-white/25 bg-white/10 px-2 py-1 text-xs leading-[1.2] text-white transition-colors hover:bg-white/15"
+          aria-label={
+            isCollapsed ? "Open runtime monitor" : "Collapse runtime monitor"
+          }
+        >
+          {isCollapsed ? "Open" : "Collapse"}
+        </button>
       </div>
-      <div style={{ marginTop: 10, display: "grid", gap: 8, fontSize: 13 }}>
-        <div>
-          <div style={{ opacity: 0.68 }}>Camera distance</div>
-          <div>{formatDistance(distanceMeters)}</div>
+      {!isCollapsed && (
+        <div className="mt-2.5 grid gap-2 text-[13px]">
+          <div>
+            <div className="opacity-[0.68]">Camera distance</div>
+            <div>{formatDistance(distanceMeters)}</div>
+          </div>
+          <div>
+            <div className="opacity-[0.68]">Zoom level</div>
+            <div>{formatZoom(zoomLevel)}</div>
+          </div>
+          <div>
+            <div className="opacity-[0.68]">Visible tiles</div>
+            <div>{formatTileCount(visibleTilesCount)}</div>
+          </div>
+          <div>
+            <div className="opacity-[0.68]">Controls mode</div>
+            <div>{formatControlMode(controlMode)}</div>
+          </div>
+          <div>
+            <div className="opacity-[0.68]">Asset loading</div>
+            <div>{formatLoadingProgress(stats)}</div>
+          </div>
+          <TilesBytes />
         </div>
-        <div>
-          <div style={{ opacity: 0.68 }}>Zoom level</div>
-          <div>{formatZoom(zoomLevel)}</div>
-        </div>
-        <div>
-          <div style={{ opacity: 0.68 }}>Visible tiles</div>
-          <div>{formatTileCount(visibleTilesCount)}</div>
-        </div>
-        <div>
-          <div style={{ opacity: 0.68 }}>Controls mode</div>
-          <div>{formatControlMode(controlMode)}</div>
-        </div>
-        <div>
-          <div style={{ opacity: 0.68 }}>Asset loading</div>
-          <div>{formatLoadingProgress(stats)}</div>
-        </div>
-        <TilesBytes />
-      </div>
+      )}
     </aside>
   );
 }
