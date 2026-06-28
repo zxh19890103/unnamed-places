@@ -27,8 +27,8 @@ import { CloudGeometry } from "./geometries/CloudGeometry.class";
 import { CloudMaterial } from "./materials/CloudMaterial.class";
 
 const SKY_DISTANCE = EARTH_RADIUS * 8;
-const SKY_COLOR = new THREE.Color("#b9d9ff");
-const FOG_COLOR = new THREE.Color("#c7dcf5");
+const SKY_COLOR = new THREE.Color("#ffffff");
+const FOG_COLOR = new THREE.Color("#ffffff");
 const SKY_SCALE_MULTIPLIER = 8;
 const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
 const SKY_MAX_SCALE = EARTH_RADIUS * 12;
@@ -122,7 +122,7 @@ export function createScene(container: HTMLElement) {
 
   const skyUniforms = sky.material.uniforms;
   skyUniforms.turbidity.value = 0.01;
-  skyUniforms.rayleigh.value = 0.1;
+  skyUniforms.rayleigh.value = 0.2;
   skyUniforms.mieCoefficient.value = 0.00015;
   skyUniforms.mieDirectionalG.value = 0.05;
   skyUniforms.sunPosition.value.copy(sunDirection);
@@ -484,6 +484,11 @@ export function createScene(container: HTMLElement) {
     }
   };
 
+  const getCurrentCenterLatLng = async () => {
+    const center = await getGroundLookAtPoint();
+    return sphereToLatlng(center.x, center.y, center.z);
+  };
+
   refreshVisibleTiles();
 
   return {
@@ -496,6 +501,7 @@ export function createScene(container: HTMLElement) {
     tileManager,
     compositor,
     resize,
+    getCurrentCenterLatLng,
     destroyCameraGui,
     destroyStats,
     cleanup: () => {

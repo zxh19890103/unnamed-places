@@ -1,0 +1,56 @@
+<svg
+	xmlns="http://www.w3.org/2000/svg"
+	width="64"
+	height="80"
+	viewBox="0 0 64 80"
+	role="img"
+	aria-label="Football marker"
+>
+	<defs>
+		<radialGradient id="ballShade" cx="35%" cy="30%" r="74%">
+			<stop offset="0%" stop-color="#ffffff" />
+			<stop offset="55%" stop-color="#f2f2f2" />
+			<stop offset="100%" stop-color="#cfcfcf" />
+		</radialGradient>
+		<radialGradient id="shine" cx="30%" cy="24%" r="45%">
+			<stop offset="0%" stop-color="#ffffff" stop-opacity="0.92" />
+			<stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+		</radialGradient>
+		<filter id="shadowBlur" x="-90%" y="-90%" width="280%" height="280%">
+			<feGaussianBlur stdDeviation="3" />
+		</filter>
+		<filter id="ballDrop" x="-35%" y="-35%" width="180%" height="220%">
+			<feDropShadow dx="0" dy="3.2" stdDeviation="2.2" flood-color="#000" flood-opacity="0.5" />
+		</filter>
+	</defs>
+
+	<ellipse cx="32" cy="72" rx="24.8" ry="4.9" fill="#000" opacity="0.44" filter="url(#shadowBlur)" />
+
+	<g filter="url(#ballDrop)">
+		<circle cx="32" cy="34" r="25" fill="url(#ballShade)" stroke="#101010" stroke-width="2.2" />
+		<ellipse cx="26.3" cy="27.4" rx="9.4" ry="7.8" fill="url(#shine)" />
+
+		<g fill="#1f1f1f" stroke="#111111" stroke-width="1.45" stroke-linejoin="round">
+			<g transform="translate(32 34) scale(1.22) rotate(0)">
+				<polygon points="0,-9 8.56,-2.78 5.29,7.28 -5.29,7.28 -8.56,-2.78" />
+			</g>
+			<g transform="translate(32 14.24) scale(0.8) rotate(36)">
+				<polygon points="0,-9 8.56,-2.78 5.29,7.28 -5.29,7.28 -8.56,-2.78" />
+			</g>
+			<g transform="translate(50.79 27.89) scale(0.8)  rotate(36)">
+				<polygon points="0,-9 8.56,-2.78 5.29,7.28 -5.29,7.28 -8.56,-2.78" />
+			</g>
+			<g transform="translate(43.61 49.98) scale(0.8)  rotate(36)">
+				<polygon points="0,-9 8.56,-2.78 5.29,7.28 -5.29,7.28 -8.56,-2.78" />
+			</g>
+			<g transform="translate(20.39 49.98) scale(0.8)  rotate(36)">
+				<polygon points="0,-9 8.56,-2.78 5.29,7.28 -5.29,7.28 -8.56,-2.78" />
+			</g>
+			<g transform="translate(13.21 27.89) scale(0.8) rotate(36)">
+				<polygon points="0,-9 8.56,-2.78 5.29,7.28 -5.29,7.28 -8.56,-2.78" />
+			</g>
+		</g>
+
+		<circle cx="24.1" cy="22.9" r="1.1" fill="#ffffff" opacity="0.8" />
+	</g>
+</svg>
