@@ -203,9 +203,10 @@ export function createScene(container: HTMLElement) {
   container.appendChild(renderer.domElement);
 
   const stats = new Stats();
-  stats.dom.style.position = "absolute";
+  stats.dom.style.position = "fixed";
   stats.dom.style.top = "0";
-  stats.dom.style.left = "0";
+  stats.dom.style.left = "";
+  stats.dom.style.right = "265px";
   container.appendChild(stats.dom);
 
   const controlsManager = new ControlsManager({

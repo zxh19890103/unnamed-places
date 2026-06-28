@@ -92,7 +92,7 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
 
   return (
     <aside
-      className={`rounded-xl bg-[rgba(8,10,14,0.88)] px-3.5 py-3 text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] pointer-events-auto font-mono ${
+      className={`rounded-xl bg-[rgba(8,10,14,0.88)] px-3.5 py-3 text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] pointer-events-auto ${
         isCollapsed ? "min-w-0" : "min-w-56"
       }`}
     >

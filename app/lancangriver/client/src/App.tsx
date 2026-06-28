@@ -242,15 +242,19 @@ export default function App() {
   return (
     <div className="relative h-screen w-screen">
       <div ref={hostRef} className="absolute inset-0 overflow-hidden" />
-      <JourneyPanel
-        days={journeyDays}
-        selectedDayKey={selectedDayKey}
-        loading={journeyLoading}
-        error={journeyError}
-        onSelectDay={(dayKey) => {
-          void handleSelectJourneyDay(dayKey);
-        }}
-      />
+
+      <div className="fixed left-4 top-3 z-40 ">
+        <JourneyPanel
+          days={journeyDays}
+          selectedDayKey={selectedDayKey}
+          loading={journeyLoading}
+          error={journeyError}
+          onSelectDay={(dayKey) => {
+            void handleSelectJourneyDay(dayKey);
+          }}
+        />
+      </div>
+
       <div className="fixed right-4 bottom-3  z-40 ">
         <div className=" flex flex-col gap-2">
           <button

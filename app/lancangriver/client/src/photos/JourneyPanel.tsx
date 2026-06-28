@@ -16,7 +16,7 @@ export function JourneyPanel({
   onSelectDay,
 }: JourneyPanelProps) {
   return (
-    <aside className="fixed left-4 top-4 z-40 max-h-[calc(100vh-2rem)] w-[320px] overflow-hidden rounded-xl bg-slate-950/70 p-3 text-white backdrop-blur-sm">
+    <aside className="max-h-[calc(100vh-2rem)] w-[320px] overflow-hidden rounded-xl bg-slate-950/70 p-3 text-white backdrop-blur-sm">
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide">
         Life Journey
       </h2>
