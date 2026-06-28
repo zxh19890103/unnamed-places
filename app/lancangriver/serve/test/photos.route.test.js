@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import { createApp } from '../src/server.js';
 
@@ -77,6 +80,88 @@ describe('GET /photos/geotagged', () => {
       error: {
         code: 'PHOTOS_SCAN_FAILED',
         reason: 'Internal server error'
+      }
+    });
+  });
+});
+
+describe('GET /photos/original/:id', () => {
+  const fixtureDir = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'photos-original');
+  const imagePath = resolve(fixtureDir, 'sample.jpg');
+
+  it('returns original bytes when file exists', async () => {
+    try {
+      await mkdir(fixtureDir, { recursive: true });
+      const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+      await writeFile(imagePath, jpegBytes);
+
+      const app = createApp();
+      const response = await request(app).get(`/photos/original/${encodeURIComponent(imagePath)}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('image/jpeg');
+      expect(Buffer.from(response.body)).toEqual(jpegBytes);
+    } finally {
+      await rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns 404 when file does not exist', async () => {
+    const missingPath = resolve(fixtureDir, 'missing.jpg');
+    const app = createApp();
+    const response = await request(app).get(`/photos/original/${encodeURIComponent(missingPath)}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'PHOTO_FILE_NOT_FOUND',
+        reason: 'Photo file does not exist'
+      }
+    });
+  });
+});
+
+describe('GET /photos/thumb/:id', () => {
+  const fixtureDir = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'photos-thumb');
+  const imagePath = resolve(fixtureDir, 'sample.png');
+  const photosRoot = resolve(fixtureDir, '.photos-cache');
+
+  it('creates and caches a webp thumb', async () => {
+    try {
+      await mkdir(fixtureDir, { recursive: true });
+
+      // 1x1 transparent png
+      const pngBytes = Buffer.from(
+        '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000000020001e221bc330000000049454e44ae426082',
+        'hex'
+      );
+      await writeFile(imagePath, pngBytes);
+
+      const app = createApp({ photosRoot });
+      const id = encodeURIComponent(imagePath);
+
+      const first = await request(app).get(`/photos/thumb/${id}`);
+      expect(first.status).toBe(200);
+      expect(first.headers['content-type']).toContain('image/webp');
+
+      const second = await request(app).get(`/photos/thumb/${id}`);
+      expect(second.status).toBe(200);
+      expect(second.headers['content-type']).toContain('image/webp');
+    } finally {
+      await rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns 404 when source image does not exist', async () => {
+    const missingPath = resolve(fixtureDir, 'missing.png');
+    const app = createApp({ photosRoot });
+    const response = await request(app).get(`/photos/thumb/${encodeURIComponent(missingPath)}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'PHOTO_FILE_NOT_FOUND',
+        reason: 'Photo file does not exist'
       }
     });
   });

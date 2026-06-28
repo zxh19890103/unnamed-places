@@ -8,6 +8,7 @@ release/
 .DS_Store
 .worktrees/
 **/.tiles/
+**/.photos/
 **/.env.local
 **/pipeline/output/
 __legacy

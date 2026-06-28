@@ -587,10 +587,13 @@ export function createScene(container: HTMLElement) {
 
     journeyDay.photoIds.forEach((id) => {
       const photoRec = records.find((rec) => rec.id === id);
+      if (!photoRec) {
+        return;
+      }
 
       const photo = new THREE.Mesh(
-        new PhotoGeometry({ rec: photoRec, size: 400 }),
-        new PhotoMaterial({}),
+        new PhotoGeometry({ rec: photoRec, size: 3000 }),
+        new PhotoMaterial(textureLoader, { rec: photoRec }),
       );
 
       group.add(photo);
