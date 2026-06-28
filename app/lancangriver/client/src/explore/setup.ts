@@ -29,6 +29,9 @@ import { getDateForLocalTimeAtLatLng } from "../calc/timezone";
 import { LatLng, SphereTileKey } from "../calc/types";
 import { CloudGeometry } from "./geometries/CloudGeometry.class";
 import { CloudMaterial } from "./materials/CloudMaterial.class";
+import { PhotoGeometry } from "./geometries/PhotoGeometry.class";
+import { PhotoMaterial } from "./materials/PhotoMaterial.class";
+import { JourneyDayNode, PhotoRecord } from "../photos/types";
 
 const SKY_DISTANCE = EARTH_RADIUS * 8;
 const SKY_COLOR = new THREE.Color("#ffffff");
@@ -572,6 +575,40 @@ export function createScene(container: HTMLElement) {
     return sphereToLatlng(center.x, center.y, center.z);
   };
 
+  let showPhotosLocationsDispose: VoidFunction = null;
+  const showPhotosLocations = (
+    journeyDay: JourneyDayNode,
+    records: PhotoRecord[],
+  ) => {
+    showPhotosLocationsDispose?.();
+
+    const group = new THREE.Group();
+    const photos: THREE.Mesh<PhotoGeometry, PhotoMaterial>[] = [];
+
+    journeyDay.photoIds.forEach((id) => {
+      const photoRec = records.find((rec) => rec.id === id);
+
+      const photo = new THREE.Mesh(
+        new PhotoGeometry({ rec: photoRec, size: 400 }),
+        new PhotoMaterial({}),
+      );
+
+      group.add(photo);
+      photos.push(photo);
+    });
+
+    scene.add(group);
+
+    showPhotosLocationsDispose = () => {
+      for (const photo of photos) {
+        photo.geometry.dispose();
+        photo.material.dispose();
+      }
+
+      scene.remove(group);
+    };
+  };
+
   refreshVisibleTiles();
 
   return {
@@ -588,6 +625,7 @@ export function createScene(container: HTMLElement) {
     focusGroundOrbitAtLatLng,
     destroyCameraGui,
     destroyStats,
+    showPhotosLocations,
     cleanup: () => {
       clearGroundOrbitClouds();
       sphereGlobal.dispose();

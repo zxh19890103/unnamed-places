@@ -28,5 +28,7 @@ export type JourneyDayNode = {
 
 export type JourneyBuildResult = {
   days: JourneyDayNode[];
+  buckets: Map<string, PhotoRecord[]>;
+  records: PhotoRecord[];
   skippedInvalidCoordinateCount: number;
 };

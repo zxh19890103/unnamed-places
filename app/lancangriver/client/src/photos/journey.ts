@@ -76,6 +76,8 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
 
   return {
     days,
+    records,
+    buckets,
     skippedInvalidCoordinateCount,
   };
 }

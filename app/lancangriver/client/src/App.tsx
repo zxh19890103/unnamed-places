@@ -10,7 +10,7 @@ import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from "./flat/protocol";
 import { JourneyPanel } from "./photos/JourneyPanel";
 import { buildJourneyDays } from "./photos/journey";
 import { fetchGeotaggedPhotos } from "./photos/sources";
-import type { JourneyDayNode } from "./photos/types";
+import type { JourneyDayNode, PhotoRecord } from "./photos/types";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -18,13 +18,16 @@ export default function App() {
   const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
   const [flatFrameUrl, setFlatFrameUrl] = useState("/flat.html");
   const [journeyDays, setJourneyDays] = useState<JourneyDayNode[]>([]);
+  const [journeyRecords, setJourneyRecords] = useState<PhotoRecord[]>([]);
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
   const [journeyError, setJourneyError] = useState<string | null>(null);
   const [journeyLoading, setJourneyLoading] = useState(false);
+
   const currentCenterGetterRef = useRef<null | (() => Promise<LatLng>)>(null);
   const focusGroundOrbitAtLatLngRef = useRef<
     null | ((centerLatlng: LatLng) => Promise<void>)
   >(null);
+  const showPhotosLocationsRef = useRef<(...args: any[]) => void>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -46,11 +49,13 @@ export default function App() {
       focusGroundOrbitAtLatLng,
       destroyCameraGui,
       destroyStats,
+      showPhotosLocations,
       cleanup,
     } = createScene(host);
 
     currentCenterGetterRef.current = getCurrentCenterLatLng;
     focusGroundOrbitAtLatLngRef.current = focusGroundOrbitAtLatLng;
+    showPhotosLocationsRef.current = showPhotosLocations;
 
     setSphere(sceneSphere);
 
@@ -207,8 +212,9 @@ export default function App() {
           : await fetchGeotaggedPhotos({ mode: "prod" });
 
       const journey = buildJourneyDays(photos);
+
+      setJourneyRecords(journey.records);
       setJourneyDays(journey.days);
-      setSelectedDayKey(journey.days[0]?.dayKey ?? null);
       setJourneyError(null);
 
       console.log("Loaded geotagged photos", photos);
@@ -234,6 +240,8 @@ export default function App() {
         lat: selectedDay.representativeLat,
         lng: selectedDay.representativeLng,
       });
+
+      showPhotosLocationsRef.current(selectedDay, journeyRecords);
     } catch (error) {
       console.warn("Failed to focus journey day", error);
     }
