@@ -7,13 +7,20 @@ import type { LatLng } from "./calc/types";
 import type { Sphere } from "./explore/Sphere.class";
 import type { TileNode } from "./explore/TilesManager.class";
 import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from "./flat/protocol";
+import { JourneyPanel } from "./photos/JourneyPanel";
+import { buildJourneyDays } from "./photos/journey";
 import { fetchGeotaggedPhotos } from "./photos/sources";
+import type { JourneyDayNode } from "./photos/types";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
   const [sphere, setSphere] = useState<Sphere | null>(null);
   const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
   const [flatFrameUrl, setFlatFrameUrl] = useState("/flat.html");
+  const [journeyDays, setJourneyDays] = useState<JourneyDayNode[]>([]);
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const [journeyError, setJourneyError] = useState<string | null>(null);
+  const [journeyLoading, setJourneyLoading] = useState(false);
   const currentCenterGetterRef = useRef<null | (() => Promise<LatLng>)>(null);
   const focusGroundOrbitAtLatLngRef = useRef<
     null | ((centerLatlng: LatLng) => Promise<void>)
@@ -190,18 +197,60 @@ export default function App() {
   };
 
   const handleLoadGeotaggedPhotos = async () => {
-    const mode = import.meta.env.DEV ? "dev" : "prod";
-    const photos =
-      mode === "dev"
-        ? await fetchGeotaggedPhotos({ mode: "dev" })
-        : await fetchGeotaggedPhotos({ mode: "prod" });
+    setJourneyLoading(true);
 
-    console.log("Loaded geotagged photos", photos);
+    try {
+      const mode = import.meta.env.DEV ? "dev" : "prod";
+      const photos =
+        mode === "dev"
+          ? await fetchGeotaggedPhotos({ mode: "dev" })
+          : await fetchGeotaggedPhotos({ mode: "prod" });
+
+      const journey = buildJourneyDays(photos);
+      setJourneyDays(journey.days);
+      setSelectedDayKey(journey.days[0]?.dayKey ?? null);
+      setJourneyError(null);
+
+      console.log("Loaded geotagged photos", photos);
+      console.log("Built life journey", journey);
+    } catch (error) {
+      console.warn("Failed to load life journey photos", error);
+      setJourneyError("Could not load photos");
+    } finally {
+      setJourneyLoading(false);
+    }
+  };
+
+  const handleSelectJourneyDay = async (dayKey: string) => {
+    setSelectedDayKey(dayKey);
+
+    const selectedDay = journeyDays.find((day) => day.dayKey === dayKey);
+    if (!selectedDay || !focusGroundOrbitAtLatLngRef.current) {
+      return;
+    }
+
+    try {
+      await focusGroundOrbitAtLatLngRef.current({
+        lat: selectedDay.representativeLat,
+        lng: selectedDay.representativeLng,
+      });
+    } catch (error) {
+      console.warn("Failed to focus journey day", error);
+    }
   };
 
   return (
     <div className="relative h-screen w-screen">
       <div ref={hostRef} className="absolute inset-0 overflow-hidden" />
+      <JourneyPanel
+        days={journeyDays}
+        selectedDayKey={selectedDayKey}
+        loading={journeyLoading}
+        error={journeyError}
+        onSelectDay={(dayKey) => {
+          void handleSelectJourneyDay(dayKey);
+        }}
+      />
       <div className="fixed right-4 bottom-3  z-40 ">
         <div className=" flex flex-col gap-2">
           <button

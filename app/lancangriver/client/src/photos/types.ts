@@ -15,3 +15,18 @@ export type RawPhotoRecord = {
   longitude?: number;
   takenAt?: string | null;
 };
+
+export type JourneyDayNode = {
+  dayKey: string;
+  displayLabel: string;
+  photoCount: number;
+  representativeLat: number;
+  representativeLng: number;
+  placeChips: string[];
+  photoIds: string[];
+};
+
+export type JourneyBuildResult = {
+  days: JourneyDayNode[];
+  skippedInvalidCoordinateCount: number;
+};
