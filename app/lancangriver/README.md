@@ -68,6 +68,17 @@ bash scripts/smoke.sh
 - `GET /raster/dem/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y/png`
 
+## Geotagged Photos Mode Matrix
+
+- DEV (`npm run dev`): client button calls `GET /photos/geotagged?root=...` on local service.
+- PROD (packaged Electron): client button triggers preload bridge `window.electronPhotos.pickAndLoadGeotaggedPhotos()`.
+- Shared client payload contract:
+  - `id: string`
+  - `filePath: string`
+  - `lat: number`
+  - `lng: number`
+  - `takenAt: string | null`
+
 ## Raster Cache
 
 Default tile cache root is `.tiles/` (git-ignored):

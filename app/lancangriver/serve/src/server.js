@@ -7,6 +7,7 @@ import { createHealthRouter } from './routes/health.js';
 import { createRasterRouter } from './routes/raster.js';
 import { createStatsRouter } from './routes/stats.js';
 import { createVectorRouter } from './routes/vector.js';
+import { createPhotosRouter } from './routes/photos.js';
 
 export function createApp(options = {}) {
   const app = express();
@@ -17,6 +18,7 @@ export function createApp(options = {}) {
   app.use(createRasterRouter(options));
   app.use(createStatsRouter(options));
   app.use(createVectorRouter(options));
+  app.use(createPhotosRouter(options));
 
   return app;
 }

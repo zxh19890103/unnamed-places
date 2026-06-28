@@ -7,6 +7,7 @@ import type { LatLng } from "./calc/types";
 import type { Sphere } from "./explore/Sphere.class";
 import type { TileNode } from "./explore/TilesManager.class";
 import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from "./flat/protocol";
+import { fetchGeotaggedPhotos } from "./photos/sources";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -188,17 +189,42 @@ export default function App() {
     setIsFlatModalOpen(true);
   };
 
+  const handleLoadGeotaggedPhotos = async () => {
+    const mode = import.meta.env.DEV ? "dev" : "prod";
+    const photos =
+      mode === "dev"
+        ? await fetchGeotaggedPhotos({ mode: "dev" })
+        : await fetchGeotaggedPhotos({ mode: "prod" });
+
+    console.log("Loaded geotagged photos", photos);
+  };
+
   return (
     <div className="relative h-screen w-screen">
       <div ref={hostRef} className="absolute inset-0 overflow-hidden" />
-      <button
-        type="button"
-        onClick={() => void openFlatModal()}
-        className="absolute right-4 bottom-4 z-40 rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
-      >
-        Open flat map
-      </button>
-      <SceneMonitor sphere={sphere} />
+      <div className="fixed right-4 bottom-3  z-40 ">
+        <div className=" flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => void openFlatModal()}
+            className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
+          >
+            Open flat map
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleLoadGeotaggedPhotos()}
+            className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
+          >
+            Load geotagged photos
+          </button>
+        </div>
+      </div>
+
+      <div className="fixed bottom-3 left-4 z-30 ">
+        <SceneMonitor sphere={sphere} />
+      </div>
+
       {isFlatModalOpen && (
         <div className="absolute inset-0 z-1994 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
           <div className="relative h-[80vh] w-[80vw] overflow-hidden rounded-2xl bg-white shadow-2xl">

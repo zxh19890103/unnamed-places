@@ -50,9 +50,21 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 
 - `GET /health`
 - `GET /vector?bbox=minLon,minLat,maxLon,maxLat`
+- `GET /photos/geotagged?root=/absolute/folder/path`
 - `GET /raster/satellite/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y/png`
+
+## Geotagged Photos Mode Matrix
+
+- DEV: client calls `GET /photos/geotagged?root=...` on this local service.
+- PROD: packaged Electron uses folder picker + preload bridge instead of this endpoint.
+- Shared payload contract (same shape in both modes):
+  - `id: string`
+  - `filePath: string`
+  - `lat: number`
+  - `lng: number`
+  - `takenAt: string | null`
 
 ## Vector table contract
 
