@@ -1,5 +1,5 @@
 ---
-done: true
+done: yes
 ---
 
 # Sudden Idea

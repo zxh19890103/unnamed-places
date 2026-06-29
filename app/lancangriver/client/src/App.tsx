@@ -25,7 +25,7 @@ export default function App() {
 
   const currentCenterGetterRef = useRef<null | (() => Promise<LatLng>)>(null);
   const focusGroundOrbitAtLatLngRef = useRef<
-    null | ((centerLatlng: LatLng) => Promise<void>)
+    null | ((centerLatlng: LatLng) => Promise<any>)
   >(null);
   const showPhotosLocationsRef = useRef<(...args: any[]) => void>(null);
 
@@ -236,12 +236,18 @@ export default function App() {
     }
 
     try {
-      await focusGroundOrbitAtLatLngRef.current({
-        lat: selectedDay.representativeLat,
-        lng: selectedDay.representativeLng,
-      });
+      const { focusTiles, centerTile } =
+        await focusGroundOrbitAtLatLngRef.current({
+          lat: selectedDay.representativeLat,
+          lng: selectedDay.representativeLng,
+        });
 
-      showPhotosLocationsRef.current(selectedDay, journeyRecords);
+      showPhotosLocationsRef.current(
+        selectedDay,
+        journeyRecords,
+        focusTiles,
+        centerTile,
+      );
     } catch (error) {
       console.warn("Failed to focus journey day", error);
     }

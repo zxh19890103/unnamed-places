@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { disatanceToZoom, zoomToDistance } from "./mercator";
+import { disatanceToZoom, mergeTileExtents, zoomToDistance } from "./mercator";
 import { latlngToTilekey } from "./mercator";
 
 const MIN_ZOOM = 0;
@@ -90,5 +90,28 @@ describe("mercator tile key wrapping", () => {
 
     expect(keyA.x).toBe(keyB.x);
     expect(keyA.y).toBe(keyB.y);
+  });
+});
+
+describe("mergeTileExtents", () => {
+  it("returns the union bounding box for all extents", () => {
+    expect(
+      mergeTileExtents(
+        { west: -10, south: -5, east: 5, north: 10 },
+        { west: -20, south: -3, east: 8, north: 12 },
+        { west: -15, south: -8, east: 12, north: 6 },
+      ),
+    ).toEqual({
+      west: -20,
+      south: -8,
+      east: 12,
+      north: 12,
+    });
+  });
+
+  it("throws when called without extents", () => {
+    expect(() => mergeTileExtents()).toThrow(
+      "mergeTileExtents requires at least one extent",
+    );
   });
 });

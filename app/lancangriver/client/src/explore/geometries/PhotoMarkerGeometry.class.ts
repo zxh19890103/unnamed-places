@@ -12,7 +12,7 @@ type Parameters = {
   ratio?: number;
 };
 
-export class PhotoGeometry extends THREE.BufferGeometry {
+export class PhotoMarkerGeometry extends THREE.BufferGeometry {
   constructor(params: Parameters) {
     super();
 
@@ -82,18 +82,11 @@ export class PhotoGeometry extends THREE.BufferGeometry {
 
     const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
 
-    const t = (rec.lat - worldExtent.south) / worldExtent.latSpan;
-    const s = (rec.lng - worldExtent.west) / worldExtent.lngSpan;
-
-    console.log(s, t);
-
-    const uv0s = new Float32Array([s, t, s, t, s, t, s, t]);
     const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
 
     this.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     this.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
     this.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    this.setAttribute("uv0", new THREE.BufferAttribute(uv0s, 2));
 
     this.setIndex(new THREE.BufferAttribute(indices, 1));
     this.computeBoundingSphere();

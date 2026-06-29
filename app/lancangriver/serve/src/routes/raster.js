@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { access, mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import sharp from 'sharp';
 
 const DEFAULT_SATELLITE_URL_TEMPLATE = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=4';
 const DEFAULT_DEM_PNG_URL_TEMPLATE = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 const MAX_DEM_ZOOM = 15;
+const DEM_TILE_SIZE = 256;
 
 function templateUrl(template, values) {
   return template.replace(/\{([^}]+)\}/g, (_match, key) => {
@@ -59,6 +61,34 @@ function parseTileCoordinate(value) {
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
+function parseExtent(value, fallback = 1) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return parsed >= 1 ? parsed : null;
+}
+
+function parseScale(value, fallback = 1) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    return 1;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (parsed <= 1) return 1;
+  return Math.min(parsed, 8);
+}
+
 function validateTileCoordinates(z, x, y) {
   if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y)) {
     return false;
@@ -92,6 +122,56 @@ export function buildRasterPaths(rasterRoot, z, x, y) {
     satellitePath: join(tileRoot, 'satellite.jpeg'),
     demPngPath: join(tileRoot, 'dem.png')
   };
+}
+
+function buildDemComposePath(composedRoot, z, x, y, extent, scale = 1) {
+  return resolve(
+    composedRoot,
+    'dem',
+    String(z),
+    String(x),
+    String(y),
+    `e${extent}-s${scale}.png`
+  );
+}
+
+function buildNeighborTiles(z, centerX, centerY, extent) {
+  const n = 2 ** z;
+  const size = extent + 2;
+  const tiles = [];
+
+  for (let row = 0; row < size; row += 1) {
+    for (let col = 0; col < size; col += 1) {
+      const dx = col - extent;
+      const dy = row - extent;
+      const rawX = centerX + dx;
+      const rawY = centerY + dy;
+      const wrappedX = ((rawX % n) + n) % n;
+      const clampedY = Math.max(0, Math.min(n - 1, rawY));
+
+      tiles.push({
+        x: wrappedX,
+        y: clampedY,
+        row,
+        col
+      });
+    }
+  }
+
+  return { size, tiles };
+}
+
+async function createTransparentTilePng() {
+  return sharp({
+    create: {
+      width: DEM_TILE_SIZE,
+      height: DEM_TILE_SIZE,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    }
+  })
+    .png()
+    .toBuffer();
 }
 
 async function downloadToFile(url, filePath, fetchImpl) {
@@ -130,17 +210,22 @@ async function defaultFetchDemPngTile(z, x, y, rasterOptions) {
 
 const satelliteInFlight = createInFlightMap();
 const demPngInFlight = createInFlightMap();
+const demComposeInFlight = createInFlightMap();
 
 function createRasterHandlerOptions(options = {}) {
   const rasterOptions = options.raster ?? options;
+  const rasterRoot = rasterOptions.rasterRoot ? resolve(rasterOptions.rasterRoot) : resolve('.tiles');
 
   return {
-    rasterRoot: rasterOptions.rasterRoot ? resolve(rasterOptions.rasterRoot) : resolve('.tiles'),
+    rasterRoot,
+    projRoot: resolve(rasterRoot, '../'),
+    composedRoot: resolve(rasterRoot, '../.composed'),
     satelliteUrlTemplate: rasterOptions.satelliteUrlTemplate ?? DEFAULT_SATELLITE_URL_TEMPLATE,
     demPngUrlTemplate: rasterOptions.demPngUrlTemplate ?? DEFAULT_DEM_PNG_URL_TEMPLATE,
     fetchImpl: rasterOptions.fetchImpl ?? fetch,
     fetchSatelliteTile: rasterOptions.fetchSatelliteTile,
-    fetchDemPngTile: rasterOptions.fetchDemPngTile
+    fetchDemPngTile: rasterOptions.fetchDemPngTile,
+    composeDemNeighborhood: rasterOptions.composeDemNeighborhood
   };
 }
 
@@ -180,6 +265,57 @@ export function createRasterRouter(options = {}) {
   const fetchDemPngTile =
     rasterOptions.fetchDemPngTile ?? ((z, x, y) => defaultFetchDemPngTile(z, x, y, rasterOptions));
 
+  const composeDemNeighborhood =
+    rasterOptions.composeDemNeighborhood ??
+    (async (z, x, y, extent, scale = 1) => {
+      const outputPath = buildDemComposePath(rasterOptions.composedRoot, z, x, y, extent, scale);
+
+      if (await isExistingPath(outputPath)) {
+        return { outputPath, cached: true };
+      }
+
+      const { size, tiles } = buildNeighborTiles(z, x, y, extent);
+      const transparentTile = await createTransparentTilePng();
+      const inputs = [];
+
+      for (const tile of tiles) {
+        const left = tile.col * DEM_TILE_SIZE;
+        const top = tile.row * DEM_TILE_SIZE;
+
+        try {
+          const tileResult = await fetchDemPngTileOnce(z, tile.x, tile.y);
+          const tilePath = tileResult.pngPath ?? tileResult.path;
+          inputs.push({ input: tilePath, left, top });
+        } catch {
+          inputs.push({ input: transparentTile, left, top });
+        }
+      }
+
+      await ensureDirectory(outputPath);
+
+      const outputWidth = Math.max(1, Math.floor((size * DEM_TILE_SIZE) / scale));
+      const outputHeight = Math.max(1, Math.floor((size * DEM_TILE_SIZE) / scale));
+
+      const pipeline = sharp({
+        create: {
+          width: size * DEM_TILE_SIZE,
+          height: size * DEM_TILE_SIZE,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      })
+        .composite(inputs)
+        .resize(outputWidth, outputHeight, {
+          fit: 'fill',
+          kernel: sharp.kernel.lanczos3
+        })
+        .png();
+
+      await pipeline.toFile(outputPath);
+
+      return { outputPath, cached: false };
+    });
+
   async function fetchSatelliteTileOnce(z, x, y) {
     const { satellitePath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
     return runWithInFlight(satelliteInFlight, satellitePath, () => fetchSatelliteTile(z, x, y));
@@ -188,6 +324,27 @@ export function createRasterRouter(options = {}) {
   async function fetchDemPngTileOnce(z, x, y) {
     const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
     return runWithInFlight(demPngInFlight, demPngPath, () => fetchDemPngTile(z, x, y));
+  }
+
+  async function composeDemNeighborhoodOnce(z, x, y, extent, scale = 1) {
+    const outputPath = buildDemComposePath(rasterOptions.composedRoot, z, x, y, extent, scale);
+
+    if (await isExistingPath(outputPath)) {
+      return { outputPath, cached: true };
+    }
+
+    return runWithInFlight(demComposeInFlight, outputPath, async () => {
+      if (await isExistingPath(outputPath)) {
+        return { outputPath, cached: true };
+      }
+
+      const result = await composeDemNeighborhood(z, x, y, extent, scale);
+
+      return {
+        outputPath: result.outputPath ?? result.path ?? outputPath,
+        cached: result.cached ?? false
+      };
+    });
   }
 
   router.get('/raster/satellite/:z/:x/:y.jpeg', async (req, res) => {
@@ -230,6 +387,37 @@ export function createRasterRouter(options = {}) {
       await sendRasterFile(res, pngPath, 'image/png');
     } catch (error) {
       sendRasterError(res, 500, 'DEM_PNG_STREAM_FAILED', 'Internal server error');
+    }
+  });
+
+  router.get('/raster/dem/:z/:x/:y/compose.png', async (req, res) => {
+    const z = parseTileCoordinate(req.params.z);
+    const x = parseTileCoordinate(req.params.x);
+    const y = parseTileCoordinate(req.params.y);
+
+    const extent = parseExtent(req.query.extent, 1);
+    const scale = parseScale(req.query.scale, 1);
+
+    if (!validateTileCoordinates(z, x, y)) {
+      sendRasterError(res, 400, 'INVALID_TILE_COORDINATES', 'Invalid z/x/y tile coordinates');
+      return;
+    }
+
+    if (z > MAX_DEM_ZOOM) {
+      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'DEM tiles only support zoom levels up to 15');
+      return;
+    }
+
+    if (extent === null) {
+      sendRasterError(res, 400, 'INVALID_EXTENT', 'extent must be an integer >= 1');
+      return;
+    }
+
+    try {
+      const composeResult = await composeDemNeighborhoodOnce(z, x, y, extent, scale);
+      await sendRasterFile(res, composeResult.outputPath, 'image/png');
+    } catch (_error) {
+      sendRasterError(res, 500, 'DEM_COMPOSE_STREAM_FAILED', 'Internal server error');
     }
   });
 

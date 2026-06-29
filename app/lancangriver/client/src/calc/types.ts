@@ -9,6 +9,16 @@ export type LatLng = {
   lng: number;
 };
 
+export type WorldExtent = {
+  north: number;
+  east: number;
+  west: number;
+  south: number;
+
+  latSpan: number;
+  lngSpan: number;
+};
+
 export type SphereTileKey = {
   z: number;
   x: number;

@@ -1,33 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { latlngToSphere, sphereToLatlng } from "./sphere";
+import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "./sphere";
 
 describe("sphere helpers", () => {
-  it("maps equator and prime meridian to +X", () => {
+  it("maps equator and prime meridian to +Z", () => {
     const point = latlngToSphere(0, 0);
-    expect(point.x).toBeCloseTo(1, 12);
-    expect(point.y).toBeCloseTo(0, 12);
-    expect(point.z).toBeCloseTo(0, 12);
-  });
-
-  it("maps equator and 90E to +Z", () => {
-    const point = latlngToSphere(0, 90);
     expect(point.x).toBeCloseTo(0, 12);
     expect(point.y).toBeCloseTo(0, 12);
-    expect(point.z).toBeCloseTo(1, 12);
+    expect(point.z).toBeCloseTo(EARTH_RADIUS, 10);
+  });
+
+  it("maps equator and 90E to +X", () => {
+    const point = latlngToSphere(0, 90);
+    expect(point.x).toBeCloseTo(EARTH_RADIUS, 10);
+    expect(point.y).toBeCloseTo(0, 12);
+    expect(point.z).toBeCloseTo(0, 9);
   });
 
   it("maps north pole to +Y", () => {
     const point = latlngToSphere(90, 0);
     expect(point.x).toBeCloseTo(0, 12);
-    expect(point.y).toBeCloseTo(1, 12);
-    expect(point.z).toBeCloseTo(0, 12);
+    expect(point.y).toBeCloseTo(EARTH_RADIUS, 10);
+    expect(point.z).toBeCloseTo(0, 9);
   });
 
   it("supports radius scaling", () => {
     const point = latlngToSphere(0, -90, 10);
-    expect(point.x).toBeCloseTo(0, 10);
+    expect(point.x).toBeCloseTo(-10, 10);
     expect(point.y).toBeCloseTo(0, 10);
-    expect(point.z).toBeCloseTo(-10, 10);
+    expect(point.z).toBeCloseTo(0, 10);
   });
 
   it("round-trips lat/lng for non-polar coordinates", () => {

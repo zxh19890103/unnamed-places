@@ -1,3 +1,8 @@
+---
+done: yes
+comment: defined a customized Geometry and Material for photo markers instead.
+---
+
 # Sudden Idea
 
 ## Source Prompt

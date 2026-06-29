@@ -13,6 +13,8 @@ import { Sphere } from "./Sphere.class";
 import {
   disatanceToZoom,
   latlngToTilekey,
+  mergeTileExtents,
+  tileExtent,
   zoomToDistance,
 } from "../calc/mercator";
 import { TilesManager } from "./TilesManager.class";
@@ -21,6 +23,7 @@ import { ControlsManager, type ControlMode } from "./ControlsManager.class";
 import { LowAltitudeTileCompositor } from "./LowAltitudeTileCompositor.class";
 import { attachExploreGui, type ExploreGuiHandle } from "./gui";
 import {
+  BASE_URL,
   MAX_DEM_ZOOM,
   START_CENTER_LAT,
   START_CENTER_LON,
@@ -29,9 +32,9 @@ import { getDateForLocalTimeAtLatLng } from "../calc/timezone";
 import { LatLng, SphereTileKey } from "../calc/types";
 import { CloudGeometry } from "./geometries/CloudGeometry.class";
 import { CloudMaterial } from "./materials/CloudMaterial.class";
-import { PhotoGeometry } from "./geometries/PhotoGeometry.class";
-import { PhotoMaterial } from "./materials/PhotoMaterial.class";
 import { JourneyDayNode, PhotoRecord } from "../photos/types";
+import { PhotoMarkerGeometry } from "./geometries/PhotoMarkerGeometry.class";
+import { PhotoMarkerMaterial } from "./materials/PhotoMarkerMaterial.class";
 
 const SKY_DISTANCE = EARTH_RADIUS * 8;
 const SKY_COLOR = new THREE.Color("#ffffff");
@@ -443,7 +446,12 @@ export function createScene(container: HTMLElement) {
 
   const keyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
 
-  const getFocusNeighborTiles = (centerLatlng: LatLng): SphereTileKey[] => {
+  const getFocusNeighborTiles = (
+    centerLatlng: LatLng,
+  ): {
+    centerTile: SphereTileKey;
+    focusTiles: SphereTileKey[];
+  } => {
     const centerKey = latlngToTilekey(
       centerLatlng.lng,
       centerLatlng.lat,
@@ -462,7 +470,7 @@ export function createScene(container: HTMLElement) {
       }
     }
 
-    return result;
+    return { centerTile: centerKey, focusTiles: result };
   };
 
   const waitForAttachedTiles = async (
@@ -499,7 +507,7 @@ export function createScene(container: HTMLElement) {
     // Freeze immediately to disable interaction-driven tile loading.
     tileManager.frozen = true;
 
-    const focusTiles = getFocusNeighborTiles(centerLatlng);
+    const { focusTiles, centerTile } = getFocusNeighborTiles(centerLatlng);
     tileManager.setNodes(focusTiles);
 
     try {
@@ -515,6 +523,8 @@ export function createScene(container: HTMLElement) {
 
     groundOrbitState.enabled = true;
     await applyGroundOrbitPlacement(centerLatlng);
+
+    return { centerTile, focusTiles };
   };
 
   const enterGroundOrbit = (azimuthDeg: number, altitudeDeg: number) => {
@@ -579,11 +589,22 @@ export function createScene(container: HTMLElement) {
   const showPhotosLocations = (
     journeyDay: JourneyDayNode,
     records: PhotoRecord[],
+    tiles: SphereTileKey[],
+    centerTile: SphereTileKey,
   ) => {
     showPhotosLocationsDispose?.();
 
     const group = new THREE.Group();
-    const photos: THREE.Mesh<PhotoGeometry, PhotoMaterial>[] = [];
+    const photos: THREE.Mesh<PhotoMarkerGeometry, PhotoMarkerMaterial>[] = [];
+
+    const worldExtent = mergeTileExtents(
+      ...tiles.map((tile) => tileExtent(tile.z, tile.x, tile.y)),
+    );
+
+    const waterDropTexture = textureLoader.load("/waterdrop.svg");
+    const worldDemTexture = textureLoader.load(
+      `${BASE_URL}/raster/dem/${centerTile.z}/${centerTile.x}/${centerTile.y}/compose.png`,
+    );
 
     journeyDay.photoIds.forEach((id) => {
       const photoRec = records.find((rec) => rec.id === id);
@@ -592,8 +613,19 @@ export function createScene(container: HTMLElement) {
       }
 
       const photo = new THREE.Mesh(
-        new PhotoGeometry({ rec: photoRec, size: 3000 }),
-        new PhotoMaterial(textureLoader, { rec: photoRec }),
+        new PhotoMarkerGeometry({
+          rec: photoRec,
+          size: 800,
+          ratio: 1,
+          worldExtent: worldExtent,
+        }),
+
+        new PhotoMarkerMaterial(textureLoader, {
+          map: waterDropTexture,
+          rec: photoRec,
+          worldDemTexture: worldDemTexture,
+          worldExtent: worldExtent,
+        }),
       );
 
       group.add(photo);
@@ -603,12 +635,17 @@ export function createScene(container: HTMLElement) {
     scene.add(group);
 
     showPhotosLocationsDispose = () => {
+      scene.remove(group);
+
       for (const photo of photos) {
         photo.geometry.dispose();
         photo.material.dispose();
       }
 
-      scene.remove(group);
+      waterDropTexture.dispose();
+      worldDemTexture.dispose();
+
+      showPhotosLocationsDispose = null;
     };
   };
 
