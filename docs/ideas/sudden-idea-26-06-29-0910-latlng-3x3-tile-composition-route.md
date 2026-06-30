@@ -1,3 +1,7 @@
+---
+done: yes
+---
+
 # Sudden Idea
 
 ## Source Prompt

@@ -43,6 +43,12 @@ const SKY_SCALE_MULTIPLIER = 8;
 const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
 const SKY_MAX_SCALE = EARTH_RADIUS * 12;
 const FOCUS_TILE_ZOOM = 12;
+const FOCUS_TILE_EXTENT = {
+  x0: -2,
+  y0: -2,
+  x1: 2,
+  y1: 2,
+};
 const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
 
 function computeOrbitPositionFromAzimuthAltitude(
@@ -363,18 +369,23 @@ export function createScene(container: HTMLElement) {
   };
 
   const getGroundLookAtPoint = async () => {
-    const altitude = await fetchTileAvgAltitude(null);
-
     const center = camera.position
       .clone()
       .normalize()
-      .multiplyScalar(EARTH_RADIUS + altitude);
+      .multiplyScalar(EARTH_RADIUS);
 
-    return center;
+    const latlng = sphereToLatlng(center.x, center.y, center.z);
+    const tile12 = latlngToTilekey(latlng.lng, latlng.lat, FOCUS_TILE_ZOOM);
+    const altitude = await fetchTileAvgAltitude(tile12);
+
+    return center.setLength(EARTH_RADIUS + altitude);
   };
 
   const fetchTileAvgAltitude = async (tile: SphereTileKey) => {
-    return 3200;
+    const json = await fetch(
+      `${BASE_URL}/raster/dem/${tile.z}/${tile.x}/${tile.y}/altitude`,
+    ).then((r) => r.json());
+    return json?.max ?? 0;
   };
 
   const clearGroundOrbitClouds = () => {
@@ -391,12 +402,20 @@ export function createScene(container: HTMLElement) {
   const applyGroundOrbitPlacement = async (targetLatlng?: LatLng) => {
     const center = targetLatlng
       ? await (async () => {
-          const altitude = await fetchTileAvgAltitude(null);
+          const tile12 = latlngToTilekey(
+            targetLatlng.lng,
+            targetLatlng.lat,
+            FOCUS_TILE_ZOOM,
+          );
+
+          const altitude = await fetchTileAvgAltitude(tile12);
+
           const point = latlngToSphere(
             targetLatlng.lat,
             targetLatlng.lng,
             EARTH_RADIUS + altitude,
           );
+
           return new THREE.Vector3(point.x, point.y, point.z);
         })()
       : await getGroundLookAtPoint();
@@ -461,8 +480,8 @@ export function createScene(container: HTMLElement) {
     const n = 2 ** FOCUS_TILE_ZOOM;
     const result: SphereTileKey[] = [];
 
-    for (let dy = -1; dy <= 1; dy += 1) {
-      for (let dx = -1; dx <= 1; dx += 1) {
+    for (let dy = FOCUS_TILE_EXTENT.y0; dy <= FOCUS_TILE_EXTENT.y1; dy += 1) {
+      for (let dx = FOCUS_TILE_EXTENT.x0; dx <= FOCUS_TILE_EXTENT.x1; dx += 1) {
         const wrappedX = (((centerKey.x + dx) % n) + n) % n;
         const clampedY = Math.max(0, Math.min(n - 1, centerKey.y + dy));
 
@@ -516,7 +535,7 @@ export function createScene(container: HTMLElement) {
       console.warn("[Tiles] Focused tile preload timed out", error);
     }
 
-    const camDistance = zoomToDistance(12);
+    const camDistance = zoomToDistance(FOCUS_TILE_ZOOM);
     const moveCamTo = camera.position.clone();
     moveCamTo.normalize().setLength(EARTH_RADIUS + camDistance);
     camera.position.copy(moveCamTo);
@@ -531,6 +550,7 @@ export function createScene(container: HTMLElement) {
     groundOrbitState.azimuthDeg = azimuthDeg;
     groundOrbitState.altitudeDeg = altitudeDeg;
     groundOrbitState.enabled = true;
+
     applyGroundOrbitPlacement();
   };
 

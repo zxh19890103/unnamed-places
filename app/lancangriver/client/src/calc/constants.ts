@@ -1,6 +1,6 @@
 export const BASE_URL = "http://localhost:4050";
 export const TILE_SIZE = 256;
-export const ELEVATION_SCALE = 4.4;
+export const ELEVATION_SCALE = 3.4;
 export const FLY_MOVEMENT_SPEED = 10;
 export const FLY_ROLL_SPEED = 0.1;
 export const FIXED_VIEW_ANGLE = Math.PI / 4;

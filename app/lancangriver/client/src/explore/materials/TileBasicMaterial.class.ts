@@ -38,9 +38,31 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
 
       varying vec2 vUv;
 
+
+      float calcExgr(vec3 rgb) {
+
+        float total = rgb.r + rgb.g + rgb.b + 0.000001;
+
+        float rn = rgb.r / total;
+        float gn = rgb.g / total;
+        float bn = rgb.b / total;
+
+        float exg = 2.0 * gn - rn - bn;
+        float exr = 1.4 * rn - gn;
+        float exgr = exg - exr;
+
+        return exgr;
+      }
+
       void main() {
         vec4 color = texture2D(uSatelliteTexture, vUv);
-        vec3 outputColor = mix(uColor, color.rgb, uTextureReady);
+
+        float exgr = calcExgr(color.rgb);
+        float exgr01 = clamp(exgr * 0.5 + 0.5, 0.0, 1.0);
+        float exgr02 = smoothstep(0.4, 1.0, exgr01);
+        vec3 blended = mix(color.rgb, vec3(0.243, 0.561, 0.294), exgr02);
+
+        vec3 outputColor = mix(uColor, blended, uTextureReady);
 
         gl_FragColor = vec4(outputColor, 1.0);
       }

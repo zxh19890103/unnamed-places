@@ -16,7 +16,7 @@ export class PhotoGeometry extends THREE.BufferGeometry {
   constructor(params: Parameters) {
     super();
 
-    const { rec, size = 180, ratio = 4 / 3, worldExtent } = params;
+    const { size = 180, ratio = 4 / 3, worldExtent } = params;
 
     if (!Number.isFinite(size) || size <= 0) {
       throw new Error("PhotoGeometry size must be a finite number > 0");
@@ -26,29 +26,19 @@ export class PhotoGeometry extends THREE.BufferGeometry {
       throw new Error("PhotoGeometry ratio must be a finite number > 0");
     }
 
-    const anchor = latlngToSphere(rec.lat, rec.lng);
+    const anchorLng = worldExtent.west + worldExtent.lngSpan * 0.5;
+    const anchor = latlngToSphere(worldExtent.north, anchorLng);
     const center = new THREE.Vector3(anchor.x, anchor.y, anchor.z);
-    const { up, east } = getLocalBasisAtPoint(center);
+    const { up, east, north } = getLocalBasisAtPoint(center);
 
     const halfX = size * 0.5;
-    const sizeZ = size / ratio;
+    const sizeY = size / ratio;
+    const south = north.clone().multiplyScalar(-1);
 
-    const v0 = center
-      .clone()
-      .addScaledVector(east, -halfX)
-      .addScaledVector(up, 0);
-    const v1 = center
-      .clone()
-      .addScaledVector(east, halfX)
-      .addScaledVector(up, 0);
-    const v2 = center
-      .clone()
-      .addScaledVector(east, halfX)
-      .addScaledVector(up, sizeZ);
-    const v3 = center
-      .clone()
-      .addScaledVector(east, -halfX)
-      .addScaledVector(up, sizeZ);
+    const v0 = center.clone().addScaledVector(east, -halfX);
+    const v1 = center.clone().addScaledVector(east, halfX);
+    const v2 = v1.clone().addScaledVector(up, sizeY);
+    const v3 = v0.clone().addScaledVector(up, sizeY);
 
     const positions = new Float32Array([
       v0.x,
@@ -66,36 +56,28 @@ export class PhotoGeometry extends THREE.BufferGeometry {
     ]);
 
     const normals = new Float32Array([
-      up.x,
-      up.y,
-      up.z,
-      up.x,
-      up.y,
-      up.z,
-      up.x,
-      up.y,
-      up.z,
-      up.x,
-      up.y,
-      up.z,
+      south.x,
+      south.y,
+      south.z,
+      south.x,
+      south.y,
+      south.z,
+      south.x,
+      south.y,
+      south.z,
+      south.x,
+      south.y,
+      south.z,
     ]);
 
     const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
-
-    const t = (rec.lat - worldExtent.south) / worldExtent.latSpan;
-    const s = (rec.lng - worldExtent.west) / worldExtent.lngSpan;
-
-    console.log(s, t);
-
-    const uv0s = new Float32Array([s, t, s, t, s, t, s, t]);
     const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
 
     this.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     this.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
     this.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    this.setAttribute("uv0", new THREE.BufferAttribute(uv0s, 2));
-
     this.setIndex(new THREE.BufferAttribute(indices, 1));
+
     this.computeBoundingSphere();
   }
 }

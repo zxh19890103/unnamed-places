@@ -132,6 +132,74 @@ describe('GET /raster/dem/:z/:x/:y', () => {
   });
 });
 
+describe('GET /raster/dem/:z/:x/:y/altitude', () => {
+  it('computes altitude stats and persists a sidecar json file', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-altitude-'));
+
+    try {
+      const tileDir = join(tempRoot, '11', '1024', '768');
+      const pngPath = join(tileDir, 'dem.png');
+      const altitudePath = join(tileDir, 'dem.altitude.json');
+
+      await mkdir(tileDir, { recursive: true });
+
+      const pngBuffer = await sharp({
+        create: {
+          width: 2,
+          height: 2,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 1 }
+        }
+      })
+        .raw()
+        .toBuffer();
+
+      const pixels = Buffer.from(pngBuffer);
+      pixels[0] = 128; pixels[1] = 0; pixels[2] = 0; pixels[3] = 255;
+      pixels[4] = 128; pixels[5] = 0; pixels[6] = 128; pixels[7] = 255;
+      pixels[8] = 129; pixels[9] = 0; pixels[10] = 0; pixels[11] = 255;
+      pixels[12] = 129; pixels[13] = 0; pixels[14] = 128; pixels[15] = 255;
+
+      const demPng = await sharp(pixels, { raw: { width: 2, height: 2, channels: 4 } })
+        .png()
+        .toBuffer();
+
+      await writeFile(pngPath, demPng);
+
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const response = await request(app).get('/raster/dem/11/1024/768/altitude');
+
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
+      expect(response.body.kind).toBe('dem-altitude');
+      expect(response.body.path).toBe(altitudePath);
+      expect(response.body.cached).toBe(false);
+      expect(response.body.min).toBeCloseTo(0, 8);
+      expect(response.body.max).toBeCloseTo(256.5, 8);
+      expect(response.body.avg).toBeCloseTo(128.25, 8);
+
+      const sidecar = JSON.parse(await import('node:fs/promises').then(({ readFile }) => readFile(altitudePath, 'utf8')));
+      expect(sidecar).toEqual({
+        min: response.body.min,
+        max: response.body.max,
+        avg: response.body.avg
+      });
+
+      const cachedResponse = await request(app).get('/raster/dem/11/1024/768/altitude');
+      expect(cachedResponse.status).toBe(200);
+      expect(cachedResponse.body.cached).toBe(true);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('GET /raster/dem/:z/:x/:y/png', () => {
   it('returns dem png metadata from local zxy folder', async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));

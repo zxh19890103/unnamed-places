@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { access, mkdir, rename, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import sharp from 'sharp';
 
@@ -120,7 +120,8 @@ export function buildRasterPaths(rasterRoot, z, x, y) {
   return {
     tileRoot,
     satellitePath: join(tileRoot, 'satellite.jpeg'),
-    demPngPath: join(tileRoot, 'dem.png')
+    demPngPath: join(tileRoot, 'dem.png'),
+    demAltitudePath: join(tileRoot, 'dem.altitude.json')
   };
 }
 
@@ -229,7 +230,11 @@ function createRasterHandlerOptions(options = {}) {
   };
 }
 
-function sendRasterError(res, status, code, reason) {
+function sendRasterError(res, status, code, reason, runtimeError = null) {
+  if (runtimeError) {
+    console.log('[SendRasterError]', runtimeError);
+  }
+
   res.status(status).json({
     error: {
       code,
@@ -254,6 +259,58 @@ async function sendRasterFile(res, filePath, contentType) {
       resolveSend();
     });
   });
+}
+
+async function readDemAltitudeFromPng(pngPath) {
+  const { data, info } = await sharp(pngPath).raw().toBuffer({ resolveWithObject: true });
+
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let sum = 0;
+  let count = 0;
+
+  for (let offset = 0; offset < data.length; offset += info.channels) {
+    const r = data[offset];
+    const g = data[offset + 1];
+    const b = data[offset + 2];
+    const elevation = (r * 256.0 + g + b / 256.0) - 32768.0;
+
+    if (elevation < min) {
+      min = elevation;
+    }
+
+    if (elevation > max) {
+      max = elevation;
+    }
+
+    sum += elevation;
+    count += 1;
+  }
+
+  return {
+    min,
+    max,
+    avg: count > 0 ? sum / count : 0
+  };
+}
+
+async function ensureDemAltitudeMetadata(rasterOptions, z, x, y, fetchDemPngTileOnce) {
+  const { demPngPath, demAltitudePath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
+
+  if (await isExistingPath(demAltitudePath)) {
+    const cached = await readFile(demAltitudePath, 'utf8');
+    return { path: demAltitudePath, cached: true, ...JSON.parse(cached) };
+  }
+
+  if (!(await isExistingPath(demPngPath))) {
+    await fetchDemPngTileOnce(z, x, y);
+  }
+
+  const altitude = await readDemAltitudeFromPng(demPngPath);
+  await ensureDirectory(demAltitudePath);
+  await writeAtomicFile(demAltitudePath, `${JSON.stringify(altitude)}\n`);
+
+  return { path: demAltitudePath, cached: false, ...altitude };
 }
 
 export function createRasterRouter(options = {}) {
@@ -362,7 +419,7 @@ export function createRasterRouter(options = {}) {
       const satellitePath = satelliteResult.satellitePath ?? satelliteResult.path;
       await sendRasterFile(res, satellitePath, 'image/jpeg');
     } catch (_error) {
-      sendRasterError(res, 500, 'SATELLITE_TILE_STREAM_FAILED', 'Internal server error');
+      sendRasterError(res, 500, 'SATELLITE_TILE_STREAM_FAILED', 'Internal server error', _error);
     }
   });
 
@@ -387,6 +444,44 @@ export function createRasterRouter(options = {}) {
       await sendRasterFile(res, pngPath, 'image/png');
     } catch (error) {
       sendRasterError(res, 500, 'DEM_PNG_STREAM_FAILED', 'Internal server error');
+    }
+  });
+
+  router.get('/raster/dem/:z/:x/:y/altitude', async (req, res) => {
+    const z = parseTileCoordinate(req.params.z);
+    const x = parseTileCoordinate(req.params.x);
+    const y = parseTileCoordinate(req.params.y);
+
+    if (!validateTileCoordinates(z, x, y)) {
+      sendRasterError(res, 400, 'INVALID_TILE_COORDINATES', 'Invalid z/x/y tile coordinates');
+      return;
+    }
+
+    if (z > MAX_DEM_ZOOM) {
+      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'DEM tiles only support zoom levels up to 15');
+      return;
+    }
+
+    try {
+      const altitudeResult = await ensureDemAltitudeMetadata(
+        rasterOptions,
+        z,
+        x,
+        y,
+        fetchDemPngTileOnce,
+      );
+
+      res.status(200).json({
+        ok: true,
+        kind: 'dem-altitude',
+        path: altitudeResult.path,
+        cached: altitudeResult.cached,
+        min: altitudeResult.min,
+        max: altitudeResult.max,
+        avg: altitudeResult.avg
+      });
+    } catch (_error) {
+      sendRasterError(res, 500, 'DEM_ALTITUDE_FAILED', 'Internal server error', _error);
     }
   });
 
@@ -421,6 +516,7 @@ export function createRasterRouter(options = {}) {
     }
   });
 
+  //#region fetch images and save, then returns info
   router.get('/raster/satellite/:z/:x/:y', async (req, res) => {
     const z = parseTileCoordinate(req.params.z);
     const x = parseTileCoordinate(req.params.x);
@@ -500,6 +596,7 @@ export function createRasterRouter(options = {}) {
       sendRasterError(res, 500, 'DEM_PNG_RENDER_FAILED', 'Internal server error');
     }
   });
+  //#endregion
 
   return router;
 }

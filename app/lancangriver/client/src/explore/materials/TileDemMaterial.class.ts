@@ -37,6 +37,7 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
           uSaturation: { value: 1.0 },
           uContrast: { value: 1.0 },
           uGamma: { value: 1.0 },
+          uColor: { value: new THREE.Color(0xffffff) },
         },
       ]),
       vertexShader: `
@@ -54,7 +55,6 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
 
         vec3 displaced = position;
 
-
         if (uDemReady > 0.5) {
           vec3 demRgb = texture2D(uDemTexture, uv).rgb * 255.0;
           float elevation = (demRgb.r * 256.0 + demRgb.g + demRgb.b / 256.0) - 32768.0;
@@ -71,9 +71,11 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
       uniform sampler2D uSatelliteTexture;
       uniform float uSatelliteReady;
       uniform vec2 uDemTexelSize;
+
       uniform float uSaturation;
       uniform float uContrast;
       uniform float uGamma;
+      uniform vec3 uColor;
 
       varying vec2 vUv;
 
@@ -93,10 +95,30 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         return pow(max(color, vec3(0.0)), vec3(1.0 / safeGamma));
       }
 
+      float calcExgr(vec3 rgb) {
+
+        float total = rgb.r + rgb.g + rgb.b + 0.000001;
+
+        float rn = rgb.r / total;
+        float gn = rgb.g / total;
+        float bn = rgb.b / total;
+
+        float exg = 2.0 * gn - rn - bn;
+        float exr = 1.4 * rn - gn;
+        float exgr = exg - exr;
+
+        return exgr;
+      }
+
       void main() {
-        vec3 fallbackColor = vec3(0.2, 0.2, 0.2);
-        vec3 satColor = texture2D(uSatelliteTexture, vUv).rgb;
-        vec3 outputColor = mix(fallbackColor, satColor, uSatelliteReady);
+        vec3 color = texture2D(uSatelliteTexture, vUv).rgb;
+
+        float exgr = calcExgr(color.rgb);
+        float exgr01 = clamp(exgr * 0.5 + 0.5, 0.0, 1.0);
+        float exgr02 = smoothstep(0.4, 1.0, exgr01);
+        vec3 blended = mix(color.rgb, vec3(0.243, 0.561, 0.294), exgr02);
+
+        vec3 outputColor = mix(uColor, blended, uSatelliteReady);
 
         outputColor = applyContrast(outputColor, uContrast);
         outputColor = applySaturation(outputColor, uSaturation);
@@ -155,6 +177,7 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         demTexture.generateMipmaps = false;
         demTexture.image = image;
         demTexture.needsUpdate = true;
+
         this.pendingDemImage = null;
       },
       undefined,
