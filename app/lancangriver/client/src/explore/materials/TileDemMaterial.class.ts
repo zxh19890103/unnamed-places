@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { BASE_URL, ELEVATION_SCALE } from "../../calc/constants";
 import { SphereTileKey } from "../../calc/types";
+import vertexShader from "./shaders/tiledem.vert.glsl?raw";
+import fragmentShader from "./shaders/tiledem.frag.glsl?raw";
 
 type Parameters = {
   tileKey: SphereTileKey;
@@ -27,6 +29,7 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
       fog: true,
       uniforms: THREE.UniformsUtils.merge([
         THREE.UniformsLib.fog,
+        THREE.UniformsLib.lights,
         {
           uSatelliteTexture: { value: satelliteTexture },
           uDemTexture: { value: demTexture },
@@ -37,98 +40,13 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
           uSaturation: { value: 1.0 },
           uContrast: { value: 1.0 },
           uGamma: { value: 1.0 },
+          uVegLightStrength: { value: 6.0 },
           uColor: { value: new THREE.Color(0xffffff) },
         },
       ]),
-      vertexShader: `
-      uniform sampler2D uDemTexture;
-      uniform float uDemReady;
-      uniform float uElevationScale;
-      uniform vec2 uDemTexelSize;
-
-      varying vec2 vUv;
-
-      #include <fog_pars_vertex>
-
-      void main() {
-        vUv = uv;
-
-        vec3 displaced = position;
-
-        if (uDemReady > 0.5) {
-          vec3 demRgb = texture2D(uDemTexture, uv).rgb * 255.0;
-          float elevation = (demRgb.r * 256.0 + demRgb.g + demRgb.b / 256.0) - 32768.0;
-          displaced = position + normal * (elevation * uElevationScale);
-        }
-
-        vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
-        gl_Position = projectionMatrix * mvPosition;
-
-        #include <fog_vertex>
-      }
-    `,
-      fragmentShader: `
-      uniform sampler2D uSatelliteTexture;
-      uniform float uSatelliteReady;
-      uniform vec2 uDemTexelSize;
-
-      uniform float uSaturation;
-      uniform float uContrast;
-      uniform float uGamma;
-      uniform vec3 uColor;
-
-      varying vec2 vUv;
-
-      #include <fog_pars_fragment>
-
-      vec3 applySaturation(vec3 color, float saturation) {
-        float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-        return mix(vec3(luma), color, saturation);
-      }
-
-      vec3 applyContrast(vec3 color, float contrast) {
-        return clamp((color - 0.5) * contrast + 0.5, 0.0, 1.0);
-      }
-
-      vec3 applyGamma(vec3 color, float gammaValue) {
-        float safeGamma = max(gammaValue, 0.001);
-        return pow(max(color, vec3(0.0)), vec3(1.0 / safeGamma));
-      }
-
-      float calcExgr(vec3 rgb) {
-
-        float total = rgb.r + rgb.g + rgb.b + 0.000001;
-
-        float rn = rgb.r / total;
-        float gn = rgb.g / total;
-        float bn = rgb.b / total;
-
-        float exg = 2.0 * gn - rn - bn;
-        float exr = 1.4 * rn - gn;
-        float exgr = exg - exr;
-
-        return exgr;
-      }
-
-      void main() {
-        vec3 color = texture2D(uSatelliteTexture, vUv).rgb;
-
-        float exgr = calcExgr(color.rgb);
-        float exgr01 = clamp(exgr * 0.5 + 0.5, 0.0, 1.0);
-        float exgr02 = smoothstep(0.4, 1.0, exgr01);
-        vec3 blended = mix(color.rgb, vec3(0.243, 0.561, 0.294), exgr02);
-
-        vec3 outputColor = mix(uColor, blended, uSatelliteReady);
-
-        outputColor = applyContrast(outputColor, uContrast);
-        outputColor = applySaturation(outputColor, uSaturation);
-        outputColor = applyGamma(outputColor, uGamma);
-
-        gl_FragColor = vec4(outputColor, 1.0);
-
-        #include <fog_fragment>
-      }
-    `,
+      lights: true,
+      vertexShader,
+      fragmentShader,
     });
 
     this.pendingSatelliteImage = imageLoader.load(

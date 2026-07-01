@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { BASE_URL } from "../../calc/constants";
 import { PhotoRecord } from "../../photos/types";
+import vertexShader from "./shaders/photo.vert.glsl?raw";
+import fragmentShader from "./shaders/photo.frag.glsl?raw";
 
 type Parameters = {
   color?: THREE.ColorRepresentation;
@@ -33,24 +35,8 @@ export class PhotoMaterial extends THREE.ShaderMaterial {
         uColor: { value: new THREE.Color(color) },
         uMap: { value: thumbTexture ?? fallbackTexture },
       },
-      vertexShader: /* glsl */ `
-        varying vec2 vUv;
-
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        uniform vec3 uColor;
-        uniform sampler2D uMap;
-        varying vec2 vUv;
-
-        void main() {
-          vec4 texel = texture2D(uMap, vUv);
-          gl_FragColor = vec4(texel.rgb * uColor, texel.a);
-        }
-      `,
+      vertexShader,
+      fragmentShader,
       side: THREE.DoubleSide,
       transparent: true,
       depthWrite: true,
