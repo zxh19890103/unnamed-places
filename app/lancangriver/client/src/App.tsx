@@ -23,7 +23,7 @@ export default function App() {
   const [journeyError, setJourneyError] = useState<string | null>(null);
   const [journeyLoading, setJourneyLoading] = useState(false);
 
-  const currentCenterGetterRef = useRef<null | (() => Promise<LatLng>)>(null);
+  const currentCenterGetterRef = useRef<null | (() => LatLng)>(null);
   const focusGroundOrbitAtLatLngRef = useRef<
     null | ((centerLatlng: LatLng) => Promise<any>)
   >(null);
@@ -109,36 +109,36 @@ export default function App() {
       controlsManager.update(delta);
 
       // Update compositor when tiles are frozen (fly or groundOrbit mode), throttled
-      if (tileManager.frozen && now - lastCompositorUpdate > 300) {
-        const attachedNodes = tileManager.getAttachedNodes();
-        const lookedAtNode = getCenterLookedTileNode(attachedNodes);
+      // if (tileManager.frozen && now - lastCompositorUpdate > 300) {
+      //   const attachedNodes = tileManager.getAttachedNodes();
+      //   const lookedAtNode = getCenterLookedTileNode(attachedNodes);
 
-        const tilesToCompose = attachedNodes
-          .filter((node) => node.tile)
-          .map((node) => {
-            return {
-              node,
-              tile: node.tile!,
-              // for testing
-              cameraDistance: node === lookedAtNode ? 11_000 : 31_000,
-            };
-          })
-          .sort((a, b) => {
-            if (a.node === lookedAtNode) {
-              return -1;
-            }
-            if (b.node === lookedAtNode) {
-              return 1;
-            }
-            return 0;
-          });
+      //   const tilesToCompose = attachedNodes
+      //     .filter((node) => node.tile)
+      //     .map((node) => {
+      //       return {
+      //         node,
+      //         tile: node.tile!,
+      //         // for testing
+      //         cameraDistance: node === lookedAtNode ? 11_000 : 31_000,
+      //       };
+      //     })
+      //     .sort((a, b) => {
+      //       if (a.node === lookedAtNode) {
+      //         return -1;
+      //       }
+      //       if (b.node === lookedAtNode) {
+      //         return 1;
+      //       }
+      //       return 0;
+      //     });
 
-        if (tilesToCompose.length > 0) {
-          void compositor.updateForTiles(tilesToCompose);
-        }
+      //   if (tilesToCompose.length > 0) {
+      //     void compositor.updateForTiles(tilesToCompose);
+      //   }
 
-        lastCompositorUpdate = now;
-      }
+      //   lastCompositorUpdate = now;
+      // }
 
       stats.update();
       renderer.render(scene, camera);

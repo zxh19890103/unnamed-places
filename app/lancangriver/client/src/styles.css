@@ -17,3 +17,7 @@ body,
   height: 100%;
   font-family: "Poiret One", sans-serif;
 }
+
+.spin-when-moving {
+  transition: transform 0.3s ease-in;
+}

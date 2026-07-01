@@ -3,9 +3,10 @@ import * as L from "leaflet";
 import type { LatLng } from "../calc/types";
 
 const INITIAL_ZOOM = 8;
-const FOOTBALL_MARKER_ICON = L.icon({
-  iconUrl: "/marker.svg",
+const FOOTBALL_MARKER_ICON = L.divIcon({
+  html: `<img src="/marker.svg" style="width: 100%" />`,
   iconSize: [44, 56],
+  className: "spin-when-moving",
   iconAnchor: [22, 52],
   popupAnchor: [0, -46],
 });

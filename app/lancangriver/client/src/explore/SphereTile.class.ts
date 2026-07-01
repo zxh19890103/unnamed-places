@@ -5,6 +5,7 @@ import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
 import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
+import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
 
 type TileSurfaceMaterial = TileBasicMaterial | TileDemMaterial;
 
@@ -35,7 +36,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
       skirtDepth: SphereTile.SKIRT_DEPTH_METERS,
     });
 
-    const material = new TileBasicMaterial(textureLoader, {
+    const material = new TileCleanMaterial(textureLoader, {
       tileKey: tile,
     });
 

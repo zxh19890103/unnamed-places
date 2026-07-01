@@ -319,6 +319,9 @@ export function createScene(container: HTMLElement) {
     }
   };
 
+  /**
+   * I have no idea of this?
+   */
   const syncSkyWithCamera = (
     orbitCenter: THREE.Vector3,
     cameraDistanceMeters: number,
@@ -368,24 +371,26 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  const getGroundLookAtPoint = async () => {
-    const center = camera.position
-      .clone()
-      .normalize()
-      .multiplyScalar(EARTH_RADIUS);
+  const getCurrentCameraLatlng = () => {
+    const pos = camera.position;
+    return sphereToLatlng(pos.x, pos.y, pos.z);
+  };
 
-    const latlng = sphereToLatlng(center.x, center.y, center.z);
-    const tile12 = latlngToTilekey(latlng.lng, latlng.lat, FOCUS_TILE_ZOOM);
-    const altitude = await fetchTileAvgAltitude(tile12);
+  const getLowAltitudeViewPoint = async (at: LatLng, alt: number = null) => {
+    const tile12 = latlngToTilekey(at.lng, at.lat, FOCUS_TILE_ZOOM);
 
-    return center.setLength(EARTH_RADIUS + altitude);
+    const altitude = alt === null ? await fetchTileAvgAltitude(tile12) : alt;
+
+    const point = latlngToSphere(at.lat, at.lng, EARTH_RADIUS + altitude);
+
+    return new THREE.Vector3(point.x, point.y, point.z);
   };
 
   const fetchTileAvgAltitude = async (tile: SphereTileKey) => {
     const json = await fetch(
       `${BASE_URL}/raster/dem/${tile.z}/${tile.x}/${tile.y}/altitude`,
     ).then((r) => r.json());
-    return json?.max ?? 0;
+    return (json?.max ?? 0) + 5_000;
   };
 
   const clearGroundOrbitClouds = () => {
@@ -400,34 +405,16 @@ export function createScene(container: HTMLElement) {
   };
 
   const applyGroundOrbitPlacement = async (targetLatlng?: LatLng) => {
-    const center = targetLatlng
-      ? await (async () => {
-          const tile12 = latlngToTilekey(
-            targetLatlng.lng,
-            targetLatlng.lat,
-            FOCUS_TILE_ZOOM,
-          );
+    const orbitLatlng = targetLatlng ?? getCurrentCameraLatlng();
+    const orbitTarget = await getLowAltitudeViewPoint(orbitLatlng, 5_000);
 
-          const altitude = await fetchTileAvgAltitude(tile12);
+    const cameraDistanceMeters =
+      2.5 * (camera.position.length() - EARTH_RADIUS);
 
-          const point = latlngToSphere(
-            targetLatlng.lat,
-            targetLatlng.lng,
-            EARTH_RADIUS + altitude,
-          );
-
-          return new THREE.Vector3(point.x, point.y, point.z);
-        })()
-      : await getGroundLookAtPoint();
-
-    const centerLatlng = sphereToLatlng(center.x, center.y, center.z);
-
-    const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-
-    syncSkyWithCamera(center, cameraDistanceMeters);
+    syncSkyWithCamera(orbitTarget, cameraDistanceMeters);
 
     const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
-      center,
+      orbitTarget,
       groundOrbitState.azimuthDeg,
       groundOrbitState.altitudeDeg,
       cameraDistanceMeters,
@@ -438,7 +425,7 @@ export function createScene(container: HTMLElement) {
     const cloudRadius = 10 * cameraDistanceMeters;
 
     const cloudGeometry = new CloudGeometry({
-      latlng: centerLatlng,
+      latlng: orbitLatlng,
       radius: cloudRadius,
       count: 100,
       maxAltitudeDeg: 1,
@@ -455,12 +442,23 @@ export function createScene(container: HTMLElement) {
       atlasGrid: 4,
     });
     groundOrbitClouds = new THREE.Points(cloudGeometry, cloudMaterial);
-    groundOrbitClouds.position.copy(center);
+    groundOrbitClouds.position.copy(orbitTarget);
 
     scene.add(groundOrbitClouds);
 
-    controlsManager.enterGroundOrbit(center, orbitPosition);
+    controlsManager.enterGroundOrbit(orbitTarget, orbitPosition);
     refreshVisibleTiles();
+
+    const newOrbitTarget = await getLowAltitudeViewPoint(orbitLatlng);
+    syncSkyWithCamera(newOrbitTarget, cameraDistanceMeters);
+    const newOrbitPosition = computeOrbitPositionFromAzimuthAltitude(
+      newOrbitTarget,
+      groundOrbitState.azimuthDeg,
+      groundOrbitState.altitudeDeg,
+      cameraDistanceMeters,
+    );
+    groundOrbitClouds.position.copy(newOrbitTarget);
+    controlsManager.enterGroundOrbit(newOrbitTarget, newOrbitPosition);
   };
 
   const keyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
@@ -546,18 +544,10 @@ export function createScene(container: HTMLElement) {
     return { centerTile, focusTiles };
   };
 
-  const enterGroundOrbit = (azimuthDeg: number, altitudeDeg: number) => {
-    groundOrbitState.azimuthDeg = azimuthDeg;
-    groundOrbitState.altitudeDeg = altitudeDeg;
-    groundOrbitState.enabled = true;
-
-    applyGroundOrbitPlacement();
-  };
-
   const setGroundOrbitEnabled = (enabled: boolean) => {
     if (enabled) {
       if (!controlsManager.isGroundOrbitMode()) {
-        enterGroundOrbit(180, 30);
+        focusGroundOrbitAtLatLng(getCurrentCameraLatlng());
       }
       return;
     }
@@ -598,11 +588,6 @@ export function createScene(container: HTMLElement) {
     if (stats.dom.parentElement === container) {
       container.removeChild(stats.dom);
     }
-  };
-
-  const getCurrentCenterLatLng = async () => {
-    const center = await getGroundLookAtPoint();
-    return sphereToLatlng(center.x, center.y, center.z);
   };
 
   let showPhotosLocationsDispose: VoidFunction = null;
@@ -681,7 +666,7 @@ export function createScene(container: HTMLElement) {
     tileManager,
     compositor,
     resize,
-    getCurrentCenterLatLng,
+    getCurrentCenterLatLng: getCurrentCameraLatlng,
     focusGroundOrbitAtLatLng,
     destroyCameraGui,
     destroyStats,
