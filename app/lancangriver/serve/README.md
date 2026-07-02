@@ -43,6 +43,7 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - `PORT`: service port (default `4050`)
 - `DATABASE_URL`: required for `/vector` (example: `postgres://user:pass@localhost:5432/lancangriver`)
 - `OPENTOPOGRAPHY_API_KEY` or `OPEN_TOPOGRAPHY_API_KEY`: required for DEM tile download
+- `OSM_OVERPASS_ENDPOINT` (optional): override Overpass API endpoint for OSM ingest jobs
 - `SATELLITE_URL_TEMPLATE` (optional): override Google satellite URL template
 - `OPENTOPOGRAPHY_URL_TEMPLATE` (optional): override DEM URL template
 
@@ -50,10 +51,19 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 
 - `GET /health`
 - `GET /vector?bbox=minLon,minLat,maxLon,maxLat`
+- `GET /vector/tiles/:z/:x/:y.pbf`
 - `GET /photos/geotagged?root=/absolute/folder/path`
 - `GET /raster/satellite/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y/png`
+
+## Vector Tile Endpoint (Async Coverage)
+
+- Endpoint: `GET /vector/tiles/:z/:x/:y.pbf`
+- Request path computes covering zoom-12 canonical tiles for dedupe-safe ingest jobs.
+- If required coverage is missing or still ingesting, the service returns `204 No Content` and queues missing jobs.
+- Once coverage is marked `done`, the endpoint returns `200` with `application/x-protobuf` (MVT pbf bytes).
+- A background worker fetches OSM data from Overpass, upserts into `public.vector_features`, and updates job states.
 
 ## Geotagged Photos Mode Matrix
 

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 const VECTOR_BBOX_SQL = readFileSync(new URL('./sql/vector_bbox.sql', import.meta.url), 'utf8');
+const VECTOR_TILE_MVT_SQL = readFileSync(new URL('./sql/vector_tile_mvt.sql', import.meta.url), 'utf8');
 let pool;
 let poolPromise;
 
@@ -51,4 +52,72 @@ export async function queryVectorFeatures(bbox) {
   }
 
   return asFeatureCollection(featureCollection);
+}
+
+export async function dbQuery(sql, params = []) {
+  const activePool = await getPool();
+  return activePool.query(sql, params);
+}
+
+export async function getVectorTilePbf(z, x, y) {
+  const activePool = await getPool();
+  const result = await activePool.query(VECTOR_TILE_MVT_SQL, [z, x, y]);
+  const pbf = result.rows?.[0]?.tile_pbf;
+
+  if (Buffer.isBuffer(pbf)) {
+    return pbf;
+  }
+
+  if (typeof pbf === 'string') {
+    return Buffer.from(pbf, 'binary');
+  }
+
+  return Buffer.alloc(0);
+}
+
+export async function upsertVectorFeatures(features) {
+  if (!Array.isArray(features) || features.length === 0) {
+    return;
+  }
+
+  const activePool = await getPool();
+  const client = await activePool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    for (const feature of features) {
+      const source = feature.source ?? 'osm';
+      const featureId = feature.feature_id;
+      const featureType = feature.feature_type;
+      const tags = feature.tags ?? {};
+      const geometry = feature.geometry;
+
+      if (!featureId || !featureType || !geometry) {
+        continue;
+      }
+
+      await client.query(
+        `INSERT INTO public.vector_features
+           (feature_id, source, feature_type, tags, geom)
+         VALUES
+           ($1, $2, $3, $4::jsonb, ST_SetSRID(ST_GeomFromGeoJSON($5), 4326))
+         ON CONFLICT (feature_id)
+         DO UPDATE SET
+           source = EXCLUDED.source,
+           feature_type = EXCLUDED.feature_type,
+           tags = EXCLUDED.tags,
+           geom = EXCLUDED.geom,
+           updated_at = NOW()`,
+        [featureId, source, featureType, JSON.stringify(tags), JSON.stringify(geometry)]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
