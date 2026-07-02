@@ -27,6 +27,18 @@ npm run dev
 
 Default listen port is `4050`.
 
+One-shot OSM ingest job by canonical zoom-12 key:
+
+```bash
+npm run osm:ingest:job -- --key 12/3456/1523
+```
+
+Queue only (do not ingest immediately):
+
+```bash
+npm run osm:ingest:job -- --key 12/3456/1523 --enqueue-only
+```
+
 ## Migrations
 
 From `app/lancangriver/serve`:
