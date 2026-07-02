@@ -14,12 +14,22 @@ const FOOTBALL_MARKER_ICON = L.divIcon({
 type LeafletMapProps = {
   initialCenter: LatLng;
   onCenterChange: (center: LatLng) => void;
+  focusCenter?: LatLng | null;
+  focusZoom?: number;
+  features?: GeoJSON.Feature[];
 };
 
-export function LeafletMap({ initialCenter, onCenterChange }: LeafletMapProps) {
+export function LeafletMap({
+  initialCenter,
+  onCenterChange,
+  focusCenter,
+  focusZoom,
+  features,
+}: LeafletMapProps) {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const featuresLayerRef = useRef<L.GeoJSON | null>(null);
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -67,6 +77,51 @@ export function LeafletMap({ initialCenter, onCenterChange }: LeafletMapProps) {
       mapRef.current = null;
     };
   }, [initialCenter, onCenterChange]);
+
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    if (featuresLayerRef.current) {
+      featuresLayerRef.current.remove();
+      featuresLayerRef.current = null;
+    }
+
+    if (!features || features.length === 0) {
+      return;
+    }
+
+    const layer = L.geoJSON(
+      {
+        type: "FeatureCollection",
+        features,
+      },
+      {
+        style: {
+          color: "#22d3ee",
+          weight: 2,
+          fillColor: "#06b6d4",
+          fillOpacity: 0.22,
+        },
+      },
+    ).addTo(mapRef.current);
+
+    featuresLayerRef.current = layer;
+  }, [features]);
+
+  useEffect(() => {
+    if (!mapRef.current || !focusCenter) {
+      return;
+    }
+
+    const centerTuple: L.LatLngTuple = [focusCenter.lat, focusCenter.lng];
+    const nextZoom = focusZoom ?? mapRef.current.getZoom();
+
+    markerRef.current?.setLatLng(centerTuple);
+    mapRef.current.setView(centerTuple, nextZoom);
+    onCenterChange(focusCenter);
+  }, [focusCenter, focusZoom, onCenterChange]);
 
   return <div ref={mapElementRef} className="h-full w-full" />;
 }

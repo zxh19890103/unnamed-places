@@ -36,7 +36,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
       skirtDepth: SphereTile.SKIRT_DEPTH_METERS,
     });
 
-    const material = new TileCleanMaterial(textureLoader, {
+    const material = new TileBasicMaterial(textureLoader, {
       tileKey: tile,
     });
 

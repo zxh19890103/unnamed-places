@@ -5,6 +5,7 @@ import {
   FLAT_CENTER_CONFIRMED,
 } from "./flat/protocol.js";
 import { fetchTileVector } from "./osm/tiles.js";
+import { tileBounds4326 } from "./calc/mercator.js";
 import { useMemo, useState } from "react";
 import type { LatLng } from "./calc/types";
 
@@ -19,6 +20,8 @@ export default function LeafletApp() {
   );
   const [selectedCenter, setSelectedCenter] = useState<LatLng>(initialCenter);
   const [tilePbfStatus, setTilePbfStatus] = useState<string | null>(null);
+  const [tileFeatures, setTileFeatures] = useState<GeoJSON.Feature[]>([]);
+  const [mapFocusCenter, setMapFocusCenter] = useState<LatLng | null>(null);
 
   const confirmCenter = () => {
     window.parent.postMessage(
@@ -31,23 +34,31 @@ export default function LeafletApp() {
   };
 
   const testTilePbfFetch = async () => {
-    const key = "12/3456/1523";
+    const tile = { z: 12, x: 3456, y: 1523 };
+    const key = `${tile.z}/${tile.x}/${tile.y}`;
     const url = `http://localhost:4050/vector/tiles/${key}.pbf`;
 
     setTilePbfStatus(`requesting ${key} ...`);
 
     try {
-      const tileVector = await fetchTileVector(url, {
-        z: 12,
-        x: 3456,
-        y: 1523,
-      });
+      const tileVector = await fetchTileVector(url, tile);
+      const features = tileVector.layers.flatMap((layer) => layer.features);
       const layerSummary = tileVector.layers
         .map((layer) => `${layer.name}:${layer.features.length}`)
         .join(", ");
 
+      const [west, south, east, north] = tileBounds4326(tile.z, tile.x, tile.y);
+      const tileCenter = {
+        lat: (south + north) / 2,
+        lng: (west + east) / 2,
+      };
+
+      setTileFeatures(features);
+      setMapFocusCenter(tileCenter);
+      setSelectedCenter(tileCenter);
+
       setTilePbfStatus(
-        `${key}: ${tileVector.layers.length} layers decoded${layerSummary ? ` (${layerSummary})` : ""}`,
+        `${key}: ${features.length} features rendered, ${tileVector.layers.length} layers decoded${layerSummary ? ` (${layerSummary})` : ""}`,
       );
 
       console.info("[tile-pbf-test]", {
@@ -71,6 +82,9 @@ export default function LeafletApp() {
       <LeafletMap
         initialCenter={initialCenter}
         onCenterChange={setSelectedCenter}
+        focusCenter={mapFocusCenter}
+        focusZoom={12}
+        features={tileFeatures}
       />
       <MapIntroCard />
       <div className="absolute bottom-4 right-4 z-500 rounded-xl bg-slate-950/80 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-sm">

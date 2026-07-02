@@ -35,6 +35,7 @@ import { CloudMaterial } from "./materials/CloudMaterial.class";
 import { JourneyDayNode, PhotoRecord } from "../photos/types";
 import { PhotoMarkerGeometry } from "./geometries/PhotoMarkerGeometry.class";
 import { PhotoMarkerMaterial } from "./materials/PhotoMarkerMaterial.class";
+import { OsmBuildingTilesController } from "./OsmBuildingTilesController.class";
 
 const SKY_DISTANCE = EARTH_RADIUS * 8;
 const SKY_COLOR = new THREE.Color("#ffffff");
@@ -255,6 +256,10 @@ export function createScene(container: HTMLElement) {
   };
 
   const tileManager = new TilesManager();
+  const osmBuildingTiles = new OsmBuildingTilesController({
+    scene,
+    baseUrl: BASE_URL,
+  });
 
   const sphereGlobal = new Sphere(textureLoader, imageLoader, {
     camera,
@@ -298,18 +303,21 @@ export function createScene(container: HTMLElement) {
     tile.$tNode = node;
     tile.setDemMaterialEnabled(terrainState.demEnabled);
     node.tile = tile;
+    osmBuildingTiles.onTileCreate(node);
   };
 
   tileManager.onTileAttach = (node) => {
     if (node.tile) {
       sphereGlobal.attachTile(node.tile);
     }
+    osmBuildingTiles.onTileAttach(node);
   };
 
   tileManager.onTileDetach = (node) => {
     if (node.tile) {
       sphereGlobal.detachTile(node.tile);
     }
+    osmBuildingTiles.onTileDetach(node);
   };
 
   tileManager.onTileDispose = (node) => {
@@ -317,6 +325,11 @@ export function createScene(container: HTMLElement) {
       sphereGlobal.disposeTile(node.tile);
       node.tile = undefined;
     }
+    osmBuildingTiles.onTileDispose(node);
+  };
+
+  const triggerCreateOsmTilesOnce = () => {
+    return osmBuildingTiles.triggerCreateOnce(tileManager.getAttachedNodes());
   };
 
   /**
@@ -566,6 +579,8 @@ export function createScene(container: HTMLElement) {
     applyDemMode,
     getGroundOrbitEnabled: () => groundOrbitState.enabled,
     setGroundOrbitEnabled,
+    triggerCreateOsmTilesOnce,
+    getOsmTilesCreated: () => osmBuildingTiles.isCreationTriggered(),
   });
 
   const resize = () => {
@@ -673,6 +688,8 @@ export function createScene(container: HTMLElement) {
     showPhotosLocations,
     cleanup: () => {
       clearGroundOrbitClouds();
+      osmBuildingTiles.dispose();
+
       sphereGlobal.dispose();
       compositor.dispose();
       controlsManager.dispose();

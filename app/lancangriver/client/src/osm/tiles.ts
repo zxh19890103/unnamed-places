@@ -33,7 +33,21 @@ export async function fetchTileVector(
     );
   }
 
+  if (response.status === 204) {
+    return {
+      coords,
+      layers: [],
+    };
+  }
+
   const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength === 0) {
+    return {
+      coords,
+      layers: [],
+    };
+  }
+
   const vectorTile = new VectorTile(new PbfReader(bytes));
 
   return {

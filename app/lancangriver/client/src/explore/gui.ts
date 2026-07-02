@@ -16,6 +16,8 @@ type AttachExploreGuiParameters = {
   applyDemMode: (requested: boolean, zoomLevel: number) => void;
   getGroundOrbitEnabled: () => boolean;
   setGroundOrbitEnabled: (enabled: boolean) => void;
+  triggerCreateOsmTilesOnce: () => boolean;
+  getOsmTilesCreated: () => boolean;
 };
 
 export type ExploreGuiHandle = {
@@ -34,6 +36,8 @@ export function attachExploreGui(
     applyDemMode,
     getGroundOrbitEnabled,
     setGroundOrbitEnabled,
+    triggerCreateOsmTilesOnce,
+    getOsmTilesCreated,
   } = parameters;
 
   const gui = new GUI({ title: "Explore Camera" });
@@ -166,6 +170,21 @@ export function attachExploreGui(
   const terrainState = {
     demEnabled: getDemEnabled(),
     groundOrbitEnabled: getGroundOrbitEnabled(),
+    osmTilesCreated: getOsmTilesCreated(),
+  };
+
+  const osmTileState = {
+    createOnce: () => {
+      const startedNow = triggerCreateOsmTilesOnce();
+      terrainState.osmTilesCreated = getOsmTilesCreated();
+      if (terrainState.osmTilesCreated) {
+        createOsmTilesController.name("create osm tiles (done)");
+      }
+
+      if (startedNow) {
+        onRefreshVisibleTilesAndStats();
+      }
+    },
   };
 
   const groundOrbitToggleController = terrainFolder
@@ -187,6 +206,14 @@ export function attachExploreGui(
       terrainState.demEnabled = getDemEnabled();
       demToggleController.updateDisplay();
     });
+
+  const createOsmTilesController = terrainFolder
+    .add(osmTileState, "createOnce")
+    .name(
+      terrainState.osmTilesCreated
+        ? "create osm tiles (done)"
+        : "create osm tiles",
+    );
 
   const flyControlsState = {
     toggle: () => {
@@ -229,6 +256,12 @@ export function attachExploreGui(
       demToggleController.updateDisplay();
       terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
       groundOrbitToggleController.updateDisplay();
+      terrainState.osmTilesCreated = getOsmTilesCreated();
+      createOsmTilesController.name(
+        terrainState.osmTilesCreated
+          ? "create osm tiles (done)"
+          : "create osm tiles",
+      );
     },
   };
 }
