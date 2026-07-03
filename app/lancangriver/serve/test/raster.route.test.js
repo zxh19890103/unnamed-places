@@ -364,3 +364,191 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
     }
   });
 });
+
+describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
+  it('returns image/png for valid tile', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-derivatives-'));
+
+    try {
+      const tileDir = join(tempRoot, '11', '1024', '768');
+      const pngPath = join(tileDir, 'dem.png');
+
+      await mkdir(tileDir, { recursive: true });
+
+      // Create a simple 2x2 DEM PNG (Terrarium format)
+      const pngBuffer = await sharp({
+        create: {
+          width: 2,
+          height: 2,
+          channels: 4,
+          background: { r: 128, g: 100, b: 128, alpha: 255 }
+        }
+      })
+        .png()
+        .toBuffer();
+
+      await writeFile(pngPath, pngBuffer);
+
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const response = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/image\/png/);
+      expect(response.body).toBeDefined();
+      expect(response.body.length).toBeGreaterThan(0);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('caches derivatives and returns cached on second request', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-derivatives-cache-'));
+
+    try {
+      const tileDir = join(tempRoot, '11', '1024', '768');
+      const pngPath = join(tileDir, 'dem.png');
+
+      await mkdir(tileDir, { recursive: true });
+
+      const pngBuffer = await sharp({
+        create: {
+          width: 2,
+          height: 2,
+          channels: 4,
+          background: { r: 128, g: 100, b: 128, alpha: 255 }
+        }
+      })
+        .png()
+        .toBuffer();
+
+      await writeFile(pngPath, pngBuffer);
+
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const response1 = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
+      expect(response1.status).toBe(200);
+
+      const response2 = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
+      expect(response2.status).toBe(200);
+
+      // Both responses should have identical body (same cached file)
+      expect(response1.body.equals(response2.body)).toBe(true);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects z > 15 with 400 status', async () => {
+    const app = createApp({
+      raster: {
+        fetchSatelliteTile: vi.fn()
+      }
+    });
+
+    const response = await request(app).get('/raster/dem/16/512/512/derivatives.png');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('DEM_ZOOM_TOO_HIGH');
+  });
+
+  it('returns 400 for invalid coordinates', async () => {
+    const app = createApp({
+      raster: {
+        fetchSatelliteTile: vi.fn()
+      }
+    });
+
+    const response = await request(app).get('/raster/dem/10/abc/512/derivatives.png');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_TILE_COORDINATES');
+  });
+
+  it('returns 500 when DEM fetch fails', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-derivatives-fail-'));
+
+    try {
+      // Create a tile dir but no DEM, and mock fetch to fail
+      const tileDir = join(tempRoot, '11', '1024', '768');
+      await mkdir(tileDir, { recursive: true });
+
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchDemPngTile: vi.fn().mockRejectedValue(new Error('Network error')),
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const response = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
+
+      expect(response.status).toBe(500);
+      expect(response.body.error.code).toBe('DERIVATIVES_COMPUTE_FAILED');
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('packs channel values in 0..255 range', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-derivatives-range-'));
+
+    try {
+      const tileDir = join(tempRoot, '11', '1024', '768');
+      const pngPath = join(tileDir, 'dem.png');
+
+      await mkdir(tileDir, { recursive: true });
+
+      // Create a DEM with varied elevation
+      const pngBuffer = await sharp({
+        create: {
+          width: 3,
+          height: 3,
+          channels: 4,
+          background: { r: 130, g: 100, b: 100, alpha: 255 }
+        }
+      })
+        .png()
+        .toBuffer();
+
+      await writeFile(pngPath, pngBuffer);
+
+      const app = createApp({
+        raster: {
+          rasterRoot: tempRoot,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const response = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
+
+      expect(response.status).toBe(200);
+
+      // Verify PNG structure and channel values
+      const meta = await sharp(response.body).metadata();
+      expect(meta.format).toBe('png');
+      expect(meta.width).toBe(3);
+      expect(meta.height).toBe(3);
+      expect(meta.channels).toBe(4); // RGBA
+
+      // Extract pixel data and verify channel range
+      const { data } = await sharp(response.body).raw().toBuffer({ resolveWithObject: true });
+      for (let i = 0; i < data.length; i++) {
+        expect(data[i]).toBeGreaterThanOrEqual(0);
+        expect(data[i]).toBeLessThanOrEqual(255);
+      }
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+});
