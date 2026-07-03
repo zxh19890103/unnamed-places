@@ -13,8 +13,6 @@ type AttachExploreGuiParameters = {
   camera: THREE.PerspectiveCamera;
   controlsManager: ControlsManager;
   onRefreshVisibleTilesAndStats: () => void;
-  getDemEnabled: () => boolean;
-  applyDemMode: (requested: boolean, zoomLevel: number) => void;
   getMaterialMode: () => TileMaterialMode;
   applyMaterialMode: (mode: TileMaterialMode, zoomLevel: number) => boolean;
   getGroundOrbitEnabled: () => boolean;
@@ -35,8 +33,6 @@ export function attachExploreGui(
     camera,
     controlsManager,
     onRefreshVisibleTilesAndStats,
-    getDemEnabled,
-    applyDemMode,
     getMaterialMode,
     applyMaterialMode,
     getGroundOrbitEnabled,
@@ -173,7 +169,6 @@ export function attachExploreGui(
   };
 
   const terrainState = {
-    demEnabled: getDemEnabled(),
     materialMode: getMaterialMode(),
     groundOrbitEnabled: getGroundOrbitEnabled(),
     osmTilesCreated: getOsmTilesCreated(),
@@ -202,17 +197,6 @@ export function attachExploreGui(
       groundOrbitToggleController.updateDisplay();
     });
 
-  const demToggleController = terrainFolder
-    .add(terrainState, "demEnabled")
-    .name("use DEM material")
-    .onChange((value: boolean) => {
-      const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-      const zoomLevel = disatanceToZoom(cameraDistanceMeters);
-      applyDemMode(value, zoomLevel);
-      terrainState.demEnabled = getDemEnabled();
-      demToggleController.updateDisplay();
-    });
-
   const materialModeController = terrainFolder
     .add(terrainState, "materialMode", [
       TileMaterialMode.Basic,
@@ -236,8 +220,6 @@ export function attachExploreGui(
         materialModeController.updateDisplay();
       } else {
         terrainState.materialMode = getMaterialMode();
-        terrainState.demEnabled = getMaterialMode() !== TileMaterialMode.Basic;
-        demToggleController.updateDisplay();
       }
     });
 
@@ -286,8 +268,6 @@ export function attachExploreGui(
   return {
     destroy: () => gui.destroy(),
     syncTerrainState: () => {
-      terrainState.demEnabled = getDemEnabled();
-      demToggleController.updateDisplay();
       terrainState.materialMode = getMaterialMode();
       materialModeController.updateDisplay();
       terrainState.groundOrbitEnabled = getGroundOrbitEnabled();

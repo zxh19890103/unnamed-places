@@ -23,15 +23,6 @@ export class PhotoMarkerMaterial extends THREE.ShaderMaterial {
       worldDemTexture,
     } = params;
 
-    const fallbackTexture = new THREE.DataTexture(
-      new Uint8Array([255, 255, 255, 255]),
-      1,
-      1,
-      THREE.RGBAFormat,
-    );
-
-    fallbackTexture.needsUpdate = true;
-
     const t = (rec.lat - worldExtent.south) / worldExtent.latSpan;
     const s = (rec.lng - worldExtent.west) / worldExtent.lngSpan;
 
@@ -54,21 +45,10 @@ export class PhotoMarkerMaterial extends THREE.ShaderMaterial {
     this.userData = {
       ...(this.userData ?? {}),
       rec,
-      fallbackTexture,
     };
   }
 
   override dispose(): void {
-    const map = this.uniforms.uMap?.value;
-    if (map instanceof THREE.Texture) {
-      map.dispose();
-    }
-
-    const fallbackTexture = this.userData?.fallbackTexture;
-    if (fallbackTexture instanceof THREE.Texture) {
-      fallbackTexture.dispose();
-    }
-
     super.dispose();
   }
 }

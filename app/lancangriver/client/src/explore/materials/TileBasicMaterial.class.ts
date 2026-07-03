@@ -14,13 +14,11 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
   constructor(textureLoader: THREE.TextureLoader, parameters: Parameters) {
     const { tileKey } = parameters;
 
-    const satelliteTexture = new THREE.Texture();
-
     super({
       side: THREE.BackSide,
       uniforms: {
         uColor: { value: new THREE.Color(0xffffff) },
-        uSatelliteTexture: { value: satelliteTexture },
+        uSatelliteTexture: { value: null },
         uTextureReady: { value: 0 },
         uDemTexture: { value: null },
         uElevationScale: { value: 0 },
@@ -28,6 +26,8 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
       vertexShader,
       fragmentShader,
     });
+
+    let satelliteTexture: THREE.Texture | null = null;
 
     const imageLoader = new THREE.ImageLoader(textureLoader.manager);
     this.pendingImage = imageLoader.load(
@@ -37,9 +37,11 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
           return;
         }
 
-        this.uniforms.uTextureReady.value = 1;
+        satelliteTexture = new THREE.Texture();
         satelliteTexture.image = image;
         satelliteTexture.needsUpdate = true;
+        this.uniforms.uSatelliteTexture.value = satelliteTexture;
+        this.uniforms.uTextureReady.value = 1;
 
         this.pendingImage = null;
       },

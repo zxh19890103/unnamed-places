@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { Router } from 'express';
 import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -672,6 +673,7 @@ export function createRasterRouter(options = {}) {
       sendRasterError(res, 500, 'DEM_PNG_RENDER_FAILED', 'Internal server error');
     }
   });
+  //#endregion
 
   // Derivatives route: computes and caches slope/aspect derivatives
   router.get('/raster/dem/:z/:x/:y/derivatives.png', async (req, res) => {
@@ -733,7 +735,7 @@ export function createRasterRouter(options = {}) {
               await ensureDirectory(derivativesPath);
 
               const tmpPath = `${derivativesPath}.${process.pid}.${Date.now()}.tmp`;
-              const writeStream = require('node:fs').createWriteStream(tmpPath);
+              const writeStream = fs.createWriteStream(tmpPath);
 
               derivativesPng.pack().pipe(writeStream);
 
@@ -764,7 +766,6 @@ export function createRasterRouter(options = {}) {
       sendRasterError(res, 500, 'DERIVATIVES_COMPUTE_FAILED', 'Internal server error', error);
     }
   });
-  //#endregion
 
   return router;
 }

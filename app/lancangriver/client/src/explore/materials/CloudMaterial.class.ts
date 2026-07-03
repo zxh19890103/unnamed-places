@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createFallbackWhiteTexture } from "./_func";
 import vertexShader from "./shaders/cloud.vert.glsl?raw";
 import fragmentShader from "./shaders/cloud.frag.glsl?raw";
 
@@ -12,13 +13,6 @@ type Parameters = {
   atlasTexture?: THREE.Texture;
   atlasGrid?: number;
 };
-
-function createFallbackAtlasTexture() {
-  const data = new Uint8Array([255, 255, 255, 255]);
-  const texture = new THREE.DataTexture(data, 1, 1);
-  texture.needsUpdate = true;
-  return texture;
-}
 
 export class CloudMaterial extends THREE.ShaderMaterial {
   /**
@@ -41,7 +35,7 @@ export class CloudMaterial extends THREE.ShaderMaterial {
     const defaultViewportHeight =
       typeof window !== "undefined" ? window.innerHeight : 1080;
 
-    const fallbackAtlasTexture = createFallbackAtlasTexture();
+    const fallbackAtlasTexture = createFallbackWhiteTexture();
 
     super({
       transparent: true,

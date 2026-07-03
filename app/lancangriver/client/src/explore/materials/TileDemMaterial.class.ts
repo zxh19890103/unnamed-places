@@ -21,9 +21,6 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
   ) {
     const { tileKey, elevationScale = ELEVATION_SCALE } = parameters;
 
-    const satelliteTexture = new THREE.Texture();
-    const demTexture = new THREE.Texture();
-
     super({
       side: THREE.BackSide,
       fog: true,
@@ -31,8 +28,8 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         THREE.UniformsLib.fog,
         THREE.UniformsLib.lights,
         {
-          uSatelliteTexture: { value: satelliteTexture },
-          uDemTexture: { value: demTexture },
+          uSatelliteTexture: { value: null },
+          uDemTexture: { value: null },
           uSatelliteReady: { value: 0 },
           uDemReady: { value: 0 },
           uElevationScale: { value: elevationScale },
@@ -49,6 +46,9 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
       fragmentShader,
     });
 
+    let satelliteTexture: THREE.Texture | null = null;
+    let demTexture: THREE.Texture | null = null;
+
     this.pendingSatelliteImage = imageLoader.load(
       `${BASE_URL}/raster/satellite/${tileKey.z}/${tileKey.x}/${tileKey.y}.jpeg`,
       (image) => {
@@ -61,9 +61,11 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
           return;
         }
 
-        this.uniforms.uSatelliteReady.value = 1;
+        satelliteTexture = new THREE.Texture();
         satelliteTexture.image = image;
         satelliteTexture.needsUpdate = true;
+        this.uniforms.uSatelliteTexture.value = satelliteTexture;
+        this.uniforms.uSatelliteReady.value = 1;
 
         this.pendingSatelliteImage = null;
       },
@@ -85,7 +87,7 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
           return;
         }
 
-        this.uniforms.uDemReady.value = 1;
+        demTexture = new THREE.Texture();
         // Heightmaps should use edge-clamped nearest sampling without mipmaps
         // to reduce border interpolation artifacts between adjacent tiles.
         demTexture.wrapS = THREE.ClampToEdgeWrapping;
@@ -95,6 +97,8 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
         demTexture.generateMipmaps = false;
         demTexture.image = image;
         demTexture.needsUpdate = true;
+        this.uniforms.uDemTexture.value = demTexture;
+        this.uniforms.uDemReady.value = 1;
 
         this.pendingDemImage = null;
       },

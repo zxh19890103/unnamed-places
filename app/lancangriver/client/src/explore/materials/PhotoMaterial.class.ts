@@ -3,6 +3,7 @@ import { BASE_URL } from "../../calc/constants";
 import { PhotoRecord } from "../../photos/types";
 import vertexShader from "./shaders/photo.vert.glsl?raw";
 import fragmentShader from "./shaders/photo.frag.glsl?raw";
+import { createFallbackWhiteTexture } from "./_func";
 
 type Parameters = {
   color?: THREE.ColorRepresentation;
@@ -12,14 +13,6 @@ type Parameters = {
 export class PhotoMaterial extends THREE.ShaderMaterial {
   constructor(textureLoader: THREE.TextureLoader, params: Parameters) {
     const { color = "#ffffff", rec } = params;
-
-    const fallbackTexture = new THREE.DataTexture(
-      new Uint8Array([255, 255, 255, 255]),
-      1,
-      1,
-      THREE.RGBAFormat,
-    );
-    fallbackTexture.needsUpdate = true;
 
     const thumbId = encodeURIComponent(rec.filePath);
     const thumbUrl = `${BASE_URL}/photos/thumb/${thumbId}`;
@@ -33,7 +26,7 @@ export class PhotoMaterial extends THREE.ShaderMaterial {
     super({
       uniforms: {
         uColor: { value: new THREE.Color(color) },
-        uMap: { value: thumbTexture ?? fallbackTexture },
+        uMap: { value: thumbTexture },
       },
       vertexShader,
       fragmentShader,
@@ -46,7 +39,6 @@ export class PhotoMaterial extends THREE.ShaderMaterial {
     this.userData = {
       ...(this.userData ?? {}),
       thumbTexture,
-      fallbackTexture,
     };
   }
 
@@ -55,12 +47,6 @@ export class PhotoMaterial extends THREE.ShaderMaterial {
     if (map instanceof THREE.Texture) {
       map.dispose();
     }
-
-    const fallbackTexture = this.userData?.fallbackTexture;
-    if (fallbackTexture instanceof THREE.Texture) {
-      fallbackTexture.dispose();
-    }
-
     super.dispose();
   }
 }

@@ -292,14 +292,6 @@ export function createScene(container: HTMLElement) {
     requested: TileMaterialMode,
     zoomLevel: number,
   ) => {
-    // Block dem-advance mode if zoom is too high
-    if (requested === TileMaterialMode.DemAdvance && zoomLevel > MAX_DEM_ZOOM) {
-      console.warn(
-        `[Terrain] Advanced terrain mode is disabled above z=${MAX_DEM_ZOOM} (current z=${zoomLevel})`,
-      );
-      return false;
-    }
-
     // Block DEM modes if zoom is too high
     if (
       (requested === TileMaterialMode.Dem ||
@@ -316,29 +308,6 @@ export function createScene(container: HTMLElement) {
     terrainState.demEnabled = requested !== TileMaterialMode.Basic;
     applyMaterialModeToAttachedTiles(requested);
     return true;
-  };
-
-  const applyDemModeToAttachedTiles = (enabled: boolean) => {
-    for (const node of tileManager.getAttachedNodes()) {
-      node.tile?.setDemMaterialEnabled(enabled);
-    }
-  };
-
-  const applyDemMode = (requested: boolean, zoomLevel: number) => {
-    if (requested && zoomLevel > MAX_DEM_ZOOM) {
-      terrainState.demEnabled = false;
-      console.warn(
-        `[Terrain] DEM material is disabled above z=${MAX_DEM_ZOOM} (current z=${zoomLevel})`,
-      );
-      applyDemModeToAttachedTiles(false);
-      return;
-    }
-
-    terrainState.demEnabled = requested;
-    terrainState.materialMode = requested
-      ? TileMaterialMode.Dem
-      : TileMaterialMode.Basic;
-    applyDemModeToAttachedTiles(terrainState.demEnabled);
   };
 
   tileManager.onTileCreate = (node) => {
@@ -410,11 +379,6 @@ export function createScene(container: HTMLElement) {
     const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
     const zoomLevel = disatanceToZoom(cameraDistanceMeters);
     camera.updateMatrixWorld(true);
-
-    if (terrainState.demEnabled && zoomLevel > MAX_DEM_ZOOM) {
-      applyDemMode(false, zoomLevel);
-      guiHandle?.syncTerrainState();
-    }
 
     // Check altitude-based control switching
     controlsManager.checkAltitude(cameraDistanceMeters);
@@ -618,8 +582,6 @@ export function createScene(container: HTMLElement) {
     camera,
     controlsManager,
     onRefreshVisibleTilesAndStats: refreshVisibleTiles,
-    getDemEnabled: () => terrainState.demEnabled,
-    applyDemMode,
     getMaterialMode: () => terrainState.materialMode,
     applyMaterialMode,
     getGroundOrbitEnabled: () => groundOrbitState.enabled,

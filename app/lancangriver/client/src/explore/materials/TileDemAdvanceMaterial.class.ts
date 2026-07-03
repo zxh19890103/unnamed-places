@@ -38,17 +38,14 @@ export class TileDemAdvanceMaterial extends THREE.ShaderMaterial {
       colorRampScale = 1.0,
     } = parameters;
 
-    const demTexture = new THREE.Texture();
-    const derivativesTexture = new THREE.Texture();
-
     super({
       side: THREE.BackSide,
       fog: true,
       uniforms: THREE.UniformsUtils.merge([
         THREE.UniformsLib.fog,
         {
-          uDemTexture: { value: demTexture },
-          uDerivativesTexture: { value: derivativesTexture },
+          uDemTexture: { value: null },
+          uDerivativesTexture: { value: null },
           uDemReady: { value: 0 },
           uDerivativesReady: { value: 0 },
           uElevationScale: { value: elevationScale },
@@ -62,8 +59,6 @@ export class TileDemAdvanceMaterial extends THREE.ShaderMaterial {
     });
 
     this.tileKey = tileKey;
-    this.demTexture = demTexture;
-    this.derivativesTexture = derivativesTexture;
 
     this.loadTextures(textureLoader, imageLoader);
   }
@@ -88,19 +83,19 @@ export class TileDemAdvanceMaterial extends THREE.ShaderMaterial {
           return;
         }
 
+        const demTexture = new THREE.Texture();
+        // Heightmaps should use edge-clamped nearest sampling without mipmaps
+        demTexture.wrapS = THREE.ClampToEdgeWrapping;
+        demTexture.wrapT = THREE.ClampToEdgeWrapping;
+        demTexture.magFilter = THREE.NearestFilter;
+        demTexture.minFilter = THREE.NearestFilter;
+        demTexture.generateMipmaps = false;
+        demTexture.image = image;
+        demTexture.needsUpdate = true;
+        this.demTexture = demTexture;
+        this.uniforms.uDemTexture.value = demTexture;
         this.demTextureReady = true;
         this.uniforms.uDemReady.value = 1;
-
-        // Heightmaps should use edge-clamped nearest sampling without mipmaps
-        if (this.demTexture) {
-          this.demTexture.wrapS = THREE.ClampToEdgeWrapping;
-          this.demTexture.wrapT = THREE.ClampToEdgeWrapping;
-          this.demTexture.magFilter = THREE.NearestFilter;
-          this.demTexture.minFilter = THREE.NearestFilter;
-          this.demTexture.generateMipmaps = false;
-          this.demTexture.image = image;
-          this.demTexture.needsUpdate = true;
-        }
 
         this.pendingDemImage = null;
       },
@@ -124,19 +119,19 @@ export class TileDemAdvanceMaterial extends THREE.ShaderMaterial {
           return;
         }
 
+        const derivativesTexture = new THREE.Texture();
+        // Derivatives use nearest sampling like DEM
+        derivativesTexture.wrapS = THREE.ClampToEdgeWrapping;
+        derivativesTexture.wrapT = THREE.ClampToEdgeWrapping;
+        derivativesTexture.magFilter = THREE.NearestFilter;
+        derivativesTexture.minFilter = THREE.NearestFilter;
+        derivativesTexture.generateMipmaps = false;
+        derivativesTexture.image = image;
+        derivativesTexture.needsUpdate = true;
+        this.derivativesTexture = derivativesTexture;
+        this.uniforms.uDerivativesTexture.value = derivativesTexture;
         this.derivativesTextureReady = true;
         this.uniforms.uDerivativesReady.value = 1;
-
-        // Derivatives use nearest sampling like DEM
-        if (this.derivativesTexture) {
-          this.derivativesTexture.wrapS = THREE.ClampToEdgeWrapping;
-          this.derivativesTexture.wrapT = THREE.ClampToEdgeWrapping;
-          this.derivativesTexture.magFilter = THREE.NearestFilter;
-          this.derivativesTexture.minFilter = THREE.NearestFilter;
-          this.derivativesTexture.generateMipmaps = false;
-          this.derivativesTexture.image = image;
-          this.derivativesTexture.needsUpdate = true;
-        }
 
         this.pendingDerivativesImage = null;
       },

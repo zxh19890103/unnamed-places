@@ -6,7 +6,6 @@ import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
 import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class";
-import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
 
 export enum TileMaterialMode {
   Basic = "basic",
