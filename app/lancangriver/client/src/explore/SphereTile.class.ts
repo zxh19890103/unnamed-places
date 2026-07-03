@@ -14,7 +14,10 @@ export enum TileMaterialMode {
   DemAdvance = "dem-advance",
 }
 
-type TileSurfaceMaterial = TileBasicMaterial | TileDemMaterial | TileDemAdvanceMaterial;
+type TileSurfaceMaterial =
+  | TileBasicMaterial
+  | TileDemMaterial
+  | TileDemAdvanceMaterial;
 
 type Parameters = {
   radius?: number;
@@ -113,7 +116,9 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     return this.materialMode;
   }
 
-  private createMaterialForMode(mode: TileMaterialMode): TileSurfaceMaterial | null {
+  private createMaterialForMode(
+    mode: TileMaterialMode,
+  ): TileSurfaceMaterial | null {
     switch (mode) {
       case TileMaterialMode.Basic:
         return new TileBasicMaterial(this.textureLoader, {
@@ -132,9 +137,13 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
         if (!this.canUseDemMaterial()) {
           return null;
         }
-        return new TileDemAdvanceMaterial(this.textureLoader, this.imageLoader, {
-          tileKey: this.tile,
-        });
+        return new TileDemAdvanceMaterial(
+          this.textureLoader,
+          this.imageLoader,
+          {
+            tileKey: this.tile,
+          },
+        );
 
       default:
         return null;

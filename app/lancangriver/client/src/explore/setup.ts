@@ -288,7 +288,10 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  const applyMaterialMode = (requested: TileMaterialMode, zoomLevel: number) => {
+  const applyMaterialMode = (
+    requested: TileMaterialMode,
+    zoomLevel: number,
+  ) => {
     // Block dem-advance mode if zoom is too high
     if (requested === TileMaterialMode.DemAdvance && zoomLevel > MAX_DEM_ZOOM) {
       console.warn(
@@ -298,7 +301,11 @@ export function createScene(container: HTMLElement) {
     }
 
     // Block DEM modes if zoom is too high
-    if ((requested === TileMaterialMode.Dem || requested === TileMaterialMode.DemAdvance) && zoomLevel > MAX_DEM_ZOOM) {
+    if (
+      (requested === TileMaterialMode.Dem ||
+        requested === TileMaterialMode.DemAdvance) &&
+      zoomLevel > MAX_DEM_ZOOM
+    ) {
       console.warn(
         `[Terrain] DEM material is disabled above z=${MAX_DEM_ZOOM} (current z=${zoomLevel})`,
       );
@@ -328,7 +335,9 @@ export function createScene(container: HTMLElement) {
     }
 
     terrainState.demEnabled = requested;
-    terrainState.materialMode = requested ? TileMaterialMode.Dem : TileMaterialMode.Basic;
+    terrainState.materialMode = requested
+      ? TileMaterialMode.Dem
+      : TileMaterialMode.Basic;
     applyDemModeToAttachedTiles(terrainState.demEnabled);
   };
 

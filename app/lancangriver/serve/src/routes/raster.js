@@ -299,13 +299,13 @@ async function readDemAltitudeFromPng(pngPath) {
 function computeSlopeAspect(demData, width, height) {
   // Compute slope and aspect from DEM data (Terrarium format: elevation = R*256 + G + B/256 - 32768)
   // Returns Uint8Array of RGBA derivatives
-  
+
   const output = new Uint8Array(width * height * 4);
-  
+
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       const idx = (y * width + x) * 4;
-      
+
       // Helper to extract elevation from Terrarium-encoded pixel
       const getElevation = (px, py) => {
         const pidx = (py * width + px) * 4;
@@ -314,7 +314,7 @@ function computeSlopeAspect(demData, width, height) {
         const b = demData[pidx + 2];
         return (r * 256 + g + b / 256) - 32768;
       };
-      
+
       // Read 3x3 neighborhood
       const z00 = getElevation(x - 1, y - 1);
       const z10 = getElevation(x, y - 1);
@@ -324,18 +324,18 @@ function computeSlopeAspect(demData, width, height) {
       const z02 = getElevation(x - 1, y + 1);
       const z12 = getElevation(x, y + 1);
       const z22 = getElevation(x + 1, y + 1);
-      
+
       // Horn-style derivatives
       const dz_dx = (-z00 - 2 * z01 - z02 + z20 + 2 * z21 + z22) / 8.0;
       const dz_dy = (-z00 - 2 * z10 - z20 + z02 + 2 * z12 + z22) / 8.0;
-      
+
       // Slope in degrees
       const slope = Math.atan(Math.sqrt(dz_dx * dz_dx + dz_dy * dz_dy)) * (180 / Math.PI);
-      
+
       // Aspect in radians [0, 2π)
       let aspect = Math.atan2(dz_dy, dz_dx);
       if (aspect < 0) aspect += 2 * Math.PI;
-      
+
       // Pack to RGBA
       output[idx] = Math.round(Math.max(0, Math.min(255, (slope / 90) * 255)));       // R = slope
       output[idx + 1] = Math.round((Math.sin(aspect) * 0.5 + 0.5) * 255);              // G = sin(aspect)
@@ -343,30 +343,30 @@ function computeSlopeAspect(demData, width, height) {
       output[idx + 3] = 255;                                                             // A = 255
     }
   }
-  
+
   // Handle border by replicating edge pixels
   // Top/bottom rows
   for (let x = 0; x < width; x++) {
     const srcIdx = (1 * width + x) * 4;
     const topIdx = (0 * width + x) * 4;
     output.set(output.subarray(srcIdx, srcIdx + 4), topIdx);
-    
+
     const srcBotIdx = ((height - 2) * width + x) * 4;
     const botIdx = ((height - 1) * width + x) * 4;
     output.set(output.subarray(srcBotIdx, srcBotIdx + 4), botIdx);
   }
-  
+
   // Left/right columns
   for (let y = 0; y < height; y++) {
     const srcIdx = (y * width + 1) * 4;
     const leftIdx = (y * width + 0) * 4;
     output.set(output.subarray(srcIdx, srcIdx + 4), leftIdx);
-    
+
     const srcRIdx = (y * width + (width - 2)) * 4;
     const rIdx = (y * width + (width - 1)) * 4;
     output.set(output.subarray(srcRIdx, srcRIdx + 4), rIdx);
   }
-  
+
   return output;
 }
 
@@ -691,7 +691,7 @@ export function createRasterRouter(options = {}) {
 
     try {
       const cacheKey = `${z}/${x}/${y}`;
-      
+
       // Use in-flight map to avoid duplicate concurrent computations
       const result = await runWithInFlight(derivativesInFlight, cacheKey, async () => {
         const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
@@ -711,7 +711,7 @@ export function createRasterRouter(options = {}) {
         // Read DEM PNG and decode
         const demBuffer = await readFile(demPngPath);
         const png = new PNG();
-        
+
         return new Promise((resolve, reject) => {
           png.parse(demBuffer, async (err, parsedPng) => {
             if (err) {
@@ -731,10 +731,10 @@ export function createRasterRouter(options = {}) {
 
               // Write atomically
               await ensureDirectory(derivativesPath);
-              
+
               const tmpPath = `${derivativesPath}.${process.pid}.${Date.now()}.tmp`;
               const writeStream = require('node:fs').createWriteStream(tmpPath);
-              
+
               derivativesPng.pack().pipe(writeStream);
 
               writeStream.on('finish', async () => {
