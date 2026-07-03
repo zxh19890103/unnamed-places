@@ -132,9 +132,9 @@ For each pixel, use 3x3 neighborhood and Horn-style derivatives:
 
 Then pack:
 
-- R = round(clamp(slope / 90, 0, 1) * 255)
-- G = round((sin(aspectRad) * 0.5 + 0.5) * 255)
-- B = round((cos(aspectRad) * 0.5 + 0.5) * 255)
+- R = round(clamp(slope / 90, 0, 1) \* 255)
+- G = round((sin(aspectRad) _ 0.5 + 0.5) _ 255)
+- B = round((cos(aspectRad) _ 0.5 + 0.5) _ 255)
 - A = 255
 
 Border handling in v1:
@@ -147,8 +147,10 @@ Per tile material creation:
 
 1. TileDemAdvanceMaterial constructed with tileKey
 2. Class loads dem and derivatives textures directly:
-  - /raster/dem/:z/:x/:y.png
-  - /raster/dem/:z/:x/:y/derivatives.png
+
+- /raster/dem/:z/:x/:y.png
+- /raster/dem/:z/:x/:y/derivatives.png
+
 3. Uniforms update readiness flags on load
 4. Shader uses DEM for displacement context + derivatives for lighting/color effects
 5. Hillshade branch is disabled by default and toggled by uniform

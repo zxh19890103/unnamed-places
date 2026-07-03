@@ -1,3 +1,6 @@
+---
+---
+
 # Sudden Idea
 
 ## Source Prompt

@@ -92,20 +92,19 @@ export function LeafletMap({
       return;
     }
 
-    const layer = L.geoJSON(
-      {
-        type: "FeatureCollection",
-        features,
+    const geojson = {
+      type: "FeatureCollection",
+      features: features,
+    };
+
+    const layer = L.geoJSON(geojson as GeoJSON.FeatureCollection, {
+      style: {
+        color: "#22d3ee",
+        weight: 2,
+        fillColor: "#06b6d4",
+        fillOpacity: 0.22,
       },
-      {
-        style: {
-          color: "#22d3ee",
-          weight: 2,
-          fillColor: "#06b6d4",
-          fillOpacity: 0.22,
-        },
-      },
-    ).addTo(mapRef.current);
+    }).addTo(mapRef.current);
 
     featuresLayerRef.current = layer;
   }, [features]);

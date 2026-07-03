@@ -1,6 +1,6 @@
 ---
 done: no
-comment: ""
+comment: all we need is to extract slope.
 ---
 
 # Sudden Idea

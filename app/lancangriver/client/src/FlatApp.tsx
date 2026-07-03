@@ -94,25 +94,27 @@ export default function LeafletApp() {
         <div className="mt-1 text-slate-300">
           {selectedCenter.lat.toFixed(5)}, {selectedCenter.lng.toFixed(5)}
         </div>
-        <button
-          type="button"
-          onClick={confirmCenter}
-          className="mt-3 rounded-lg bg-sky-500 px-3 py-2 font-medium text-slate-950 transition-colors hover:bg-sky-400"
-        >
-          Use this center
-        </button>
-        <button
-          type="button"
-          onClick={testTilePbfFetch}
-          className="mt-3 rounded-lg bg-sky-500 px-3 py-2 font-medium text-slate-950 transition-colors hover:bg-sky-400"
-        >
-          test tile pbf
-        </button>
-        {tilePbfStatus ? (
-          <div className="mt-3 max-w-xs rounded-lg bg-slate-900/80 p-3 text-xs leading-5 text-slate-200">
-            {tilePbfStatus}
-          </div>
-        ) : null}
+        <div className=" flex-col flex gap-2">
+          <button
+            type="button"
+            onClick={confirmCenter}
+            className="mt-3 rounded-lg bg-sky-500 px-3 py-2 font-medium text-slate-950 transition-colors hover:bg-sky-400"
+          >
+            Use this center
+          </button>
+          <button
+            type="button"
+            onClick={testTilePbfFetch}
+            className="mt-3 rounded-lg bg-sky-500 px-3 py-2 font-medium text-slate-950 transition-colors hover:bg-sky-400"
+          >
+            test tile pbf
+          </button>
+          {tilePbfStatus ? (
+            <div className="mt-3 max-w-xs rounded-lg bg-slate-900/80 p-3 text-xs leading-5 text-slate-200">
+              {tilePbfStatus}
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

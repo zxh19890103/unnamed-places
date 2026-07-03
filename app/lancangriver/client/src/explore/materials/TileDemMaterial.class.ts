@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { BASE_URL, ELEVATION_SCALE } from "../../calc/constants";
 import { SphereTileKey } from "../../calc/types";
 import vertexShader from "./shaders/tiledem.vert.glsl?raw";
-import fragmentShader from "./shaders/tiledem.frag.glsl?raw";
+import fragmentShader from "./shaders/tiledem.basic.frag.glsl?raw";
 
 type Parameters = {
   tileKey: SphereTileKey;

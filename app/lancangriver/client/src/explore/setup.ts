@@ -46,9 +46,9 @@ const SKY_MAX_SCALE = EARTH_RADIUS * 12;
 const FOCUS_TILE_ZOOM = 12;
 const FOCUS_TILE_EXTENT = {
   x0: -2,
-  y0: -2,
+  y0: -1,
   x1: 2,
-  y1: 2,
+  y1: 1,
 };
 const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
 
