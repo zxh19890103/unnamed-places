@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { disatanceToZoom, zoomToDistance } from "../calc/mercator";
 import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "../calc/sphere";
 import { ControlsManager } from "./ControlsManager.class";
+import { TileMaterialMode } from "./SphereTile.class";
 
 const GUI_ZOOM_MIN = 1;
 const GUI_ZOOM_MAX = 19;
@@ -14,6 +15,8 @@ type AttachExploreGuiParameters = {
   onRefreshVisibleTilesAndStats: () => void;
   getDemEnabled: () => boolean;
   applyDemMode: (requested: boolean, zoomLevel: number) => void;
+  getMaterialMode: () => TileMaterialMode;
+  applyMaterialMode: (mode: TileMaterialMode, zoomLevel: number) => boolean;
   getGroundOrbitEnabled: () => boolean;
   setGroundOrbitEnabled: (enabled: boolean) => void;
   triggerCreateOsmTilesOnce: () => boolean;
@@ -34,6 +37,8 @@ export function attachExploreGui(
     onRefreshVisibleTilesAndStats,
     getDemEnabled,
     applyDemMode,
+    getMaterialMode,
+    applyMaterialMode,
     getGroundOrbitEnabled,
     setGroundOrbitEnabled,
     triggerCreateOsmTilesOnce,

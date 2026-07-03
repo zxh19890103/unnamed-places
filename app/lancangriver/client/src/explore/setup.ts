@@ -22,6 +22,7 @@ import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
 import { LowAltitudeTileCompositor } from "./LowAltitudeTileCompositor.class";
 import { attachExploreGui, type ExploreGuiHandle } from "./gui";
+import { TileMaterialMode } from "./SphereTile.class";
 import {
   BASE_URL,
   MAX_DEM_ZOOM,
@@ -271,12 +272,44 @@ export function createScene(container: HTMLElement) {
   scene.add(sphereGlobal);
 
   const terrainState = {
-    demEnabled: false,
+    materialMode: TileMaterialMode.Basic,
+    demEnabled: false, // Keep for backwards compatibility
   };
 
   let groundOrbitClouds: THREE.Points<CloudGeometry, CloudMaterial> | null =
     null;
   let guiHandle: ExploreGuiHandle | null = null;
+
+  const applyMaterialModeToAttachedTiles = (mode: TileMaterialMode) => {
+    for (const node of tileManager.getAttachedNodes()) {
+      if (node.tile) {
+        node.tile.setMaterialMode(mode);
+      }
+    }
+  };
+
+  const applyMaterialMode = (requested: TileMaterialMode, zoomLevel: number) => {
+    // Block dem-advance mode if zoom is too high
+    if (requested === TileMaterialMode.DemAdvance && zoomLevel > MAX_DEM_ZOOM) {
+      console.warn(
+        `[Terrain] Advanced terrain mode is disabled above z=${MAX_DEM_ZOOM} (current z=${zoomLevel})`,
+      );
+      return false;
+    }
+
+    // Block DEM modes if zoom is too high
+    if ((requested === TileMaterialMode.Dem || requested === TileMaterialMode.DemAdvance) && zoomLevel > MAX_DEM_ZOOM) {
+      console.warn(
+        `[Terrain] DEM material is disabled above z=${MAX_DEM_ZOOM} (current z=${zoomLevel})`,
+      );
+      return false;
+    }
+
+    terrainState.materialMode = requested;
+    terrainState.demEnabled = requested !== TileMaterialMode.Basic;
+    applyMaterialModeToAttachedTiles(requested);
+    return true;
+  };
 
   const applyDemModeToAttachedTiles = (enabled: boolean) => {
     for (const node of tileManager.getAttachedNodes()) {
@@ -295,13 +328,14 @@ export function createScene(container: HTMLElement) {
     }
 
     terrainState.demEnabled = requested;
+    terrainState.materialMode = requested ? TileMaterialMode.Dem : TileMaterialMode.Basic;
     applyDemModeToAttachedTiles(terrainState.demEnabled);
   };
 
   tileManager.onTileCreate = (node) => {
     const tile = sphereGlobal.createTileByKey(node.key);
     tile.$tNode = node;
-    tile.setDemMaterialEnabled(terrainState.demEnabled);
+    tile.setMaterialMode(terrainState.materialMode);
     node.tile = tile;
     osmBuildingTiles.onTileCreate(node);
   };
@@ -577,6 +611,8 @@ export function createScene(container: HTMLElement) {
     onRefreshVisibleTilesAndStats: refreshVisibleTiles,
     getDemEnabled: () => terrainState.demEnabled,
     applyDemMode,
+    getMaterialMode: () => terrainState.materialMode,
+    applyMaterialMode,
     getGroundOrbitEnabled: () => groundOrbitState.enabled,
     setGroundOrbitEnabled,
     triggerCreateOsmTilesOnce,
