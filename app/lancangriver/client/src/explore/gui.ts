@@ -174,6 +174,7 @@ export function attachExploreGui(
 
   const terrainState = {
     demEnabled: getDemEnabled(),
+    materialMode: getMaterialMode(),
     groundOrbitEnabled: getGroundOrbitEnabled(),
     osmTilesCreated: getOsmTilesCreated(),
   };
@@ -210,6 +211,34 @@ export function attachExploreGui(
       applyDemMode(value, zoomLevel);
       terrainState.demEnabled = getDemEnabled();
       demToggleController.updateDisplay();
+    });
+
+  const materialModeController = terrainFolder
+    .add(terrainState, "materialMode", [
+      TileMaterialMode.Basic,
+      TileMaterialMode.Dem,
+      TileMaterialMode.DemAdvance,
+    ])
+    .name("terrain mode")
+    .onChange((value: TileMaterialMode) => {
+      const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
+      const zoomLevel = disatanceToZoom(cameraDistanceMeters);
+
+      const success = applyMaterialMode(value as TileMaterialMode, zoomLevel);
+
+      if (!success) {
+        const currentZoom = zoomLevel.toFixed(1);
+        alert(
+          `Material mode '${value}' requires zoom level ≤ 15. Current zoom: ${currentZoom}`,
+        );
+        // Revert to previous mode
+        terrainState.materialMode = getMaterialMode();
+        materialModeController.updateDisplay();
+      } else {
+        terrainState.materialMode = getMaterialMode();
+        terrainState.demEnabled = getMaterialMode() !== TileMaterialMode.Basic;
+        demToggleController.updateDisplay();
+      }
     });
 
   const createOsmTilesController = terrainFolder
@@ -259,6 +288,8 @@ export function attachExploreGui(
     syncTerrainState: () => {
       terrainState.demEnabled = getDemEnabled();
       demToggleController.updateDisplay();
+      terrainState.materialMode = getMaterialMode();
+      materialModeController.updateDisplay();
       terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
       groundOrbitToggleController.updateDisplay();
       terrainState.osmTilesCreated = getOsmTilesCreated();
