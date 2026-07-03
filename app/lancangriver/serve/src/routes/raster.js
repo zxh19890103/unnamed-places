@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import sharp from 'sharp';
+import { PNG } from 'pngjs';
 
 const DEFAULT_SATELLITE_URL_TEMPLATE = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=4';
 const DEFAULT_DEM_PNG_URL_TEMPLATE = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
@@ -212,6 +213,7 @@ async function defaultFetchDemPngTile(z, x, y, rasterOptions) {
 const satelliteInFlight = createInFlightMap();
 const demPngInFlight = createInFlightMap();
 const demComposeInFlight = createInFlightMap();
+const derivativesInFlight = createInFlightMap();
 
 function createRasterHandlerOptions(options = {}) {
   const rasterOptions = options.raster ?? options;
@@ -292,6 +294,80 @@ async function readDemAltitudeFromPng(pngPath) {
     max,
     avg: count > 0 ? sum / count : 0
   };
+}
+
+function computeSlopeAspect(demData, width, height) {
+  // Compute slope and aspect from DEM data (Terrarium format: elevation = R*256 + G + B/256 - 32768)
+  // Returns Uint8Array of RGBA derivatives
+  
+  const output = new Uint8Array(width * height * 4);
+  
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      
+      // Helper to extract elevation from Terrarium-encoded pixel
+      const getElevation = (px, py) => {
+        const pidx = (py * width + px) * 4;
+        const r = demData[pidx];
+        const g = demData[pidx + 1];
+        const b = demData[pidx + 2];
+        return (r * 256 + g + b / 256) - 32768;
+      };
+      
+      // Read 3x3 neighborhood
+      const z00 = getElevation(x - 1, y - 1);
+      const z10 = getElevation(x, y - 1);
+      const z20 = getElevation(x + 1, y - 1);
+      const z01 = getElevation(x - 1, y);
+      const z21 = getElevation(x + 1, y);
+      const z02 = getElevation(x - 1, y + 1);
+      const z12 = getElevation(x, y + 1);
+      const z22 = getElevation(x + 1, y + 1);
+      
+      // Horn-style derivatives
+      const dz_dx = (-z00 - 2 * z01 - z02 + z20 + 2 * z21 + z22) / 8.0;
+      const dz_dy = (-z00 - 2 * z10 - z20 + z02 + 2 * z12 + z22) / 8.0;
+      
+      // Slope in degrees
+      const slope = Math.atan(Math.sqrt(dz_dx * dz_dx + dz_dy * dz_dy)) * (180 / Math.PI);
+      
+      // Aspect in radians [0, 2π)
+      let aspect = Math.atan2(dz_dy, dz_dx);
+      if (aspect < 0) aspect += 2 * Math.PI;
+      
+      // Pack to RGBA
+      output[idx] = Math.round(Math.max(0, Math.min(255, (slope / 90) * 255)));       // R = slope
+      output[idx + 1] = Math.round((Math.sin(aspect) * 0.5 + 0.5) * 255);              // G = sin(aspect)
+      output[idx + 2] = Math.round((Math.cos(aspect) * 0.5 + 0.5) * 255);              // B = cos(aspect)
+      output[idx + 3] = 255;                                                             // A = 255
+    }
+  }
+  
+  // Handle border by replicating edge pixels
+  // Top/bottom rows
+  for (let x = 0; x < width; x++) {
+    const srcIdx = (1 * width + x) * 4;
+    const topIdx = (0 * width + x) * 4;
+    output.set(output.subarray(srcIdx, srcIdx + 4), topIdx);
+    
+    const srcBotIdx = ((height - 2) * width + x) * 4;
+    const botIdx = ((height - 1) * width + x) * 4;
+    output.set(output.subarray(srcBotIdx, srcBotIdx + 4), botIdx);
+  }
+  
+  // Left/right columns
+  for (let y = 0; y < height; y++) {
+    const srcIdx = (y * width + 1) * 4;
+    const leftIdx = (y * width + 0) * 4;
+    output.set(output.subarray(srcIdx, srcIdx + 4), leftIdx);
+    
+    const srcRIdx = (y * width + (width - 2)) * 4;
+    const rIdx = (y * width + (width - 1)) * 4;
+    output.set(output.subarray(srcRIdx, srcRIdx + 4), rIdx);
+  }
+  
+  return output;
 }
 
 async function ensureDemAltitudeMetadata(rasterOptions, z, x, y, fetchDemPngTileOnce) {
@@ -594,6 +670,98 @@ export function createRasterRouter(options = {}) {
       });
     } catch (error) {
       sendRasterError(res, 500, 'DEM_PNG_RENDER_FAILED', 'Internal server error');
+    }
+  });
+
+  // Derivatives route: computes and caches slope/aspect derivatives
+  router.get('/raster/dem/:z/:x/:y/derivatives.png', async (req, res) => {
+    const z = parseTileCoordinate(req.params.z);
+    const x = parseTileCoordinate(req.params.x);
+    const y = parseTileCoordinate(req.params.y);
+
+    if (!validateTileCoordinates(z, x, y)) {
+      sendRasterError(res, 400, 'INVALID_TILE_COORDINATES', 'Invalid z/x/y tile coordinates');
+      return;
+    }
+
+    if (z > MAX_DEM_ZOOM) {
+      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'Derivatives only support zoom levels up to 15');
+      return;
+    }
+
+    try {
+      const cacheKey = `${z}/${x}/${y}`;
+      
+      // Use in-flight map to avoid duplicate concurrent computations
+      const result = await runWithInFlight(derivativesInFlight, cacheKey, async () => {
+        const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
+        const tileRoot = dirname(demPngPath);
+        const derivativesPath = join(tileRoot, 'derivatives.png');
+
+        // Check cache first
+        if (await isExistingPath(derivativesPath)) {
+          return { path: derivativesPath, cached: true };
+        }
+
+        // Ensure DEM tile exists
+        if (!(await isExistingPath(demPngPath))) {
+          await fetchDemPngTileOnce(z, x, y);
+        }
+
+        // Read DEM PNG and decode
+        const demBuffer = await readFile(demPngPath);
+        const png = new PNG();
+        
+        return new Promise((resolve, reject) => {
+          png.parse(demBuffer, async (err, parsedPng) => {
+            if (err) {
+              console.error(`Failed to parse DEM PNG for ${z}/${x}/${y}:`, err);
+              reject(new Error('DEM parse failed'));
+              return;
+            }
+
+            try {
+              const width = parsedPng.width;
+              const height = parsedPng.height;
+              const derivativesData = computeSlopeAspect(parsedPng.data, width, height);
+
+              // Create derivatives PNG
+              const derivativesPng = new PNG({ width, height });
+              derivativesPng.data = Buffer.from(derivativesData);
+
+              // Write atomically
+              await ensureDirectory(derivativesPath);
+              
+              const tmpPath = `${derivativesPath}.${process.pid}.${Date.now()}.tmp`;
+              const writeStream = require('node:fs').createWriteStream(tmpPath);
+              
+              derivativesPng.pack().pipe(writeStream);
+
+              writeStream.on('finish', async () => {
+                try {
+                  await rename(tmpPath, derivativesPath);
+                  resolve({ path: derivativesPath, cached: false });
+                } catch (renameErr) {
+                  console.error(`Failed to rename derivatives temp file:`, renameErr);
+                  reject(renameErr);
+                }
+              });
+
+              writeStream.on('error', (writeErr) => {
+                console.error(`Failed to write derivatives PNG:`, writeErr);
+                reject(writeErr);
+              });
+            } catch (processErr) {
+              console.error(`Failed to process derivatives:`, processErr);
+              reject(processErr);
+            }
+          });
+        });
+      });
+
+      await sendRasterFile(res, result.path, 'image/png');
+    } catch (error) {
+      sendRasterError(res, 500, 'DERIVATIVES_COMPUTE_FAILED', 'Internal server error', error);
     }
   });
   //#endregion
