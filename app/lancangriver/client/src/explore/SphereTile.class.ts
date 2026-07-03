@@ -5,9 +5,16 @@ import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
 import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
+import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class";
 import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
 
-type TileSurfaceMaterial = TileBasicMaterial | TileDemMaterial;
+export enum TileMaterialMode {
+  Basic = "basic",
+  Dem = "dem",
+  DemAdvance = "dem-advance",
+}
+
+type TileSurfaceMaterial = TileBasicMaterial | TileDemMaterial | TileDemAdvanceMaterial;
 
 type Parameters = {
   radius?: number;
@@ -17,6 +24,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   $tNode: ITileNode;
   center: THREE.Vector3;
   centerLatlng: { lat: number; lng: number };
+  private materialMode: TileMaterialMode = TileMaterialMode.Basic;
 
   static readonly MAX_DEM_ZOOM = 15;
   static readonly SKIRT_DEPTH_METERS = 400;
@@ -85,5 +93,51 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     prevMaterial.dispose();
 
     return true;
+  }
+
+  setMaterialMode(mode: TileMaterialMode): void {
+    if (this.materialMode === mode) {
+      return; // Already in requested mode
+    }
+
+    const nextMaterial = this.createMaterialForMode(mode);
+    if (nextMaterial) {
+      const prevMaterial = this.material;
+      this.material = nextMaterial;
+      prevMaterial.dispose();
+      this.materialMode = mode;
+    }
+  }
+
+  getMaterialMode(): TileMaterialMode {
+    return this.materialMode;
+  }
+
+  private createMaterialForMode(mode: TileMaterialMode): TileSurfaceMaterial | null {
+    switch (mode) {
+      case TileMaterialMode.Basic:
+        return new TileBasicMaterial(this.textureLoader, {
+          tileKey: this.tile,
+        });
+
+      case TileMaterialMode.Dem:
+        if (!this.canUseDemMaterial()) {
+          return null;
+        }
+        return new TileDemMaterial(this.textureLoader, this.imageLoader, {
+          tileKey: this.tile,
+        });
+
+      case TileMaterialMode.DemAdvance:
+        if (!this.canUseDemMaterial()) {
+          return null;
+        }
+        return new TileDemAdvanceMaterial(this.textureLoader, this.imageLoader, {
+          tileKey: this.tile,
+        });
+
+      default:
+        return null;
+    }
   }
 }
