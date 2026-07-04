@@ -100,7 +100,10 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   }
 
   setMaterialMode(mode: TileMaterialMode): void {
-    if (this.materialMode === mode) {
+    if (
+      this.materialMode === mode &&
+      this.isCurrentMaterialForMode(mode)
+    ) {
       return; // Already in requested mode
     }
 
@@ -162,6 +165,22 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
 
       default:
         return null;
+    }
+  }
+
+  private isCurrentMaterialForMode(mode: TileMaterialMode): boolean {
+    switch (mode) {
+      case TileMaterialMode.Basic:
+        return this.material instanceof TileBasicMaterial;
+
+      case TileMaterialMode.Dem:
+        return this.material instanceof TileDemMaterial;
+
+      case TileMaterialMode.DemAdvance:
+        return this.material instanceof TileDemAdvanceMaterial;
+
+      default:
+        return false;
     }
   }
 }
