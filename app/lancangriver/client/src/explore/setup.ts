@@ -339,6 +339,7 @@ export function createScene(container: HTMLElement) {
     } else {
       tileManager.frozen = false;
       compositor.disposeComposedTextures();
+      reconcileAttachedNodeMaterials();
       console.log("[Tiles] Tile finding resumed");
       refreshVisibleTiles();
     }
@@ -373,6 +374,19 @@ export function createScene(container: HTMLElement) {
     null;
   let guiHandle: ExploreGuiHandle | null = null;
 
+  const reconcileAttachedNodeMaterials = () => {
+    for (const node of tileManager.getAttachedNodes()) {
+      if (!node.tile) {
+        continue;
+      }
+
+      if (node.focusRole === "halo") {
+        node.tile.setEmptyMaterial();
+      } else {
+        node.tile.setMaterialMode(terrainState.materialMode);
+      }
+    }
+  };
   const applyMaterialModeToAttachedTiles = (mode: TileMaterialMode) => {
     for (const node of tileManager.getAttachedNodes()) {
       if (node.focusRole === "halo") {
@@ -638,6 +652,7 @@ export function createScene(container: HTMLElement) {
         focusRole: role,
       })),
     );
+    reconcileAttachedNodeMaterials();
 
     try {
       await waitForAttachedTiles(focusTiles);
