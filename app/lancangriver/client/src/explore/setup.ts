@@ -626,7 +626,7 @@ export function createScene(container: HTMLElement) {
     tileManager.setNodes(focusTiles);
 
     try {
-      waitForAttachedTiles(focusTiles);
+      await waitForAttachedTiles(focusTiles);
     } catch (error) {
       console.warn("[Tiles] Focused tile preload timed out", error);
     }

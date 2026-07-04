@@ -1,7 +1,87 @@
-import { describe, expect, it } from "vitest";
+import * as THREE from "three";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SphereTile, TileMaterialMode } from "./SphereTile.class";
+import { TileEmptyMaterial } from "./materials/TileEmptyMaterial.class";
 import { buildFocusNeighbors } from "./setup";
 
+vi.mock("./materials/TileBasicMaterial.class", () => {
+  class MockTileBasicMaterial extends THREE.MeshBasicMaterial {}
+  return { TileBasicMaterial: MockTileBasicMaterial };
+});
+
 const toId = (z: number, x: number, y: number) => `${z}/${x}/${y}`;
+
+describe("SphereTile empty material", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("switches to dedicated empty material", () => {
+    const tile = new SphereTile(
+      {} as any,
+      {} as any,
+      { z: 11, x: 1, y: 1 },
+      {},
+    );
+
+    tile.setEmptyMaterial();
+
+    expect(tile.material).toBeInstanceOf(TileEmptyMaterial);
+    expect(tile.isEmptyMaterial()).toBe(true);
+  });
+
+  it("restores non-empty basic material after empty then basic mode", () => {
+    const tile = new SphereTile(
+      {} as any,
+      {} as any,
+      { z: 11, x: 1, y: 1 },
+      {},
+    );
+
+    tile.setEmptyMaterial();
+    tile.setMaterialMode(TileMaterialMode.Basic);
+
+    expect(tile.isEmptyMaterial()).toBe(false);
+    expect(tile.material).not.toBeInstanceOf(TileEmptyMaterial);
+    expect(tile.getMaterialMode()).toBe(TileMaterialMode.Basic);
+  });
+
+  it("disposes previous material exactly once when swapping to empty", () => {
+    const tile = new SphereTile(
+      {} as any,
+      {} as any,
+      { z: 11, x: 1, y: 1 },
+      {},
+    );
+
+    const disposeSpy = vi.spyOn(tile.material, "dispose");
+
+    tile.setEmptyMaterial();
+
+    expect(disposeSpy).toHaveBeenCalledTimes(1);
+    expect(tile.material).toBeInstanceOf(TileEmptyMaterial);
+  });
+
+  it("is idempotent when setEmptyMaterial is called repeatedly", () => {
+    const tile = new SphereTile(
+      {} as any,
+      {} as any,
+      { z: 11, x: 1, y: 1 },
+      {},
+    );
+
+    const firstMaterial = tile.material;
+    const disposeSpy = vi.spyOn(firstMaterial, "dispose");
+
+    tile.setEmptyMaterial();
+    const emptyAfterFirstCall = tile.material;
+    tile.setEmptyMaterial();
+
+    expect(disposeSpy).toHaveBeenCalledTimes(1);
+    expect(tile.material).toBe(emptyAfterFirstCall);
+    expect(tile.material).toBeInstanceOf(TileEmptyMaterial);
+  });
+});
 
 describe("focus halo selection", () => {
   it("returns zero halo tiles for [0,0]", () => {
