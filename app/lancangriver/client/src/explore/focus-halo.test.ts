@@ -138,4 +138,22 @@ describe("focus halo selection", () => {
     ];
     expect(ids).toEqual(expectedOrder);
   });
+
+  it("treats first halo component as latitude expansion", () => {
+    const latOnly = buildFocusNeighbors({ lat: 40.7, lng: 14.4 }, [2, 0]);
+
+    // Core is 5x3=15; expanded is 5x7=35 -> halo should be 20.
+    expect(latOnly.coreFocusTiles).toHaveLength(15);
+    expect(latOnly.haloTiles).toHaveLength(20);
+    expect(latOnly.focusTilesWithRole).toHaveLength(35);
+  });
+
+  it("treats second halo component as longitude expansion", () => {
+    const lonOnly = buildFocusNeighbors({ lat: 40.7, lng: 14.4 }, [0, 3]);
+
+    // Core is 5x3=15; expanded is 11x3=33 -> halo should be 18.
+    expect(lonOnly.coreFocusTiles).toHaveLength(15);
+    expect(lonOnly.haloTiles).toHaveLength(18);
+    expect(lonOnly.focusTilesWithRole).toHaveLength(33);
+  });
 });

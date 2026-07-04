@@ -106,7 +106,9 @@ const splitCoreAndHaloTiles = (
   expandedTiles: SphereTileKey[],
 ) => {
   const coreIds = new Set(coreFocusTiles.map(tileKeyId));
-  const haloTiles = expandedTiles.filter((tile) => !coreIds.has(tileKeyId(tile)));
+  const haloTiles = expandedTiles.filter(
+    (tile) => !coreIds.has(tileKeyId(tile)),
+  );
   const focusTilesWithRole: FocusTileWithRole[] = [
     ...coreFocusTiles.map((key) => ({ key, role: "core" as const })),
     ...haloTiles.map((key) => ({ key, role: "halo" as const })),
@@ -130,14 +132,14 @@ export const buildFocusNeighbors = (
     FOCUS_TILE_ZOOM,
   );
 
-  const [haloX, haloY] = halo;
+  const [haloLat, haloLon] = halo;
 
   const coreFocusTiles = collectTilesInExtent(centerTile, FOCUS_TILE_EXTENT);
   const expandedFocusTiles = collectTilesInExtent(centerTile, {
-    x0: FOCUS_TILE_EXTENT.x0 - haloX,
-    x1: FOCUS_TILE_EXTENT.x1 + haloX,
-    y0: FOCUS_TILE_EXTENT.y0 - haloY,
-    y1: FOCUS_TILE_EXTENT.y1 + haloY,
+    x0: FOCUS_TILE_EXTENT.x0 - haloLon,
+    x1: FOCUS_TILE_EXTENT.x1 + haloLon,
+    y0: FOCUS_TILE_EXTENT.y0 - haloLat,
+    y1: FOCUS_TILE_EXTENT.y1 + haloLat,
   });
 
   return {
