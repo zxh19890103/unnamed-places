@@ -6,6 +6,7 @@ import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
 import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class";
+import { TileEmptyMaterial } from "./materials/TileEmptyMaterial.class";
 
 export enum TileMaterialMode {
   Basic = "basic",
@@ -16,7 +17,8 @@ export enum TileMaterialMode {
 type TileSurfaceMaterial =
   | TileBasicMaterial
   | TileDemMaterial
-  | TileDemAdvanceMaterial;
+  | TileDemAdvanceMaterial
+  | TileEmptyMaterial;
 
 type Parameters = {
   radius?: number;
@@ -109,6 +111,20 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
       prevMaterial.dispose();
       this.materialMode = mode;
     }
+  }
+
+  setEmptyMaterial(): void {
+    if (this.material instanceof TileEmptyMaterial) {
+      return;
+    }
+
+    const prevMaterial = this.material;
+    this.material = new TileEmptyMaterial();
+    prevMaterial.dispose();
+  }
+
+  isEmptyMaterial(): boolean {
+    return this.material instanceof TileEmptyMaterial;
   }
 
   getMaterialMode(): TileMaterialMode {
