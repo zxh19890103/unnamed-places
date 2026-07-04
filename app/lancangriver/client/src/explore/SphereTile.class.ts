@@ -100,10 +100,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   }
 
   setMaterialMode(mode: TileMaterialMode): void {
-    if (
-      this.materialMode === mode &&
-      this.isCurrentMaterialForMode(mode)
-    ) {
+    if (this.materialMode === mode && this.isCurrentMaterialForMode(mode)) {
       return; // Already in requested mode
     }
 

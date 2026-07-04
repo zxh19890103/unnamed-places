@@ -34,7 +34,10 @@ export class TileNode implements ITileNode {
 
   focusRole?: FocusTileRole;
 
-  constructor(readonly key: SphereTileKey, focusRole?: FocusTileRole) {
+  constructor(
+    readonly key: SphereTileKey,
+    focusRole?: FocusTileRole,
+  ) {
     this.x = key.x;
     this.y = key.y;
     this.z = key.z;
