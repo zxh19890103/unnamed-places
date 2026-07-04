@@ -375,6 +375,10 @@ export function createScene(container: HTMLElement) {
 
   const applyMaterialModeToAttachedTiles = (mode: TileMaterialMode) => {
     for (const node of tileManager.getAttachedNodes()) {
+      if (node.focusRole === "halo") {
+        continue;
+      }
+
       if (node.tile) {
         node.tile.setMaterialMode(mode);
       }
@@ -406,7 +410,11 @@ export function createScene(container: HTMLElement) {
   tileManager.onTileCreate = (node) => {
     const tile = sphereGlobal.createTileByKey(node.key);
     tile.$tNode = node;
-    tile.setMaterialMode(terrainState.materialMode);
+    if (node.focusRole === "halo") {
+      tile.setEmptyMaterial();
+    } else {
+      tile.setMaterialMode(terrainState.materialMode);
+    }
     node.tile = tile;
     osmBuildingTiles.onTileCreate(node);
   };
@@ -622,8 +630,14 @@ export function createScene(container: HTMLElement) {
     // Freeze immediately to disable interaction-driven tile loading.
     tileManager.frozen = true;
 
-    const { focusTiles, centerTile } = getFocusNeighborTiles(centerLatlng);
-    tileManager.setNodes(focusTiles);
+    const { focusTiles, centerTile, focusTilesWithRole } =
+      getFocusNeighborTiles(centerLatlng);
+    tileManager.setNodes(
+      focusTilesWithRole.map(({ key, role }) => ({
+        ...key,
+        focusRole: role,
+      })),
+    );
 
     try {
       await waitForAttachedTiles(focusTiles);
