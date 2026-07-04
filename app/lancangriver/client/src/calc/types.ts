@@ -25,6 +25,8 @@ export type SphereTileKey = {
   y: number;
 };
 
+export type FocusTileRole = "core" | "halo";
+
 export interface ChildSphereTileKey extends SphereTileKey {
   offsetX: number;
   offsetY: number;
@@ -44,4 +46,5 @@ export enum TileNodeState {
 
 export interface ITileNode {
   state: TileNodeState;
+  focusRole?: FocusTileRole;
 }

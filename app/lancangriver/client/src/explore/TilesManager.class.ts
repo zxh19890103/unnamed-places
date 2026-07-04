@@ -1,5 +1,12 @@
-import { ITileNode, SphereTileKey, TileNodeState } from "../calc/types";
+import {
+  FocusTileRole,
+  ITileNode,
+  SphereTileKey,
+  TileNodeState,
+} from "../calc/types";
 import { SphereTile } from "./SphereTile.class";
+
+export type TileNodeInput = SphereTileKey & { focusRole?: FocusTileRole };
 
 export class TileNode implements ITileNode {
   readonly x: number;
@@ -25,10 +32,13 @@ export class TileNode implements ITileNode {
   satelliteFailureCount?: number; // Consecutive composition failures
   satelliteRetryExhausted?: boolean; // Retry cap reached for current target
 
-  constructor(readonly key: SphereTileKey) {
+  focusRole?: FocusTileRole;
+
+  constructor(readonly key: SphereTileKey, focusRole?: FocusTileRole) {
     this.x = key.x;
     this.y = key.y;
     this.z = key.z;
+    this.focusRole = focusRole;
   }
 }
 
@@ -52,13 +62,13 @@ export class TilesManager {
     return `${key.z}/${key.x}/${key.y}`;
   }
 
-  setNodes(nextKeys: SphereTileKey[]) {
+  setNodes(nextKeys: TileNodeInput[]) {
     const currentByKey = new Map<string, TileNode>();
     for (const node of this.nodes) {
       currentByKey.set(this.keyOf(node.key), node);
     }
 
-    const nextByKey = new Map<string, SphereTileKey>();
+    const nextByKey = new Map<string, TileNodeInput>();
     for (const key of nextKeys) {
       nextByKey.set(this.keyOf(key), key);
     }
@@ -67,6 +77,7 @@ export class TilesManager {
 
     for (const [id, currentNode] of currentByKey) {
       if (nextByKey.has(id)) {
+        currentNode.focusRole = nextByKey.get(id)?.focusRole;
         if (currentNode.state >= TileNodeState.toDetach) {
           currentNode.state = currentNode.tile
             ? TileNodeState.attached
@@ -88,7 +99,7 @@ export class TilesManager {
         continue;
       }
 
-      const created = new TileNode(nextKey);
+      const created = new TileNode(nextKey, nextKey.focusRole);
       created.state = TileNodeState.toCreate;
       reconciled.push(created);
     }

@@ -11,6 +11,24 @@ describe("TilesManager", () => {
     vi.useFakeTimers();
   });
 
+  it("preserves focusRole on created nodes", () => {
+    const manager = new TilesManager();
+    const createdRoles: Array<"core" | "halo" | undefined> = [];
+
+    manager.onTileCreate = (node) => {
+      createdRoles.push(node.focusRole);
+    };
+
+    manager.setNodes([
+      { z: 11, x: 1200, y: 900, focusRole: "core" },
+      { z: 11, x: 1201, y: 900, focusRole: "halo" },
+    ]);
+
+    vi.runAllTimers();
+
+    expect(createdRoles).toEqual(["core", "halo"]);
+  });
+
   it("fires create and attach callbacks at phase start", () => {
     const manager = new TilesManager();
     const calls: string[] = [];
