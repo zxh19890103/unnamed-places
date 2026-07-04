@@ -35,7 +35,7 @@ export class TileDemAdvanceMaterial extends THREE.ShaderMaterial {
       tileKey,
       elevationScale = ELEVATION_SCALE,
       hillshadeEnabled = false,
-      colorRampScale = 1.0,
+      colorRampScale = 0.7,
     } = parameters;
 
     super({
@@ -43,6 +43,7 @@ export class TileDemAdvanceMaterial extends THREE.ShaderMaterial {
       fog: true,
       uniforms: THREE.UniformsUtils.merge([
         THREE.UniformsLib.fog,
+        THREE.UniformsLib.lights,
         {
           uDemTexture: { value: null },
           uDerivativesTexture: { value: null },
@@ -54,6 +55,7 @@ export class TileDemAdvanceMaterial extends THREE.ShaderMaterial {
           uColorRampScale: { value: colorRampScale },
         },
       ]),
+      lights: true,
       vertexShader,
       fragmentShader,
     });

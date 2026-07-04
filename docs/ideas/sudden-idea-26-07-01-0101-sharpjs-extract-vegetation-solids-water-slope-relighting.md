@@ -1,5 +1,5 @@
 ---
-done: no
+done: yes
 comment: all we need is to extract slope.
 ---
 

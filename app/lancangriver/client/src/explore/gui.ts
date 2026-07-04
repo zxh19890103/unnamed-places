@@ -15,8 +15,6 @@ type AttachExploreGuiParameters = {
   onRefreshVisibleTilesAndStats: () => void;
   getMaterialMode: () => TileMaterialMode;
   applyMaterialMode: (mode: TileMaterialMode, zoomLevel: number) => boolean;
-  getGroundOrbitEnabled: () => boolean;
-  setGroundOrbitEnabled: (enabled: boolean) => void;
   triggerCreateOsmTilesOnce: () => boolean;
   getOsmTilesCreated: () => boolean;
 };
@@ -35,8 +33,6 @@ export function attachExploreGui(
     onRefreshVisibleTilesAndStats,
     getMaterialMode,
     applyMaterialMode,
-    getGroundOrbitEnabled,
-    setGroundOrbitEnabled,
     triggerCreateOsmTilesOnce,
     getOsmTilesCreated,
   } = parameters;
@@ -170,7 +166,6 @@ export function attachExploreGui(
 
   const terrainState = {
     materialMode: getMaterialMode(),
-    groundOrbitEnabled: getGroundOrbitEnabled(),
     osmTilesCreated: getOsmTilesCreated(),
   };
 
@@ -187,15 +182,6 @@ export function attachExploreGui(
       }
     },
   };
-
-  const groundOrbitToggleController = terrainFolder
-    .add(terrainState, "groundOrbitEnabled")
-    .name("ground orbit")
-    .onChange((value: boolean) => {
-      setGroundOrbitEnabled(value);
-      terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
-      groundOrbitToggleController.updateDisplay();
-    });
 
   const materialModeController = terrainFolder
     .add(terrainState, "materialMode", [
@@ -270,8 +256,6 @@ export function attachExploreGui(
     syncTerrainState: () => {
       terrainState.materialMode = getMaterialMode();
       materialModeController.updateDisplay();
-      terrainState.groundOrbitEnabled = getGroundOrbitEnabled();
-      groundOrbitToggleController.updateDisplay();
       terrainState.osmTilesCreated = getOsmTilesCreated();
       createOsmTilesController.name(
         terrainState.osmTilesCreated

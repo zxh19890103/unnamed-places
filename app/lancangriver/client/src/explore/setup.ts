@@ -44,7 +44,7 @@ const FOG_COLOR = new THREE.Color("#ffffff");
 const SKY_SCALE_MULTIPLIER = 8;
 const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
 const SKY_MAX_SCALE = EARTH_RADIUS * 12;
-const FOCUS_TILE_ZOOM = 12;
+const FOCUS_TILE_ZOOM = 11;
 const FOCUS_TILE_EXTENT = {
   x0: -2,
   y0: -1,
@@ -564,28 +564,12 @@ export function createScene(container: HTMLElement) {
     return { centerTile, focusTiles };
   };
 
-  const setGroundOrbitEnabled = (enabled: boolean) => {
-    if (enabled) {
-      if (!controlsManager.isGroundOrbitMode()) {
-        focusGroundOrbitAtLatLng(getCurrentCameraLatlng());
-      }
-      return;
-    }
-
-    groundOrbitState.enabled = false;
-    clearGroundOrbitClouds();
-    controlsManager.exitGroundOrbit();
-    refreshVisibleTiles();
-  };
-
   guiHandle = attachExploreGui({
     camera,
     controlsManager,
     onRefreshVisibleTilesAndStats: refreshVisibleTiles,
     getMaterialMode: () => terrainState.materialMode,
     applyMaterialMode,
-    getGroundOrbitEnabled: () => groundOrbitState.enabled,
-    setGroundOrbitEnabled,
     triggerCreateOsmTilesOnce,
     getOsmTilesCreated: () => osmBuildingTiles.isCreationTriggered(),
   });

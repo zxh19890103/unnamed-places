@@ -1,6 +1,6 @@
 ---
-done: no
-comment: ""
+done: yes
+comment: "no as good as we expected, but still useful"
 ---
 
 # Sudden Idea
