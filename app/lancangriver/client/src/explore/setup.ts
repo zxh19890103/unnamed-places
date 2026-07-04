@@ -51,7 +51,100 @@ const FOCUS_TILE_EXTENT = {
   x1: 2,
   y1: 1,
 };
+const FOCUS_TILE_HALO: readonly [number, number] = [1, 1];
 const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
+
+type FocusTileRole = "core" | "halo";
+
+type FocusTileWithRole = {
+  key: SphereTileKey;
+  role: FocusTileRole;
+};
+
+const tileKeyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
+
+const appendTileIfAbsent = (
+  result: SphereTileKey[],
+  seen: Set<string>,
+  tile: SphereTileKey,
+) => {
+  const id = tileKeyId(tile);
+  if (seen.has(id)) {
+    return;
+  }
+
+  seen.add(id);
+  result.push(tile);
+};
+
+const collectTilesInExtent = (
+  centerKey: SphereTileKey,
+  extent: { x0: number; x1: number; y0: number; y1: number },
+) => {
+  const n = 2 ** FOCUS_TILE_ZOOM;
+  const seen = new Set<string>();
+  const result: SphereTileKey[] = [];
+
+  for (let dy = extent.y0; dy <= extent.y1; dy += 1) {
+    for (let dx = extent.x0; dx <= extent.x1; dx += 1) {
+      const wrappedX = (((centerKey.x + dx) % n) + n) % n;
+      const clampedY = Math.max(0, Math.min(n - 1, centerKey.y + dy));
+
+      appendTileIfAbsent(result, seen, {
+        z: FOCUS_TILE_ZOOM,
+        x: wrappedX,
+        y: clampedY,
+      });
+    }
+  }
+
+  return result;
+};
+
+const splitCoreAndHaloTiles = (
+  coreFocusTiles: SphereTileKey[],
+  expandedTiles: SphereTileKey[],
+) => {
+  const coreIds = new Set(coreFocusTiles.map(tileKeyId));
+  const haloTiles = expandedTiles.filter((tile) => !coreIds.has(tileKeyId(tile)));
+  const focusTilesWithRole: FocusTileWithRole[] = [
+    ...coreFocusTiles.map((key) => ({ key, role: "core" as const })),
+    ...haloTiles.map((key) => ({ key, role: "halo" as const })),
+  ];
+
+  return {
+    coreFocusTiles,
+    haloTiles,
+    focusTilesWithRole,
+    focusTiles: [...coreFocusTiles, ...haloTiles],
+  };
+};
+
+export const buildFocusNeighbors = (
+  centerLatlng: LatLng,
+  halo: readonly [number, number],
+) => {
+  const centerTile = latlngToTilekey(
+    centerLatlng.lng,
+    centerLatlng.lat,
+    FOCUS_TILE_ZOOM,
+  );
+
+  const [haloX, haloY] = halo;
+
+  const coreFocusTiles = collectTilesInExtent(centerTile, FOCUS_TILE_EXTENT);
+  const expandedFocusTiles = collectTilesInExtent(centerTile, {
+    x0: FOCUS_TILE_EXTENT.x0 - haloX,
+    x1: FOCUS_TILE_EXTENT.x1 + haloX,
+    y0: FOCUS_TILE_EXTENT.y0 - haloY,
+    y1: FOCUS_TILE_EXTENT.y1 + haloY,
+  });
+
+  return {
+    centerTile,
+    ...splitCoreAndHaloTiles(coreFocusTiles, expandedFocusTiles),
+  };
+};
 
 function computeOrbitPositionFromAzimuthAltitude(
   target: THREE.Vector3,
@@ -481,33 +574,18 @@ export function createScene(container: HTMLElement) {
     controlsManager.enterGroundOrbit(newOrbitTarget, newOrbitPosition);
   };
 
-  const keyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
+  const keyId = tileKeyId;
 
   const getFocusNeighborTiles = (
     centerLatlng: LatLng,
   ): {
     centerTile: SphereTileKey;
+    coreFocusTiles: SphereTileKey[];
+    haloTiles: SphereTileKey[];
+    focusTilesWithRole: FocusTileWithRole[];
     focusTiles: SphereTileKey[];
   } => {
-    const centerKey = latlngToTilekey(
-      centerLatlng.lng,
-      centerLatlng.lat,
-      FOCUS_TILE_ZOOM,
-    );
-
-    const n = 2 ** FOCUS_TILE_ZOOM;
-    const result: SphereTileKey[] = [];
-
-    for (let dy = FOCUS_TILE_EXTENT.y0; dy <= FOCUS_TILE_EXTENT.y1; dy += 1) {
-      for (let dx = FOCUS_TILE_EXTENT.x0; dx <= FOCUS_TILE_EXTENT.x1; dx += 1) {
-        const wrappedX = (((centerKey.x + dx) % n) + n) % n;
-        const clampedY = Math.max(0, Math.min(n - 1, centerKey.y + dy));
-
-        result.push({ z: FOCUS_TILE_ZOOM, x: wrappedX, y: clampedY });
-      }
-    }
-
-    return { centerTile: centerKey, focusTiles: result };
+    return buildFocusNeighbors(centerLatlng, FOCUS_TILE_HALO);
   };
 
   const waitForAttachedTiles = async (
