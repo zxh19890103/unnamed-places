@@ -3,15 +3,12 @@ import Stats from "three/examples/jsm/libs/stats.module.js";
 
 import {
   EARTH_RADIUS,
-  getLocalBasisAtPoint,
   latlngToSphere,
   sphereToLatlng,
 } from "../../calc/sphere";
 import {
   disatanceToZoom,
   latlngToTilekey,
-  mergeTileExtents,
-  tileExtent,
   zoomToDistance,
 } from "../../calc/mercator";
 import { Sphere } from "../Sphere.class";
@@ -22,102 +19,18 @@ import { attachExploreGui, type ExploreGuiHandle } from "../gui";
 import { TileMaterialMode } from "../SphereTile.class";
 import { BASE_URL, MAX_DEM_ZOOM } from "../../calc/constants";
 import { LatLng, SphereTileKey } from "../../calc/types";
-import { JourneyDayNode, PhotoRecord } from "../../photos/types";
-import { PhotoMarkerGeometry } from "../geometries/PhotoMarkerGeometry.class";
-import { PhotoMarkerMaterial } from "../materials/PhotoMarkerMaterial.class";
 import { OsmBuildingTilesController } from "../OsmBuildingTilesController.class";
 import { createVendors } from "./vendors";
 import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky";
 import { createGroundOrbitCloudsController } from "./clouds";
 import { GroundOrbitState } from "./types";
-
-const FOCUS_TILE_ZOOM = 11;
-const FOCUS_TILE_EXTENT = {
-  x0: -0,
-  y0: -0,
-  x1: 0,
-  y1: 0,
-};
-
-const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
-
-const tileKeyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
-
-const appendTileIfAbsent = (
-  result: SphereTileKey[],
-  seen: Set<string>,
-  tile: SphereTileKey,
-) => {
-  const id = tileKeyId(tile);
-  if (seen.has(id)) {
-    return;
-  }
-
-  seen.add(id);
-  result.push(tile);
-};
-
-const collectTilesInExtent = (
-  centerKey: SphereTileKey,
-  extent: { x0: number; x1: number; y0: number; y1: number },
-) => {
-  const n = 2 ** FOCUS_TILE_ZOOM;
-  const seen = new Set<string>();
-  const result: SphereTileKey[] = [];
-
-  for (let dy = extent.y0; dy <= extent.y1; dy += 1) {
-    for (let dx = extent.x0; dx <= extent.x1; dx += 1) {
-      const wrappedX = (((centerKey.x + dx) % n) + n) % n;
-      const clampedY = Math.max(0, Math.min(n - 1, centerKey.y + dy));
-
-      appendTileIfAbsent(result, seen, {
-        z: FOCUS_TILE_ZOOM,
-        x: wrappedX,
-        y: clampedY,
-      });
-    }
-  }
-
-  return result;
-};
-
-const buildFocusNeighbors = (centerLatlng: LatLng) => {
-  const centerTile = latlngToTilekey(
-    centerLatlng.lng,
-    centerLatlng.lat,
-    FOCUS_TILE_ZOOM,
-  );
-
-  const coreFocusTiles = collectTilesInExtent(centerTile, FOCUS_TILE_EXTENT);
-
-  return {
-    centerTile,
-    coreFocusTiles,
-  };
-};
-
-function computeOrbitPositionFromAzimuthAltitude(
-  target: THREE.Vector3,
-  azimuthDeg: number,
-  altitudeDeg: number,
-  distanceMeters: number,
-) {
-  const { up, east, north } = getLocalBasisAtPoint(target);
-  const azimuthRad = THREE.MathUtils.degToRad(azimuthDeg);
-  const altitudeRad = THREE.MathUtils.degToRad(altitudeDeg);
-
-  const horizontal = east
-    .clone()
-    .multiplyScalar(Math.sin(azimuthRad))
-    .add(north.clone().multiplyScalar(Math.cos(azimuthRad)));
-
-  const viewDirection = horizontal
-    .multiplyScalar(Math.cos(altitudeRad))
-    .add(up.multiplyScalar(Math.sin(altitudeRad)))
-    .normalize();
-
-  return target.clone().addScaledVector(viewDirection, distanceMeters);
-}
+import { computeOrbitPositionFromAzimuthAltitude } from "./orbit";
+import {
+  getFocusNeighborTiles,
+  getFocusZoomLevel,
+  waitForAttachedTiles,
+} from "./focus";
+import { createPhotoLocationsPresenter } from "./photos";
 
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
@@ -190,6 +103,11 @@ export function createScene(container: HTMLElement) {
   const cloudsController = createGroundOrbitCloudsController({
     scene,
     cloudAtlasTexture,
+  });
+  const photoLocationsPresenter = createPhotoLocationsPresenter({
+    scene,
+    textureLoader,
+    baseUrl: BASE_URL,
   });
 
   let guiHandle: ExploreGuiHandle | null = null;
@@ -368,47 +286,6 @@ export function createScene(container: HTMLElement) {
     controlsManager.enterGroundOrbit(newOrbitTarget, newOrbitPosition);
   };
 
-  const keyId = tileKeyId;
-
-  const getFocusNeighborTiles = (
-    centerLatlng: LatLng,
-  ): {
-    centerTile: SphereTileKey;
-    coreFocusTiles: SphereTileKey[];
-  } => {
-    return buildFocusNeighbors(centerLatlng);
-  };
-
-  const waitForAttachedTiles = async (
-    targetKeys: SphereTileKey[],
-    timeoutMs = FOCUS_TILE_WAIT_TIMEOUT_MS,
-  ) => {
-    const target = new Set(targetKeys.map(keyId));
-    const start = performance.now();
-
-    await new Promise<void>((resolve, reject) => {
-      const check = () => {
-        const attached = tileManager.getAttachedNodes();
-        const attachedIds = new Set(attached.map((node) => keyId(node.key)));
-        const ready = [...target].every((id) => attachedIds.has(id));
-
-        if (ready) {
-          resolve();
-          return;
-        }
-
-        if (performance.now() - start > timeoutMs) {
-          reject(new Error("Timed out waiting for focused tiles to attach"));
-          return;
-        }
-
-        window.requestAnimationFrame(check);
-      };
-
-      check();
-    });
-  };
-
   const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
     tileManager.frozen = true;
 
@@ -419,12 +296,16 @@ export function createScene(container: HTMLElement) {
     reconcileAttachedNodeMaterials();
 
     try {
-      await waitForAttachedTiles(coreFocusTiles);
+      await waitForAttachedTiles({
+        targetKeys: coreFocusTiles,
+        getAttachedKeys: () =>
+          tileManager.getAttachedNodes().map((node) => node.key),
+      });
     } catch (error) {
       console.warn("[Tiles] Focused tile preload timed out", error);
     }
 
-    const camDistance = zoomToDistance(FOCUS_TILE_ZOOM);
+    const camDistance = zoomToDistance(getFocusZoomLevel());
     const moveCamTo = camera.position.clone();
     moveCamTo.normalize().setLength(EARTH_RADIUS + camDistance);
     camera.position.copy(moveCamTo);
@@ -461,70 +342,6 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  let showPhotosLocationsDispose: VoidFunction = null;
-  const showPhotosLocations = (
-    journeyDay: JourneyDayNode,
-    records: PhotoRecord[],
-    tiles: SphereTileKey[],
-    centerTile: SphereTileKey,
-  ) => {
-    showPhotosLocationsDispose?.();
-
-    const group = new THREE.Group();
-    const photos: THREE.Mesh<PhotoMarkerGeometry, PhotoMarkerMaterial>[] = [];
-
-    const worldExtent = mergeTileExtents(
-      ...tiles.map((tile) => tileExtent(tile.z, tile.x, tile.y)),
-    );
-
-    const waterDropTexture = textureLoader.load("/waterdrop.svg");
-    const worldDemTexture = textureLoader.load(
-      `${BASE_URL}/raster/dem/${centerTile.z}/${centerTile.x}/${centerTile.y}/compose.png`,
-    );
-
-    journeyDay.photoIds.forEach((id) => {
-      const photoRec = records.find((rec) => rec.id === id);
-      if (!photoRec) {
-        return;
-      }
-
-      const photo = new THREE.Mesh(
-        new PhotoMarkerGeometry({
-          rec: photoRec,
-          size: 800,
-          ratio: 1,
-          worldExtent: worldExtent,
-        }),
-
-        new PhotoMarkerMaterial(textureLoader, {
-          map: waterDropTexture,
-          rec: photoRec,
-          worldDemTexture: worldDemTexture,
-          worldExtent: worldExtent,
-        }),
-      );
-
-      group.add(photo);
-      photos.push(photo);
-    });
-
-    scene.add(group);
-
-    showPhotosLocationsDispose = () => {
-      scene.remove(group);
-
-      for (const photo of photos) {
-        photo.geometry.dispose();
-        photo.material.dispose();
-      }
-
-      waterDropTexture.dispose();
-      worldDemTexture.dispose();
-
-      showPhotosLocationsDispose = null;
-    };
-  };
-
   refreshVisibleTilesOnCameraChanges();
 
   return {
@@ -540,9 +357,10 @@ export function createScene(container: HTMLElement) {
     focusGroundOrbitAtLatLng,
     destroyCameraGui,
     destroyStats,
-    showPhotosLocations,
+    showPhotosLocations: photoLocationsPresenter.showPhotosLocations,
     cleanup: () => {
       cloudsController.dispose();
+      photoLocationsPresenter.dispose();
       osmBuildingTiles.dispose();
       sphereGlobal.dispose();
       controlsManager.dispose();
