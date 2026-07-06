@@ -5,6 +5,7 @@ uniform vec2 uDemTexelSize;
 
 varying vec2 vUv;
 varying vec3 vViewPos;
+varying vec3 vWorldPos;
 
 #include <fog_pars_vertex>
 
@@ -21,6 +22,7 @@ void main() {
 
   vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
   vViewPos = mvPosition.xyz;
+  vWorldPos = (modelMatrix * vec4(displaced, 1.0)).xyz;
   gl_Position = projectionMatrix * mvPosition;
 
   #include <fog_vertex>

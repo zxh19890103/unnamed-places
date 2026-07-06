@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { PNG } from 'pngjs';
 
 const DEFAULT_SATELLITE_URL_TEMPLATE = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=4';
+// https://www.mapzen.com/blog/terrain-tile-service/
 const DEFAULT_DEM_PNG_URL_TEMPLATE = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 const MAX_DEM_ZOOM = 15;
 const DEM_TILE_SIZE = 256;

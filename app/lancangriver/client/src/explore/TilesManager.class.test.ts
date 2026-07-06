@@ -11,24 +11,6 @@ describe("TilesManager", () => {
     vi.useFakeTimers();
   });
 
-  it("preserves focusRole on created nodes", () => {
-    const manager = new TilesManager();
-    const createdRoles: Array<"core" | "halo" | undefined> = [];
-
-    manager.onTileCreate = (node) => {
-      createdRoles.push(node.focusRole);
-    };
-
-    manager.setNodes([
-      { z: 11, x: 1200, y: 900, focusRole: "core" },
-      { z: 11, x: 1201, y: 900, focusRole: "halo" },
-    ]);
-
-    vi.runAllTimers();
-
-    expect(createdRoles).toEqual(["core", "halo"]);
-  });
-
   it("fires create and attach callbacks at phase start", () => {
     const manager = new TilesManager();
     const calls: string[] = [];
@@ -111,31 +93,5 @@ describe("TilesManager", () => {
     expect(calls).toEqual(["create", "attach"]);
     expect((manager as any).nodes).toHaveLength(1);
     expect((manager as any).nodes[0].state).toBe(TileNodeState.attached);
-  });
-
-  it("reconciles focusRole for an existing attached node", () => {
-    const manager = new TilesManager();
-    let createdNode: any;
-    let attachedNode: any;
-    const key = makeKey(11, 33, 44);
-
-    manager.onTileCreate = (node) => {
-      createdNode = node;
-    };
-    manager.onTileAttach = (node) => {
-      attachedNode = node;
-    };
-
-    manager.setNodes([{ ...key, focusRole: "core" }]);
-    vi.runAllTimers();
-
-    manager.setNodes([{ ...key, focusRole: "halo" }]);
-    vi.runAllTimers();
-
-    const attached = manager.getAttachedNodes();
-    expect(attached).toHaveLength(1);
-    expect(attached[0]).toBe(createdNode);
-    expect(attached[0]).toBe(attachedNode);
-    expect(attached[0].focusRole).toBe("halo");
   });
 });

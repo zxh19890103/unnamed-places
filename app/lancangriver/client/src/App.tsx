@@ -11,6 +11,9 @@ import { JourneyPanel } from "./photos/JourneyPanel";
 import { buildJourneyDays } from "./photos/journey";
 import { fetchGeotaggedPhotos } from "./photos/sources";
 import type { JourneyDayNode, PhotoRecord } from "./photos/types";
+import { tile01 } from "./explore/tiles01";
+import { sphereToLatlng } from "./calc/sphere";
+import { latlngToTilekey } from "./calc/mercator";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -29,6 +32,8 @@ export default function App() {
   >(null);
   const showPhotosLocationsRef = useRef<(...args: any[]) => void>(null);
 
+  const loadTilesFuncRef = useRef<any>(null);
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) {
@@ -43,7 +48,6 @@ export default function App() {
       sphere: sceneSphere,
       stats,
       tileManager,
-      compositor,
       resize,
       getCurrentCenterLatLng,
       focusGroundOrbitAtLatLng,
@@ -59,46 +63,30 @@ export default function App() {
 
     setSphere(sceneSphere);
 
+    let rootNodes: any[] = null;
+
+    function loadTiles() {
+      if (!rootNodes) {
+        rootNodes = tileManager.getAttachedNodes();
+      }
+
+      const tiles = tile01(
+        rootNodes.map((n) => n.key),
+        camera,
+      );
+
+      tileManager.setNodes(tiles);
+
+      console.log(tiles);
+    }
+
+    loadTilesFuncRef.current = loadTiles;
+
     const handleResize = () => resize();
     window.addEventListener("resize", handleResize);
 
     let frameId = 0;
     let lastTime = performance.now();
-    let lastCompositorUpdate = 0;
-    const centerRaycaster = new THREE.Raycaster();
-    const centerNdc = new THREE.Vector2(0, 0);
-
-    const getCenterLookedTileNode = (
-      attachedNodes: TileNode[],
-    ): TileNode | null => {
-      const tileMeshes: THREE.Object3D[] = [];
-      const meshToNode = new Map<THREE.Object3D, TileNode>();
-
-      for (const node of attachedNodes) {
-        if (!node.tile) {
-          continue;
-        }
-
-        tileMeshes.push(node.tile);
-        meshToNode.set(node.tile, node);
-      }
-
-      if (tileMeshes.length === 0) {
-        return null;
-      }
-
-      centerRaycaster.setFromCamera(centerNdc, camera);
-      const hits = centerRaycaster.intersectObjects(tileMeshes, false);
-
-      for (const hit of hits) {
-        const node = meshToNode.get(hit.object);
-        if (node) {
-          return node;
-        }
-      }
-
-      return null;
-    };
 
     const animate = () => {
       frameId = window.requestAnimationFrame(animate);
@@ -107,38 +95,6 @@ export default function App() {
       lastTime = now;
 
       controlsManager.update(delta);
-
-      // Update compositor when tiles are frozen (fly or groundOrbit mode), throttled
-      // if (tileManager.frozen && now - lastCompositorUpdate > 300) {
-      //   const attachedNodes = tileManager.getAttachedNodes();
-      //   const lookedAtNode = getCenterLookedTileNode(attachedNodes);
-
-      //   const tilesToCompose = attachedNodes
-      //     .filter((node) => node.tile)
-      //     .map((node) => {
-      //       return {
-      //         node,
-      //         tile: node.tile!,
-      //         // for testing
-      //         cameraDistance: node === lookedAtNode ? 11_000 : 31_000,
-      //       };
-      //     })
-      //     .sort((a, b) => {
-      //       if (a.node === lookedAtNode) {
-      //         return -1;
-      //       }
-      //       if (b.node === lookedAtNode) {
-      //         return 1;
-      //       }
-      //       return 0;
-      //     });
-
-      //   if (tilesToCompose.length > 0) {
-      //     void compositor.updateForTiles(tilesToCompose);
-      //   }
-
-      //   lastCompositorUpdate = now;
-      // }
 
       stats.update();
       renderer.render(scene, camera);
@@ -271,6 +227,13 @@ export default function App() {
 
       <div className="fixed right-4 bottom-3  z-40 ">
         <div className=" flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => void loadTilesFuncRef.current?.()}
+            className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
+          >
+            Tiles01 debug
+          </button>
           <button
             type="button"
             onClick={() => void openFlatModal()}

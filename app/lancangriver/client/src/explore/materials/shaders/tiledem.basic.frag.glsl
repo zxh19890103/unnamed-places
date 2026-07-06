@@ -9,6 +9,7 @@ uniform vec3 uColor;
 
 varying vec2 vUv;
 varying vec3 vViewPos;
+varying vec3 vWorldPos;
 
 #include <fog_pars_fragment>
 

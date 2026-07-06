@@ -188,6 +188,8 @@ export function attachExploreGui(
       TileMaterialMode.Basic,
       TileMaterialMode.Dem,
       TileMaterialMode.DemAdvance,
+      TileMaterialMode.Debug,
+      TileMaterialMode.Clean,
     ])
     .name("terrain mode")
     .onChange((value: TileMaterialMode) => {

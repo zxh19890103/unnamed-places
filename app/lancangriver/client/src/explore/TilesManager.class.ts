@@ -1,12 +1,5 @@
-import {
-  FocusTileRole,
-  ITileNode,
-  SphereTileKey,
-  TileNodeState,
-} from "../calc/types";
+import { ITileNode, SphereTileKey, TileNodeState } from "../calc/types";
 import { SphereTile } from "./SphereTile.class";
-
-export type TileNodeInput = SphereTileKey & { focusRole?: FocusTileRole };
 
 export class TileNode implements ITileNode {
   readonly x: number;
@@ -20,28 +13,18 @@ export class TileNode implements ITileNode {
    */
   tile?: SphereTile;
 
-  /**
-   * Low-altitude satellite composition detail level (1, 2, 3...).
-   * Used in fly/groundOrbit modes to track composition state.
-   */
-  lowAltitudeZoom?: number; // Current composite detail level
-  targetLowAltitudeZoom?: number; // Desired detail level based on camera distance
+  keyOf(): SphereTileKey {
+    return {
+      z: this.z,
+      x: this.x,
+      y: this.y,
+    };
+  }
 
-  satellitePending?: boolean; // Composition request in flight
-  satelliteRequestSeq?: number; // Generation counter for dedup
-  satelliteFailureCount?: number; // Consecutive composition failures
-  satelliteRetryExhausted?: boolean; // Retry cap reached for current target
-
-  focusRole?: FocusTileRole;
-
-  constructor(
-    readonly key: SphereTileKey,
-    focusRole?: FocusTileRole,
-  ) {
+  constructor(readonly key: SphereTileKey) {
     this.x = key.x;
     this.y = key.y;
     this.z = key.z;
-    this.focusRole = focusRole;
   }
 }
 
@@ -65,13 +48,13 @@ export class TilesManager {
     return `${key.z}/${key.x}/${key.y}`;
   }
 
-  setNodes(nextKeys: TileNodeInput[]) {
+  setNodes(nextKeys: SphereTileKey[]) {
     const currentByKey = new Map<string, TileNode>();
     for (const node of this.nodes) {
       currentByKey.set(this.keyOf(node.key), node);
     }
 
-    const nextByKey = new Map<string, TileNodeInput>();
+    const nextByKey = new Map<string, SphereTileKey>();
     for (const key of nextKeys) {
       nextByKey.set(this.keyOf(key), key);
     }
@@ -80,7 +63,6 @@ export class TilesManager {
 
     for (const [id, currentNode] of currentByKey) {
       if (nextByKey.has(id)) {
-        currentNode.focusRole = nextByKey.get(id)?.focusRole;
         if (currentNode.state >= TileNodeState.toDetach) {
           currentNode.state = currentNode.tile
             ? TileNodeState.attached
@@ -102,7 +84,7 @@ export class TilesManager {
         continue;
       }
 
-      const created = new TileNode(nextKey, nextKey.focusRole);
+      const created = new TileNode(nextKey);
       created.state = TileNodeState.toCreate;
       reconciled.push(created);
     }

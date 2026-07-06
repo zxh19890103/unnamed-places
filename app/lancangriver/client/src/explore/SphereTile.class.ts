@@ -6,19 +6,28 @@ import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
 import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class";
-import { TileEmptyMaterial } from "./materials/TileEmptyMaterial.class";
+import {
+  TileEmptyMaterial,
+  type TileEmptyMaterialParameters,
+} from "./materials/TileEmptyMaterial.class";
+import { TileDebugMaterial } from "./materials/TileDebugMaterial.class";
+import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
 
 export enum TileMaterialMode {
   Basic = "basic",
   Dem = "dem",
+  Clean = "clean",
   DemAdvance = "dem-advance",
+  Debug = "debug",
 }
 
 type TileSurfaceMaterial =
   | TileBasicMaterial
   | TileDemMaterial
   | TileDemAdvanceMaterial
-  | TileEmptyMaterial;
+  | TileEmptyMaterial
+  | TileDebugMaterial
+  | TileCleanMaterial;
 
 type Parameters = {
   radius?: number;
@@ -41,11 +50,20 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   ) {
     const [west, south, east, north] = tileBounds4326(tile.z, tile.x, tile.y);
 
+    // tile.z === 12, 32
+    // tile.z === 9, 32 * 2^(12 - 9)
+    const segments = Math.min(
+      96,
+      Math.max(16, Math.round(32 * Math.pow(2, (12 - tile.z) * 0.5))),
+    );
+
     const geometry = new TileGeometry({
       southwest: { lat: south, lng: west },
       northeast: { lat: north, lng: east },
       radius: parameters.radius ?? 1,
       skirtDepth: SphereTile.SKIRT_DEPTH_METERS,
+      latSegments: segments,
+      lngSegments: segments,
     });
 
     const material = new TileBasicMaterial(textureLoader, {
@@ -71,60 +89,19 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     return this.tile.z <= SphereTile.MAX_DEM_ZOOM;
   }
 
-  setDemMaterialEnabled(enabled: boolean): boolean {
-    if (enabled && !this.canUseDemMaterial()) {
-      return false;
-    }
-
-    if (enabled && this.material instanceof TileDemMaterial) {
-      return true;
-    }
-
-    if (!enabled && this.material instanceof TileBasicMaterial) {
-      return true;
-    }
-
-    const nextMaterial: TileSurfaceMaterial = enabled
-      ? new TileDemMaterial(this.textureLoader, this.imageLoader, {
-          tileKey: this.tile,
-        })
-      : new TileBasicMaterial(this.textureLoader, {
-          tileKey: this.tile,
-        });
-
-    const prevMaterial = this.material;
-    this.material = nextMaterial;
-    prevMaterial.dispose();
-
-    return true;
-  }
-
   setMaterialMode(mode: TileMaterialMode): void {
     if (this.materialMode === mode && this.isCurrentMaterialForMode(mode)) {
       return; // Already in requested mode
     }
 
     const nextMaterial = this.createMaterialForMode(mode);
+
     if (nextMaterial) {
       const prevMaterial = this.material;
       this.material = nextMaterial;
       prevMaterial.dispose();
       this.materialMode = mode;
     }
-  }
-
-  setEmptyMaterial(): void {
-    if (this.material instanceof TileEmptyMaterial) {
-      return;
-    }
-
-    const prevMaterial = this.material;
-    this.material = new TileEmptyMaterial();
-    prevMaterial.dispose();
-  }
-
-  isEmptyMaterial(): boolean {
-    return this.material instanceof TileEmptyMaterial;
   }
 
   getMaterialMode(): TileMaterialMode {
@@ -159,7 +136,14 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
             tileKey: this.tile,
           },
         );
-
+      case TileMaterialMode.Clean:
+        return new TileCleanMaterial(this.textureLoader, {
+          tileKey: this.tile,
+        });
+      case TileMaterialMode.Debug:
+        return new TileDebugMaterial({
+          tileKey: this.tile,
+        });
       default:
         return null;
     }
@@ -175,6 +159,12 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
 
       case TileMaterialMode.DemAdvance:
         return this.material instanceof TileDemAdvanceMaterial;
+
+      case TileMaterialMode.Debug:
+        return this.material instanceof TileDebugMaterial;
+
+      case TileMaterialMode.Clean:
+        return this.material instanceof TileCleanMaterial;
 
       default:
         return false;

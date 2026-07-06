@@ -3,6 +3,7 @@ uniform float uTextureReady;
 uniform sampler2D uSatelliteTexture;
 
 varying vec2 vUv;
+varying vec3 vWorldPos;
 
 void main() {
   vec4 color = texture2D(uSatelliteTexture, vUv);

@@ -20,7 +20,6 @@ import {
 import { TilesManager } from "./TilesManager.class";
 import { getVisibleTiles } from "./visibleTiles";
 import { ControlsManager, type ControlMode } from "./ControlsManager.class";
-import { LowAltitudeTileCompositor } from "./LowAltitudeTileCompositor.class";
 import { attachExploreGui, type ExploreGuiHandle } from "./gui";
 import { TileMaterialMode } from "./SphereTile.class";
 import {
@@ -46,20 +45,13 @@ const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
 const SKY_MAX_SCALE = EARTH_RADIUS * 12;
 const FOCUS_TILE_ZOOM = 11;
 const FOCUS_TILE_EXTENT = {
-  x0: -2,
-  y0: -1,
-  x1: 2,
-  y1: 1,
+  x0: -0,
+  y0: -0,
+  x1: 0,
+  y1: 0,
 };
-const FOCUS_TILE_HALO: readonly [number, number] = [1, 1];
+
 const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
-
-type FocusTileRole = "core" | "halo";
-
-type FocusTileWithRole = {
-  key: SphereTileKey;
-  role: FocusTileRole;
-};
 
 const tileKeyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
 
@@ -101,50 +93,18 @@ const collectTilesInExtent = (
   return result;
 };
 
-const splitCoreAndHaloTiles = (
-  coreFocusTiles: SphereTileKey[],
-  expandedTiles: SphereTileKey[],
-) => {
-  const coreIds = new Set(coreFocusTiles.map(tileKeyId));
-  const haloTiles = expandedTiles.filter(
-    (tile) => !coreIds.has(tileKeyId(tile)),
-  );
-  const focusTilesWithRole: FocusTileWithRole[] = [
-    ...coreFocusTiles.map((key) => ({ key, role: "core" as const })),
-    ...haloTiles.map((key) => ({ key, role: "halo" as const })),
-  ];
-
-  return {
-    coreFocusTiles,
-    haloTiles,
-    focusTilesWithRole,
-    focusTiles: [...coreFocusTiles, ...haloTiles],
-  };
-};
-
-export const buildFocusNeighbors = (
-  centerLatlng: LatLng,
-  halo: readonly [number, number],
-) => {
+export const buildFocusNeighbors = (centerLatlng: LatLng) => {
   const centerTile = latlngToTilekey(
     centerLatlng.lng,
     centerLatlng.lat,
     FOCUS_TILE_ZOOM,
   );
 
-  const [haloLat, haloLon] = halo;
-
   const coreFocusTiles = collectTilesInExtent(centerTile, FOCUS_TILE_EXTENT);
-  const expandedFocusTiles = collectTilesInExtent(centerTile, {
-    x0: FOCUS_TILE_EXTENT.x0 - haloLon,
-    x1: FOCUS_TILE_EXTENT.x1 + haloLon,
-    y0: FOCUS_TILE_EXTENT.y0 - haloLat,
-    y1: FOCUS_TILE_EXTENT.y1 + haloLat,
-  });
 
   return {
     centerTile,
-    ...splitCoreAndHaloTiles(coreFocusTiles, expandedFocusTiles),
+    coreFocusTiles,
   };
 };
 
@@ -222,7 +182,7 @@ function getLatlngNow(latlng: LatLng) {
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
   scene.background = SKY_COLOR.clone();
-  scene.fog = new THREE.FogExp2(FOG_COLOR, 0.000015);
+  scene.fog = new THREE.FogExp2(FOG_COLOR, 0);
 
   const sky = new Sky();
   sky.scale.setScalar(SKY_DISTANCE);
@@ -330,8 +290,6 @@ export function createScene(container: HTMLElement) {
     altitudeDeg: 30,
   };
 
-  const compositor = new LowAltitudeTileCompositor(textureLoader, imageLoader);
-
   controlsManager.onModeChange = (from: ControlMode, to: ControlMode) => {
     console.log(`[Controls] Mode change: ${from} → ${to}`);
     if (to === "fly" || to === "groundOrbit") {
@@ -340,16 +298,15 @@ export function createScene(container: HTMLElement) {
       console.log(`[Tiles] Entering resolution mode (${modeLabel})`);
     } else {
       tileManager.frozen = false;
-      compositor.disposeComposedTextures();
       reconcileAttachedNodeMaterials();
       console.log("[Tiles] Tile finding resumed");
-      refreshVisibleTiles();
+      refreshVisibleTilesOnCameraChanges();
     }
   };
 
   // Wire pointer controls change event
   controlsManager.getPointerControls().onChange = () => {
-    refreshVisibleTiles();
+    refreshVisibleTilesOnCameraChanges();
   };
 
   const tileManager = new TilesManager();
@@ -369,7 +326,6 @@ export function createScene(container: HTMLElement) {
 
   const terrainState = {
     materialMode: TileMaterialMode.Basic,
-    demEnabled: false, // Keep for backwards compatibility
   };
 
   let groundOrbitClouds: THREE.Points<CloudGeometry, CloudMaterial> | null =
@@ -382,19 +338,12 @@ export function createScene(container: HTMLElement) {
         continue;
       }
 
-      if (node.focusRole === "halo") {
-        node.tile.setEmptyMaterial();
-      } else {
-        node.tile.setMaterialMode(terrainState.materialMode);
-      }
+      node.tile.setMaterialMode(terrainState.materialMode);
     }
   };
+
   const applyMaterialModeToAttachedTiles = (mode: TileMaterialMode) => {
     for (const node of tileManager.getAttachedNodes()) {
-      if (node.focusRole === "halo") {
-        continue;
-      }
-
       if (node.tile) {
         node.tile.setMaterialMode(mode);
       }
@@ -418,7 +367,6 @@ export function createScene(container: HTMLElement) {
     }
 
     terrainState.materialMode = requested;
-    terrainState.demEnabled = requested !== TileMaterialMode.Basic;
     applyMaterialModeToAttachedTiles(requested);
     return true;
   };
@@ -426,11 +374,7 @@ export function createScene(container: HTMLElement) {
   tileManager.onTileCreate = (node) => {
     const tile = sphereGlobal.createTileByKey(node.key);
     tile.$tNode = node;
-    if (node.focusRole === "halo") {
-      tile.setEmptyMaterial();
-    } else {
-      tile.setMaterialMode(terrainState.materialMode);
-    }
+    tile.setMaterialMode(terrainState.materialMode);
     node.tile = tile;
     osmBuildingTiles.onTileCreate(node);
   };
@@ -492,20 +436,17 @@ export function createScene(container: HTMLElement) {
     skyUniforms.up.value.copy(orbitCenter).normalize();
   };
 
-  const refreshVisibleTiles = () => {
-    const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-    const zoomLevel = disatanceToZoom(cameraDistanceMeters);
-    camera.updateMatrixWorld(true);
-
-    // Check altitude-based control switching
-    controlsManager.checkAltitude(cameraDistanceMeters);
+  const refreshVisibleTilesOnCameraChanges = () => {
+    if (tileManager.frozen) return;
 
     // Only update visible tiles when not frozen (fly / groundOrbit freeze tile finding)
-    if (!tileManager.frozen) {
-      const visibleTileKeys = getVisibleTiles(camera, zoomLevel, EARTH_RADIUS);
-      tileManager.setNodes(visibleTileKeys);
-      return;
-    }
+    const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
+    const zoomLevel = disatanceToZoom(cameraDistanceMeters);
+
+    controlsManager.checkAltitude(cameraDistanceMeters);
+
+    const visibleTileKeys = getVisibleTiles(camera, zoomLevel, EARTH_RADIUS);
+    tileManager.setNodes(visibleTileKeys);
   };
 
   const getCurrentCameraLatlng = () => {
@@ -524,10 +465,11 @@ export function createScene(container: HTMLElement) {
   };
 
   const fetchTileAvgAltitude = async (tile: SphereTileKey) => {
-    const json = await fetch(
-      `${BASE_URL}/raster/dem/${tile.z}/${tile.x}/${tile.y}/altitude`,
-    ).then((r) => r.json());
-    return (json?.max ?? 0) + 5_000;
+    // const json = await fetch(
+    //   `${BASE_URL}/raster/dem/${tile.z}/${tile.x}/${tile.y}/altitude`,
+    // ).then((r) => r.json());
+    // return (json?.max ?? 0) + 0;
+    return 0;
   };
 
   const clearGroundOrbitClouds = () => {
@@ -543,7 +485,7 @@ export function createScene(container: HTMLElement) {
 
   const applyGroundOrbitPlacement = async (targetLatlng?: LatLng) => {
     const orbitLatlng = targetLatlng ?? getCurrentCameraLatlng();
-    const orbitTarget = await getLowAltitudeViewPoint(orbitLatlng, 5_000);
+    const orbitTarget = await getLowAltitudeViewPoint(orbitLatlng, 0);
 
     const cameraDistanceMeters =
       2.5 * (camera.position.length() - EARTH_RADIUS);
@@ -584,7 +526,7 @@ export function createScene(container: HTMLElement) {
     scene.add(groundOrbitClouds);
 
     controlsManager.enterGroundOrbit(orbitTarget, orbitPosition);
-    refreshVisibleTiles();
+    refreshVisibleTilesOnCameraChanges();
 
     const newOrbitTarget = await getLowAltitudeViewPoint(orbitLatlng);
     syncSkyWithCamera(newOrbitTarget, cameraDistanceMeters);
@@ -605,11 +547,8 @@ export function createScene(container: HTMLElement) {
   ): {
     centerTile: SphereTileKey;
     coreFocusTiles: SphereTileKey[];
-    haloTiles: SphereTileKey[];
-    focusTilesWithRole: FocusTileWithRole[];
-    focusTiles: SphereTileKey[];
   } => {
-    return buildFocusNeighbors(centerLatlng, FOCUS_TILE_HALO);
+    return buildFocusNeighbors(centerLatlng);
   };
 
   const waitForAttachedTiles = async (
@@ -646,18 +585,14 @@ export function createScene(container: HTMLElement) {
     // Freeze immediately to disable interaction-driven tile loading.
     tileManager.frozen = true;
 
-    const { focusTiles, centerTile, focusTilesWithRole } =
-      getFocusNeighborTiles(centerLatlng);
-    tileManager.setNodes(
-      focusTilesWithRole.map(({ key, role }) => ({
-        ...key,
-        focusRole: role,
-      })),
-    );
+    const { centerTile, coreFocusTiles } = getFocusNeighborTiles(centerLatlng);
+
+    tileManager.setNodes(coreFocusTiles);
+
     reconcileAttachedNodeMaterials();
 
     try {
-      await waitForAttachedTiles(focusTiles);
+      await waitForAttachedTiles(coreFocusTiles);
     } catch (error) {
       console.warn("[Tiles] Focused tile preload timed out", error);
     }
@@ -670,13 +605,13 @@ export function createScene(container: HTMLElement) {
     groundOrbitState.enabled = true;
     await applyGroundOrbitPlacement(centerLatlng);
 
-    return { centerTile, focusTiles };
+    return { centerTile, focusTiles: coreFocusTiles };
   };
 
   guiHandle = attachExploreGui({
     camera,
     controlsManager,
-    onRefreshVisibleTilesAndStats: refreshVisibleTiles,
+    onRefreshVisibleTilesAndStats: refreshVisibleTilesOnCameraChanges,
     getMaterialMode: () => terrainState.materialMode,
     applyMaterialMode,
     triggerCreateOsmTilesOnce,
@@ -769,7 +704,7 @@ export function createScene(container: HTMLElement) {
     };
   };
 
-  refreshVisibleTiles();
+  refreshVisibleTilesOnCameraChanges();
 
   return {
     scene,
@@ -779,7 +714,6 @@ export function createScene(container: HTMLElement) {
     sphere: sphereGlobal,
     stats,
     tileManager,
-    compositor,
     resize,
     getCurrentCenterLatLng: getCurrentCameraLatlng,
     focusGroundOrbitAtLatLng,
@@ -789,9 +723,7 @@ export function createScene(container: HTMLElement) {
     cleanup: () => {
       clearGroundOrbitClouds();
       osmBuildingTiles.dispose();
-
       sphereGlobal.dispose();
-      compositor.dispose();
       controlsManager.dispose();
     },
   };

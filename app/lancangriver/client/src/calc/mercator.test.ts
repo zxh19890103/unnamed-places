@@ -97,9 +97,9 @@ describe("mergeTileExtents", () => {
   it("returns the union bounding box for all extents", () => {
     expect(
       mergeTileExtents(
-        { west: -10, south: -5, east: 5, north: 10 },
-        { west: -20, south: -3, east: 8, north: 12 },
-        { west: -15, south: -8, east: 12, north: 6 },
+        { west: -10, south: -5, east: 5, north: 10, latSpan: 0, lngSpan: 0 },
+        { west: -20, south: -3, east: 8, north: 12, latSpan: 0, lngSpan: 0 },
+        { west: -15, south: -8, east: 12, north: 6, latSpan: 0, lngSpan: 0 },
       ),
     ).toEqual({
       west: -20,
