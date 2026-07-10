@@ -1,15 +1,15 @@
 import { latlngToTilekey } from "../../calc/mercator";
 import { LatLng, SphereTileKey } from "../../calc/types";
 
-const FOCUS_TILE_ZOOM = 11;
+export const FOCUS_TILE_ZOOM = 11;
+export const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
+
 const FOCUS_TILE_EXTENT = {
   x0: -0,
   y0: -0,
   x1: 0,
   y1: 0,
 };
-
-export const FOCUS_TILE_WAIT_TIMEOUT_MS = 5_000;
 
 const tileKeyId = (key: SphereTileKey): string => `${key.z}/${key.x}/${key.y}`;
 

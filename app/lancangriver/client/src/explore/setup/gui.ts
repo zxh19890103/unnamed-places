@@ -1,9 +1,13 @@
 import { GUI } from "lil-gui";
 import * as THREE from "three";
-import { disatanceToZoom, zoomToDistance } from "../calc/mercator";
-import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "../calc/sphere";
-import { ControlsManager } from "./ControlsManager.class";
-import { TileMaterialMode } from "./SphereTile.class";
+import { disatanceToZoom, zoomToDistance } from "../../calc/mercator";
+import {
+  EARTH_RADIUS,
+  latlngToSphere,
+  sphereToLatlng,
+} from "../../calc/sphere";
+import { ControlsManager } from "../ControlsManager.class";
+import { TileMaterialMode } from "../SphereTile.class";
 
 const GUI_ZOOM_MIN = 1;
 const GUI_ZOOM_MAX = 19;

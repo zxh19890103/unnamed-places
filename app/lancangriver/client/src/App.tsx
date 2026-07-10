@@ -1,19 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
 
 import { createScene } from "./explore/setup";
 import { SceneMonitor } from "./explore/dom/SceneMonitor";
 import type { LatLng } from "./calc/types";
 import type { Sphere } from "./explore/Sphere.class";
-import type { TileNode } from "./explore/TilesManager.class";
 import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from "./flat/protocol";
 import { JourneyPanel } from "./photos/JourneyPanel";
 import { buildJourneyDays } from "./photos/journey";
 import { fetchGeotaggedPhotos } from "./photos/sources";
 import type { JourneyDayNode, PhotoRecord } from "./photos/types";
 import { tile01 } from "./explore/tiles01";
-import { sphereToLatlng } from "./calc/sphere";
-import { latlngToTilekey } from "./calc/mercator";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);

@@ -5,32 +5,33 @@ import {
   EARTH_RADIUS,
   latlngToSphere,
   sphereToLatlng,
-} from "../../calc/sphere";
+} from "../../calc/sphere.js";
 import {
   disatanceToZoom,
   latlngToTilekey,
   zoomToDistance,
-} from "../../calc/mercator";
-import { Sphere } from "../Sphere.class";
-import { TilesManager } from "../TilesManager.class";
-import { getVisibleTiles } from "../visibleTiles";
-import { ControlsManager, type ControlMode } from "../ControlsManager.class";
-import { attachExploreGui, type ExploreGuiHandle } from "../gui";
-import { TileMaterialMode } from "../SphereTile.class";
-import { BASE_URL, MAX_DEM_ZOOM } from "../../calc/constants";
-import { LatLng, SphereTileKey } from "../../calc/types";
-import { OsmBuildingTilesController } from "../OsmBuildingTilesController.class";
-import { createVendors } from "./vendors";
-import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky";
-import { createGroundOrbitCloudsController } from "./clouds";
-import { GroundOrbitState } from "./types";
-import { computeOrbitPositionFromAzimuthAltitude } from "./orbit";
+} from "../../calc/mercator.js";
+import { Sphere } from "../Sphere.class.js";
+import { TilesManager } from "../TilesManager.class.js";
+import { getVisibleTiles } from "../visibleTiles.js";
+import { ControlsManager, type ControlMode } from "../ControlsManager.class.js";
+import { attachExploreGui, type ExploreGuiHandle } from "./gui.js";
+import { TileMaterialMode } from "../SphereTile.class.js";
+import { BASE_URL, MAX_DEM_ZOOM } from "../../calc/constants.js";
+import { LatLng, SphereTileKey } from "../../calc/types.js";
+import { OsmBuildingTilesController } from "../OsmBuildingTilesController.class.js";
+import { createVendors } from "./vendors.js";
+import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky.js";
+import { createGroundOrbitCloudsController } from "./clouds.js";
+import { GroundOrbitState } from "./types.js";
+import { computeOrbitPositionFromAzimuthAltitude } from "./orbit.js";
 import {
+  FOCUS_TILE_ZOOM,
   getFocusNeighborTiles,
   getFocusZoomLevel,
   waitForAttachedTiles,
-} from "./focus";
-import { createPhotoLocationsPresenter } from "./photos";
+} from "./focus.js";
+import { createPhotoLocationsPresenter } from "./photos.js";
 
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();

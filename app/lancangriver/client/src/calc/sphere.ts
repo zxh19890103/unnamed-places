@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import { LatLng, SpherePoint, WorldExtent } from "./types";
+import { LatLng, SpherePoint } from "./types";
 
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
