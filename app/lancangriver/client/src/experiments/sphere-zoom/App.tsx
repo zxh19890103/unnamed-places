@@ -6,6 +6,7 @@ import {
   Create3dTilesViewerHandle,
   EARTH_RADIUS,
 } from "./3dtiles";
+import { latlngToSphere, sphereToLatlng } from "./tile";
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -60,9 +61,15 @@ export default function App() {
       const zoom = threeTiles.getZoom(altitude);
 
       controls.zoomSpeed = THREE.MathUtils.clamp(
-        1.5 * Math.pow(0.1, zoom),
-        0.001,
+        1.5 * (1 / Math.pow(2, zoom)),
+        0.000001,
         1.5,
+      );
+
+      controls.rotateSpeed = THREE.MathUtils.clamp(
+        1 / Math.pow(2, zoom),
+        0.000001,
+        1,
       );
     }
 
@@ -74,8 +81,17 @@ export default function App() {
         EARTH_RADIUS * 0.1,
       );
 
-      // Make far large enough to cover the Earth sphere and tile layer.
-      const far = altitude * 2;
+      // Horizon distance from camera to tangent point on the sphere.
+      const distanceToCenter = EARTH_RADIUS + altitude;
+      const horizonDistance = Math.sqrt(
+        Math.max(
+          0,
+          distanceToCenter * distanceToCenter - EARTH_RADIUS * EARTH_RADIUS,
+        ),
+      );
+
+      // Add margin and guarantee far remains greater than near.
+      const far = Math.max(horizonDistance * 1.1, near + 1_000);
 
       camera.near = near;
       camera.far = far;
@@ -113,7 +129,12 @@ export default function App() {
       controls.update();
 
       const altitude = getAltitude();
-      adjustControlsZoomSpeed(altitude);
+
+      if (speedNoUpdate) {
+      } else {
+        adjustControlsZoomSpeed(altitude);
+      }
+
       adjustFarNear(altitude);
 
       renderer.render(scene, camera);
@@ -123,17 +144,8 @@ export default function App() {
 
     const threeTiles = create3dTilesViewer({ camera, scene });
 
-    let lastDist = camera.position.length();
     controls.addEventListener("end", (e) => {
-      const nextDist = camera.position.length();
-
-      if (lastDist - nextDist < 10) {
-        // rotate
-      } else {
-        threeTiles.update();
-      }
-
-      lastDist = nextDist;
+      threeTiles.update();
     });
 
     animate();
@@ -162,19 +174,14 @@ export default function App() {
   }, []);
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden",
-      }}
-    >
-      <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+    <div className="relative h-screen w-screen overflow-hidden">
+      <div ref={mountRef} className="h-full w-full" />
       {isSetup && <Panel {...setupExposes} />}
     </div>
   );
 }
+
+let speedNoUpdate = false;
 
 const Panel = memo(
   ({
@@ -188,7 +195,104 @@ const Panel = memo(
   }) => {
     const [surfaceDistance, setSurfaceDistance] = useState("0");
     const [surfaceDistanceAU, setSurfaceDistanceAU] = useState("0");
-    const [centerZoom, setCenterZoom] = useState(null);
+    const [centerZoom, setCenterZoom] = useState<number | null>(null);
+    const [tileCount, setTileCount] = useState(0);
+    const [isUpdateEnabled, setIsUpdateEnabled] = useState(true);
+
+    const moveTargetToLatLng = () => {
+      const earthSphere = new THREE.Sphere(
+        new THREE.Vector3(0, 0, 0),
+        EARTH_RADIUS,
+      );
+      const centerRaycaster = new THREE.Raycaster();
+      const centerNdc = new THREE.Vector2(0, 0);
+      const hitPoint = new THREE.Vector3();
+
+      centerRaycaster.setFromCamera(centerNdc, camera);
+      const hasHit =
+        centerRaycaster.ray.intersectSphere(earthSphere, hitPoint) !== null;
+
+      if (!hasHit) {
+        return;
+      }
+
+      const latlng = sphereToLatlng(hitPoint.x, hitPoint.y, hitPoint.z);
+      const clampedLat = THREE.MathUtils.clamp(
+        latlng.lat,
+        -85.05112878,
+        85.05112878,
+      );
+      const wrappedLng = ((((latlng.lng + 180) % 360) + 360) % 360) - 180;
+      const point = latlngToSphere(clampedLat, wrappedLng, EARTH_RADIUS);
+
+      controls.target.set(point.x, point.y, point.z);
+
+      const target = new THREE.Vector3(point.x, point.y, point.z);
+      const localUp = target.clone().normalize();
+      const worldNorth = new THREE.Vector3(0, 1, 0);
+
+      let tangentRight = new THREE.Vector3().crossVectors(worldNorth, localUp);
+      if (tangentRight.lengthSq() < 1e-12) {
+        tangentRight = new THREE.Vector3(1, 0, 0).cross(localUp);
+      }
+      tangentRight.normalize();
+
+      const offset = camera.position.clone().sub(target);
+      const offsetDistance = Math.max(offset.length(), 1_000);
+      let horizontalDir = offset
+        .clone()
+        .sub(localUp.clone().multiplyScalar(offset.dot(localUp)));
+
+      if (horizontalDir.lengthSq() < 1e-12) {
+        horizontalDir = tangentRight;
+      } else {
+        horizontalDir.normalize();
+      }
+
+      const altitudeAngleRad = Math.PI / 4;
+      const viewDir = horizontalDir
+        .multiplyScalar(Math.cos(altitudeAngleRad))
+        .add(localUp.clone().multiplyScalar(Math.sin(altitudeAngleRad)))
+        .normalize();
+
+      camera.position.copy(target).add(viewDir.multiplyScalar(offsetDistance));
+
+      camera.up.copy(localUp);
+
+      controls.minDistance = 500;
+      controls.maxDistance = EARTH_RADIUS;
+
+      camera.lookAt(controls.target);
+      controls.update();
+      threeTiles.update();
+
+      controls.rotateSpeed = 1;
+      controls.zoomSpeed = 1;
+
+      speedNoUpdate = true;
+    };
+
+    const moveTargetToEarthCenter = () => {
+      const worldCenter = new THREE.Vector3(0, 0, 0);
+
+      controls.target.copy(worldCenter);
+
+      const minRadius = EARTH_RADIUS + 500;
+      const cameraDir = camera.position.clone().normalize();
+      const nextRadius = Math.max(camera.position.length(), minRadius);
+      camera.position.copy(cameraDir.multiplyScalar(nextRadius));
+
+      camera.up.set(0, 1, 0);
+
+      controls.minDistance = minRadius;
+      controls.maxDistance = EARTH_RADIUS * 2;
+
+      camera.lookAt(worldCenter);
+      controls.update();
+      threeTiles.update();
+
+      speedNoUpdate = false;
+    };
 
     useEffect(() => {
       const onControlsEnd = () => {
@@ -201,6 +305,7 @@ const Panel = memo(
         setSurfaceDistanceAU((altitude / EARTH_RADIUS).toFixed(2));
 
         setCenterZoom(threeTiles.getZoom(altitude));
+        setTileCount(threeTiles.getTileCount());
       };
 
       controls.addEventListener("end", onControlsEnd);
@@ -212,26 +317,43 @@ const Panel = memo(
       };
     }, []);
 
+    useEffect(() => {
+      threeTiles.enableUpdate(isUpdateEnabled);
+    }, [isUpdateEnabled, threeTiles]);
+
     return (
-      <div
-        style={{
-          position: "absolute",
-          top: 12,
-          left: 12,
-          padding: "8px 10px",
-          borderRadius: 8,
-          background: "rgba(15, 23, 42, 0.75)",
-          color: "#e2e8f0",
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-          fontSize: 13,
-          lineHeight: 1.35,
-        }}
-      >
+      <div className="absolute left-3 top-3 rounded-lg bg-slate-900/75 px-2.5 py-2 font-mono text-[13px] leading-[1.35] text-slate-200">
         <div>
           camera-to-surface: {surfaceDistance}, {surfaceDistanceAU} au.
         </div>
         <div>center zoom : {centerZoom}</div>
+        <div>tiles count : {tileCount}</div>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={isUpdateEnabled}
+            onChange={(e) => setIsUpdateEnabled(e.target.checked)}
+          />
+          enable update
+        </label>
+        <div className="mt-2 flex gap-1.5">
+          <button
+            type="button"
+            onClick={moveTargetToLatLng}
+            className="rounded-md bg-slate-800 px-2 py-1 text-slate-100 transition-colors hover:bg-slate-700"
+          >
+            look at (latlng)
+          </button>
+        </div>
+        <div className="mt-2 flex gap-1.5">
+          <button
+            type="button"
+            onClick={moveTargetToEarthCenter}
+            className="rounded-md bg-slate-800 px-2 py-1 text-slate-100 transition-colors hover:bg-slate-700"
+          >
+            look at (0,0,0)
+          </button>
+        </div>
       </div>
     );
   },
