@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { EARTH_RADIUS } from "../../calc/sphere";
-import { disatanceToZoom, zoomToDistance } from "../../calc/mercator";
+import { Create3dTilesViewer } from "../../experiments/sphere-zoom/viewer";
 
 export interface PointerControlsOptions {
   enabled?: boolean;
@@ -38,6 +38,7 @@ export class PointerControls extends EventTarget {
   onChange?: () => void;
 
   constructor(
+    readonly threeTilesViewer: Create3dTilesViewer,
     camera: THREE.Camera,
     domElement: HTMLElement,
     options?: PointerControlsOptions,
@@ -137,9 +138,9 @@ export class PointerControls extends EventTarget {
       1,
       this.camera.position.length() - EARTH_RADIUS,
     );
-    const currentZoom = disatanceToZoom(currentAltitude, 1, 19);
+    const currentZoom = this.threeTilesViewer.distanceToZoom(currentAltitude);
     const nextZoom = Math.min(19, currentZoom + 1);
-    const nextAltitude = zoomToDistance(nextZoom, 1, 19);
+    const nextAltitude = this.threeTilesViewer.zoomToDistance(nextZoom);
     const nextRadius = EARTH_RADIUS + nextAltitude;
 
     this.camera.position.normalize().multiplyScalar(nextRadius);

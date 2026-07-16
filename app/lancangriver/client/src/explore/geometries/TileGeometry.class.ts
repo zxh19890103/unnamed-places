@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { LatLng } from "../../calc/types";
-import { latlngToSphere } from "../../calc/sphere";
+import { latlngToSphere } from "../../experiments/sphere-zoom/core";
 
 type Parameters = {
   southwest: LatLng;
@@ -23,7 +23,7 @@ export class TileGeometry extends THREE.BufferGeometry {
   constructor(parameters: Parameters) {
     super();
 
-    const { southwest, northeast, radius = 1 } = parameters;
+    const { southwest, northeast } = parameters;
     const skirtDepth = Math.max(0, parameters.skirtDepth ?? 0);
 
     const latSegments = validateSegments(
@@ -69,7 +69,7 @@ export class TileGeometry extends THREE.BufferGeometry {
       for (let lngIndex = 0; lngIndex <= lngSegments; lngIndex += 1) {
         const lngT = lngIndex / lngSegments;
         const lng = westLng + lngDelta * lngT;
-        const { x, y, z } = latlngToSphere(lat, lng, radius);
+        const { x, y, z } = latlngToSphere(lat, lng);
 
         const invLength = 1 / Math.hypot(x, y, z);
         addVertex(

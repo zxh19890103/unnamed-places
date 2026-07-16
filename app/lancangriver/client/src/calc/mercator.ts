@@ -1,9 +1,7 @@
-import type { ChildSphereTileKey, SphereTileKey, WorldExtent } from "./types";
+import type { WorldExtent } from "./types";
 
 const MIN_LAT = -85.05112878;
 const MAX_LAT = 85.05112878;
-
-const referenceDistanceMeters = 1_00;
 
 function clampLat(lat: number): number {
   return Math.max(MIN_LAT, Math.min(MAX_LAT, lat));
@@ -89,91 +87,4 @@ export function mergeTileExtents(...extents: WorldExtent[]): WorldExtent {
   merged.lngSpan = merged.north - merged.south;
 
   return merged;
-}
-
-export function latlngToTilekey(
-  lng: number,
-  lat: number,
-  zoom: number,
-): SphereTileKey {
-  const latClamped = clampLat(lat);
-  const latRad = (latClamped * Math.PI) / 180;
-  const lng_ = ((((lng + 180) % 360) + 360) % 360) / 360;
-  const n = Math.pow(2, zoom);
-
-  const x = Math.floor(lng_ * n);
-  const y = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
-  );
-
-  return {
-    x: Math.max(0, Math.min(n - 1, x)),
-    y: Math.max(0, Math.min(n - 1, y)),
-    z: zoom,
-  };
-}
-
-export function enumerateChildTiles(
-  baseTile: SphereTileKey,
-  targetZoom: number,
-): ChildSphereTileKey[] {
-  if (targetZoom <= baseTile.z) {
-    return [
-      {
-        ...baseTile,
-        offsetX: 0,
-        offsetY: 0,
-      },
-    ];
-  }
-
-  const factor = 2 ** (targetZoom - baseTile.z);
-  const startX = baseTile.x * factor;
-  const startY = baseTile.y * factor;
-  const children: ChildSphereTileKey[] = [];
-
-  for (let y = 0; y < factor; y += 1) {
-    for (let x = 0; x < factor; x += 1) {
-      children.push({
-        z: targetZoom,
-        x: startX + x,
-        y: startY + y,
-        offsetX: x / factor,
-        offsetY: y / factor,
-      });
-    }
-  }
-
-  return children;
-}
-
-export function disatanceToZoom(distance: number, min = 0, max = 19) {
-  if (!Number.isFinite(distance) || distance <= 0) {
-    return min;
-  }
-
-  const rawZoom = max - Math.log2(distance / referenceDistanceMeters);
-  const zoom = Math.floor(rawZoom);
-
-  return Math.max(min, Math.min(max, zoom));
-}
-
-export function zoomToDistance(zoomLevel: number, min = 0, max = 19): number {
-  const z = Math.max(min, Math.min(max, zoomLevel));
-
-  // Return the midpoint of the [z, z+1] distance band so round-tripping is stable.
-  const upper = referenceDistanceMeters * 2 ** (max - z);
-  const lower = referenceDistanceMeters * 2 ** (max - (z + 1));
-  return (upper + lower) / 2;
-}
-
-/**
- * Compute satellite composition detail level (lowAltitudeZoom) from camera distance.
- * Used in fly and groundOrbit modes to determine how many child tiles to composite.
- * lowAltitudeZoom: 1 = 1×1 (parent only), 2 = 2×2 grid, 3 = 4×4 grid, etc.
- */
-export function distanceToLowAltitudeZoom(distance: number): number {
-  if (distance > 30_000) return 1;
-  if (distance > 10_000) return 1;
-  return 1;
 }

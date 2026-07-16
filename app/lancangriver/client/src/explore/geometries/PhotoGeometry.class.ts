@@ -1,7 +1,8 @@
 import * as THREE from "three";
-import { getLocalBasisAtPoint, latlngToSphere } from "../../calc/sphere";
+import { getLocalBasisAtPoint } from "../../calc/sphere";
 import { PhotoRecord } from "../../photos/types";
 import { WorldExtent } from "../../calc/types";
+import { latlngToSphere } from "../../experiments/sphere-zoom/core";
 
 type Parameters = {
   worldExtent: WorldExtent;

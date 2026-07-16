@@ -3,7 +3,6 @@ import { BASE_URL } from "../../calc/constants";
 import { PhotoRecord } from "../../photos/types";
 import vertexShader from "./shaders/photo.vert.glsl?raw";
 import fragmentShader from "./shaders/photo.frag.glsl?raw";
-import { createFallbackWhiteTexture } from "./_func";
 
 type Parameters = {
   color?: THREE.ColorRepresentation;

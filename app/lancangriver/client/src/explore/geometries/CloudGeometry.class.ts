@@ -1,10 +1,7 @@
 import * as THREE from "three";
-import {
-  EARTH_RADIUS,
-  getLocalBasisAtPoint,
-  latlngToSphere,
-} from "../../calc/sphere";
+import { getLocalBasisAtPoint } from "../../calc/sphere";
 import { LatLng } from "../../calc/types";
+import { latlngToSphere } from "../../experiments/sphere-zoom/core";
 
 type Parameters = {
   /**
@@ -42,7 +39,7 @@ export class CloudGeometry extends THREE.BufferGeometry {
       return;
     }
 
-    const personPosition = latlngToSphere(latlng.lat, latlng.lng, EARTH_RADIUS);
+    const personPosition = latlngToSphere(latlng.lat, latlng.lng);
     const { up, east, north } = getLocalBasisAtPoint(
       new THREE.Vector3(personPosition.x, personPosition.y, personPosition.z),
     );

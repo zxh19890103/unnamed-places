@@ -13,14 +13,6 @@ export class TileNode implements ITileNode {
    */
   tile?: SphereTile;
 
-  keyOf(): SphereTileKey {
-    return {
-      z: this.z,
-      x: this.x,
-      y: this.y,
-    };
-  }
-
   constructor(readonly key: SphereTileKey) {
     this.x = key.x;
     this.y = key.y;

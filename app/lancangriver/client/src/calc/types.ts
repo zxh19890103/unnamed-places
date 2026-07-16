@@ -25,11 +25,6 @@ export type SphereTileKey = {
   y: number;
 };
 
-export interface ChildSphereTileKey extends SphereTileKey {
-  offsetX: number;
-  offsetY: number;
-}
-
 export enum TileNodeState {
   init = 1,
   toCreate = 5,

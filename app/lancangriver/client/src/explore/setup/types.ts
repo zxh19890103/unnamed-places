@@ -8,12 +8,6 @@ export type SetupLoadingSnapshot = {
   lastErrorUrl: string | null;
 };
 
-export type GroundOrbitState = {
-  enabled: boolean;
-  azimuthDeg: number;
-  altitudeDeg: number;
-};
-
 export type VendorBundle = {
   loadingManager: THREE.LoadingManager;
   loadingSnapshot: SetupLoadingSnapshot;

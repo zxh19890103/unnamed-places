@@ -9,7 +9,6 @@ import { JourneyPanel } from "./photos/JourneyPanel";
 import { buildJourneyDays } from "./photos/journey";
 import { fetchGeotaggedPhotos } from "./photos/sources";
 import type { JourneyDayNode, PhotoRecord } from "./photos/types";
-import { tile01 } from "./explore/tiles01";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -27,8 +26,6 @@ export default function App() {
     null | ((centerLatlng: LatLng) => Promise<any>)
   >(null);
   const showPhotosLocationsRef = useRef<(...args: any[]) => void>(null);
-
-  const loadTilesFuncRef = useRef<any>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -58,25 +55,6 @@ export default function App() {
     showPhotosLocationsRef.current = showPhotosLocations;
 
     setSphere(sceneSphere);
-
-    let rootNodes: any[] = null;
-
-    function loadTiles() {
-      if (!rootNodes) {
-        rootNodes = tileManager.getAttachedNodes();
-      }
-
-      const tiles = tile01(
-        rootNodes.map((n) => n.key),
-        camera,
-      );
-
-      tileManager.setNodes(tiles);
-
-      console.log(tiles);
-    }
-
-    loadTilesFuncRef.current = loadTiles;
 
     const handleResize = () => resize();
     window.addEventListener("resize", handleResize);
@@ -183,23 +161,12 @@ export default function App() {
     setSelectedDayKey(dayKey);
 
     const selectedDay = journeyDays.find((day) => day.dayKey === dayKey);
-    if (!selectedDay || !focusGroundOrbitAtLatLngRef.current) {
+    if (!selectedDay) {
       return;
     }
 
     try {
-      const { focusTiles, centerTile } =
-        await focusGroundOrbitAtLatLngRef.current({
-          lat: selectedDay.representativeLat,
-          lng: selectedDay.representativeLng,
-        });
-
-      showPhotosLocationsRef.current(
-        selectedDay,
-        journeyRecords,
-        focusTiles,
-        centerTile,
-      );
+      throw new Error("not implemented");
     } catch (error) {
       console.warn("Failed to focus journey day", error);
     }
@@ -223,13 +190,6 @@ export default function App() {
 
       <div className="fixed right-4 bottom-3  z-40 ">
         <div className=" flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => void loadTilesFuncRef.current?.()}
-            className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
-          >
-            Tiles01 debug
-          </button>
           <button
             type="button"
             onClick={() => void openFlatModal()}

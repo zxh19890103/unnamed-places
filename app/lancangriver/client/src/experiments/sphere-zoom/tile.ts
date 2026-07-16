@@ -1,351 +1,15 @@
 import * as THREE from "three";
 import { shortestDistanceToCap } from "./cap";
-import { BASE_URL } from "../../calc/constants";
-
-const EARTH_RADIUS = 6_371_008.8;
-
-type EarthTileRuntime = {
-  eyeAngle: number;
-};
-
-type LatLng = {
-  /**
-   * -90 ~ +90
-   */
-  lat: number;
-  /**
-   * -180 ~ +180
-   */
-  lng: number;
-};
-
-const DEG_TO_RAD = Math.PI / 180;
-const RAD_TO_DEG = 180 / Math.PI;
-const WEB_MERCATOR_MAX_LAT = 85.05112878;
-
-function normalizeLongitude(lng: number): number {
-  const wrapped = (((lng + 180) % 360) + 360) % 360;
-  return wrapped - 180;
-}
-
-export function latlngToSphere(
-  lat: number,
-  lng: number,
-  radius = EARTH_RADIUS,
-): THREE.Vector3Like {
-  const latRad = lat * DEG_TO_RAD;
-  const lngRad = lng * DEG_TO_RAD;
-  const cosLat = Math.cos(latRad);
-
-  return {
-    x: radius * cosLat * Math.sin(lngRad),
-    y: radius * Math.sin(latRad),
-    z: radius * cosLat * Math.cos(lngRad),
-  };
-}
-
-export function sphereToLatlng(x: number, y: number, z: number): LatLng {
-  const radius = Math.hypot(x, y, z);
-
-  if (radius === 0) {
-    throw new Error("sphereToLatlng requires a non-zero vector");
-  }
-
-  const lat = Math.asin(y / radius) * RAD_TO_DEG;
-  const lng = Math.atan2(x, z) * RAD_TO_DEG;
-
-  return { lat, lng: normalizeLongitude(lng) };
-}
-
-class EarthTileOutlineMaterial extends THREE.ShaderMaterial {
-  constructor(edgeWidth = 0.02, tile: EarthTile) {
-    super({
-      transparent: true,
-      depthTest: true,
-      depthWrite: false,
-      uniforms: {
-        uColor: {
-          value: new THREE.Color(tile.isFlatEnough ? 0xef0a90 : 0xffffff),
-        },
-        uEdgeWidth: { value: edgeWidth },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec2 vUv;
-        uniform vec3 uColor;
-        uniform float uEdgeWidth;
-
-        void main() {
-          bool isEdge =
-            vUv.x <= uEdgeWidth ||
-            vUv.x >= (1.0 - uEdgeWidth) ||
-            vUv.y <= uEdgeWidth ||
-            vUv.y >= (1.0 - uEdgeWidth);
-
-          if (!isEdge) {
-            discard;
-          }
-
-          gl_FragColor = vec4(uColor, 1.0);
-        }
-      `,
-    });
-  }
-}
-
-class EarthTileImageryMaterial extends THREE.ShaderMaterial {
-  private pendingImage: HTMLImageElement | null = null;
-
-  constructor(tile: EarthTile) {
-    const url = `${BASE_URL}/raster/satellite/${tile.z}/${tile.x}/${tile.y}.jpeg`;
-
-    super({
-      uniforms: {
-        uSatelliteTexture: { value: null },
-        uTextureReady: { value: 0 },
-        uFallbackColor: {
-          value: new THREE.Color(tile.isFlatEnough ? 0xef0a90 : 0x3b4252),
-        },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec2 vUv;
-        uniform sampler2D uSatelliteTexture;
-        uniform float uTextureReady;
-        uniform vec3 uFallbackColor;
-
-        void main() {
-          if (uTextureReady < 0.5) {
-            gl_FragColor = vec4(uFallbackColor, 1.0);
-            return;
-          }
-
-          gl_FragColor = texture2D(uSatelliteTexture, vUv);
-        }
-      `,
-    });
-
-    let satelliteTexture: THREE.Texture | null = null;
-    const imageLoader = new THREE.ImageLoader();
-
-    this.pendingImage = imageLoader.load(
-      url,
-      (image) => {
-        if (!this.pendingImage) {
-          return;
-        }
-
-        if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
-          this.pendingImage = null;
-          return;
-        }
-
-        satelliteTexture = new THREE.Texture();
-        satelliteTexture.image = image;
-        satelliteTexture.needsUpdate = true;
-        this.uniforms.uSatelliteTexture.value = satelliteTexture;
-        this.uniforms.uTextureReady.value = 1;
-
-        this.pendingImage = null;
-      },
-      undefined,
-      () => {
-        this.pendingImage = null;
-      },
-    );
-  }
-
-  override dispose(): void {
-    if (this.pendingImage) {
-      this.pendingImage.onload = null;
-      this.pendingImage.onerror = null;
-      this.pendingImage.src = "";
-      this.pendingImage = null;
-    }
-
-    const satelliteTexture = this.uniforms.uSatelliteTexture.value;
-    if (satelliteTexture instanceof THREE.Texture) {
-      satelliteTexture.dispose();
-    }
-
-    super.dispose();
-  }
-}
-
-export class TileMesh extends THREE.Mesh<
-  THREE.BufferGeometry,
-  EarthTileImageryMaterial
-> {
-  constructor(
-    readonly tile: EarthTile,
-    segments = 16,
-  ) {
-    const geometry = TileMesh.createGeometry(tile, segments);
-    const material = new EarthTileImageryMaterial(tile);
-
-    super(geometry, material);
-
-    tile.mesh = this;
-  }
-
-  private static createGeometry(tile: EarthTile, segments: number) {
-    const geometry = new THREE.BufferGeometry();
-    const vertexCount = (segments + 1) * (segments + 1);
-    const positions = new Float32Array(vertexCount * 3);
-    const uvs = new Float32Array(vertexCount * 2);
-    const indices: number[] = [];
-
-    const westLng = tile.southWest.lng;
-    const eastLng = tile.northEast.lng;
-    const n = 2 ** tile.z;
-    const northMercatorY = Math.PI * (1 - (2 * tile.y) / n);
-    const southMercatorY = Math.PI * (1 - (2 * (tile.y + 1)) / n);
-
-    const lngSpan =
-      eastLng >= westLng ? eastLng - westLng : eastLng + 360 - westLng;
-
-    let vertexIndex = 0;
-    for (let y = 0; y <= segments; y++) {
-      const v = y / segments;
-      const mercatorY = northMercatorY + (southMercatorY - northMercatorY) * v;
-      const lat = Math.atan(Math.sinh(mercatorY)) * RAD_TO_DEG;
-
-      for (let x = 0; x <= segments; x++) {
-        const u = x / segments;
-        const lng = normalizeLongitude(westLng + lngSpan * u);
-        const point = latlngToSphere(lat, lng, EARTH_RADIUS);
-
-        positions[vertexIndex * 3 + 0] = point.x;
-        positions[vertexIndex * 3 + 1] = point.y;
-        positions[vertexIndex * 3 + 2] = point.z;
-
-        uvs[vertexIndex * 2 + 0] = u;
-        uvs[vertexIndex * 2 + 1] = 1 - v;
-
-        vertexIndex++;
-      }
-    }
-
-    for (let y = 0; y < segments; y++) {
-      for (let x = 0; x < segments; x++) {
-        const a = y * (segments + 1) + x;
-        const b = a + 1;
-        const c = a + (segments + 1);
-        const d = c + 1;
-
-        indices.push(a, c, b);
-        indices.push(b, c, d);
-      }
-    }
-
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-
-    return geometry;
-  }
-
-  dispose() {
-    this.geometry.dispose();
-    this.material.dispose();
-
-    if (this.tile.volumeHelper) {
-      const volumeHelper = this.tile.volumeHelper;
-      volumeHelper.geometry.dispose();
-      const helperMaterial = volumeHelper.material;
-      if (Array.isArray(helperMaterial)) {
-        for (const material of helperMaterial) {
-          material.dispose();
-        }
-      } else {
-        helperMaterial.dispose();
-      }
-
-      this.tile.volumeHelper = null;
-    }
-  }
-}
-
-export class TileOutline extends THREE.LineLoop<
-  THREE.BufferGeometry,
-  THREE.LineBasicMaterial
-> {
-  constructor(
-    readonly tile: EarthTile,
-    segments = 16,
-  ) {
-    const geometry = TileOutline.createGeometry(tile, segments);
-    const material = new THREE.LineBasicMaterial({
-      color: tile.isFlatEnough ? 0xef0a90 : 0xffffff,
-      transparent: true,
-      depthTest: true,
-      depthWrite: false,
-    });
-
-    super(geometry, material);
-
-    this.frustumCulled = false;
-  }
-
-  private static createGeometry(tile: EarthTile, segments: number) {
-    const safeSegments = Math.max(1, Math.floor(segments));
-    const points: THREE.Vector3[] = [];
-
-    const westLng = tile.southWest.lng;
-    const eastLng = tile.northEast.lng;
-    const n = 2 ** tile.z;
-    const northMercatorY = Math.PI * (1 - (2 * tile.y) / n);
-    const southMercatorY = Math.PI * (1 - (2 * (tile.y + 1)) / n);
-    const lngSpan =
-      eastLng >= westLng ? eastLng - westLng : eastLng + 360 - westLng;
-
-    const pointAt = (u: number, v: number) => {
-      const mercatorY = northMercatorY + (southMercatorY - northMercatorY) * v;
-      const lat = Math.atan(Math.sinh(mercatorY)) * RAD_TO_DEG;
-      const lng = normalizeLongitude(westLng + lngSpan * u);
-
-      return new THREE.Vector3().copy(latlngToSphere(lat, lng, EARTH_RADIUS));
-    };
-
-    for (let x = 0; x <= safeSegments; x++) {
-      points.push(pointAt(x / safeSegments, 0));
-    }
-
-    for (let y = 1; y <= safeSegments; y++) {
-      points.push(pointAt(1, y / safeSegments));
-    }
-
-    for (let x = safeSegments - 1; x >= 0; x--) {
-      points.push(pointAt(x / safeSegments, 1));
-    }
-
-    for (let y = safeSegments - 1; y >= 1; y--) {
-      points.push(pointAt(0, y / safeSegments));
-    }
-
-    return new THREE.BufferGeometry().setFromPoints(points);
-  }
-
-  dispose() {
-    this.geometry.dispose();
-    this.material.dispose();
-  }
-}
+import {
+  DEG_TO_RAD,
+  EARTH_RADIUS,
+  EarthTileRuntime,
+  LatLng,
+  latlngToSphere,
+  normalizeLongitude,
+  RAD_TO_DEG,
+  WEB_MERCATOR_MAX_LAT,
+} from "./core";
 
 export class EarthTile {
   readonly latlng: LatLng;
@@ -372,8 +36,8 @@ export class EarthTile {
   readonly northEast: LatLng;
   readonly rt: THREE.Vector3;
 
-  mesh: TileMesh;
-  outline: TileOutline;
+  mesh: THREE.Mesh;
+  outline: THREE.LineLoop;
   volumeHelper: THREE.Box3Helper | null = null;
 
   readonly volume: THREE.Box3;
@@ -403,17 +67,17 @@ export class EarthTile {
     this.southWest = southWest;
 
     this.lb = new THREE.Vector3().copy(
-      latlngToSphere(this.southWest.lat, this.southWest.lng, EARTH_RADIUS),
+      latlngToSphere(this.southWest.lat, this.southWest.lng),
     );
 
     this.northEast = northEast;
 
     this.rt = new THREE.Vector3().copy(
-      latlngToSphere(this.northEast.lat, this.northEast.lng, EARTH_RADIUS),
+      latlngToSphere(this.northEast.lat, this.northEast.lng),
     );
 
     this.position = new THREE.Vector3().copy(
-      latlngToSphere(centerLatlng.lat, centerLatlng.lng, EARTH_RADIUS),
+      latlngToSphere(centerLatlng.lat, centerLatlng.lng),
     );
 
     this.normal = this.position.clone().normalize();
@@ -430,11 +94,11 @@ export class EarthTile {
 
   private computeHalfCapAngle() {
     const northWest = new THREE.Vector3().copy(
-      latlngToSphere(this.northEast.lat, this.southWest.lng, EARTH_RADIUS),
+      latlngToSphere(this.northEast.lat, this.southWest.lng),
     );
 
     const southEast = new THREE.Vector3().copy(
-      latlngToSphere(this.southWest.lat, this.northEast.lng, EARTH_RADIUS),
+      latlngToSphere(this.southWest.lat, this.northEast.lng),
     );
 
     const corners = [this.lb, this.rt, northWest, southEast];
@@ -500,7 +164,7 @@ export class EarthTile {
   }
 }
 
-function latlngToStandardTileZxy(
+export function latlngToStandardTileZxy(
   latlng: LatLng,
   zoom = 0,
 ): [number, number, number] {
@@ -526,7 +190,7 @@ function latlngToStandardTileZxy(
   ];
 }
 
-function tileZxyToCenterLatlng(z: number, x: number, y: number) {
+export function tileZxyToCenterLatlng(z: number, x: number, y: number) {
   const n = 2 ** z;
   const clampedX = THREE.MathUtils.clamp(Math.floor(x), 0, n - 1);
   const clampedY = THREE.MathUtils.clamp(Math.floor(y), 0, n - 1);

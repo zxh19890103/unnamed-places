@@ -1,8 +1,8 @@
 import * as THREE from "three";
 
-import { latlngToTilekey, tileBounds4326 } from "../calc/mercator";
-import { latlngToSphere, sphereToLatlng } from "../calc/sphere";
-import { SphereTileKey } from "../calc/types";
+import { latlngToTilekey, tileBounds4326 } from "../../calc/mercator";
+import { latlngToSphere, sphereToLatlng } from "../../calc/sphere";
+import { SphereTileKey } from "../../calc/types";
 
 const EPSILON = 0.001;
 const SAFETY_PADDING_RINGS = 2;

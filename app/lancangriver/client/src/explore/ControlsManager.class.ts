@@ -4,10 +4,12 @@ import { FlyControls } from "three/examples/jsm/controls/FlyControls.js";
 import { FLY_MOVEMENT_SPEED, FLY_ROLL_SPEED } from "../calc/constants";
 import { EARTH_RADIUS } from "../calc/sphere";
 import { PointerControls } from "./controls/PointerControls.class";
+import { Create3dTilesViewer } from "../experiments/sphere-zoom/viewer";
 
-export type ControlMode = "none" | "pointer" | "groundOrbit" | "fly";
+export type ControlMode = "none" | "pointer" | "orbit" | "groundOrbit" | "fly";
 
 export interface ControlsManagerOptions {
+  threeTilesViewer: Create3dTilesViewer;
   camera: THREE.Camera;
   domElement: HTMLElement;
   renderer?: THREE.WebGLRenderer;
@@ -16,25 +18,36 @@ export interface ControlsManagerOptions {
 
 export class ControlsManager {
   private camera: THREE.Camera;
+  private threeTilesViewer: Create3dTilesViewer;
 
+  private orbitControls: OrbitControls;
   private groundOrbitControls: OrbitControls;
   private flyControls: FlyControls;
   private pointerControls: PointerControls;
 
   private _enabled: boolean;
-  private _mode: ControlMode = "pointer";
-  private _lastAltitude: number = 0;
+  private _mode: ControlMode = "orbit";
   private _tweenInProgress: boolean = false;
-  private _lastMapTuneAltitude: number | null = null;
 
   private readonly lowAltitude = 30_000;
 
   onModeChange?: (from: ControlMode, to: ControlMode) => void;
 
   constructor(options: ControlsManagerOptions) {
-    const { camera, domElement, enabled = true } = options;
+    const { camera, domElement, threeTilesViewer, enabled = true } = options;
     this.camera = camera;
+    this.threeTilesViewer = threeTilesViewer;
+
     this._enabled = enabled;
+
+    this.orbitControls = new OrbitControls(camera, domElement);
+    this.orbitControls.enableDamping = true;
+    this.orbitControls.enablePan = false;
+    this.orbitControls.enableZoom = true;
+    this.orbitControls.target.set(0, 0, 0);
+    this.orbitControls.minDistance = EARTH_RADIUS + 100;
+    this.orbitControls.maxDistance = EARTH_RADIUS * 2;
+    this.orbitControls.enabled = false;
 
     this.groundOrbitControls = new OrbitControls(camera, domElement);
     this.groundOrbitControls.enableDamping = true;
@@ -54,13 +67,14 @@ export class ControlsManager {
     this.flyControls.dragToLook = true;
     this.flyControls.enabled = false;
 
-    this.pointerControls = new PointerControls(camera, domElement, {
-      enabled: false,
-    });
-
-    this.pointerControls.onChange = () => {
-      // Pointer controls dispatch changes internally
-    };
+    this.pointerControls = new PointerControls(
+      threeTilesViewer,
+      camera,
+      domElement,
+      {
+        enabled: false,
+      },
+    );
 
     this.applyEnabledState();
   }
@@ -77,18 +91,6 @@ export class ControlsManager {
    */
   get enabled(): boolean {
     return this._enabled;
-  }
-
-  /**
-   * Check altitude and auto-switch between orbit and map.
-   * Fly mode is never auto-switched; it must be user-triggered.
-   */
-  checkAltitude(altitudeMeters: number): void {
-    if (!this._enabled) {
-      return;
-    }
-
-    this._lastAltitude = altitudeMeters;
   }
 
   /**
@@ -134,7 +136,7 @@ export class ControlsManager {
       return;
     }
 
-    this.switchMode("pointer");
+    this.switchMode("orbit");
   }
 
   /**
@@ -142,13 +144,6 @@ export class ControlsManager {
    */
   enterFly(): void {
     if (!this._enabled) {
-      return;
-    }
-
-    if (this._lastAltitude > this.lowAltitude) {
-      console.warn(
-        `Cannot enable fly mode at altitude ${this._lastAltitude}m (above A2=${this.lowAltitude}m)`,
-      );
       return;
     }
 
@@ -172,7 +167,7 @@ export class ControlsManager {
       return; // Not in fly mode
     }
 
-    this.switchMode("pointer");
+    this.switchMode("orbit");
   }
 
   /**
@@ -183,11 +178,11 @@ export class ControlsManager {
       return; // Pause input during transition tween
     }
 
-    // Keep altitude fresh even while controls are actively moving.
-    this._lastAltitude = this.camera.position.length() - EARTH_RADIUS;
-
     switch (this._mode) {
       case "none":
+        break;
+      case "orbit":
+        this.orbitControls.update(delta);
         break;
       case "pointer":
         // Event-driven, no per-frame update
@@ -238,19 +233,44 @@ export class ControlsManager {
   }
 
   private getHandoffTarget(mode: ControlMode): THREE.Vector3 {
+    if (mode === "orbit") {
+      return this.orbitControls.target.clone();
+    }
+
+    if (mode === "groundOrbit") {
+      return this.groundOrbitControls.target.clone();
+    }
+
     return new THREE.Vector3(0, 0, 0);
   }
 
-  private applyHandoffTarget(mode: ControlMode, target: THREE.Vector3): void {}
+  private applyHandoffTarget(mode: ControlMode, target: THREE.Vector3): void {
+    if (mode === "orbit") {
+      this.orbitControls.target.set(0, 0, 0);
+      this.camera.lookAt(this.orbitControls.target);
+      this.camera.updateMatrixWorld(true);
+      this.orbitControls.update();
+      return;
+    }
+
+    if (mode === "groundOrbit") {
+      this.groundOrbitControls.target.copy(target);
+      this.camera.lookAt(this.groundOrbitControls.target);
+      this.camera.updateMatrixWorld(true);
+      this.groundOrbitControls.update();
+    }
+  }
 
   private applyEnabledState(): void {
     if (!this._enabled || this._mode === "none") {
+      this.setControlEnabled("orbit", false);
       this.setControlEnabled("pointer", false);
       this.setControlEnabled("groundOrbit", false);
       this.setControlEnabled("fly", false);
       return;
     }
 
+    this.setControlEnabled("orbit", this._mode === "orbit");
     this.setControlEnabled("pointer", this._mode === "pointer");
     this.setControlEnabled("groundOrbit", this._mode === "groundOrbit");
     this.setControlEnabled("fly", this._mode === "fly");
@@ -262,6 +282,9 @@ export class ControlsManager {
   private setControlEnabled(mode: ControlMode, enabled: boolean): void {
     switch (mode) {
       case "none":
+        break;
+      case "orbit":
+        this.orbitControls.enabled = enabled;
         break;
       case "pointer":
         this.pointerControls.enabled = enabled;
@@ -279,6 +302,7 @@ export class ControlsManager {
    * Dispose all controls (call on scene cleanup).
    */
   dispose(): void {
+    this.orbitControls.dispose();
     this.groundOrbitControls.dispose();
     this.flyControls.dispose();
     this.pointerControls.dispose();
@@ -289,6 +313,14 @@ export class ControlsManager {
    */
   getPointerControls(): PointerControls {
     return this.pointerControls;
+  }
+
+  getGroundOrbitcontrols(): OrbitControls {
+    return this.groundOrbitControls;
+  }
+
+  getOrbitControls(): OrbitControls {
+    return this.orbitControls;
   }
 
   /**

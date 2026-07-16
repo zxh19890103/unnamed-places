@@ -1,12 +1,12 @@
 import * as THREE from "three";
 
 import { EARTH_RADIUS } from "../calc/sphere";
-import { disatanceToZoom } from "../calc/mercator";
 import { SphereTile } from "./SphereTile.class";
-import { latlngToTilekey } from "../calc/mercator";
 import { SphereTileKey } from "../calc/types";
 import { ControlMode, ControlsManager } from "./ControlsManager.class";
 import type { TilesManager } from "./TilesManager.class";
+import { Create3dTilesViewer } from "../experiments/sphere-zoom/viewer";
+import { latlngToStandardTileZxy } from "../experiments/sphere-zoom/tile";
 
 export type SphereStatsPayload = {
   cameraDistanceMeters: number;
@@ -53,6 +53,7 @@ export class Sphere extends THREE.Group {
   private _statsTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
+    readonly threeTilesViewer: Create3dTilesViewer,
     readonly textureLoader: THREE.TextureLoader,
     readonly imageLoader: THREE.ImageLoader,
     options: SphereOptions,
@@ -69,7 +70,8 @@ export class Sphere extends THREE.Group {
 
     this._statsTimer = setInterval(() => {
       const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-      const zoomLevel = disatanceToZoom(cameraDistanceMeters);
+      const zoomLevel =
+        this.threeTilesViewer.distanceToZoom(cameraDistanceMeters);
       const loadingSnapshot = getLoadingSnapshot();
       this.dispatchStats({
         cameraDistanceMeters,
@@ -96,8 +98,12 @@ export class Sphere extends THREE.Group {
   }
 
   createTile(lon: number, lat: number, zoom: number) {
-    const tilekey = latlngToTilekey(lon, lat, zoom);
-    return this.createTileByKey(tilekey);
+    const tilekey = latlngToStandardTileZxy({ lat, lng: lon }, zoom);
+    return this.createTileByKey({
+      z: tilekey[0],
+      x: tilekey[1],
+      y: tilekey[2],
+    });
   }
 
   attachTile(tile: SphereTile) {

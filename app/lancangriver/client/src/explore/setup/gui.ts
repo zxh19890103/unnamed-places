@@ -1,19 +1,18 @@
 import { GUI } from "lil-gui";
 import * as THREE from "three";
-import { disatanceToZoom, zoomToDistance } from "../../calc/mercator";
-import {
-  EARTH_RADIUS,
-  latlngToSphere,
-  sphereToLatlng,
-} from "../../calc/sphere";
+import { EARTH_RADIUS } from "../../calc/sphere";
 import { ControlsManager } from "../ControlsManager.class";
 import { TileMaterialMode } from "../SphereTile.class";
+import { Create3dTilesViewer } from "../../experiments/sphere-zoom/viewer";
+import {
+  latlngToSphere,
+  sphereToLatlng,
+} from "../../experiments/sphere-zoom/core";
 
-const GUI_ZOOM_MIN = 1;
-const GUI_ZOOM_MAX = 19;
 const GUI_ZOOM_STEP = 1;
 
 type AttachExploreGuiParameters = {
+  threeTilesViewer: Create3dTilesViewer;
   camera: THREE.PerspectiveCamera;
   controlsManager: ControlsManager;
   onRefreshVisibleTilesAndStats: () => void;
@@ -39,6 +38,7 @@ export function attachExploreGui(
     applyMaterialMode,
     triggerCreateOsmTilesOnce,
     getOsmTilesCreated,
+    threeTilesViewer,
   } = parameters;
 
   const gui = new GUI({ title: "Explore Camera" });
@@ -47,15 +47,8 @@ export function attachExploreGui(
   const terrainFolder = gui.addFolder("Terrain");
 
   const applyZoomLevel = (zoomLevel: number) => {
-    const z = THREE.MathUtils.clamp(
-      Math.round(zoomLevel),
-      GUI_ZOOM_MIN,
-      GUI_ZOOM_MAX,
-    );
-
-    zoomState.zoomLevel = z;
-
-    const altitude = zoomToDistance(z, GUI_ZOOM_MIN, GUI_ZOOM_MAX);
+    zoomState.zoomLevel = zoomLevel;
+    const altitude = threeTilesViewer.zoomToDistance(zoomLevel);
     const nextRadius = EARTH_RADIUS + altitude;
     camera.position.normalize().multiplyScalar(nextRadius);
     camera.lookAt(0, 0, 0);
@@ -65,20 +58,16 @@ export function attachExploreGui(
   };
 
   const zoomState = {
-    zoomLevel: disatanceToZoom(
+    zoomLevel: threeTilesViewer.distanceToZoom(
       Math.max(1, camera.position.length() - EARTH_RADIUS),
-      GUI_ZOOM_MIN,
-      GUI_ZOOM_MAX,
     ),
     zoomIn: () => applyZoomLevel(zoomState.zoomLevel + GUI_ZOOM_STEP),
     zoomOut: () => applyZoomLevel(zoomState.zoomLevel - GUI_ZOOM_STEP),
   };
 
   const syncNavigationStateFromCamera = () => {
-    zoomState.zoomLevel = disatanceToZoom(
+    zoomState.zoomLevel = threeTilesViewer.distanceToZoom(
       Math.max(1, camera.position.length() - EARTH_RADIUS),
-      GUI_ZOOM_MIN,
-      GUI_ZOOM_MAX,
     );
   };
 
@@ -97,11 +86,7 @@ export function attachExploreGui(
         camera.position.z,
       );
       const clampedLat = THREE.MathUtils.clamp(latlng.lat, -85, 85);
-      const clamped = latlngToSphere(
-        clampedLat,
-        latlng.lng,
-        EARTH_RADIUS + altitude,
-      );
+      const clamped = latlngToSphere(clampedLat, latlng.lng, altitude);
       camera.position.set(clamped.x, clamped.y, clamped.z);
     }
 
@@ -198,7 +183,7 @@ export function attachExploreGui(
     .name("terrain mode")
     .onChange((value: TileMaterialMode) => {
       const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-      const zoomLevel = disatanceToZoom(cameraDistanceMeters);
+      const zoomLevel = threeTilesViewer.distanceToZoom(cameraDistanceMeters);
 
       const success = applyMaterialMode(value as TileMaterialMode, zoomLevel);
 

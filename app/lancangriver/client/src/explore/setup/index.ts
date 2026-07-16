@@ -1,37 +1,25 @@
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 
-import {
-  EARTH_RADIUS,
-  latlngToSphere,
-  sphereToLatlng,
-} from "../../calc/sphere.js";
-import {
-  disatanceToZoom,
-  latlngToTilekey,
-  zoomToDistance,
-} from "../../calc/mercator.js";
+import { EARTH_RADIUS } from "../../calc/sphere.js";
 import { Sphere } from "../Sphere.class.js";
 import { TilesManager } from "../TilesManager.class.js";
-import { getVisibleTiles } from "../visibleTiles.js";
 import { ControlsManager, type ControlMode } from "../ControlsManager.class.js";
 import { attachExploreGui, type ExploreGuiHandle } from "./gui.js";
 import { TileMaterialMode } from "../SphereTile.class.js";
 import { BASE_URL, MAX_DEM_ZOOM } from "../../calc/constants.js";
-import { LatLng, SphereTileKey } from "../../calc/types.js";
+import { LatLng } from "../../calc/types.js";
 import { OsmBuildingTilesController } from "../OsmBuildingTilesController.class.js";
 import { createVendors } from "./vendors.js";
 import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky.js";
 import { createGroundOrbitCloudsController } from "./clouds.js";
-import { GroundOrbitState } from "./types.js";
 import { computeOrbitPositionFromAzimuthAltitude } from "./orbit.js";
-import {
-  FOCUS_TILE_ZOOM,
-  getFocusNeighborTiles,
-  getFocusZoomLevel,
-  waitForAttachedTiles,
-} from "./focus.js";
 import { createPhotoLocationsPresenter } from "./photos.js";
+import { create3dTilesViewer } from "../../experiments/sphere-zoom/viewer.js";
+import {
+  latlngToSphere,
+  sphereToLatlng,
+} from "../../experiments/sphere-zoom/core.js";
 
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
@@ -47,16 +35,20 @@ export function createScene(container: HTMLElement) {
     EARTH_RADIUS * 2,
   );
 
+  const threeTilesViewer = create3dTilesViewer({ camera });
+
   const startCameraPosition = latlngToSphere(
     initialCenter.lat,
     initialCenter.lng,
-    EARTH_RADIUS * 1.5,
+    EARTH_RADIUS * 0.1,
   );
+
   camera.position.set(
     startCameraPosition.x,
     startCameraPosition.y,
     startCameraPosition.z,
   );
+
   camera.lookAt(0, 0, 0);
 
   const { loadingSnapshot, textureLoader, imageLoader, cloudAtlasTexture } =
@@ -75,16 +67,11 @@ export function createScene(container: HTMLElement) {
   container.appendChild(stats.dom);
 
   const controlsManager = new ControlsManager({
+    threeTilesViewer,
     camera,
     domElement: renderer.domElement,
     renderer,
   });
-
-  const groundOrbitState: GroundOrbitState = {
-    enabled: false,
-    azimuthDeg: 180,
-    altitudeDeg: 30,
-  };
 
   const tileManager = new TilesManager();
   const osmBuildingTiles = new OsmBuildingTilesController({
@@ -92,12 +79,17 @@ export function createScene(container: HTMLElement) {
     baseUrl: BASE_URL,
   });
 
-  const sphereGlobal = new Sphere(textureLoader, imageLoader, {
-    camera,
-    tilesManager: tileManager,
-    controlsManager,
-    getLoadingSnapshot: () => loadingSnapshot,
-  });
+  const sphereGlobal = new Sphere(
+    threeTilesViewer,
+    textureLoader,
+    imageLoader,
+    {
+      camera,
+      tilesManager: tileManager,
+      controlsManager,
+      getLoadingSnapshot: () => loadingSnapshot,
+    },
+  );
 
   scene.add(sphereGlobal);
 
@@ -192,18 +184,17 @@ export function createScene(container: HTMLElement) {
   const refreshVisibleTilesOnCameraChanges = () => {
     if (tileManager.frozen) return;
 
-    const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-    const zoomLevel = disatanceToZoom(cameraDistanceMeters);
+    // const visibleTileKeys = getVisibleTiles(camera, zoomLevel, EARTH_RADIUS);
+    const earthTiles = threeTilesViewer.getVisibleTiles(
+      camera.position.clone(),
+    );
 
-    controlsManager.checkAltitude(cameraDistanceMeters);
-
-    const visibleTileKeys = getVisibleTiles(camera, zoomLevel, EARTH_RADIUS);
-    tileManager.setNodes(visibleTileKeys);
+    tileManager.setNodes(earthTiles);
   };
 
   controlsManager.onModeChange = (from: ControlMode, to: ControlMode) => {
     console.log(`[Controls] Mode change: ${from} → ${to}`);
-    if (to === "fly" || to === "groundOrbit") {
+    if (to === "fly") {
       tileManager.frozen = true;
       const modeLabel = to === "fly" ? "fly compositor" : "ground orbit";
       console.log(`[Tiles] Entering resolution mode (${modeLabel})`);
@@ -219,23 +210,27 @@ export function createScene(container: HTMLElement) {
     refreshVisibleTilesOnCameraChanges();
   };
 
+  controlsManager.getOrbitControls().addEventListener("end", () => {
+    console.log("hi");
+    reconcileAttachedNodeMaterials();
+    refreshVisibleTilesOnCameraChanges();
+  });
+
+  threeTilesViewer.useOrbitControls(controlsManager.getOrbitControls());
+
+  controlsManager.getGroundOrbitcontrols().addEventListener("end", () => {
+    reconcileAttachedNodeMaterials();
+    refreshVisibleTilesOnCameraChanges();
+  });
+
   const getCurrentCameraLatlng = () => {
     const pos = camera.position;
     return sphereToLatlng(pos.x, pos.y, pos.z);
   };
 
-  const getLowAltitudeViewPoint = async (at: LatLng, alt: number = null) => {
-    const tile12 = latlngToTilekey(at.lng, at.lat, FOCUS_TILE_ZOOM);
-
-    const altitude = alt === null ? await fetchTileAvgAltitude(tile12) : alt;
-
-    const point = latlngToSphere(at.lat, at.lng, EARTH_RADIUS + altitude);
-
+  const getLowAltitudeViewPoint = async (at: LatLng, alt: number = 0) => {
+    const point = latlngToSphere(at.lat, at.lng, alt);
     return new THREE.Vector3(point.x, point.y, point.z);
-  };
-
-  const fetchTileAvgAltitude = async (_tile: SphereTileKey) => {
-    return 0;
   };
 
   const applyGroundOrbitPlacement = async (targetLatlng?: LatLng) => {
@@ -252,8 +247,8 @@ export function createScene(container: HTMLElement) {
 
     const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
       orbitTarget,
-      groundOrbitState.azimuthDeg,
-      groundOrbitState.altitudeDeg,
+      180,
+      45,
       cameraDistanceMeters,
     );
 
@@ -274,8 +269,8 @@ export function createScene(container: HTMLElement) {
     });
     const newOrbitPosition = computeOrbitPositionFromAzimuthAltitude(
       newOrbitTarget,
-      groundOrbitState.azimuthDeg,
-      groundOrbitState.altitudeDeg,
+      180,
+      45,
       cameraDistanceMeters,
     );
     cloudsController.replaceCloudsAtTarget({
@@ -288,36 +283,16 @@ export function createScene(container: HTMLElement) {
   };
 
   const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
-    tileManager.frozen = true;
+    threeTilesViewer.useOrbitControls(controlsManager.getGroundOrbitcontrols());
+    threeTilesViewer.lookAtLatlng();
 
-    const { centerTile, coreFocusTiles } = getFocusNeighborTiles(centerLatlng);
-
-    tileManager.setNodes(coreFocusTiles);
-
-    reconcileAttachedNodeMaterials();
-
-    try {
-      await waitForAttachedTiles({
-        targetKeys: coreFocusTiles,
-        getAttachedKeys: () =>
-          tileManager.getAttachedNodes().map((node) => node.key),
-      });
-    } catch (error) {
-      console.warn("[Tiles] Focused tile preload timed out", error);
-    }
-
-    const camDistance = zoomToDistance(getFocusZoomLevel());
-    const moveCamTo = camera.position.clone();
-    moveCamTo.normalize().setLength(EARTH_RADIUS + camDistance);
-    camera.position.copy(moveCamTo);
-
-    groundOrbitState.enabled = true;
     await applyGroundOrbitPlacement(centerLatlng);
 
-    return { centerTile, focusTiles: coreFocusTiles };
+    return { centerTile: null, focusTiles: [] };
   };
 
   guiHandle = attachExploreGui({
+    threeTilesViewer,
     camera,
     controlsManager,
     onRefreshVisibleTilesAndStats: refreshVisibleTilesOnCameraChanges,

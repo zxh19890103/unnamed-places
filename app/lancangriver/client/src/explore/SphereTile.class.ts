@@ -1,17 +1,14 @@
 import * as THREE from "three";
 import { ITileNode, SphereTileKey } from "../calc/types";
 import { tileBounds4326 } from "../calc/mercator";
-import { EARTH_RADIUS, latlngToSphere } from "../calc/sphere";
 import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
 import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class";
-import {
-  TileEmptyMaterial,
-  type TileEmptyMaterialParameters,
-} from "./materials/TileEmptyMaterial.class";
+import { TileEmptyMaterial } from "./materials/TileEmptyMaterial.class";
 import { TileDebugMaterial } from "./materials/TileDebugMaterial.class";
 import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
+import { latlngToSphere } from "../experiments/sphere-zoom/core";
 
 export enum TileMaterialMode {
   Basic = "basic",
@@ -72,7 +69,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
 
     const centerLat = (south + north) / 2;
     const centerLng = (west + east) / 2;
-    const centerPoint = latlngToSphere(centerLat, centerLng, EARTH_RADIUS);
+    const centerPoint = latlngToSphere(centerLat, centerLng);
 
     super(geometry, material);
 

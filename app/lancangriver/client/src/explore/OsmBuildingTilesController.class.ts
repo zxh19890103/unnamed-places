@@ -1,16 +1,13 @@
 import * as THREE from "three";
 import { BASE_URL } from "../calc/constants";
 import { tileExtent } from "../calc/mercator";
-import {
-  EARTH_RADIUS,
-  getLocalBasisAtPoint,
-  latlngToSphere,
-} from "../calc/sphere";
+import { EARTH_RADIUS, getLocalBasisAtPoint } from "../calc/sphere";
 import { type LatLng, TileNodeState } from "../calc/types";
 import { fetchTileVector } from "../osm/tiles";
 import { OsmBuildingTileGeometry } from "./geometries/OsmBuildingTileGeometry.class";
 import { OsmBuildingTileMaterial } from "./materials/OsmBuildingTileMaterial.class";
 import type { TileNode } from "./TilesManager.class";
+import { latlngToSphere } from "../experiments/sphere-zoom/core";
 
 type Parameters = {
   scene: THREE.Scene;
@@ -119,7 +116,7 @@ export class OsmBuildingTilesController {
   }
 
   private createMeshTransform(origin: LatLng): THREE.Matrix4 {
-    const point = latlngToSphere(origin.lat, origin.lng, EARTH_RADIUS);
+    const point = latlngToSphere(origin.lat, origin.lng);
     const originPoint = new THREE.Vector3(point.x, point.y, point.z);
     const { east, north, up } = getLocalBasisAtPoint(originPoint);
     const basis = new THREE.Matrix4();
