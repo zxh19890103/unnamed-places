@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { BASE_URL } from "../calc/constants";
 import { tileExtent } from "../calc/mercator";
-import { EARTH_RADIUS, getLocalBasisAtPoint } from "../calc/sphere";
+import { getLocalBasisAtPoint } from "../calc/sphere";
 import { type LatLng, TileNodeState } from "../calc/types";
 import { fetchTileVector } from "../osm/tiles";
 import { OsmBuildingTileGeometry } from "./geometries/OsmBuildingTileGeometry.class";

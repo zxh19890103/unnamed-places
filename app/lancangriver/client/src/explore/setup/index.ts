@@ -206,19 +206,18 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  controlsManager.getPointerControls().onChange = () => {
+  controlsManager.pointerControls.onChange = () => {
     refreshVisibleTilesOnCameraChanges();
   };
 
-  controlsManager.getOrbitControls().addEventListener("end", () => {
-    console.log("hi");
+  controlsManager.orbitControls.addEventListener("end", () => {
     reconcileAttachedNodeMaterials();
     refreshVisibleTilesOnCameraChanges();
   });
 
-  threeTilesViewer.useOrbitControls(controlsManager.getOrbitControls());
+  threeTilesViewer.useOrbitControls(controlsManager.orbitControls);
 
-  controlsManager.getGroundOrbitcontrols().addEventListener("end", () => {
+  controlsManager.groundOrbitControls.addEventListener("end", () => {
     reconcileAttachedNodeMaterials();
     refreshVisibleTilesOnCameraChanges();
   });
@@ -228,14 +227,11 @@ export function createScene(container: HTMLElement) {
     return sphereToLatlng(pos.x, pos.y, pos.z);
   };
 
-  const getLowAltitudeViewPoint = async (at: LatLng, alt: number = 0) => {
-    const point = latlngToSphere(at.lat, at.lng, alt);
-    return new THREE.Vector3(point.x, point.y, point.z);
-  };
+  const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
+    threeTilesViewer.lookAtLatlng(centerLatlng);
 
-  const applyGroundOrbitPlacement = async (targetLatlng?: LatLng) => {
-    const orbitLatlng = targetLatlng ?? getCurrentCameraLatlng();
-    const orbitTarget = await getLowAltitudeViewPoint(orbitLatlng, 0);
+    const orbitLatlng = centerLatlng;
+    const orbitTarget = controlsManager.orbitControls.target.clone();
 
     const cameraDistanceMeters =
       2.5 * (camera.position.length() - EARTH_RADIUS);
@@ -245,13 +241,6 @@ export function createScene(container: HTMLElement) {
       cameraDistanceMeters,
     });
 
-    const orbitPosition = computeOrbitPositionFromAzimuthAltitude(
-      orbitTarget,
-      180,
-      45,
-      cameraDistanceMeters,
-    );
-
     cloudsController.replaceCloudsAtTarget({
       latlng: orbitLatlng,
       orbitTarget,
@@ -259,36 +248,7 @@ export function createScene(container: HTMLElement) {
       viewportHeight: container.clientHeight,
     });
 
-    controlsManager.enterGroundOrbit(orbitTarget, orbitPosition);
     refreshVisibleTilesOnCameraChanges();
-
-    const newOrbitTarget = await getLowAltitudeViewPoint(orbitLatlng);
-    syncSkyWithCamera({
-      orbitCenter: newOrbitTarget,
-      cameraDistanceMeters,
-    });
-    const newOrbitPosition = computeOrbitPositionFromAzimuthAltitude(
-      newOrbitTarget,
-      180,
-      45,
-      cameraDistanceMeters,
-    );
-    cloudsController.replaceCloudsAtTarget({
-      latlng: orbitLatlng,
-      orbitTarget: newOrbitTarget,
-      cameraDistanceMeters,
-      viewportHeight: container.clientHeight,
-    });
-    controlsManager.enterGroundOrbit(newOrbitTarget, newOrbitPosition);
-  };
-
-  const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
-    threeTilesViewer.useOrbitControls(controlsManager.getGroundOrbitcontrols());
-    threeTilesViewer.lookAtLatlng();
-
-    await applyGroundOrbitPlacement(centerLatlng);
-
-    return { centerTile: null, focusTiles: [] };
   };
 
   guiHandle = attachExploreGui({

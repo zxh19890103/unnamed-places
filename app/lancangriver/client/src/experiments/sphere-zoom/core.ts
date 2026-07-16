@@ -17,6 +17,8 @@ export type LatLng = {
    * -180 ~ +180
    */
   lng: number;
+
+  alt?: number;
 };
 
 export const DEG_TO_RAD = Math.PI / 180;

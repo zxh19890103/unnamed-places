@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { EarthTile, EarthTilesManager } from "./tile";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { EARTH_RADIUS, latlngToSphere, sphereToLatlng } from "./core";
+import { EARTH_RADIUS, LatLng, latlngToSphere, sphereToLatlng } from "./core";
 
 type Create3dTilesViewerInputs = {
   camera: THREE.PerspectiveCamera;
@@ -32,7 +32,7 @@ export type Create3dTilesViewer = {
   enableUpdate: (enabled: boolean) => void;
   getZoom: (dist: number) => number;
   getTileCount: () => number;
-  lookAtLatlng: () => void;
+  lookAtLatlng: (latlng?: LatLng) => void;
   lookAtOrigin: () => void;
   useOrbitControls: (controls: OrbitControls) => void;
 };
@@ -274,6 +274,36 @@ export function create3dTilesViewer({
     camera.updateProjectionMatrix();
   }
 
+  function getCenterLatlng(): LatLng {
+    const earthSphere = new THREE.Sphere(
+      new THREE.Vector3(0, 0, 0),
+      EARTH_RADIUS,
+    );
+    const centerRaycaster = new THREE.Raycaster();
+    const centerNdc = new THREE.Vector2(0, 0);
+    const hitPoint = new THREE.Vector3();
+
+    centerRaycaster.setFromCamera(centerNdc, camera);
+    const hasHit =
+      centerRaycaster.ray.intersectSphere(earthSphere, hitPoint) !== null;
+
+    if (!hasHit) {
+      return;
+    }
+
+    const latlng = sphereToLatlng(hitPoint.x, hitPoint.y, hitPoint.z);
+
+    const clampedLat = THREE.MathUtils.clamp(
+      latlng.lat,
+      -85.05112878,
+      85.05112878,
+    );
+
+    const wrappedLng = ((((latlng.lng + 180) % 360) + 360) % 360) - 180;
+
+    return { lat: clampedLat, lng: wrappedLng };
+  }
+
   return {
     getZoom: getZoomLevel,
     getTileCount: () => tilesManager.tiles.length,
@@ -303,31 +333,10 @@ export function create3dTilesViewer({
 
       controls.addEventListener("end", cameraMove);
     },
-    lookAtLatlng: () => {
-      const earthSphere = new THREE.Sphere(
-        new THREE.Vector3(0, 0, 0),
-        EARTH_RADIUS,
-      );
-      const centerRaycaster = new THREE.Raycaster();
-      const centerNdc = new THREE.Vector2(0, 0);
-      const hitPoint = new THREE.Vector3();
+    lookAtLatlng: (latlng0: LatLng = null) => {
+      const latlng = latlng0 ?? getCenterLatlng();
 
-      centerRaycaster.setFromCamera(centerNdc, camera);
-      const hasHit =
-        centerRaycaster.ray.intersectSphere(earthSphere, hitPoint) !== null;
-
-      if (!hasHit) {
-        return;
-      }
-
-      const latlng = sphereToLatlng(hitPoint.x, hitPoint.y, hitPoint.z);
-      const clampedLat = THREE.MathUtils.clamp(
-        latlng.lat,
-        -85.05112878,
-        85.05112878,
-      );
-      const wrappedLng = ((((latlng.lng + 180) % 360) + 360) % 360) - 180;
-      const point = latlngToSphere(clampedLat, wrappedLng);
+      const point = latlngToSphere(latlng.lat, latlng.lng);
 
       controls.target.set(point.x, point.y, point.z);
 

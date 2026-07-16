@@ -20,16 +20,17 @@ export class ControlsManager {
   private camera: THREE.Camera;
   private threeTilesViewer: Create3dTilesViewer;
 
-  private orbitControls: OrbitControls;
-  private groundOrbitControls: OrbitControls;
-  private flyControls: FlyControls;
-  private pointerControls: PointerControls;
+  public readonly orbitControls: OrbitControls;
+  /**
+   * @todo maybe removed!
+   */
+  public readonly groundOrbitControls: OrbitControls;
+  public readonly flyControls: FlyControls;
+  public readonly pointerControls: PointerControls;
 
   private _enabled: boolean;
   private _mode: ControlMode = "orbit";
   private _tweenInProgress: boolean = false;
-
-  private readonly lowAltitude = 30_000;
 
   onModeChange?: (from: ControlMode, to: ControlMode) => void;
 
