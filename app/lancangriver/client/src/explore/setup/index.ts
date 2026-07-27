@@ -13,7 +13,6 @@ import { OsmBuildingTilesController } from "../OsmBuildingTilesController.class.
 import { createVendors } from "./vendors.js";
 import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky.js";
 import { createGroundOrbitCloudsController } from "./clouds.js";
-import { computeOrbitPositionFromAzimuthAltitude } from "./orbit.js";
 import { createPhotoLocationsPresenter } from "./photos.js";
 import { create3dTilesViewer } from "../../experiments/sphere-zoom/viewer.js";
 import {
@@ -35,7 +34,11 @@ export function createScene(container: HTMLElement) {
     EARTH_RADIUS * 2,
   );
 
-  const threeTilesViewer = create3dTilesViewer({ camera });
+  const threeTilesViewer = create3dTilesViewer({
+    camera,
+    baseDistance: 32_000_000,
+    maxZoom: 20,
+  });
 
   const startCameraPosition = latlngToSphere(
     initialCenter.lat,
@@ -74,6 +77,7 @@ export function createScene(container: HTMLElement) {
   });
 
   const tileManager = new TilesManager();
+
   const osmBuildingTiles = new OsmBuildingTilesController({
     scene,
     baseUrl: BASE_URL,
@@ -294,6 +298,7 @@ export function createScene(container: HTMLElement) {
     destroyCameraGui,
     destroyStats,
     showPhotosLocations: photoLocationsPresenter.showPhotosLocations,
+    threeTilesViewer,
     cleanup: () => {
       cloudsController.dispose();
       photoLocationsPresenter.dispose();

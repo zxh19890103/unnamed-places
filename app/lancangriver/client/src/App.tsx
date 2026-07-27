@@ -9,6 +9,7 @@ import { JourneyPanel } from "./photos/JourneyPanel";
 import { buildJourneyDays } from "./photos/journey";
 import { fetchGeotaggedPhotos } from "./photos/sources";
 import type { JourneyDayNode, PhotoRecord } from "./photos/types";
+import type { TilesManager } from "./explore/TilesManager.class";
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -20,6 +21,7 @@ export default function App() {
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
   const [journeyError, setJourneyError] = useState<string | null>(null);
   const [journeyLoading, setJourneyLoading] = useState(false);
+  const [tileManager, setTileManager] = useState<TilesManager | null>(null);
 
   const currentCenterGetterRef = useRef<null | (() => LatLng)>(null);
   const focusGroundOrbitAtLatLngRef = useRef<
@@ -40,7 +42,6 @@ export default function App() {
       controlsManager,
       sphere: sceneSphere,
       stats,
-      tileManager,
       resize,
       getCurrentCenterLatLng,
       focusGroundOrbitAtLatLng,
@@ -48,11 +49,13 @@ export default function App() {
       destroyStats,
       showPhotosLocations,
       cleanup,
+      tileManager: sceneTileManager,
     } = createScene(host);
 
     currentCenterGetterRef.current = getCurrentCenterLatLng;
     focusGroundOrbitAtLatLngRef.current = focusGroundOrbitAtLatLng;
     showPhotosLocationsRef.current = showPhotosLocations;
+    setTileManager(sceneTileManager);
 
     setSphere(sceneSphere);
 
@@ -88,6 +91,7 @@ export default function App() {
       renderer.dispose();
       host.removeChild(renderer.domElement);
       setSphere(null);
+      setTileManager(null);
     };
   }, []);
 
@@ -188,24 +192,13 @@ export default function App() {
         />
       </div>
 
-      <div className="fixed right-4 bottom-3  z-40 ">
-        <div className=" flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => void openFlatModal()}
-            className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
-          >
-            Open flat map
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleLoadGeotaggedPhotos()}
-            className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
-          >
-            Load geotagged photos
-          </button>
-        </div>
-      </div>
+      {tileManager && (
+        <OpsPanel
+          openFlatModal={openFlatModal}
+          handleLoadGeotaggedPhotos={handleLoadGeotaggedPhotos}
+          tileManager={tileManager}
+        />
+      )}
 
       <div className="fixed bottom-3 left-4 z-30 ">
         <SceneMonitor sphere={sphere} />
@@ -232,3 +225,52 @@ export default function App() {
     </div>
   );
 }
+
+type OpsPanelProps = {
+  openFlatModal: () => Promise<void>;
+  handleLoadGeotaggedPhotos: () => Promise<void>;
+  tileManager: TilesManager;
+};
+
+const OpsPanel = ({
+  openFlatModal,
+  handleLoadGeotaggedPhotos,
+  tileManager,
+}: OpsPanelProps) => {
+  const [viewerUpdateEnabled, setViewerUpdateEnabled] = useState(
+    !tileManager.frozen,
+  );
+
+  return (
+    <div className="fixed right-4 bottom-3  z-40 ">
+      <div className=" flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            const nextFrozen = !tileManager.frozen;
+            tileManager.frozen = nextFrozen;
+            const nextUpdateEnabled = !nextFrozen;
+            setViewerUpdateEnabled(nextUpdateEnabled);
+          }}
+          className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
+        >
+          {viewerUpdateEnabled ? "Pause Update" : "Resume Update"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void openFlatModal()}
+          className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
+        >
+          Open flat map
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleLoadGeotaggedPhotos()}
+          className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
+        >
+          Load geotagged photos
+        </button>
+      </div>
+    </div>
+  );
+};

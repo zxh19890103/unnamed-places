@@ -411,12 +411,6 @@ export function create3dTilesViewer({
     },
     enableUpdate: (enabled: boolean) => {
       updateEnabled = enabled;
-
-      if (enabled) {
-        removeFrustumSnapshot();
-      } else {
-        createFrustumSnapshot();
-      }
     },
     /**
      * update per frame.
