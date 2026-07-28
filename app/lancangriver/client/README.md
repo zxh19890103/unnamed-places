@@ -58,3 +58,11 @@ npm test
 
 - This is a milestone baseline focused on request orchestration and diagnostics.
 - Three.js is installed and available for subsequent rendering integration.
+
+## Shanshui Wash Terrain Mode
+
+- Terrain mode key: `shanshui-wash`
+- Visual direction: wash-first shading with low-opacity satellite blend
+- Default preset: `balanced`
+- Runtime controls: tone bands, edge strength, wash contrast, haze strength, satellite blend opacity
+- Performance guardrail: adaptive quality uses frame-time p95 to degrade/recover wash detail

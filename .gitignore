@@ -13,3 +13,4 @@ release/
 **/.env.local
 **/pipeline/output/
 __legacy
+**/.superpowers/

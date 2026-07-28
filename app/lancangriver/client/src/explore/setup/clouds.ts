@@ -52,7 +52,7 @@ export function createGroundOrbitCloudsController(params: {
       latlng,
       radius: cloudRadius,
       count: 100,
-      maxAltitudeDeg: 1,
+      maxAltitudeDeg: 60,
       bandWidth: 0,
     });
     const cloudMaterial = new CloudMaterial({

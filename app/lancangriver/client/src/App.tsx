@@ -29,6 +29,19 @@ export default function App() {
   >(null);
   const showPhotosLocationsRef = useRef<(...args: any[]) => void>(null);
 
+  const focus3dAtCenter = async (center: LatLng | null | undefined) => {
+    if (!center) {
+      return;
+    }
+
+    if (!focusGroundOrbitAtLatLngRef.current) {
+      return;
+    }
+
+    await focusGroundOrbitAtLatLngRef.current(center);
+    setIsFlatModalOpen(false);
+  };
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) {
@@ -48,6 +61,7 @@ export default function App() {
       destroyCameraGui,
       destroyStats,
       showPhotosLocations,
+      onFrame,
       cleanup,
       tileManager: sceneTileManager,
     } = createScene(host);
@@ -70,6 +84,8 @@ export default function App() {
       const now = performance.now();
       const delta = Math.min((now - lastTime) / 1000, 0.016); // Cap at 16ms
       lastTime = now;
+
+      onFrame(delta * 1000);
 
       controlsManager.update(delta);
 
@@ -109,17 +125,7 @@ export default function App() {
 
       console.log("the center picked", center);
 
-      if (!center) {
-        return;
-      }
-
-      if (!focusGroundOrbitAtLatLngRef.current) {
-        return;
-      }
-
-      void focusGroundOrbitAtLatLngRef.current(center);
-
-      setIsFlatModalOpen(false);
+      void focus3dAtCenter(center);
     };
 
     window.addEventListener("message", handleMessage);
@@ -133,6 +139,14 @@ export default function App() {
 
     setFlatFrameUrl(buildFlatModalUrl(center));
     setIsFlatModalOpen(true);
+  };
+
+  const handleDirectSwitchTo3dView = async () => {
+    const center = currentCenterGetterRef.current
+      ? await currentCenterGetterRef.current()
+      : null;
+
+    await focus3dAtCenter(center);
   };
 
   const handleLoadGeotaggedPhotos = async () => {
@@ -195,6 +209,7 @@ export default function App() {
       {tileManager && (
         <OpsPanel
           openFlatModal={openFlatModal}
+          handleDirectSwitchTo3dView={handleDirectSwitchTo3dView}
           handleLoadGeotaggedPhotos={handleLoadGeotaggedPhotos}
           tileManager={tileManager}
         />
@@ -228,12 +243,14 @@ export default function App() {
 
 type OpsPanelProps = {
   openFlatModal: () => Promise<void>;
+  handleDirectSwitchTo3dView: () => Promise<void>;
   handleLoadGeotaggedPhotos: () => Promise<void>;
   tileManager: TilesManager;
 };
 
 const OpsPanel = ({
   openFlatModal,
+  handleDirectSwitchTo3dView,
   handleLoadGeotaggedPhotos,
   tileManager,
 }: OpsPanelProps) => {
@@ -262,6 +279,13 @@ const OpsPanel = ({
           className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
         >
           Open flat map
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleDirectSwitchTo3dView()}
+          className="rounded-lg bg-slate-950/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900"
+        >
+          Direct 3D recenter
         </button>
         <button
           type="button"

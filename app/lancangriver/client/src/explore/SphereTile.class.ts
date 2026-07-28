@@ -8,6 +8,8 @@ import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class
 import { TileEmptyMaterial } from "./materials/TileEmptyMaterial.class";
 import { TileDebugMaterial } from "./materials/TileDebugMaterial.class";
 import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
+import { TileShanshuiWashMaterial } from "./materials/TileShanshuiWashMaterial.class";
+import { getWashPreset } from "./materials/shanshuiWashConfig";
 import { latlngToSphere } from "../experiments/sphere-zoom/core";
 
 export enum TileMaterialMode {
@@ -16,6 +18,7 @@ export enum TileMaterialMode {
   Clean = "clean",
   DemAdvance = "dem-advance",
   Debug = "debug",
+  ShanshuiWash = "shanshui-wash",
 }
 
 type TileSurfaceMaterial =
@@ -24,7 +27,8 @@ type TileSurfaceMaterial =
   | TileDemAdvanceMaterial
   | TileEmptyMaterial
   | TileDebugMaterial
-  | TileCleanMaterial;
+  | TileCleanMaterial
+  | TileShanshuiWashMaterial;
 
 type Parameters = {
   radius?: number;
@@ -141,6 +145,13 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
         return new TileDebugMaterial({
           tileKey: this.tile,
         });
+
+      case TileMaterialMode.ShanshuiWash:
+        return new TileShanshuiWashMaterial(this.textureLoader, {
+          tileKey: this.tile,
+          washParams: getWashPreset("balanced"),
+        });
+
       default:
         return null;
     }
@@ -162,6 +173,9 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
 
       case TileMaterialMode.Clean:
         return this.material instanceof TileCleanMaterial;
+
+      case TileMaterialMode.ShanshuiWash:
+        return this.material instanceof TileShanshuiWashMaterial;
 
       default:
         return false;

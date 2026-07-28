@@ -5,6 +5,12 @@ import { ControlsManager } from "../ControlsManager.class";
 import { TileMaterialMode } from "../SphereTile.class";
 import { Create3dTilesViewer } from "../../experiments/sphere-zoom/viewer";
 import {
+  ShanshuiWashParams,
+  WashPresetName,
+  clampWashParams,
+  getWashPreset,
+} from "../materials/shanshuiWashConfig";
+import {
   latlngToSphere,
   sphereToLatlng,
 } from "../../experiments/sphere-zoom/core";
@@ -20,6 +26,9 @@ type AttachExploreGuiParameters = {
   applyMaterialMode: (mode: TileMaterialMode, zoomLevel: number) => boolean;
   triggerCreateOsmTilesOnce: () => boolean;
   getOsmTilesCreated: () => boolean;
+  getWashParams: () => ShanshuiWashParams;
+  setWashParams: (params: ShanshuiWashParams) => void;
+  setWashPreset: (preset: WashPresetName) => void;
 };
 
 export type ExploreGuiHandle = {
@@ -38,6 +47,9 @@ export function attachExploreGui(
     applyMaterialMode,
     triggerCreateOsmTilesOnce,
     getOsmTilesCreated,
+    getWashParams,
+    setWashParams,
+    setWashPreset,
     threeTilesViewer,
   } = parameters;
 
@@ -158,6 +170,20 @@ export function attachExploreGui(
     osmTilesCreated: getOsmTilesCreated(),
   };
 
+  const washState = { ...getWashParams() };
+
+  const pushWashState = () => {
+    const next = clampWashParams({ ...washState });
+    Object.assign(washState, next);
+    setWashParams(next);
+  };
+
+  const applyPreset = (preset: WashPresetName) => {
+    const next = getWashPreset(preset);
+    Object.assign(washState, next);
+    setWashPreset(preset);
+  };
+
   const osmTileState = {
     createOnce: () => {
       const startedNow = triggerCreateOsmTilesOnce();
@@ -179,6 +205,7 @@ export function attachExploreGui(
       TileMaterialMode.DemAdvance,
       TileMaterialMode.Debug,
       TileMaterialMode.Clean,
+      TileMaterialMode.ShanshuiWash,
     ])
     .name("terrain mode")
     .onChange((value: TileMaterialMode) => {
@@ -207,6 +234,94 @@ export function attachExploreGui(
         ? "create osm tiles (done)"
         : "create osm tiles",
     );
+
+  terrainFolder
+    .add(washState, "preset", ["high", "balanced", "low"])
+    .name("wash preset")
+    .onChange((value: WashPresetName) => {
+      applyPreset(value);
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "toneBands", 2, 8, 1)
+    .name("wash tone bands")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "edgeStrength", 0, 1.5, 0.01)
+    .name("wash edge")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "washContrast", 0.5, 2, 0.01)
+    .name("wash contrast")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "hazeStrength", 0, 1.2, 0.01)
+    .name("wash haze")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "satelliteBlendOpacity", 0, 0.35, 0.01)
+    .name("wash sat blend")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "inkDarkness", 0.45, 1.2, 0.01)
+    .name("wash ink")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "paperLightness", 0.65, 1, 0.01)
+    .name("wash paper")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "ridgeStrength", 0, 1.5, 0.01)
+    .name("wash ridge")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "valleyLift", 0, 1, 0.01)
+    .name("wash valley")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
+
+  terrainFolder
+    .add(washState, "satelliteShadowBoost", 0, 1, 0.01)
+    .name("wash sat shadow")
+    .onChange(() => {
+      pushWashState();
+      onRefreshVisibleTilesAndStats();
+    });
 
   const flyControlsState = {
     toggle: () => {
@@ -248,6 +363,7 @@ export function attachExploreGui(
       terrainState.materialMode = getMaterialMode();
       materialModeController.updateDisplay();
       terrainState.osmTilesCreated = getOsmTilesCreated();
+      Object.assign(washState, getWashParams());
       createOsmTilesController.name(
         terrainState.osmTilesCreated
           ? "create osm tiles (done)"

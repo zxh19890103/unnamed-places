@@ -222,3 +222,28 @@ Think of the renderer as two coupled streams:
 - Surface-detail stream (satellite textures) driven by a budgeted async queue.
 
 Both streams are tied together by tile id and generation checks so camera movement can be responsive without allowing stale visual state.
+
+## 13) Shanshui Wash Mode
+
+An optional `shanshui-wash` terrain material mode is available for painterly rendering without changing tile formats or LOD flow.
+
+Core behavior:
+
+- Uses a dedicated tile shader path with:
+  - tonal band quantization
+  - subtle contour emphasis
+  - distance haze layering
+  - low-opacity satellite blend
+- Reuses existing tile lifecycle and mode switching.
+- Falls back to standard mode behavior if wash mode is not selected.
+
+Runtime tuning:
+
+- Presets: `high`, `balanced`, `low`.
+- Manual controls: tone bands, edge strength, wash contrast, haze strength, satellite blend opacity.
+
+Performance guardrail:
+
+- Runtime monitor reports frame-time p95.
+- While in `shanshui-wash`, sustained high frame time triggers quality degradation.
+- Sustained low frame time gradually recovers quality toward the selected preset.

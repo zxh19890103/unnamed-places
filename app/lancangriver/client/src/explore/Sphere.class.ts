@@ -18,6 +18,8 @@ export type SphereStatsPayload = {
   loadingActive: boolean;
   loadingErrors: number;
   loadingLastErrorUrl: string | null;
+  frameTimeP95Ms: number;
+  washPreset: string | null;
 };
 
 export type SphereStatsEvent = Event & {
@@ -43,6 +45,7 @@ type SphereOptions = {
     errors: number;
     lastErrorUrl: string | null;
   };
+  getWashPreset: () => string | null;
 };
 
 export class Sphere extends THREE.Group {
@@ -51,6 +54,7 @@ export class Sphere extends THREE.Group {
 
   private lastStats: SphereStatsPayload | null = null;
   private _statsTimer: ReturnType<typeof setInterval> | null = null;
+  private frameTimesMs: number[] = [];
 
   constructor(
     readonly threeTilesViewer: Create3dTilesViewer,
@@ -65,6 +69,7 @@ export class Sphere extends THREE.Group {
       tilesManager,
       controlsManager,
       getLoadingSnapshot,
+      getWashPreset,
     } = options;
     this.radius = radius;
 
@@ -83,8 +88,35 @@ export class Sphere extends THREE.Group {
         loadingActive: loadingSnapshot.active,
         loadingErrors: loadingSnapshot.errors,
         loadingLastErrorUrl: loadingSnapshot.lastErrorUrl,
+        frameTimeP95Ms: this.getFrameTimeP95Ms(),
+        washPreset: getWashPreset(),
       });
     }, 1_000);
+  }
+
+  recordFrameTime(frameTimeMs: number) {
+    if (!Number.isFinite(frameTimeMs) || frameTimeMs <= 0) {
+      return;
+    }
+
+    this.frameTimesMs.push(frameTimeMs);
+    if (this.frameTimesMs.length > 240) {
+      this.frameTimesMs.shift();
+    }
+  }
+
+  private getFrameTimeP95Ms() {
+    if (this.frameTimesMs.length === 0) {
+      return 0;
+    }
+
+    const sorted = [...this.frameTimesMs].sort((a, b) => a - b);
+    const p95Index = Math.min(
+      sorted.length - 1,
+      Math.floor(sorted.length * 0.95),
+    );
+
+    return sorted[p95Index];
   }
 
   private keyOf(tile: SphereTileKey): string {
