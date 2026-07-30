@@ -15,16 +15,6 @@ import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky.js";
 import { createGroundOrbitCloudsController } from "./clouds.js";
 import { createPhotoLocationsPresenter } from "./photos.js";
 import { create3dTilesViewer } from "../../experiments/sphere-zoom/viewer.js";
-import { TileShanshuiWashMaterial } from "../materials/TileShanshuiWashMaterial.class.js";
-import {
-  degradeWashParams,
-  recoverWashParams,
-  ShanshuiWashParams,
-  WashPresetName,
-  clampWashParams,
-  defaultWashParams,
-  getWashPreset,
-} from "../materials/shanshuiWashConfig.js";
 import {
   latlngToSphere,
   sphereToLatlng,
@@ -32,8 +22,6 @@ import {
 import { computeZoomFeedback, getZoomFeedbackLabel } from "./zoomFeedback.js";
 
 export function createScene(container: HTMLElement) {
-  let currentWashParams: ShanshuiWashParams = { ...defaultWashParams };
-
   const scene = new THREE.Scene();
   scene.background = SKY_COLOR.clone();
   scene.fog = new THREE.FogExp2(FOG_COLOR, 0);
@@ -49,7 +37,7 @@ export function createScene(container: HTMLElement) {
 
   const threeTilesViewer = create3dTilesViewer({
     camera,
-    baseDistance: 32_000_000,
+    baseDistance: 82_000_000,
     maxZoom: 20,
   });
 
@@ -128,7 +116,7 @@ export function createScene(container: HTMLElement) {
       tilesManager: tileManager,
       controlsManager,
       getLoadingSnapshot: () => loadingSnapshot,
-      getWashPreset: () => currentWashParams.preset,
+      getWashPreset: () => "balanced",
     },
   );
 
@@ -147,8 +135,6 @@ export function createScene(container: HTMLElement) {
   let guiHandle: ExploreGuiHandle | null = null;
   let lastZoomDistance = camera.position.length();
   let zoomFeedbackIntensity = 0;
-  let hotFrameCount = 0;
-  let coolFrameCount = 0;
 
   const terrainState = {
     materialMode: TileMaterialMode.Basic,
@@ -172,63 +158,14 @@ export function createScene(container: HTMLElement) {
     }
   };
 
-  const applyWashToAttachedTiles = (params: ShanshuiWashParams) => {
-    const cameraDistanceMeters = Math.max(
-      0,
-      camera.position.length() - EARTH_RADIUS,
+  const refreshVisibleTilesOnCameraChanges = () => {
+    if (tileManager.frozen) return;
+
+    const earthTiles = threeTilesViewer.getVisibleTiles(
+      camera.position.clone(),
     );
 
-    for (const node of tileManager.getAttachedNodes()) {
-      const material = node.tile?.material;
-      if (!(material instanceof TileShanshuiWashMaterial)) {
-        continue;
-      }
-
-      material.setWashParams(params);
-      material.setCameraDistanceMeters(cameraDistanceMeters);
-    }
-  };
-
-  const setWashParams = (params: ShanshuiWashParams) => {
-    currentWashParams = clampWashParams(params);
-    applyWashToAttachedTiles(currentWashParams);
-  };
-
-  const setWashPreset = (preset: WashPresetName) => {
-    currentWashParams = getWashPreset(preset);
-    applyWashToAttachedTiles(currentWashParams);
-  };
-
-  const maybeAdaptWashQuality = (frameTimeMs: number) => {
-    if (terrainState.materialMode !== TileMaterialMode.ShanshuiWash) {
-      hotFrameCount = 0;
-      coolFrameCount = 0;
-      return;
-    }
-
-    if (frameTimeMs > 22) {
-      hotFrameCount += 1;
-      coolFrameCount = 0;
-    } else if (frameTimeMs < 18) {
-      coolFrameCount += 1;
-      hotFrameCount = 0;
-    } else {
-      hotFrameCount = 0;
-      coolFrameCount = 0;
-    }
-
-    if (hotFrameCount >= 45) {
-      setWashParams(degradeWashParams(currentWashParams));
-      hotFrameCount = 0;
-      return;
-    }
-
-    if (coolFrameCount >= 90) {
-      setWashParams(
-        recoverWashParams(currentWashParams, currentWashParams.preset),
-      );
-      coolFrameCount = 0;
-    }
+    tileManager.setNodes(earthTiles);
   };
 
   const applyMaterialMode = (
@@ -255,13 +192,6 @@ export function createScene(container: HTMLElement) {
     const tile = sphereGlobal.createTileByKey(node.key);
     tile.$tNode = node;
     tile.setMaterialMode(terrainState.materialMode);
-
-    if (tile.material instanceof TileShanshuiWashMaterial) {
-      tile.material.setWashParams(currentWashParams);
-      tile.material.setCameraDistanceMeters(
-        Math.max(0, camera.position.length() - EARTH_RADIUS),
-      );
-    }
 
     node.tile = tile;
     osmBuildingTiles.onTileCreate(node);
@@ -291,18 +221,6 @@ export function createScene(container: HTMLElement) {
 
   const triggerCreateOsmTilesOnce = () => {
     return osmBuildingTiles.triggerCreateOnce(tileManager.getAttachedNodes());
-  };
-
-  const refreshVisibleTilesOnCameraChanges = () => {
-    if (tileManager.frozen) return;
-
-    // const visibleTileKeys = getVisibleTiles(camera, zoomLevel, EARTH_RADIUS);
-    const earthTiles = threeTilesViewer.getVisibleTiles(
-      camera.position.clone(),
-    );
-
-    tileManager.setNodes(earthTiles);
-    applyWashToAttachedTiles(currentWashParams);
   };
 
   const updateZoomFeedback = () => {
@@ -395,9 +313,6 @@ export function createScene(container: HTMLElement) {
     applyMaterialMode,
     triggerCreateOsmTilesOnce,
     getOsmTilesCreated: () => osmBuildingTiles.isCreationTriggered(),
-    getWashParams: () => ({ ...currentWashParams }),
-    setWashParams,
-    setWashPreset,
   });
 
   const resize = () => {
@@ -435,7 +350,6 @@ export function createScene(container: HTMLElement) {
     threeTilesViewer,
     onFrame: (frameTimeMs: number) => {
       sphereGlobal.recordFrameTime(frameTimeMs);
-      maybeAdaptWashQuality(frameTimeMs);
     },
     cleanup: () => {
       cloudsController.dispose();
