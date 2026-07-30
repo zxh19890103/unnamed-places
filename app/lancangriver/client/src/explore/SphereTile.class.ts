@@ -8,9 +8,9 @@ import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class
 import { TileEmptyMaterial } from "./materials/TileEmptyMaterial.class";
 import { TileDebugMaterial } from "./materials/TileDebugMaterial.class";
 import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
-import { TileShanshuiWashMaterial } from "./materials/TileShanshuiWashMaterial.class";
-import { getWashPreset } from "./materials/shanshuiWashConfig";
+import { ShanshuiMaterial } from "../experiments/shanshui-shader/ShanshuiMaterial";
 import { latlngToSphere } from "../experiments/sphere-zoom/core";
+import { BASE_URL, ELEVATION_SCALE } from "../calc/constants";
 
 export enum TileMaterialMode {
   Basic = "basic",
@@ -28,7 +28,7 @@ type TileSurfaceMaterial =
   | TileEmptyMaterial
   | TileDebugMaterial
   | TileCleanMaterial
-  | TileShanshuiWashMaterial;
+  | ShanshuiMaterial;
 
 type Parameters = {
   radius?: number;
@@ -146,11 +146,14 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
           tileKey: this.tile,
         });
 
-      case TileMaterialMode.ShanshuiWash:
-        return new TileShanshuiWashMaterial(this.textureLoader, {
-          tileKey: this.tile,
-          washParams: getWashPreset("balanced"),
+      case TileMaterialMode.ShanshuiWash: {
+        const material = new ShanshuiMaterial({
+          displacementScale: ELEVATION_SCALE,
         });
+        material.side = THREE.BackSide;
+        this.loadShanshuiTextures(material);
+        return material;
+      }
 
       default:
         return null;
@@ -175,10 +178,54 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
         return this.material instanceof TileCleanMaterial;
 
       case TileMaterialMode.ShanshuiWash:
-        return this.material instanceof TileShanshuiWashMaterial;
+        return this.material instanceof ShanshuiMaterial;
 
       default:
         return false;
     }
+  }
+
+  private loadShanshuiTextures(material: ShanshuiMaterial): void {
+    const { z, x, y } = this.tile;
+
+    const demUrl = `${BASE_URL}/raster/dem/${z}/${x}/${y}.png`;
+    this.imageLoader.load(
+      demUrl,
+      (image) => {
+        const texture = new THREE.Texture();
+        texture.image = image;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.NearestFilter;
+        texture.magFilter = THREE.NearestFilter;
+        texture.generateMipmaps = false;
+        texture.needsUpdate = true;
+        material.setDemTexture(texture);
+      },
+      undefined,
+      () => {
+        // Ignore DEM load failures for the shader material; it will fall back gracefully.
+      },
+    );
+
+    const derivativesUrl = `${BASE_URL}/raster/dem/${z}/${x}/${y}/derivatives.png`;
+    this.imageLoader.load(
+      derivativesUrl,
+      (image) => {
+        const texture = new THREE.Texture();
+        texture.image = image;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.NearestFilter;
+        texture.magFilter = THREE.NearestFilter;
+        texture.generateMipmaps = false;
+        texture.needsUpdate = true;
+        material.setDerivativesTexture(texture);
+      },
+      undefined,
+      () => {
+        // Ignore derivatives load failures; the material already has a fallback color.
+      },
+    );
   }
 }
