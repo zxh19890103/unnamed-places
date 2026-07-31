@@ -67,14 +67,6 @@ function formatFrameP95(stats: SphereStatsPayload | null) {
   return `${stats.frameTimeP95Ms.toFixed(1)} ms`;
 }
 
-function formatWashPreset(stats: SphereStatsPayload | null) {
-  if (!stats?.washPreset) {
-    return "--";
-  }
-
-  return stats.washPreset;
-}
-
 export function SceneMonitor({ sphere }: SceneMonitorProps) {
   const [stats, setStats] = useState<SphereStatsPayload | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -152,10 +144,6 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
           <div>
             <div className="opacity-[0.68]">Frame p95</div>
             <div>{formatFrameP95(stats)}</div>
-          </div>
-          <div>
-            <div className="opacity-[0.68]">Wash preset</div>
-            <div>{formatWashPreset(stats)}</div>
           </div>
           <TilesBytes />
         </div>

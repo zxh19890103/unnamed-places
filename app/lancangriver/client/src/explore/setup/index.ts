@@ -37,7 +37,7 @@ export function createScene(container: HTMLElement) {
 
   const threeTilesViewer = create3dTilesViewer({
     camera,
-    baseDistance: 82_000_000,
+    baseDistance: 32_000_000,
     maxZoom: 20,
   });
 
@@ -116,7 +116,6 @@ export function createScene(container: HTMLElement) {
       tilesManager: tileManager,
       controlsManager,
       getLoadingSnapshot: () => loadingSnapshot,
-      getWashPreset: () => "balanced",
     },
   );
 

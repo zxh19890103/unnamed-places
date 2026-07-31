@@ -19,7 +19,6 @@ export type SphereStatsPayload = {
   loadingErrors: number;
   loadingLastErrorUrl: string | null;
   frameTimeP95Ms: number;
-  washPreset: string | null;
 };
 
 export type SphereStatsEvent = Event & {
@@ -45,7 +44,6 @@ type SphereOptions = {
     errors: number;
     lastErrorUrl: string | null;
   };
-  getWashPreset: () => string | null;
 };
 
 export class Sphere extends THREE.Group {
@@ -69,8 +67,8 @@ export class Sphere extends THREE.Group {
       tilesManager,
       controlsManager,
       getLoadingSnapshot,
-      getWashPreset,
     } = options;
+
     this.radius = radius;
 
     this._statsTimer = setInterval(() => {
@@ -89,7 +87,6 @@ export class Sphere extends THREE.Group {
         loadingErrors: loadingSnapshot.errors,
         loadingLastErrorUrl: loadingSnapshot.lastErrorUrl,
         frameTimeP95Ms: this.getFrameTimeP95Ms(),
-        washPreset: getWashPreset(),
       });
     }, 1_000);
   }

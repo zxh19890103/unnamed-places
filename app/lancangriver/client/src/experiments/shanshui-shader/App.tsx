@@ -26,7 +26,6 @@ export default function App() {
   const [sunControlsEnabled, setSunControlsEnabled] = useState(false);
   const [showNormals, setShowNormals] = useState(false);
   const [slopeDarkenStrength, setSlopeDarkenStrength] = useState(0.65);
-  const [noiseStrength, setNoiseStrength] = useState(0.18);
   const [sunAzimuthDeg, setSunAzimuthDeg] = useState("0.0");
   const [sunElevationDeg, setSunElevationDeg] = useState("0.0");
   const [elevationRangeText, setElevationRangeText] = useState("loading...");
@@ -332,20 +331,6 @@ export default function App() {
             onChange={(event) =>
               setSlopeDarkenStrength(Number(event.target.value))
             }
-            style={{ width: "100%" }}
-          />
-        </label>
-        <label style={{ display: "block", marginTop: 8 }}>
-          <div style={{ marginBottom: 4 }}>
-            Surface noise: {noiseStrength.toFixed(2)}
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={noiseStrength}
-            onChange={(event) => setNoiseStrength(Number(event.target.value))}
             style={{ width: "100%" }}
           />
         </label>
