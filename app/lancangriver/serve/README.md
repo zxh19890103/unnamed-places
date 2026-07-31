@@ -64,6 +64,7 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - `GET /health`
 - `GET /vector?bbox=minLon,minLat,maxLon,maxLat`
 - `GET /vector/tiles/:z/:x/:y.pbf`
+- `GET /vector/tiles-existing/:z/:x/:y.pbf`
 - `GET /photos/geotagged?root=/absolute/folder/path`
 - `GET /raster/satellite/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y`
@@ -76,6 +77,7 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - If required coverage is missing or still ingesting, the service returns `204 No Content` and queues missing jobs.
 - Once coverage is marked `done`, the endpoint returns `200` with `application/x-protobuf` (MVT pbf bytes).
 - A background worker fetches OSM data from Overpass, upserts into `public.vector_features`, and updates job states.
+- `GET /vector/tiles-existing/:z/:x/:y.pbf` reads PBF data directly from `public.vector_features` without checking coverage or creating ingest jobs.
 
 Coverage can be queried before requesting PBF data:
 

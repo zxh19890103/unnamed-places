@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/server.js';
 
+function parseBinary(response, callback) {
+  const chunks = [];
+  response.on('data', (chunk) => chunks.push(chunk));
+  response.on('end', () => callback(null, Buffer.concat(chunks)));
+}
+
 describe('GET /vector/tiles/:z/:x/:y.pbf', () => {
   it('queues missing z12 jobs and returns 204 when coverage is not ready', async () => {
     const queueMissingCoverage = vi.fn().mockResolvedValue({ allReady: false });
@@ -25,6 +31,38 @@ describe('GET /vector/tiles/:z/:x/:y.pbf', () => {
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toMatch(/application\/x-protobuf/);
     expect(getVectorTilePbf).toHaveBeenCalledWith(11, 1728, 761);
+  });
+});
+
+describe('GET /vector/tiles-existing/:z/:x/:y.pbf', () => {
+  it('returns database PBF bytes without queueing coverage', async () => {
+    const queueMissingCoverage = vi.fn();
+    const pbf = Buffer.from([0x1a, 0x02, 0x08, 0x01]);
+    const getVectorTilePbf = vi.fn().mockResolvedValue(pbf);
+    const app = createApp({ queueMissingCoverage, getVectorTilePbf });
+
+    const response = await request(app)
+      .get('/vector/tiles-existing/12/1024/1024.pbf')
+      .buffer(true)
+      .parse(parseBinary);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/x-protobuf/);
+    expect(response.body).toEqual(pbf);
+    expect(getVectorTilePbf).toHaveBeenCalledWith(12, 1024, 1024);
+    expect(queueMissingCoverage).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid coordinates without reading or queueing coverage', async () => {
+    const queueMissingCoverage = vi.fn();
+    const getVectorTilePbf = vi.fn();
+    const app = createApp({ queueMissingCoverage, getVectorTilePbf });
+
+    const response = await request(app).get('/vector/tiles-existing/12/nope/1024.pbf');
+
+    expect(response.status).toBe(400);
+    expect(getVectorTilePbf).not.toHaveBeenCalled();
+    expect(queueMissingCoverage).not.toHaveBeenCalled();
   });
 });
 

@@ -17,6 +17,13 @@ export default defineConfig({
             req.url = "/jobs.html";
           }
 
+          if (
+            req.url === "/experiments/tile12-osm" ||
+            req.url === "/experiments/tile12-osm/"
+          ) {
+            req.url = "/experiments-tile12-osm.html";
+          }
+
           next();
         });
       },
@@ -30,6 +37,9 @@ export default defineConfig({
         flat: fileURLToPath(new URL("./flat.html", import.meta.url)),
         portal: fileURLToPath(new URL("./portal.html", import.meta.url)),
         jobs: fileURLToPath(new URL("./jobs.html", import.meta.url)),
+        tile12Osm: fileURLToPath(
+          new URL("./experiments-tile12-osm.html", import.meta.url),
+        ),
       },
     },
   },

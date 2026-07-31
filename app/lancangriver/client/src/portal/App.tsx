@@ -25,6 +25,11 @@ const experiments = [
     href: "/jobs.html",
     description: "Browse zoom-12 OSM coverage ready for vector tile requests.",
   },
+  {
+    title: "Tile 12 OSM Inspector",
+    href: "/experiments-tile12-osm.html",
+    description: "Inspect one existing vector tile in a local Three.js scene.",
+  },
 ];
 
 export default function App() {
