@@ -66,7 +66,11 @@ export function createApp(options = {}) {
   app.use(createVectorRouter(options));
   app.use(createVectorTilesRouter({
     queueMissingCoverage,
-    getVectorTilePbf: tilePbfGetter
+    getVectorTilePbf: tilePbfGetter,
+    getCoverageStatus: (key) => jobsStore.getStatus(key),
+    listLoadedCoverage: (pagination) => jobsStore.listLoaded(pagination),
+    listCoverageJobs: (pagination) => jobsStore.listJobs(pagination),
+    rerunFailedCoverage: (key) => jobsStore.rerunFailed(key)
   }));
   app.use(createPhotosRouter(options));
 

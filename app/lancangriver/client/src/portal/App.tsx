@@ -20,6 +20,11 @@ const experiments = [
     description:
       "DEM-driven terrain shading, normals, slope darkening, and noise.",
   },
+  {
+    title: "Loaded Vector Tiles",
+    href: "/jobs.html",
+    description: "Browse zoom-12 OSM coverage ready for vector tile requests.",
+  },
 ];
 
 export default function App() {

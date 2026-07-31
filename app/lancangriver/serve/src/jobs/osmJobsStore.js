@@ -26,6 +26,89 @@ export function createOsmJobsStore({ db }) {
       return Object.fromEntries(result.rows.map((row) => [row.z12_key, row.status]));
     },
 
+    async getStatus(z12Key) {
+      const result = await db.query(
+        `SELECT status
+         FROM public.osm_ingest_jobs
+         WHERE z12_key = $1`,
+        [z12Key]
+      );
+
+      return result.rows[0]?.status ?? null;
+    },
+
+    async listLoaded({ limit, offset }) {
+      const pageResult = await db.query(
+        `SELECT z12_key
+         FROM public.osm_ingest_jobs
+         WHERE status = 'done'
+         ORDER BY z12_key ASC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+      const countResult = await db.query(
+        `SELECT COUNT(*)::integer AS total
+         FROM public.osm_ingest_jobs
+         WHERE status = 'done'`
+      );
+
+      return {
+        keys: pageResult.rows.map((row) => row.z12_key),
+        total: countResult.rows[0]?.total ?? 0
+      };
+    },
+
+    async listJobs({ limit, offset }) {
+      const pageResult = await db.query(
+        `SELECT z12_key, status
+         FROM public.osm_ingest_jobs
+         ORDER BY z12_key ASC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+      const countResult = await db.query(
+        `SELECT COUNT(*)::integer AS total
+         FROM public.osm_ingest_jobs`
+      );
+
+      return {
+        jobs: pageResult.rows.map((row) => ({
+          key: row.z12_key,
+          status: row.status
+        })),
+        total: countResult.rows[0]?.total ?? 0
+      };
+    },
+
+    async rerunFailed(z12Key) {
+      const updateResult = await db.query(
+        `UPDATE public.osm_ingest_jobs
+         SET status = 'queued',
+             queued_at = NOW(),
+             started_at = NULL,
+             finished_at = NULL,
+             last_error = NULL,
+             updated_at = NOW()
+         WHERE z12_key = $1
+           AND status = 'failed'
+         RETURNING status`,
+        [z12Key]
+      );
+
+      if (updateResult.rowCount > 0) {
+        return 'queued';
+      }
+
+      const statusResult = await db.query(
+        `SELECT status
+         FROM public.osm_ingest_jobs
+         WHERE z12_key = $1`,
+        [z12Key]
+      );
+
+      return statusResult.rows.length === 0 ? 'not_found' : 'not_failed';
+    },
+
     async claimNextQueued() {
       const result = await db.query(
         `SELECT z12_key

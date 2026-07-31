@@ -27,3 +27,162 @@ describe('GET /vector/tiles/:z/:x/:y.pbf', () => {
     expect(getVectorTilePbf).toHaveBeenCalledWith(11, 1728, 761);
   });
 });
+
+describe('vector coverage routes', () => {
+  function createCoverageApp(jobsStore) {
+    return createApp({
+      jobsStore,
+      queueMissingCoverage: vi.fn(),
+      getVectorTilePbf: vi.fn()
+    });
+  }
+
+  it('returns loaded state for one completed z12 tile', async () => {
+    const jobsStore = {
+      getStatus: vi.fn().mockResolvedValue('done'),
+      listLoaded: vi.fn()
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).get('/vector/coverage/12/3456/1523');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      key: '12/3456/1523',
+      status: 'done',
+      loaded: true
+    });
+    expect(jobsStore.getStatus).toHaveBeenCalledWith('12/3456/1523');
+  });
+
+  it('returns not loaded state for unknown coverage', async () => {
+    const jobsStore = {
+      getStatus: vi.fn().mockResolvedValue(null),
+      listLoaded: vi.fn()
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).get('/vector/coverage/12/3456/1523');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      key: '12/3456/1523',
+      status: null,
+      loaded: false
+    });
+  });
+
+  it('rejects invalid coverage coordinates', async () => {
+    const jobsStore = {
+      getStatus: vi.fn(),
+      listLoaded: vi.fn()
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).get('/vector/coverage/12/not-a-number/1523');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_TILE_COORDS');
+    expect(jobsStore.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('lists loaded coverage with pagination metadata', async () => {
+    const jobsStore = {
+      getStatus: vi.fn(),
+      listLoaded: vi.fn().mockResolvedValue({
+        keys: ['12/3456/1523', '12/3457/1523'],
+        total: 2
+      })
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).get('/vector/coverage/loaded?limit=25&offset=50');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      tiles: [
+        { key: '12/3456/1523', z: 12, x: 3456, y: 1523 },
+        { key: '12/3457/1523', z: 12, x: 3457, y: 1523 }
+      ],
+      limit: 25,
+      offset: 50,
+      total: 2
+    });
+    expect(jobsStore.listLoaded).toHaveBeenCalledWith({ limit: 25, offset: 50 });
+  });
+
+  it('rejects invalid coverage pagination', async () => {
+    const jobsStore = {
+      getStatus: vi.fn(),
+      listLoaded: vi.fn()
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).get('/vector/coverage/loaded?limit=0');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_PAGINATION');
+    expect(jobsStore.listLoaded).not.toHaveBeenCalled();
+  });
+
+  it('lists all coverage jobs with their statuses', async () => {
+    const jobsStore = {
+      getStatus: vi.fn(),
+      listLoaded: vi.fn(),
+      listJobs: vi.fn().mockResolvedValue({
+        jobs: [
+          { key: '12/3456/1523', status: 'done' },
+          { key: '12/3457/1523', status: 'failed' }
+        ],
+        total: 2
+      })
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).get('/vector/coverage/jobs?limit=25&offset=0');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      jobs: [
+        { key: '12/3456/1523', z: 12, x: 3456, y: 1523, status: 'done' },
+        { key: '12/3457/1523', z: 12, x: 3457, y: 1523, status: 'failed' }
+      ],
+      limit: 25,
+      offset: 0,
+      total: 2
+    });
+    expect(jobsStore.listJobs).toHaveBeenCalledWith({ limit: 25, offset: 0 });
+  });
+
+  it('requeues a failed coverage job', async () => {
+    const jobsStore = {
+      getStatus: vi.fn(),
+      listLoaded: vi.fn(),
+      rerunFailed: vi.fn().mockResolvedValue('queued')
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).post('/vector/coverage/12/3456/1523/rerun');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ key: '12/3456/1523', status: 'queued' });
+    expect(jobsStore.rerunFailed).toHaveBeenCalledWith('12/3456/1523');
+  });
+
+  it.each([
+    ['not_found', 404, 'COVERAGE_JOB_NOT_FOUND'],
+    ['not_failed', 409, 'COVERAGE_JOB_NOT_FAILED']
+  ])('maps rerun result %s to HTTP %i', async (result, expectedStatus, expectedCode) => {
+    const jobsStore = {
+      getStatus: vi.fn(),
+      listLoaded: vi.fn(),
+      rerunFailed: vi.fn().mockResolvedValue(result)
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).post('/vector/coverage/12/3456/1523/rerun');
+
+    expect(response.status).toBe(expectedStatus);
+    expect(response.body.error.code).toBe(expectedCode);
+  });
+});

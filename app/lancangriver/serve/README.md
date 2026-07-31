@@ -77,6 +77,14 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - Once coverage is marked `done`, the endpoint returns `200` with `application/x-protobuf` (MVT pbf bytes).
 - A background worker fetches OSM data from Overpass, upserts into `public.vector_features`, and updates job states.
 
+Coverage can be queried before requesting PBF data:
+
+- `GET /vector/coverage/12/:x/:y` returns `{ key, status, loaded }` for one canonical tile. Only `status: "done"` sets `loaded` to `true`; unknown tiles return `status: null`.
+- `GET /vector/coverage/loaded?limit=100&offset=0` returns a stable, paginated list of completed canonical tiles and the total loaded count.
+- `GET /vector/coverage/jobs?limit=100&offset=0` returns all canonical jobs with `queued`, `running`, `done`, or `failed` status.
+- `POST /vector/coverage/12/:x/:y/rerun` changes a failed job back to `queued`. Unknown jobs return `404`; jobs that are not failed return `409`.
+- `limit` defaults to `100`, accepts values from `1` through `1000`, and `offset` defaults to `0`.
+
 ## Geotagged Photos Mode Matrix
 
 - DEV: client calls `GET /photos/geotagged?root=...` on this local service.
