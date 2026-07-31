@@ -143,11 +143,15 @@ export function toFeatureFromElement(element) {
 }
 
 export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
+  const startedAt = Date.now();
+  const logger = options.logger ?? console;
   const endpoint = options.endpoint ?? process.env.OSM_OVERPASS_ENDPOINT ?? 'https://overpass-api.de/api/interpreter';
   const { minLon, minLat, maxLon, maxLat } = getZ12EnvelopeFromKey(z12Key);
 
   const bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
-  console.info('Overpass query bbox:', bbox);
+  if (typeof logger?.info === 'function') {
+    logger.info(`[overpass] start ${z12Key} endpoint=${endpoint} bbox=${bbox}`);
+  }
 
   const query = [
     '[out:json][timeout:360];',
@@ -160,18 +164,34 @@ export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
     'out body geom;'
   ].join('\n');
 
-  const payload = await postFormJson(endpoint, { data: query });
+  const payload = await postFormJson(endpoint, { data: query }, { logger, label: z12Key });
   const elements = Array.isArray(payload?.elements) ? payload.elements : [];
-
-  return elements
+  const features = elements
     .map(toFeatureFromElement)
     .filter((feature) => feature !== null);
+
+  if (typeof logger?.info === 'function') {
+    const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+    logger.info(
+      `[overpass] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`
+    );
+  }
+
+  return features;
 }
 
-function postFormJson(endpoint, formValues) {
+function postFormJson(endpoint, formValues, options = {}) {
+  const logger = options.logger ?? console;
+  const label = options.label ?? 'request';
+
   return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
     const target = new URL(endpoint);
     const body = new URLSearchParams(formValues).toString();
+
+    if (typeof logger?.info === 'function') {
+      logger.info(`[overpass] request ${label} post ${target.origin}${target.pathname}`);
+    }
 
     const request = https.request(
       {
@@ -189,10 +209,24 @@ function postFormJson(endpoint, formValues) {
       },
       (response) => {
         const chunks = [];
+        const progressTimer = setInterval(() => {
+          const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+          if (typeof logger?.info === 'function') {
+            logger.info(`[overpass] waiting ${label} status=${response.statusCode ?? 'pending'} elapsed=${elapsedSeconds}s`);
+          }
+        }, 15000);
 
         response.on('data', (chunk) => chunks.push(chunk));
         response.on('end', () => {
+          clearInterval(progressTimer);
           const rawBody = Buffer.concat(chunks).toString('utf8');
+          const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+
+          if (typeof logger?.info === 'function') {
+            logger.info(
+              `[overpass] response ${label} status=${response.statusCode} bytes=${rawBody.length} elapsed=${elapsedSeconds}s`
+            );
+          }
 
           if (response.statusCode < 200 || response.statusCode >= 300) {
             reject(new Error(`Overpass request failed: ${response.statusCode}`));
@@ -208,7 +242,13 @@ function postFormJson(endpoint, formValues) {
       }
     );
 
-    request.on('error', reject);
+    request.on('error', (error) => {
+      if (typeof logger?.warn === 'function') {
+        const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+        logger.warn(`[overpass] request error ${label} elapsed=${elapsedSeconds}s reason=${String(error?.message ?? error)}`);
+      }
+      reject(error);
+    });
     request.write(body);
     request.end();
   });

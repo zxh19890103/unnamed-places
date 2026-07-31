@@ -66,6 +66,16 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - `VECTOR_INGEST_SOURCE` (optional): `osm` (default) or `overture`
 - `OSM_OVERPASS_ENDPOINT` (optional): override Overpass API endpoint for OSM ingest jobs
 - `OVERTUREMAPS_CMD` (optional): override overture CLI command (default `overturemaps`)
+- `OVERTURE_ALLOW_PARTIAL` (optional): `true` (default) allows building-only ingest if water fetch fails; set `false` to fail job on water fetch errors
+- `OVERTURE_WATER_INLAND_ONLY` (optional): `true` to exclude ocean/sea water features
+- `OVERTURE_WATER_POLYGONS_ONLY` (optional): `true` to keep only Polygon/MultiPolygon water geometries
+- `OVERTURE_USE_STAC` (optional): `true` (default). Set `false` to always use `--no-stac` for direct dataset access.
+- `OVERTURE_STAC_FALLBACK_TO_NO_STAC` (optional): `true` (default) retries once with `--no-stac` when STAC index access fails.
+- `OVERTURE_RELEASE` (optional): pin a specific release version (for example `2026-07-22.0`).
+- `OVERTURE_CONNECT_TIMEOUT` (optional): CLI connect timeout in seconds (default `20`).
+- `OVERTURE_REQUEST_TIMEOUT` (optional): CLI request timeout in seconds (default `120`).
+- `OVERTURE_DOWNLOAD_RETRIES` (optional): retry count for retryable network/STAC failures (default `1`).
+- `OVERTURE_DOWNLOAD_RETRY_DELAY_MS` (optional): delay between retries in milliseconds (default `1500`).
 - `SATELLITE_URL_TEMPLATE` (optional): override Google satellite URL template
 - `OPENTOPOGRAPHY_URL_TEMPLATE` (optional): override DEM URL template
 
