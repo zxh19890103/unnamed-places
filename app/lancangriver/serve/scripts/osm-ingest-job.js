@@ -1,11 +1,12 @@
 import '../src/env.js';
 import { dbQuery, upsertVectorFeatures } from '../src/db.js';
-import { fetchOsmFeaturesForZ12Key } from '../src/jobs/osmFetch.js';
 import { createOsmJobsStore } from '../src/jobs/osmJobsStore.js';
+import { getVectorIngestSource } from '../src/jobs/vectorSourceConfig.js';
+import { createVectorFeatureFetcher } from '../src/jobs/vectorSourceRegistry.js';
 
 function printUsage() {
   console.log(`
-Run one OSM ingest job by canonical z12 key.
+Run one vector ingest job by canonical z12 key.
 
 Usage:
   npm run osm:ingest:job -- --key 12/3456/1523
@@ -62,6 +63,8 @@ function parseArgs(argv) {
 async function main() {
   const options = parseArgs(process.argv);
   const jobs = createOsmJobsStore({ db: { query: dbQuery } });
+  const source = getVectorIngestSource();
+  const fetchFeaturesForZ12Key = createVectorFeatureFetcher(source);
 
   if (options.force) {
     await dbQuery(
@@ -76,33 +79,33 @@ async function main() {
          updated_at = NOW()`,
       [options.key]
     );
-    console.log(`[osm-job-cli] forced queued ${options.key}`);
+    console.log(`[vector-job-cli source=${source}] forced queued ${options.key}`);
   } else {
     const enqueueResult = await jobs.enqueueIfMissing(options.key);
     console.log(
       enqueueResult.enqueued
-        ? `[osm-job-cli] queued ${options.key}`
-        : `[osm-job-cli] job already exists ${options.key}`
+        ? `[vector-job-cli source=${source}] queued ${options.key}`
+        : `[vector-job-cli source=${source}] job already exists ${options.key}`
     );
   }
 
   if (options.enqueueOnly) {
-    console.log('[osm-job-cli] enqueue-only mode, exiting');
+    console.log(`[vector-job-cli source=${source}] enqueue-only mode, exiting`);
     return;
   }
 
   await jobs.markRunning(options.key);
-  console.log(`[osm-job-cli] running ${options.key}`);
+  console.log(`[vector-job-cli source=${source}] running ${options.key}`);
 
   try {
-    const features = await fetchOsmFeaturesForZ12Key(options.key);
+    const features = await fetchFeaturesForZ12Key(options.key);
     await upsertVectorFeatures(features);
     await jobs.markDone(options.key);
-    console.log(`[osm-job-cli] done ${options.key} features=${features.length}`);
+    console.log(`[vector-job-cli source=${source}] done ${options.key} features=${features.length}`);
   } catch (error) {
     const message = String(error?.message ?? error);
     await jobs.markFailed(options.key, message);
-    console.error(`[osm-job-cli] failed ${options.key} reason=${message}`);
+    console.error(`[vector-job-cli source=${source}] failed ${options.key} reason=${message}`);
     process.exit(1);
   }
 }

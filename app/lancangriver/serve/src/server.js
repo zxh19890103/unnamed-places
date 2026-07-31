@@ -12,8 +12,9 @@ import { createVectorTilesRouter } from './routes/vectorTiles.js';
 import { createPhotosRouter } from './routes/photos.js';
 import { getCoveringZ12Tiles } from './jobs/tileCoverage.js';
 import { createOsmJobsStore } from './jobs/osmJobsStore.js';
-import { createOsmIngestRunner, createOsmIngestWorker } from './jobs/osmIngestWorker.js';
-import { fetchOsmFeaturesForZ12Key } from './jobs/osmFetch.js';
+import { createVectorIngestRunner, createVectorIngestWorker } from './jobs/osmIngestWorker.js';
+import { getVectorIngestSource } from './jobs/vectorSourceConfig.js';
+import { createVectorFeatureFetcher } from './jobs/vectorSourceRegistry.js';
 
 function createDefaultJobsStore() {
   return createOsmJobsStore({
@@ -43,13 +44,17 @@ function createQueueMissingCoverage(jobsStore) {
 }
 
 function createDefaultRunner(jobsStore) {
-  const worker = createOsmIngestWorker({
+  const source = getVectorIngestSource();
+  const fetchFeaturesForZ12Key = createVectorFeatureFetcher(source);
+
+  const worker = createVectorIngestWorker({
     jobs: jobsStore,
-    fetchOsmFeatures: fetchOsmFeaturesForZ12Key,
+    fetchFeaturesForZ12Key,
+    source,
     upsertVectorFeatures
   });
 
-  return createOsmIngestRunner({ worker, intervalMs: 2000 });
+  return createVectorIngestRunner({ worker, intervalMs: 2000 });
 }
 
 export function createApp(options = {}) {

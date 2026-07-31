@@ -27,9 +27,17 @@ npm run dev
 
 Default listen port is `4050`.
 
-One-shot OSM ingest job by canonical zoom-12 key:
+One-shot vector ingest job by canonical zoom-12 key:
 
 ```bash
+npm run osm:ingest:job -- --key 12/3456/1523
+```
+
+Use Overture Maps instead of Overpass for ingest:
+
+```bash
+pip install overturemaps
+export VECTOR_INGEST_SOURCE=overture
 npm run osm:ingest:job -- --key 12/3456/1523
 ```
 
@@ -55,7 +63,9 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - `PORT`: service port (default `4050`)
 - `DATABASE_URL`: required for `/vector` (example: `postgres://user:pass@localhost:5432/lancangriver`)
 - `OPENTOPOGRAPHY_API_KEY` or `OPEN_TOPOGRAPHY_API_KEY`: required for DEM tile download
+- `VECTOR_INGEST_SOURCE` (optional): `osm` (default) or `overture`
 - `OSM_OVERPASS_ENDPOINT` (optional): override Overpass API endpoint for OSM ingest jobs
+- `OVERTUREMAPS_CMD` (optional): override overture CLI command (default `overturemaps`)
 - `SATELLITE_URL_TEMPLATE` (optional): override Google satellite URL template
 - `OPENTOPOGRAPHY_URL_TEMPLATE` (optional): override DEM URL template
 
@@ -76,7 +86,9 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - Request path computes covering zoom-12 canonical tiles for dedupe-safe ingest jobs.
 - If required coverage is missing or still ingesting, the service returns `204 No Content` and queues missing jobs.
 - Once coverage is marked `done`, the endpoint returns `200` with `application/x-protobuf` (MVT pbf bytes).
-- A background worker fetches OSM data from Overpass, upserts into `public.vector_features`, and updates job states.
+- A background worker fetches source data based on `VECTOR_INGEST_SOURCE`, upserts into `public.vector_features`, and updates job states.
+- `VECTOR_INGEST_SOURCE=osm` uses Overpass and preserves existing behavior.
+- `VECTOR_INGEST_SOURCE=overture` uses the `overturemaps` CLI (install with `pip install overturemaps`) and ingests buildings + water from Overture.
 - `GET /vector/tiles-existing/:z/:x/:y.pbf` reads PBF data directly from `public.vector_features` without checking coverage or creating ingest jobs.
 
 Coverage can be queried before requesting PBF data:

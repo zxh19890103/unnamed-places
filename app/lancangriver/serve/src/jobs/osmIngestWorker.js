@@ -1,39 +1,55 @@
-export function createOsmIngestWorker({ jobs, fetchOsmFeatures, upsertVectorFeatures, logger = console }) {
+export function createVectorIngestWorker({
+  jobs,
+  fetchFeaturesForZ12Key,
+  upsertVectorFeatures,
+  source = 'osm',
+  logger = console
+}) {
   return {
     async tickOnce() {
       const job = await jobs.claimNextQueued();
       if (!job) {
         if (typeof logger?.debug === 'function') {
-          logger.debug('[osm-jobs] idle: no queued jobs');
+          logger.debug(`[vector-jobs source=${source}] idle: no queued jobs`);
         }
         return false;
       }
 
       await jobs.markRunning(job.z12Key);
       if (typeof logger?.info === 'function') {
-        logger.info(`[osm-jobs] running ${job.z12Key}`);
+        logger.info(`[vector-jobs source=${source}] running ${job.z12Key}`);
       }
 
       try {
-        const features = await fetchOsmFeatures(job.z12Key);
+        const features = await fetchFeaturesForZ12Key(job.z12Key);
         await upsertVectorFeatures(features);
         await jobs.markDone(job.z12Key);
 
         if (typeof logger?.info === 'function') {
-          logger.info(`[osm-jobs] done ${job.z12Key} features=${features.length}`);
+          logger.info(`[vector-jobs source=${source}] done ${job.z12Key} features=${features.length}`);
         }
       } catch (error) {
         const message = String(error?.message ?? error);
         await jobs.markFailed(job.z12Key, message);
 
         if (typeof logger?.error === 'function') {
-          logger.error(`[osm-jobs] failed ${job.z12Key} reason=${message}`);
+          logger.error(`[vector-jobs source=${source}] failed ${job.z12Key} reason=${message}`);
         }
       }
 
       return true;
     }
   };
+}
+
+export function createOsmIngestWorker({ jobs, fetchOsmFeatures, upsertVectorFeatures, logger = console }) {
+  return createVectorIngestWorker({
+    jobs,
+    fetchFeaturesForZ12Key: fetchOsmFeatures,
+    upsertVectorFeatures,
+    source: 'osm',
+    logger
+  });
 }
 
 export function createOsmIngestRunner({ worker, intervalMs = 2000 }) {
@@ -73,3 +89,5 @@ export function createOsmIngestRunner({ worker, intervalMs = 2000 }) {
     }
   };
 }
+
+export const createVectorIngestRunner = createOsmIngestRunner;
