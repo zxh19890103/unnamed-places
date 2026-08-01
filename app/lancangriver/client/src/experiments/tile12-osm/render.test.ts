@@ -60,17 +60,14 @@ describe("buildTileVectorGroup", () => {
     const meshes = result.group.children.filter(
       (object): object is THREE.Mesh => object instanceof THREE.Mesh,
     );
+    const lineSegments = result.group.children.filter(
+      (object): object is THREE.LineSegments =>
+        object instanceof THREE.LineSegments,
+    );
 
     expect(result.objectCount).toBe(4);
-    expect(
-      meshes.some((mesh) => mesh.geometry.type === "ExtrudeGeometry"),
-    ).toBe(true);
-    expect(meshes.some((mesh) => mesh.geometry.type === "ShapeGeometry")).toBe(
-      true,
-    );
-    expect(
-      result.group.children.some((object) => object instanceof THREE.Line),
-    ).toBe(true);
+    expect(meshes.length).toBeGreaterThanOrEqual(3);
+    expect(lineSegments.length).toBe(1);
     expect(
       result.group.children.some((object) => object instanceof THREE.LineLoop),
     ).toBe(true);

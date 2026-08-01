@@ -6,7 +6,7 @@ import { LeafletVectorViewer } from "./leaflet";
 import { parseTile12Key } from "./tile";
 import { ThreeJsTileViewer } from "./ThreeJsTileViewer";
 
-const DEFAULT_TILE_KEY = "12/1024/1024";
+const DEFAULT_TILE_KEY = " 12/2212/1539";
 
 type RendererMode = "three" | "leaflet";
 

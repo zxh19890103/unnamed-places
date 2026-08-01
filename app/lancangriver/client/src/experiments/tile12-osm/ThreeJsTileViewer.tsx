@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import type { TileCoords } from "../../osm/tiles";
-import { fitCameraToObject } from "./camera";
+import { fitCameraToTileCenter } from "./camera";
 import { buildTileVectorGroup } from "./render";
 
 type ThreeJsTileViewerProps = {
@@ -15,8 +15,56 @@ type Viewer = {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
+  axesHelper: THREE.AxesHelper;
+  gridHelper: THREE.GridHelper;
+  groundTile: THREE.Mesh | null;
   currentTile: ReturnType<typeof buildTileVectorGroup> | null;
 };
+
+// Tune vector/raster alignment with per-axis flips.
+// Common cases: flip Z only, or flip both X+Z.
+const VECTOR_TILE_FLIP_X = false;
+const VECTOR_TILE_FLIP_Z = true;
+
+function createGroundTileMesh(
+  tile: TileCoords,
+  projection: ReturnType<typeof buildTileVectorGroup>["projection"],
+): THREE.Mesh {
+  const width = projection.widthMeters;
+  const height = projection.heightMeters;
+  const geometry = new THREE.PlaneGeometry(width, height);
+  geometry.rotateX(-Math.PI / 2);
+
+  const texture = new THREE.TextureLoader().load(
+    `https://tile.openstreetmap.org/${tile.z}/${tile.x}/${tile.y}.png`,
+  );
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    depthTest: false,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(0, -0.03, 0);
+  mesh.renderOrder = -1;
+  return mesh;
+}
+
+function disposeGroundTile(mesh: THREE.Mesh | null): void {
+  if (!mesh) {
+    return;
+  }
+
+  mesh.geometry.dispose();
+  const material = mesh.material;
+  if (material instanceof THREE.MeshBasicMaterial) {
+    material.map?.dispose();
+    material.dispose();
+  }
+}
 
 export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -29,7 +77,7 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#09110f");
+    scene.background = new THREE.Color("#ffffff");
 
     const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100_000);
     camera.position.set(4_000, 4_800, 4_000);
@@ -48,18 +96,31 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, 0, 0);
+    camera.lookAt(controls.target);
+    controls.update();
+
+    const axesHelper = new THREE.AxesHelper(1_000);
+    const gridHelper = new THREE.GridHelper(1_000, 10, "#ef0fea", "#ffffff");
+
+    scene.add(axesHelper, gridHelper);
 
     const resize = () => {
       const width = Math.max(1, mount.clientWidth);
       const height = Math.max(1, mount.clientHeight);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      renderer.setSize(width, height, false);
+      renderer.setSize(width, height, true);
 
       const currentTile = viewerRef.current?.currentTile;
       if (currentTile) {
-        const fit = fitCameraToObject(camera, currentTile.group);
+        const fit = fitCameraToTileCenter(
+          camera,
+          currentTile.projection.widthMeters,
+          currentTile.projection.heightMeters,
+        );
         controls.target.copy(fit.target);
+        controls.minDistance = fit.radius * 0.05;
+        controls.maxDistance = fit.distance * 5;
         controls.update();
       }
     };
@@ -76,9 +137,21 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     };
     animate();
 
-    viewerRef.current = { scene, camera, controls, currentTile: null };
+    viewerRef.current = {
+      scene,
+      camera,
+      controls,
+      axesHelper,
+      gridHelper,
+      groundTile: null,
+      currentTile: null,
+    };
 
     return () => {
+      if (viewerRef.current?.groundTile) {
+        viewerRef.current.scene.remove(viewerRef.current.groundTile);
+      }
+      disposeGroundTile(viewerRef.current?.groundTile ?? null);
       viewerRef.current?.currentTile?.dispose();
       resizeObserver.disconnect();
       window.cancelAnimationFrame(animationFrame);
@@ -94,22 +167,39 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     if (!viewer) {
       return;
     }
-
     if (viewer.currentTile) {
       viewer.scene.remove(viewer.currentTile.group);
       viewer.currentTile.dispose();
       viewer.currentTile = null;
     }
-
+    if (viewer.groundTile) {
+      viewer.scene.remove(viewer.groundTile);
+      disposeGroundTile(viewer.groundTile);
+      viewer.groundTile = null;
+    }
     if (!tile) {
       return;
     }
-
     const renderedTile = buildTileVectorGroup(features, tile);
+    renderedTile.group.scale.set(
+      VECTOR_TILE_FLIP_X ? -1 : 1,
+      1,
+      VECTOR_TILE_FLIP_Z ? -1 : 1,
+    );
     viewer.currentTile = renderedTile;
+    viewer.groundTile = createGroundTileMesh(tile, renderedTile.projection);
+    viewer.scene.add(viewer.groundTile);
     viewer.scene.add(renderedTile.group);
-
-    const fit = fitCameraToObject(viewer.camera, renderedTile.group);
+    const tileCenter = new THREE.Box3()
+      .setFromObject(renderedTile.group)
+      .getCenter(new THREE.Vector3());
+    viewer.axesHelper.position.copy(tileCenter);
+    viewer.gridHelper.position.copy(tileCenter);
+    const fit = fitCameraToTileCenter(
+      viewer.camera,
+      renderedTile.projection.widthMeters,
+      renderedTile.projection.heightMeters,
+    );
     viewer.controls.target.copy(fit.target);
     viewer.controls.minDistance = fit.radius * 0.05;
     viewer.controls.maxDistance = fit.distance * 5;
