@@ -1,6 +1,6 @@
 export const BASE_URL = "http://localhost:4050";
 
-export const ELEVATION_SCALE = 6.4;
+export const ELEVATION_SCALE = 2.4;
 export const FLY_MOVEMENT_SPEED = 10;
 export const FLY_ROLL_SPEED = 0.1;
 

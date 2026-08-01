@@ -26,6 +26,58 @@ type Viewer = {
 const VECTOR_TILE_FLIP_X = false;
 const VECTOR_TILE_FLIP_Z = true;
 
+const GROUND_VERTEX_SHADER = `
+varying vec2 vUv;
+
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const GROUND_FRAGMENT_SHADER = `
+uniform sampler2D uSatelliteTexture;
+
+varying vec2 vUv;
+
+float calcExgr(vec3 rgb) {
+  float total = rgb.r + rgb.g + rgb.b + 0.000001;
+
+  float rn = rgb.r / total;
+  float gn = rgb.g / total;
+  float bn = rgb.b / total;
+
+  float exg = 2.0 * gn - rn - bn;
+  float exr = 1.4 * rn - gn;
+  float exgr = exg - exr;
+
+  return exgr;
+}
+
+float calcWaterMask(vec3 rgb) {
+  vec3 targetWater = vec3(102.0 / 255.0, 167.0 / 255.0, 189.0 / 255.0); // #66a7bd
+  float colorDistance = distance(rgb, targetWater);
+  return 1.0 - smoothstep(0.08, 0.16, colorDistance);
+}
+
+void main() {
+  vec4 color = texture2D(uSatelliteTexture, vUv);
+  float exgr = calcExgr(color.rgb);
+  float waterMask = calcWaterMask(color.rgb);
+  float vegMask = step(0.23, exgr);
+
+  vec3 vegetation = vec3(0.1, 0.83, 0.4);
+  vec3 water = vec3(0.0, 0.0, 1.0);
+  vec3 soil = vec3(0.78, 0.68, 0.52);
+
+  vec3 outputColor = soil;
+  outputColor = mix(outputColor, vegetation, vegMask * (1.0 - waterMask));
+  outputColor = mix(outputColor, water, waterMask);
+
+  gl_FragColor = vec4(outputColor, 1.0);
+}
+`;
+
 function createGroundTileMesh(
   tile: TileCoords,
   projection: ReturnType<typeof buildTileVectorGroup>["projection"],
@@ -40,11 +92,17 @@ function createGroundTileMesh(
   );
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uSatelliteTexture: { value: texture },
+    },
+    vertexShader: GROUND_VERTEX_SHADER,
+    fragmentShader: GROUND_FRAGMENT_SHADER,
     side: THREE.DoubleSide,
     depthWrite: false,
     depthTest: false,
+    transparent: false,
+    visible: true,
   });
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -60,6 +118,14 @@ function disposeGroundTile(mesh: THREE.Mesh | null): void {
 
   mesh.geometry.dispose();
   const material = mesh.material;
+  if (material instanceof THREE.ShaderMaterial) {
+    const mapUniform = material.uniforms.uSatelliteTexture;
+    if (mapUniform?.value instanceof THREE.Texture) {
+      mapUniform.value.dispose();
+    }
+    material.dispose();
+    return;
+  }
   if (material instanceof THREE.MeshBasicMaterial) {
     material.map?.dispose();
     material.dispose();
@@ -102,7 +168,7 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     const axesHelper = new THREE.AxesHelper(1_000);
     const gridHelper = new THREE.GridHelper(1_000, 10, "#ef0fea", "#ffffff");
 
-    scene.add(axesHelper, gridHelper);
+    // scene.add(axesHelper, gridHelper);
 
     const resize = () => {
       const width = Math.max(1, mount.clientWidth);

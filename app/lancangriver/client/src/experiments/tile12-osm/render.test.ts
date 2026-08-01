@@ -98,4 +98,53 @@ describe("buildTileVectorGroup", () => {
     expect(geometrySpies.every((spy) => spy.mock.calls.length > 0)).toBe(true);
     expect(materialSpies.every((spy) => spy.mock.calls.length > 0)).toBe(true);
   });
+
+  it("assigns variant building colors by building type", () => {
+    const result = buildTileVectorGroup(
+      [
+        feature(
+          {
+            type: "Polygon",
+            coordinates: [
+              [
+                [-90, 66.4],
+                [-89.99, 66.4],
+                [-89.99, 66.41],
+                [-90, 66.41],
+                [-90, 66.4],
+              ],
+            ],
+          },
+          { building: "house", height: 14 },
+        ),
+        feature(
+          {
+            type: "Polygon",
+            coordinates: [
+              [
+                [-90.02, 66.4],
+                [-90.01, 66.4],
+                [-90.01, 66.41],
+                [-90.02, 66.41],
+                [-90.02, 66.4],
+              ],
+            ],
+          },
+          { building: "office", height: 16 },
+        ),
+      ],
+      tile,
+    );
+
+    const buildingMeshes = result.group.children.filter(
+      (object): object is THREE.Mesh =>
+        object instanceof THREE.Mesh &&
+        object.material instanceof THREE.MeshStandardMaterial,
+    );
+    const materialHexes = new Set(
+      buildingMeshes.map((mesh) => mesh.material.color.getHexString()),
+    );
+
+    expect(materialHexes.size).toBeGreaterThanOrEqual(4);
+  });
 });

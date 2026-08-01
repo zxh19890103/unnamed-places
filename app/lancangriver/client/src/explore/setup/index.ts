@@ -237,6 +237,29 @@ export function createScene(container: HTMLElement) {
     zoomFeedbackContainer.style.opacity = `${0.55 + zoomFeedbackIntensity * 0.45}`;
   };
 
+  const syncCloudsWithCamera = () => {
+    const orbitTarget =
+      controlsManager.mode === "groundOrbit"
+        ? controlsManager.groundOrbitControls.target.clone()
+        : camera.position.clone().normalize().multiplyScalar(EARTH_RADIUS);
+    const cloudLatLng = sphereToLatlng(
+      orbitTarget.x,
+      orbitTarget.y,
+      orbitTarget.z,
+    );
+    const cameraDistanceMeters = Math.max(
+      1,
+      2.5 * (camera.position.length() - EARTH_RADIUS),
+    );
+
+    cloudsController.syncCloudsAtTarget({
+      latlng: cloudLatLng,
+      orbitTarget,
+      cameraDistanceMeters,
+      viewportHeight: container.clientHeight,
+    });
+  };
+
   controlsManager.onModeChange = (from: ControlMode, to: ControlMode) => {
     console.log(`[Controls] Mode change: ${from} → ${to}`);
     if (to === "fly") {
@@ -252,12 +275,14 @@ export function createScene(container: HTMLElement) {
   };
 
   controlsManager.pointerControls.onChange = () => {
+    syncCloudsWithCamera();
     refreshZoomFeedback();
   };
 
   controlsManager.orbitControls.addEventListener("end", () => {
     reconcileAttachedNodeMaterials();
     refreshVisibleTilesOnCameraChanges();
+    syncCloudsWithCamera();
     updateZoomFeedback();
   });
 
@@ -266,6 +291,7 @@ export function createScene(container: HTMLElement) {
   controlsManager.groundOrbitControls.addEventListener("end", () => {
     reconcileAttachedNodeMaterials();
     refreshVisibleTilesOnCameraChanges();
+    syncCloudsWithCamera();
     updateZoomFeedback();
   });
 
@@ -293,7 +319,7 @@ export function createScene(container: HTMLElement) {
       cameraDistanceMeters,
     });
 
-    cloudsController.replaceCloudsAtTarget({
+    cloudsController.syncCloudsAtTarget({
       latlng: orbitLatlng,
       orbitTarget,
       cameraDistanceMeters,
@@ -331,6 +357,7 @@ export function createScene(container: HTMLElement) {
   };
 
   refreshVisibleTilesOnCameraChanges();
+  syncCloudsWithCamera();
 
   return {
     scene,
@@ -349,6 +376,7 @@ export function createScene(container: HTMLElement) {
     threeTilesViewer,
     onFrame: (frameTimeMs: number) => {
       sphereGlobal.recordFrameTime(frameTimeMs);
+      syncCloudsWithCamera();
     },
     cleanup: () => {
       cloudsController.dispose();

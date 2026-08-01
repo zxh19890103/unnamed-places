@@ -49,6 +49,42 @@ const BUILDING_TYPE_LEVEL_HINTS: Record<string, number> = {
   government: 5,
 };
 
+type BuildingPalette = {
+  roof: string;
+  wall: string;
+};
+
+const DEFAULT_BUILDING_PALETTE: BuildingPalette = {
+  roof: "#e7c9a8",
+  wall: "#ffffff",
+};
+
+const BUILDING_TYPE_COLOR_HINTS: Record<string, BuildingPalette> = {
+  house: { roof: "#d96f62", wall: "#f2ddc7" },
+  detached: { roof: "#c96357", wall: "#edd7c0" },
+  bungalow: { roof: "#b66a4f", wall: "#e5d0bb" },
+  hut: { roof: "#8a5a3f", wall: "#ccb59d" },
+  cabin: { roof: "#7c543c", wall: "#c7b19b" },
+  residential: { roof: "#b87366", wall: "#e9d7c7" },
+  terrace: { roof: "#a96a5f", wall: "#dfcfbf" },
+  apartments: { roof: "#7f8793", wall: "#d8dde3" },
+  dormitory: { roof: "#6f7885", wall: "#d2d9e0" },
+  office: { roof: "#54687f", wall: "#c6d4e3" },
+  commercial: { roof: "#6f747f", wall: "#d7d3cf" },
+  retail: { roof: "#85655f", wall: "#e2cbc1" },
+  industrial: { roof: "#696f74", wall: "#b9c0c7" },
+  warehouse: { roof: "#5e6469", wall: "#aeb6be" },
+  school: { roof: "#a06452", wall: "#e4cfbe" },
+  university: { roof: "#7e5f7f", wall: "#ddd0df" },
+  hospital: { roof: "#6c8491", wall: "#d4e4ea" },
+  hotel: { roof: "#7d5c4f", wall: "#ead8cb" },
+  church: { roof: "#8e6f56", wall: "#e5d8c6" },
+  cathedral: { roof: "#6f6760", wall: "#d4cec5" },
+  mosque: { roof: "#60817c", wall: "#d1e2de" },
+  synagogue: { roof: "#766985", wall: "#d9d2e4" },
+  government: { roof: "#617189", wall: "#d4dce8" },
+};
+
 let cachedBuildingTexture: THREE.Texture | null | undefined;
 
 function getBuildingTexture(): THREE.Texture | null {
@@ -119,6 +155,17 @@ type GeometryKind =
   | "point";
 
 type GeometryBuckets = Record<GeometryKind, THREE.BufferGeometry[]>;
+
+type BuildingVariant = {
+  key: string;
+  palette: BuildingPalette;
+};
+
+type BuildingVariantBucket = {
+  variant: BuildingVariant;
+  roof: THREE.BufferGeometry[];
+  wall: THREE.BufferGeometry[];
+};
 
 function splitBuildingGeometryByFaceType(geometry: THREE.BufferGeometry): {
   roof: THREE.BufferGeometry | null;
@@ -254,12 +301,7 @@ function buildingHeight(feature: GeoJSON.Feature): number {
     0,
   );
 
-  const buildingType =
-    readFeatureString(feature, "building") ??
-    readFeatureString(feature, "building:use") ??
-    readFeatureString(feature, "amenity") ??
-    "";
-  const normalizedType = buildingType.toLowerCase();
+  const normalizedType = readNormalizedBuildingType(feature);
   const inferredLevels =
     BUILDING_TYPE_LEVEL_HINTS[normalizedType] ??
     BUILDING_TYPE_LEVEL_HINTS[
@@ -276,6 +318,48 @@ function buildingHeight(feature: GeoJSON.Feature): number {
     RANDOM_HEIGHT_MAX,
   );
   return minHeight + fallback + roofLevels * METERS_PER_LEVEL;
+}
+
+function readNormalizedBuildingType(feature: GeoJSON.Feature): string {
+  const rawType =
+    readFeatureString(feature, "building") ??
+    readFeatureString(feature, "building:use") ??
+    readFeatureString(feature, "amenity") ??
+    "";
+
+  const normalized = rawType.toLowerCase().trim();
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.split(";")[0]?.trim() ?? normalized;
+}
+
+function buildingVariantForFeature(feature: GeoJSON.Feature): BuildingVariant {
+  const type = readNormalizedBuildingType(feature);
+  const palette = BUILDING_TYPE_COLOR_HINTS[type] ?? DEFAULT_BUILDING_PALETTE;
+  return {
+    key: `${palette.roof}|${palette.wall}`,
+    palette,
+  };
+}
+
+function getOrCreateBuildingBucket(
+  buildingBuckets: Map<string, BuildingVariantBucket>,
+  variant: BuildingVariant,
+): BuildingVariantBucket {
+  const existing = buildingBuckets.get(variant.key);
+  if (existing) {
+    return existing;
+  }
+
+  const created: BuildingVariantBucket = {
+    variant,
+    roof: [],
+    wall: [],
+  };
+  buildingBuckets.set(variant.key, created);
+  return created;
 }
 
 function randomHeightForFeature(
@@ -463,6 +547,7 @@ function addFeature(
   feature: GeoJSON.Feature,
   projection: TileProjection,
   buckets: GeometryBuckets,
+  buildingBuckets: Map<string, BuildingVariantBucket>,
   markerTemplate: THREE.SphereGeometry,
 ): number {
   const geometry = feature.geometry;
@@ -477,20 +562,28 @@ function addFeature(
         return 0;
       }
       if (polygon.kind === "building") {
+        const buildingBucket = getOrCreateBuildingBucket(
+          buildingBuckets,
+          buildingVariantForFeature(feature),
+        );
         const split = splitBuildingGeometryByFaceType(polygon.geometry);
         polygon.geometry.dispose();
         if (split.roof) {
-          buckets.buildingRoof.push(split.roof);
+          buildingBucket.roof.push(split.roof);
         }
         if (split.wall) {
-          buckets.buildingWall.push(split.wall);
+          buildingBucket.wall.push(split.wall);
         }
       } else {
         buckets[polygon.kind].push(polygon.geometry);
       }
       return 1;
     }
-    case "MultiPolygon":
+    case "MultiPolygon": {
+      const buildingBucket = getOrCreateBuildingBucket(
+        buildingBuckets,
+        buildingVariantForFeature(feature),
+      );
       return geometry.coordinates.reduce((count, polygon) => {
         const shape = addPolygon(feature, polygon, projection);
         if (!shape) {
@@ -500,16 +593,17 @@ function addFeature(
           const split = splitBuildingGeometryByFaceType(shape.geometry);
           shape.geometry.dispose();
           if (split.roof) {
-            buckets.buildingRoof.push(split.roof);
+            buildingBucket.roof.push(split.roof);
           }
           if (split.wall) {
-            buckets.buildingWall.push(split.wall);
+            buildingBucket.wall.push(split.wall);
           }
         } else {
           buckets[shape.kind].push(shape.geometry);
         }
         return count + 1;
       }, 0);
+    }
     case "LineString": {
       const line = addLine(geometry.coordinates, projection);
       if (!line) {
@@ -557,20 +651,8 @@ export function buildTileVectorGroup(
     Math.min(projection.widthMeters, projection.heightMeters) * 0.004,
   );
   const buildingTexture = getBuildingTexture();
+  const disposableMaterials: Array<THREE.Material> = [];
   const materials = {
-    buildingRoof: new THREE.MeshStandardMaterial({
-      color: "#e7c9a8",
-      roughness: 0.92,
-      metalness: 0.01,
-      side: THREE.DoubleSide,
-    }),
-    buildingWall: new THREE.MeshStandardMaterial({
-      color: "#ffffff",
-      ...(buildingTexture ? { map: buildingTexture } : {}),
-      roughness: 0.88,
-      metalness: 0.02,
-      side: THREE.DoubleSide,
-    }),
     water: new THREE.MeshStandardMaterial({
       color: "#3b82a0",
       roughness: 0.58,
@@ -585,6 +667,12 @@ export function buildTileVectorGroup(
     line: new THREE.LineBasicMaterial({ color: "#f5d28c" }),
     point: new THREE.MeshStandardMaterial({ color: "#ef4444", roughness: 0.7 }),
   };
+  disposableMaterials.push(
+    materials.water,
+    materials.other,
+    materials.line,
+    materials.point,
+  );
   const markerTemplate = new THREE.SphereGeometry(markerRadius, 10, 8);
   const buckets: GeometryBuckets = {
     buildingRoof: [],
@@ -594,14 +682,38 @@ export function buildTileVectorGroup(
     line: [],
     point: [],
   };
+  const buildingBuckets = new Map<string, BuildingVariantBucket>();
 
   let objectCount = 0;
   for (const feature of features) {
-    objectCount += addFeature(feature, projection, buckets, markerTemplate);
+    objectCount += addFeature(
+      feature,
+      projection,
+      buckets,
+      buildingBuckets,
+      markerTemplate,
+    );
   }
 
-  addMergedMesh(group, buckets.buildingRoof, materials.buildingRoof);
-  addMergedMesh(group, buckets.buildingWall, materials.buildingWall);
+  for (const bucket of buildingBuckets.values()) {
+    const roofMaterial = new THREE.MeshStandardMaterial({
+      color: bucket.variant.palette.roof,
+      roughness: 0.92,
+      metalness: 0.01,
+      side: THREE.DoubleSide,
+    });
+    const wallMaterial = new THREE.MeshStandardMaterial({
+      color: bucket.variant.palette.wall,
+      ...(buildingTexture ? { map: buildingTexture } : {}),
+      roughness: 0.88,
+      metalness: 0.02,
+      side: THREE.DoubleSide,
+    });
+    disposableMaterials.push(roofMaterial, wallMaterial);
+    addMergedMesh(group, bucket.roof, roofMaterial);
+    addMergedMesh(group, bucket.wall, wallMaterial);
+  }
+
   addMergedMesh(group, buckets.water, materials.water);
   addMergedMesh(group, buckets.other, materials.other);
   addMergedLineSegments(group, buckets.line, materials.line);
@@ -629,7 +741,7 @@ export function buildTileVectorGroup(
         }
       });
 
-      for (const material of Object.values(materials)) {
+      for (const material of disposableMaterials) {
         material.dispose();
       }
       markerTemplate.dispose();
