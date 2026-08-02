@@ -145,6 +145,7 @@ export function toFeatureFromElement(element) {
 export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
   const startedAt = Date.now();
   const logger = options.logger ?? console;
+  const postJson = options.postFormJson ?? postFormJson;
   const endpoint = options.endpoint ?? process.env.OSM_OVERPASS_ENDPOINT ?? 'https://overpass-api.de/api/interpreter';
   const { minLon, minLat, maxLon, maxLat } = getZ12EnvelopeFromKey(z12Key);
 
@@ -164,7 +165,7 @@ export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
     'out body geom;'
   ].join('\n');
 
-  const payload = await postFormJson(endpoint, { data: query }, { logger, label: z12Key });
+  const payload = await postJson(endpoint, { data: query }, { logger, label: z12Key });
   const elements = Array.isArray(payload?.elements) ? payload.elements : [];
   const features = elements
     .map(toFeatureFromElement)
@@ -174,6 +175,43 @@ export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
     const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
     logger.info(
       `[overpass] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`
+    );
+  }
+
+  return features;
+}
+
+export async function fetchOsmHighwayFeaturesForZ12Key(z12Key, options = {}) {
+  const startedAt = Date.now();
+  const logger = options.logger ?? console;
+  const postJson = options.postFormJson ?? postFormJson;
+  const endpoint = options.endpoint ?? process.env.OSM_OVERPASS_ENDPOINT ?? 'https://overpass-api.de/api/interpreter';
+  const { minLon, minLat, maxLon, maxLat } = getZ12EnvelopeFromKey(z12Key);
+
+  const bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
+  if (typeof logger?.info === 'function') {
+    logger.info(`[overpass-highways] start ${z12Key} endpoint=${endpoint} bbox=${bbox}`);
+  }
+
+  const query = [
+    '[out:json][timeout:360];',
+    `(`,
+    `  way["highway"](${bbox});`,
+    `  relation["highway"](${bbox});`,
+    `);`,
+    'out body geom;'
+  ].join('\n');
+
+  const payload = await postJson(endpoint, { data: query }, { logger, label: `highways:${z12Key}` });
+  const elements = Array.isArray(payload?.elements) ? payload.elements : [];
+  const features = elements
+    .map(toFeatureFromElement)
+    .filter((feature) => feature !== null);
+
+  if (typeof logger?.info === 'function') {
+    const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+    logger.info(
+      `[overpass-highways] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`
     );
   }
 

@@ -9,6 +9,7 @@
     "build": "node scripts/build.mjs",
     "migrate:db": "node scripts/migrate.js",
     "osm:ingest:job": "node scripts/osm-ingest-job.js",
+    "osm:ingest:highways:job": "node scripts/osm-highways-ingest-job.js",
     "prefetch:tiles": "node scripts/prefetch-tiles.js",
     "test": "vitest run"
   },

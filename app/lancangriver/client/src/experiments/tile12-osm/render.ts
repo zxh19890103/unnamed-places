@@ -20,8 +20,35 @@ const DEFAULT_BUILDING_HEIGHT = 12;
 const METERS_PER_LEVEL = 3.2;
 const RANDOM_HEIGHT_MIN = 6;
 const RANDOM_HEIGHT_MAX = 45;
-const BUILDING_TEXTURE_REPEAT_METERS = 6;
-const BUILDING_TEXTURE_PATH = "/textures/building-wall.jpg";
+
+const BUILDING_TEXTURE_REPEAT_METERS = 10;
+const BUILDING_TEXTURE_PATH = "/textures/houses.jpeg";
+const ROOF_DIRTY_RED = "#7a2f24";
+const HIGHWAY_THICKNESS_METERS = 0.28;
+const HIGHWAY_ELEVATION_METERS = 0.42;
+const LANE_WIDTH_METERS = 3.5;
+const DEFAULT_HIGHWAY_WIDTH_METERS = 4;
+
+const HIGHWAY_TYPE_WIDTH_HINTS: Record<string, number> = {
+  motorway: 8.5,
+  trunk: 7.5,
+  primary: 6.5,
+  secondary: 5.75,
+  tertiary: 5,
+  unclassified: 4.25,
+  residential: 4,
+  living_street: 3.25,
+  service: 3,
+  road: 4,
+  track: 2.5,
+  path: 1.5,
+  footway: 1.2,
+  cycleway: 1.6,
+  pedestrian: 2,
+  steps: 1,
+  bus_guideway: 4,
+  corridor: 2,
+};
 
 const BUILDING_TYPE_LEVEL_HINTS: Record<string, number> = {
   house: 2,
@@ -151,6 +178,7 @@ type GeometryKind =
   | "buildingWall"
   | "water"
   | "other"
+  | "highway"
   | "line"
   | "point";
 
@@ -163,11 +191,17 @@ type BuildingVariant = {
 
 type BuildingVariantBucket = {
   variant: BuildingVariant;
-  roof: THREE.BufferGeometry[];
+  roofFlat: THREE.BufferGeometry[];
+  roofRidge: THREE.BufferGeometry[];
   wall: THREE.BufferGeometry[];
 };
 
-function splitBuildingGeometryByFaceType(geometry: THREE.BufferGeometry): {
+type RoofStyle = "flat";
+
+function splitBuildingGeometryByFaceType(
+  geometry: THREE.BufferGeometry,
+  roofStyle: RoofStyle,
+): {
   roof: THREE.BufferGeometry | null;
   wall: THREE.BufferGeometry | null;
 } {
@@ -181,9 +215,12 @@ function splitBuildingGeometryByFaceType(geometry: THREE.BufferGeometry): {
     return { roof: null, wall: null };
   }
 
-  const roofPositions: number[] = [];
-  const roofNormals: number[] = [];
-  const roofUvs: number[] = [];
+  const roofTriangles: Array<{
+    a: THREE.Vector3;
+    b: THREE.Vector3;
+    c: THREE.Vector3;
+  }> = [];
+  const roofFlatPositions: number[] = [];
   const wallPositions: number[] = [];
   const wallNormals: number[] = [];
   const wallUvs: number[] = [];
@@ -195,27 +232,60 @@ function splitBuildingGeometryByFaceType(geometry: THREE.BufferGeometry): {
     const isRoofTriangle =
       (Math.abs(ny0) + Math.abs(ny1) + Math.abs(ny2)) / 3 > 0.7;
 
-    const outPositions = isRoofTriangle ? roofPositions : wallPositions;
-    const outNormals = isRoofTriangle ? roofNormals : wallNormals;
-    const outUvs = isRoofTriangle ? roofUvs : wallUvs;
+    if (isRoofTriangle) {
+      roofFlatPositions.push(
+        position.getX(base),
+        position.getY(base),
+        position.getZ(base),
+        position.getX(base + 1),
+        position.getY(base + 1),
+        position.getZ(base + 1),
+        position.getX(base + 2),
+        position.getY(base + 2),
+        position.getZ(base + 2),
+      );
+      roofTriangles.push({
+        a: new THREE.Vector3(
+          position.getX(base),
+          position.getY(base),
+          position.getZ(base),
+        ),
+        b: new THREE.Vector3(
+          position.getX(base + 1),
+          position.getY(base + 1),
+          position.getZ(base + 1),
+        ),
+        c: new THREE.Vector3(
+          position.getX(base + 2),
+          position.getY(base + 2),
+          position.getZ(base + 2),
+        ),
+      });
+      continue;
+    }
 
     for (let offset = 0; offset < 3; offset += 1) {
       const index = base + offset;
-      outPositions.push(
+      wallPositions.push(
         position.getX(index),
         position.getY(index),
         position.getZ(index),
       );
-      outNormals.push(
+      wallNormals.push(
         normal.getX(index),
         normal.getY(index),
         normal.getZ(index),
       );
       if (uv) {
-        outUvs.push(uv.getX(index), uv.getY(index));
+        wallUvs.push(uv.getX(index), uv.getY(index));
       }
     }
   }
+
+  const roofPositions: number[] = [];
+  const roofNormals: number[] = [];
+
+  roofPositions.push(...roofFlatPositions);
 
   source.dispose();
 
@@ -233,18 +303,23 @@ function splitBuildingGeometryByFaceType(geometry: THREE.BufferGeometry): {
       "position",
       new THREE.Float32BufferAttribute(positions, 3),
     );
-    geometry.setAttribute(
-      "normal",
-      new THREE.Float32BufferAttribute(normals, 3),
-    );
+    if (normals.length === positions.length) {
+      geometry.setAttribute(
+        "normal",
+        new THREE.Float32BufferAttribute(normals, 3),
+      );
+    }
     if (uvs.length > 0) {
       geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    }
+    if (normals.length !== positions.length) {
+      geometry.computeVertexNormals();
     }
     return geometry;
   };
 
   return {
-    roof: createGeometry(roofPositions, roofNormals, roofUvs),
+    roof: createGeometry(roofPositions, roofNormals, []),
     wall: createGeometry(wallPositions, wallNormals, wallUvs),
   };
 }
@@ -355,7 +430,8 @@ function getOrCreateBuildingBucket(
 
   const created: BuildingVariantBucket = {
     variant,
-    roof: [],
+    roofFlat: [],
+    roofRidge: [],
     wall: [],
   };
   buildingBuckets.set(variant.key, created);
@@ -421,6 +497,7 @@ function addPolygon(
 ): {
   kind: "building" | "water" | "other";
   geometry: THREE.BufferGeometry;
+  roofStyle?: RoofStyle;
 } | null {
   const shape = polygonShape(rings, projection);
   if (!shape) {
@@ -448,7 +525,11 @@ function addPolygon(
     applyBuildingRepeatUv(geometry);
   }
 
-  return { kind, geometry };
+  return {
+    kind,
+    geometry,
+    roofStyle: "flat",
+  };
 }
 
 function addLine(
@@ -470,6 +551,85 @@ function addLine(
   }
 
   return new THREE.BufferGeometry().setFromPoints(segments);
+}
+
+function highwayWidthFromType(feature: GeoJSON.Feature): number {
+  const highwayType = readFeatureString(feature, "highway")
+    ?.toLowerCase()
+    .trim();
+  if (!highwayType) {
+    return DEFAULT_HIGHWAY_WIDTH_METERS;
+  }
+
+  const normalizedType = highwayType.split(";")[0]?.trim() ?? highwayType;
+  return (
+    HIGHWAY_TYPE_WIDTH_HINTS[normalizedType] ?? DEFAULT_HIGHWAY_WIDTH_METERS
+  );
+}
+
+function getHighwayWidthMeters(feature: GeoJSON.Feature): number {
+  const explicitWidth = readFeatureNumber(feature, "width");
+  if (explicitWidth !== null && explicitWidth > 0) {
+    return explicitWidth;
+  }
+
+  const lanes = readFeatureNumber(feature, "lanes");
+  if (lanes !== null && lanes > 0) {
+    return Math.max(DEFAULT_HIGHWAY_WIDTH_METERS, lanes * LANE_WIDTH_METERS);
+  }
+
+  return highwayWidthFromType(feature);
+}
+
+function addHighwaySegment(
+  points: THREE.Vector3[],
+  widthMeters: number,
+): THREE.BufferGeometry | null {
+  const shape = new THREE.Shape();
+
+  shape.moveTo(0, -widthMeters * 0.5);
+  shape.lineTo(0, widthMeters * 0.5);
+
+  const path = new THREE.CatmullRomCurve3(points, false, "centripetal");
+
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    bevelEnabled: false,
+    curveSegments: 12,
+    steps: 1,
+    extrudePath: path,
+  });
+
+  return geometry;
+}
+
+function addHighwayGeometry(
+  feature: GeoJSON.Feature,
+  coordinates: GeoJSON.Position[],
+  projection: TileProjection,
+): THREE.BufferGeometry[] {
+  if (coordinates.length < 2) {
+    return [];
+  }
+
+  const widthMeters = getHighwayWidthMeters(feature);
+  const geometries: THREE.BufferGeometry[] = [];
+
+  const points = coordinates.map((coord) => {
+    const xz = projection.project(coord);
+    return new THREE.Vector3(xz.x, 0, xz.z);
+  });
+
+  const geometry = addHighwaySegment(points, widthMeters);
+
+  if (geometry) {
+    geometries.push(geometry);
+  }
+
+  return geometries;
+}
+
+function isHighwayFeature(feature: GeoJSON.Feature): boolean {
+  return readFeatureString(feature, "highway") !== null;
 }
 
 function addPoint(
@@ -543,6 +703,26 @@ function addMergedLineSegments(
   group.add(new THREE.LineSegments(merged, material));
 }
 
+function applyPatternOnlyTextureTint(
+  material: THREE.MeshStandardMaterial,
+): void {
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <map_fragment>",
+      `#ifdef USE_MAP
+  vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+  float patternLuma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+  // Darker, dirtier modulation while preserving texture contrast.
+  float patternFactor = mix(0.2, 0.9, patternLuma);
+  diffuseColor.rgb *= patternFactor;
+  // diffuseColor.rgb *= vec3(0.88, 0.82, 0.76);
+#endif`,
+    );
+  };
+  material.customProgramCacheKey = () => "pattern-only-wall-map-v1";
+  material.needsUpdate = true;
+}
+
 function addFeature(
   feature: GeoJSON.Feature,
   projection: TileProjection,
@@ -566,10 +746,13 @@ function addFeature(
           buildingBuckets,
           buildingVariantForFeature(feature),
         );
-        const split = splitBuildingGeometryByFaceType(polygon.geometry);
+        const split = splitBuildingGeometryByFaceType(
+          polygon.geometry,
+          polygon.roofStyle ?? "flat",
+        );
         polygon.geometry.dispose();
         if (split.roof) {
-          buildingBucket.roof.push(split.roof);
+          buildingBucket.roofFlat.push(split.roof);
         }
         if (split.wall) {
           buildingBucket.wall.push(split.wall);
@@ -590,10 +773,13 @@ function addFeature(
           return count;
         }
         if (shape.kind === "building") {
-          const split = splitBuildingGeometryByFaceType(shape.geometry);
+          const split = splitBuildingGeometryByFaceType(
+            shape.geometry,
+            shape.roofStyle ?? "flat",
+          );
           shape.geometry.dispose();
           if (split.roof) {
-            buildingBucket.roof.push(split.roof);
+            buildingBucket.roofFlat.push(split.roof);
           }
           if (split.wall) {
             buildingBucket.wall.push(split.wall);
@@ -609,7 +795,14 @@ function addFeature(
       if (!line) {
         return 0;
       }
-      buckets.line.push(line);
+      if (isHighwayFeature(feature)) {
+        buckets.highway.push(
+          ...addHighwayGeometry(feature, geometry.coordinates, projection),
+        );
+        line.dispose();
+      } else {
+        buckets.line.push(line);
+      }
       return 1;
     }
     case "MultiLineString":
@@ -618,7 +811,14 @@ function addFeature(
         if (!geometry) {
           return count;
         }
-        buckets.line.push(geometry);
+        if (isHighwayFeature(feature)) {
+          buckets.highway.push(
+            ...addHighwayGeometry(feature, line, projection),
+          );
+          geometry.dispose();
+        } else {
+          buckets.line.push(geometry);
+        }
         return count + 1;
       }, 0);
     case "Point":
@@ -664,12 +864,20 @@ export function buildTileVectorGroup(
       roughness: 0.95,
       side: THREE.DoubleSide,
     }),
+    highway: new THREE.MeshStandardMaterial({
+      color: "#f59e0b",
+      roughness: 0.88,
+      metalness: 0.02,
+      depthTest: false,
+      side: THREE.DoubleSide,
+    }),
     line: new THREE.LineBasicMaterial({ color: "#f5d28c" }),
     point: new THREE.MeshStandardMaterial({ color: "#ef4444", roughness: 0.7 }),
   };
   disposableMaterials.push(
     materials.water,
     materials.other,
+    materials.highway,
     materials.line,
     materials.point,
   );
@@ -679,6 +887,7 @@ export function buildTileVectorGroup(
     buildingWall: [],
     water: [],
     other: [],
+    highway: [],
     line: [],
     point: [],
   };
@@ -696,10 +905,16 @@ export function buildTileVectorGroup(
   }
 
   for (const bucket of buildingBuckets.values()) {
-    const roofMaterial = new THREE.MeshStandardMaterial({
+    const roofFlatMaterial = new THREE.MeshStandardMaterial({
       color: bucket.variant.palette.roof,
-      roughness: 0.92,
-      metalness: 0.01,
+      roughness: 0.96,
+      metalness: 0,
+      side: THREE.DoubleSide,
+    });
+    const roofRidgeMaterial = new THREE.MeshStandardMaterial({
+      color: ROOF_DIRTY_RED,
+      roughness: 0.96,
+      metalness: 0,
       side: THREE.DoubleSide,
     });
     const wallMaterial = new THREE.MeshStandardMaterial({
@@ -709,13 +924,21 @@ export function buildTileVectorGroup(
       metalness: 0.02,
       side: THREE.DoubleSide,
     });
-    disposableMaterials.push(roofMaterial, wallMaterial);
-    addMergedMesh(group, bucket.roof, roofMaterial);
+    if (buildingTexture) {
+      applyPatternOnlyTextureTint(wallMaterial);
+    }
+    disposableMaterials.push(roofFlatMaterial, roofRidgeMaterial, wallMaterial);
+    addMergedMesh(group, bucket.roofFlat, roofFlatMaterial);
+    addMergedMesh(group, bucket.roofRidge, roofRidgeMaterial);
     addMergedMesh(group, bucket.wall, wallMaterial);
   }
 
   addMergedMesh(group, buckets.water, materials.water);
   addMergedMesh(group, buckets.other, materials.other);
+  const highwaysGroup = new THREE.Group();
+  highwaysGroup.name = `tile-highways-${tile.z}-${tile.x}-${tile.y}`;
+  addMergedMesh(highwaysGroup, buckets.highway, materials.highway);
+  group.add(highwaysGroup);
   addMergedLineSegments(group, buckets.line, materials.line);
   addMergedMesh(group, buckets.point, materials.point);
 

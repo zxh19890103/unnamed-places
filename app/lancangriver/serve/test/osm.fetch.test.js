@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toFeatureFromElement } from '../src/jobs/osmFetch.js';
+import { fetchOsmHighwayFeaturesForZ12Key, toFeatureFromElement } from '../src/jobs/osmFetch.js';
 
 describe('toFeatureFromElement', () => {
   it('maps relation with one outer ring to Polygon', () => {
@@ -66,5 +66,38 @@ describe('toFeatureFromElement', () => {
     expect(feature.feature_type).toBe('MultiPolygon');
     expect(feature.geometry.type).toBe('MultiPolygon');
     expect(feature.geometry.coordinates.length).toBe(2);
+  });
+});
+
+describe('fetchOsmHighwayFeaturesForZ12Key', () => {
+  it('sends a highway overpass query and maps way geometry to features', async () => {
+    const postFormJson = async (_endpoint, formValues) => {
+      expect(formValues.data).toContain('way["highway"]');
+      expect(formValues.data).toContain('relation["highway"]');
+
+      return {
+        elements: [
+          {
+            type: 'way',
+            id: 77,
+            tags: { highway: 'residential' },
+            geometry: [
+              { lon: 100, lat: 20 },
+              { lon: 100.1, lat: 20.1 }
+            ]
+          }
+        ]
+      };
+    };
+
+    const features = await fetchOsmHighwayFeaturesForZ12Key('12/3456/1523', {
+      postFormJson,
+      logger: { info: () => { } }
+    });
+
+    expect(features).toHaveLength(1);
+    expect(features[0].feature_id).toBe('way/77');
+    expect(features[0].feature_type).toBe('LineString');
+    expect(features[0].tags.highway).toBe('residential');
   });
 });

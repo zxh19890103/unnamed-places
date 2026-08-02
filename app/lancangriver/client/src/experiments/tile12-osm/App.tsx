@@ -34,21 +34,34 @@ export default function App() {
 
     try {
       const key = `${tile.z}/${tile.x}/${tile.y}`;
-      const tileVector = await fetchTileVector(
-        `${BASE_URL}/vector/tiles-existing/${key}.pbf`,
-        tile,
-      );
+      const [defaultTileVector, highwaysTileVector] = await Promise.all([
+        fetchTileVector(`${BASE_URL}/vector/tiles-existing/${key}.pbf`, tile),
+        fetchTileVector(
+          `${BASE_URL}/vector/highways/tiles-existing/${key}.pbf`,
+          tile,
+        ),
+      ]);
       if (generation !== requestGenerationRef.current) {
         return;
       }
 
-      const nextFeatures = tileVector.layers.flatMap((layer) => layer.features);
+      const defaultFeatures = defaultTileVector.layers.flatMap(
+        (layer) => layer.features,
+      );
+      const highwaysFeatures = highwaysTileVector.layers.flatMap(
+        (layer) => layer.features,
+      );
+      const nextFeatures = [...defaultFeatures, ...highwaysFeatures];
       setTile(tile);
       setFeatures(nextFeatures);
 
-      const layerSummary = tileVector.layers
-        .map((layer) => `${layer.name}: ${layer.features.length}`)
-        .join(" · ");
+      const defaultFeatureCount = defaultFeatures.length;
+      const highwaysFeatureCount = highwaysFeatures.length;
+
+      const layerSummary = [
+        `default: ${defaultFeatureCount}`,
+        `highways: ${highwaysFeatureCount}`,
+      ].join(" · ");
       setSummary(
         `${key} · ${nextFeatures.length} features${layerSummary ? ` · ${layerSummary}` : ""}`,
       );
@@ -123,7 +136,7 @@ export default function App() {
           </button>
         </form>
 
-        <div className="mt-3 break-words font-mono text-xs leading-5 text-slate-300">
+        <div className="mt-3 wrap-break-word font-mono text-xs leading-5 text-slate-300">
           {error ? <span className="text-rose-300">{error}</span> : summary}
         </div>
       </section>

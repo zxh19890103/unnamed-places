@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BASE_URL } from "../calc/constants";
 import {
   fetchCoverageJobs,
+  fetchCoverageJobsHighways,
   fetchCoverageStatus,
+  fetchCoverageStatusHighways,
   fetchLoadedCoverage,
   rerunFailedCoverageJob,
+  rerunFailedCoverageJobHighways,
 } from "./api";
 
 describe("fetchLoadedCoverage", () => {
@@ -94,6 +97,68 @@ describe("coverage jobs API", () => {
     await expect(rerunFailedCoverageJob(3456, 1523)).resolves.toEqual(payload);
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE_URL}/vector/coverage/12/3456/1523/rerun`,
+      { method: "POST" },
+    );
+  });
+
+  it("requests highways jobs with prefixed coverage routes", async () => {
+    const payload = {
+      jobs: [
+        {
+          key: "12/2212/1539",
+          z: 12,
+          x: 2212,
+          y: 1539,
+          status: "queued",
+        },
+      ],
+      limit: 100,
+      offset: 0,
+      total: 1,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchCoverageJobsHighways({ limit: 100, offset: 0 }),
+    ).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/highways/coverage/jobs?limit=100&offset=0`,
+    );
+  });
+
+  it("refreshes one highways job status using prefixed route", async () => {
+    const payload = { key: "12/2212/1539", status: "running", loaded: false };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchCoverageStatusHighways(2212, 1539)).resolves.toEqual(
+      payload,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/highways/coverage/12/2212/1539`,
+    );
+  });
+
+  it("reruns one failed highways job using prefixed route", async () => {
+    const payload = { key: "12/2212/1539", status: "queued" };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(rerunFailedCoverageJobHighways(2212, 1539)).resolves.toEqual(
+      payload,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/highways/coverage/12/2212/1539/rerun`,
       { method: "POST" },
     );
   });

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 const VECTOR_BBOX_SQL = readFileSync(new URL('./sql/vector_bbox.sql', import.meta.url), 'utf8');
 const VECTOR_TILE_MVT_SQL = readFileSync(new URL('./sql/vector_tile_mvt.sql', import.meta.url), 'utf8');
+const VECTOR_TILE_MVT_HIGHWAYS_SQL = readFileSync(new URL('./sql/vector_tile_mvt_highways.sql', import.meta.url), 'utf8');
 let pool;
 let poolPromise;
 
@@ -75,9 +76,37 @@ export async function getVectorTilePbf(z, x, y) {
   return Buffer.alloc(0);
 }
 
+export async function getVectorTilePbfHighways(z, x, y) {
+  const activePool = await getPool();
+  const result = await activePool.query(VECTOR_TILE_MVT_HIGHWAYS_SQL, [z, x, y]);
+  const pbf = result.rows?.[0]?.tile_pbf;
+
+  if (Buffer.isBuffer(pbf)) {
+    return pbf;
+  }
+
+  if (typeof pbf === 'string') {
+    return Buffer.from(pbf, 'binary');
+  }
+
+  return Buffer.alloc(0);
+}
+
 export async function upsertVectorFeatures(features) {
+  return upsertVectorFeaturesIntoTable(features, 'public.vector_features');
+}
+
+export async function upsertVectorFeaturesHighways(features) {
+  return upsertVectorFeaturesIntoTable(features, 'public.vector_features_highways');
+}
+
+async function upsertVectorFeaturesIntoTable(features, tableName) {
   if (!Array.isArray(features) || features.length === 0) {
     return;
+  }
+
+  if (tableName !== 'public.vector_features' && tableName !== 'public.vector_features_highways') {
+    throw new Error(`Unsupported vector features table: ${tableName}`);
   }
 
   const activePool = await getPool();
@@ -98,7 +127,7 @@ export async function upsertVectorFeatures(features) {
       }
 
       await client.query(
-        `INSERT INTO public.vector_features
+        `INSERT INTO ${tableName}
            (feature_id, source, feature_type, tags, geom)
          VALUES
            ($1, $2, $3, $4::jsonb, ST_SetSRID(ST_GeomFromGeoJSON($5), 4326))

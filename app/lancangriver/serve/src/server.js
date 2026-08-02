@@ -2,7 +2,13 @@ import './env.js';
 import express from 'express';
 import cors from 'cors';
 import { getConfig } from './config.js';
-import { dbQuery, getVectorTilePbf, upsertVectorFeatures } from './db.js';
+import {
+  dbQuery,
+  getVectorTilePbf,
+  getVectorTilePbfHighways,
+  upsertVectorFeatures,
+  upsertVectorFeaturesHighways
+} from './db.js';
 import { createCenterlineRouter } from './routes/centerline.js';
 import { createHealthRouter } from './routes/health.js';
 import { createRasterRouter } from './routes/raster.js';
@@ -12,12 +18,22 @@ import { createVectorTilesRouter } from './routes/vectorTiles.js';
 import { createPhotosRouter } from './routes/photos.js';
 import { getCoveringZ12Tiles } from './jobs/tileCoverage.js';
 import { createOsmJobsStore } from './jobs/osmJobsStore.js';
-import { createVectorIngestRunner, createVectorIngestWorker } from './jobs/osmIngestWorker.js';
+import { createOsmHighwayJobsStore } from './jobs/osmHighwayJobsStore.js';
+import { createOsmHighwayIngestWorker, createVectorIngestRunner, createVectorIngestWorker } from './jobs/osmIngestWorker.js';
+import { fetchOsmHighwayFeaturesForZ12Key } from './jobs/osmFetch.js';
 import { getVectorIngestSource } from './jobs/vectorSourceConfig.js';
 import { createVectorFeatureFetcher } from './jobs/vectorSourceRegistry.js';
 
 function createDefaultJobsStore() {
   return createOsmJobsStore({
+    db: {
+      query: dbQuery
+    }
+  });
+}
+
+function createHighwayJobsStore() {
+  return createOsmHighwayJobsStore({
     db: {
       query: dbQuery
     }
@@ -57,11 +73,25 @@ function createDefaultRunner(jobsStore) {
   return createVectorIngestRunner({ worker, intervalMs: 2000 });
 }
 
+function createHighwayRunner(jobsStore) {
+  const worker = createOsmHighwayIngestWorker({
+    jobs: jobsStore,
+    fetchOsmHighwayFeatures: fetchOsmHighwayFeaturesForZ12Key,
+    upsertVectorFeaturesHighways
+  });
+
+  return createVectorIngestRunner({ worker, intervalMs: 2000 });
+}
+
 export function createApp(options = {}) {
   const app = express();
   const jobsStore = options.jobsStore ?? createDefaultJobsStore();
+  const highwayJobsStore = options.highwayJobsStore ?? createHighwayJobsStore();
   const queueMissingCoverage = options.queueMissingCoverage ?? createQueueMissingCoverage(jobsStore);
+  const queueMissingCoverageHighways =
+    options.queueMissingCoverageHighways ?? createQueueMissingCoverage(highwayJobsStore);
   const tilePbfGetter = options.getVectorTilePbf ?? getVectorTilePbf;
+  const highwayTilePbfGetter = options.getVectorTilePbfHighways ?? getVectorTilePbfHighways;
 
   app.use(cors());
   app.use(createHealthRouter());
@@ -70,12 +100,22 @@ export function createApp(options = {}) {
   app.use(createStatsRouter(options));
   app.use(createVectorRouter(options));
   app.use(createVectorTilesRouter({
+    routePrefix: '/vector',
     queueMissingCoverage,
     getVectorTilePbf: tilePbfGetter,
     getCoverageStatus: (key) => jobsStore.getStatus(key),
     listLoadedCoverage: (pagination) => jobsStore.listLoaded(pagination),
     listCoverageJobs: (pagination) => jobsStore.listJobs(pagination),
     rerunFailedCoverage: (key) => jobsStore.rerunFailed(key)
+  }));
+  app.use(createVectorTilesRouter({
+    routePrefix: '/vector/highways',
+    queueMissingCoverage: queueMissingCoverageHighways,
+    getVectorTilePbf: highwayTilePbfGetter,
+    getCoverageStatus: (key) => highwayJobsStore.getStatus(key),
+    listLoadedCoverage: (pagination) => highwayJobsStore.listLoaded(pagination),
+    listCoverageJobs: (pagination) => highwayJobsStore.listJobs(pagination),
+    rerunFailedCoverage: (key) => highwayJobsStore.rerunFailed(key)
   }));
   app.use(createPhotosRouter(options));
 
@@ -85,9 +125,12 @@ export function createApp(options = {}) {
 if (process.env.NODE_ENV !== 'test') {
   const { port } = getConfig();
   const jobsStore = createDefaultJobsStore();
+  const highwayJobsStore = createHighwayJobsStore();
   const runner = createDefaultRunner(jobsStore);
+  const highwayRunner = createHighwayRunner(highwayJobsStore);
 
   runner.start();
+  highwayRunner.start();
 
   const app = createApp();
   const server = app.listen(port, () => {
@@ -96,6 +139,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   const shutdown = () => {
     runner.stop();
+    highwayRunner.stop();
     server.close(() => process.exit(0));
   };
 

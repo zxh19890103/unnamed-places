@@ -66,6 +66,63 @@ describe('GET /vector/tiles-existing/:z/:x/:y.pbf', () => {
   });
 });
 
+describe('highways-prefixed vector tile routes', () => {
+  it('returns highway PBF bytes from the highways tile provider', async () => {
+    const queueMissingCoverage = vi.fn();
+    const getVectorTilePbf = vi.fn();
+    const getVectorTilePbfHighways = vi.fn().mockResolvedValue(Buffer.from([0x1a, 0x01, 0x08]));
+    const app = createApp({
+      queueMissingCoverage,
+      getVectorTilePbf,
+      queueMissingCoverageHighways: vi.fn(),
+      getVectorTilePbfHighways,
+      highwayJobsStore: {
+        getStatus: vi.fn().mockResolvedValue('done'),
+        listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
+        listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+        rerunFailed: vi.fn().mockResolvedValue('queued')
+      }
+    });
+
+    const response = await request(app)
+      .get('/vector/highways/tiles-existing/12/2212/1539.pbf')
+      .buffer(true)
+      .parse(parseBinary);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/x-protobuf/);
+    expect(getVectorTilePbfHighways).toHaveBeenCalledWith(12, 2212, 1539);
+    expect(getVectorTilePbf).not.toHaveBeenCalled();
+  });
+
+  it('uses highways coverage status for prefixed coverage route', async () => {
+    const highwayJobsStore = {
+      getStatus: vi.fn().mockResolvedValue('running'),
+      listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
+      listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+      rerunFailed: vi.fn().mockResolvedValue('queued')
+    };
+
+    const app = createApp({
+      queueMissingCoverage: vi.fn(),
+      getVectorTilePbf: vi.fn(),
+      queueMissingCoverageHighways: vi.fn(),
+      getVectorTilePbfHighways: vi.fn(),
+      highwayJobsStore
+    });
+
+    const response = await request(app).get('/vector/highways/coverage/12/2212/1539');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      key: '12/2212/1539',
+      status: 'running',
+      loaded: false
+    });
+    expect(highwayJobsStore.getStatus).toHaveBeenCalledWith('12/2212/1539');
+  });
+});
+
 describe('vector coverage routes', () => {
   function createCoverageApp(jobsStore) {
     return createApp({

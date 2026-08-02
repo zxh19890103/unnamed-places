@@ -13,7 +13,27 @@ function parsePositiveInteger(value) {
   return num;
 }
 
+function normalizePrefix(prefix) {
+  if (typeof prefix !== 'string') {
+    return '';
+  }
+
+  const trimmed = prefix.trim();
+  if (!trimmed || trimmed === '/') {
+    return '';
+  }
+
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash.slice(0, -1) : withLeadingSlash;
+}
+
+function routePath(prefix, suffix) {
+  const normalized = normalizePrefix(prefix);
+  return `${normalized}${suffix}`;
+}
+
 export function createVectorTilesRouter(options = {}) {
+  const routePrefix = options.routePrefix ?? '';
   const queueMissingCoverage = options.queueMissingCoverage;
   const getVectorTilePbf = options.getVectorTilePbf;
   const getCoverageStatus = options.getCoverageStatus;
@@ -47,7 +67,7 @@ export function createVectorTilesRouter(options = {}) {
 
   const router = Router();
 
-  router.get('/vector/coverage/loaded', async (req, res) => {
+  router.get(routePath(routePrefix, '/coverage/loaded'), async (req, res) => {
     const limit = req.query.limit === undefined ? 100 : parsePositiveInteger(req.query.limit);
     const offset = req.query.offset === undefined ? 0 : parsePositiveInteger(req.query.offset);
 
@@ -70,7 +90,7 @@ export function createVectorTilesRouter(options = {}) {
     res.status(200).json({ tiles, limit, offset, total });
   });
 
-  router.get('/vector/coverage/jobs', async (req, res) => {
+  router.get(routePath(routePrefix, '/coverage/jobs'), async (req, res) => {
     const limit = req.query.limit === undefined ? 100 : parsePositiveInteger(req.query.limit);
     const offset = req.query.offset === undefined ? 0 : parsePositiveInteger(req.query.offset);
 
@@ -93,7 +113,7 @@ export function createVectorTilesRouter(options = {}) {
     res.status(200).json({ jobs: parsedJobs, limit, offset, total });
   });
 
-  router.post('/vector/coverage/12/:x/:y/rerun', async (req, res) => {
+  router.post(routePath(routePrefix, '/coverage/12/:x/:y/rerun'), async (req, res) => {
     const x = parsePositiveInteger(req.params.x);
     const y = parsePositiveInteger(req.params.y);
 
@@ -133,7 +153,7 @@ export function createVectorTilesRouter(options = {}) {
     res.status(200).json({ key, status: 'queued' });
   });
 
-  router.get('/vector/coverage/12/:x/:y', async (req, res) => {
+  router.get(routePath(routePrefix, '/coverage/12/:x/:y'), async (req, res) => {
     const x = parsePositiveInteger(req.params.x);
     const y = parsePositiveInteger(req.params.y);
 
@@ -153,7 +173,7 @@ export function createVectorTilesRouter(options = {}) {
     res.status(200).json({ key, status, loaded: status === 'done' });
   });
 
-  router.get('/vector/tiles-existing/:z/:x/:y.pbf', async (req, res) => {
+  router.get(routePath(routePrefix, '/tiles-existing/:z/:x/:y.pbf'), async (req, res) => {
     const z = parsePositiveInteger(req.params.z);
     const x = parsePositiveInteger(req.params.x);
     const y = parsePositiveInteger(req.params.y);
@@ -175,7 +195,7 @@ export function createVectorTilesRouter(options = {}) {
     res.status(200).send(pbf ?? Buffer.alloc(0));
   });
 
-  router.get('/vector/tiles/:z/:x/:y.pbf', async (req, res) => {
+  router.get(routePath(routePrefix, '/tiles/:z/:x/:y.pbf'), async (req, res) => {
     const z = parsePositiveInteger(req.params.z);
     const x = parsePositiveInteger(req.params.x);
     const y = parsePositiveInteger(req.params.y);

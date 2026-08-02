@@ -52,6 +52,21 @@ export function createOsmIngestWorker({ jobs, fetchOsmFeatures, upsertVectorFeat
   });
 }
 
+export function createOsmHighwayIngestWorker({
+  jobs,
+  fetchOsmHighwayFeatures,
+  upsertVectorFeaturesHighways,
+  logger = console
+}) {
+  return createVectorIngestWorker({
+    jobs,
+    fetchFeaturesForZ12Key: fetchOsmHighwayFeatures,
+    upsertVectorFeatures: upsertVectorFeaturesHighways,
+    source: 'osm-highways',
+    logger
+  });
+}
+
 export function createOsmIngestRunner({ worker, intervalMs = 2000 }) {
   let timer = null;
   let running = false;

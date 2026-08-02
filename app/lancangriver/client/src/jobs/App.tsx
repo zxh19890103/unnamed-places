@@ -1,23 +1,33 @@
 import { useEffect, useState } from "react";
 
 import {
-  fetchCoverageJobs,
-  fetchCoverageStatus,
-  rerunFailedCoverageJob,
+  defaultCoverageApi,
+  highwaysCoverageApi,
   type CoverageJob,
   type CoverageJobsPage,
   type CoverageJobStatus,
 } from "./api";
-import { JobStatus } from "./JobStatus";
+import { JobsTable } from "./JobsTable";
 
 const PAGE_SIZE = 100;
 
+type TabKey = "default" | "highways";
+
+const tabs: Array<{ key: TabKey; label: string }> = [
+  { key: "default", label: "Default" },
+  { key: "highways", label: "Highways" },
+];
+
 export default function App() {
+  const [activeTab, setActiveTab] = useState<TabKey>("default");
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState<CoverageJobsPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rerunningKey, setRerunningKey] = useState<string | null>(null);
+
+  const api =
+    activeTab === "highways" ? highwaysCoverageApi : defaultCoverageApi;
 
   useEffect(() => {
     let active = true;
@@ -25,7 +35,8 @@ export default function App() {
     setLoading(true);
     setError(null);
 
-    void fetchCoverageJobs({ limit: PAGE_SIZE, offset })
+    void api
+      .fetchCoverageJobs({ limit: PAGE_SIZE, offset })
       .then((nextPage) => {
         if (active) {
           setPage(nextPage);
@@ -45,7 +56,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [offset]);
+  }, [api, offset]);
 
   const total = page?.total ?? 0;
   const canGoBack = offset > 0 && !loading;
@@ -68,7 +79,7 @@ export default function App() {
 
   const refreshJobStatus = async (job: CoverageJob) => {
     try {
-      const response = await fetchCoverageStatus(job.x, job.y);
+      const response = await api.fetchCoverageStatus(job.x, job.y);
       if (!response.status) {
         throw new Error(`Coverage job no longer exists: ${job.key}`);
       }
@@ -84,7 +95,7 @@ export default function App() {
     setRerunningKey(job.key);
 
     try {
-      const response = await rerunFailedCoverageJob(job.x, job.y);
+      const response = await api.rerunFailedCoverageJob(job.x, job.y);
       updateJobStatus(job.key, response.status);
       setError(null);
     } catch (reason: unknown) {
@@ -92,6 +103,18 @@ export default function App() {
     } finally {
       setRerunningKey(null);
     }
+  };
+
+  const switchTab = (tab: TabKey) => {
+    if (tab === activeTab) {
+      return;
+    }
+
+    setActiveTab(tab);
+    setOffset(0);
+    setPage(null);
+    setError(null);
+    setRerunningKey(null);
   };
 
   return (
@@ -109,7 +132,8 @@ export default function App() {
               Vector Ingest Jobs
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Zoom-12 OSM coverage status and failed-job controls.
+              Zoom-12 OSM coverage status and failed-job controls for default
+              and highways targets.
             </p>
           </div>
 
@@ -123,76 +147,44 @@ export default function App() {
           </div>
         </header>
 
+        <nav
+          className="mb-4 flex items-center gap-2"
+          aria-label="Ingest target"
+        >
+          {tabs.map((tab) => {
+            const selected = tab.key === activeTab;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => switchTab(tab.key)}
+                className={`border px-4 py-2 text-sm font-semibold ${
+                  selected
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+                aria-pressed={selected}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+
         {error ? (
           <div className="border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
             {error}
           </div>
         ) : null}
 
-        <div className="overflow-x-auto border border-slate-300 bg-white">
-          <table className="w-full min-w-190 border-collapse text-left text-sm">
-            <thead className="bg-slate-900 text-slate-100">
-              <tr>
-                <th className="px-4 py-3 font-medium">Tile ID</th>
-                <th className="px-4 py-3 font-medium">Zoom</th>
-                <th className="px-4 py-3 font-medium">X</th>
-                <th className="px-4 py-3 font-medium">Y</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {page?.jobs.map((job) => (
-                <tr key={job.key} className="hover:bg-emerald-50">
-                  <td className="px-4 py-2.5 font-mono text-slate-950">
-                    {job.key}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums text-slate-700">
-                    {job.z}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums text-slate-700">
-                    {job.x}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums text-slate-700">
-                    {job.y}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <JobStatus
-                      label={job.key}
-                      status={job.status}
-                      onRefresh={() => refreshJobStatus(job)}
-                    />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {job.status === "failed" ? (
-                      <button
-                        type="button"
-                        disabled={rerunningKey !== null}
-                        onClick={() => void rerunJob(job)}
-                        className="border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-800 disabled:cursor-wait disabled:opacity-50"
-                      >
-                        {rerunningKey === job.key ? "Rerunning" : "Rerun"}
-                      </button>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {loading ? (
-            <div className="px-4 py-10 text-center text-sm text-slate-500">
-              Loading tiles...
-            </div>
-          ) : null}
-          {!loading && !error && page?.jobs.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-slate-500">
-              No vector ingest jobs found.
-            </div>
-          ) : null}
-        </div>
+        <JobsTable
+          page={page}
+          loading={loading}
+          error={error}
+          rerunningKey={rerunningKey}
+          onRefreshJobStatus={refreshJobStatus}
+          onRerunJob={rerunJob}
+        />
 
         <footer className="mt-4 flex items-center justify-between gap-4">
           <div className="text-sm tabular-nums text-slate-600">

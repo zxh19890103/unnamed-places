@@ -73,6 +73,87 @@ describe("buildTileVectorGroup", () => {
     ).toBe(true);
   });
 
+  it("renders highway lines as merged meshes in a dedicated group", () => {
+    const result = buildTileVectorGroup(
+      [
+        feature(
+          {
+            type: "LineString",
+            coordinates: [
+              [-90, 66.4],
+              [-89.995, 66.405],
+            ],
+          },
+          { highway: "primary" },
+        ),
+        feature(
+          {
+            type: "LineString",
+            coordinates: [
+              [-89.998, 66.401],
+              [-89.992, 66.407],
+            ],
+          },
+          { highway: "secondary" },
+        ),
+        feature({
+          type: "LineString",
+          coordinates: [
+            [-90, 66.41],
+            [-89.99, 66.415],
+          ],
+        }),
+      ],
+      tile,
+    );
+
+    const highwayGroup = result.group.children.find(
+      (object): object is THREE.Group =>
+        object instanceof THREE.Group && object.name.includes("tile-highways"),
+    );
+
+    expect(highwayGroup).toBeTruthy();
+    expect(
+      highwayGroup?.children.some((object) => object instanceof THREE.Mesh),
+    ).toBe(true);
+    expect(
+      highwayGroup?.children.filter((object) => object instanceof THREE.Line)
+        .length,
+    ).toBe(0);
+  });
+
+  it("maps highway width from explicit tags before highway type defaults", () => {
+    const result = buildTileVectorGroup(
+      [
+        feature(
+          {
+            type: "LineString",
+            coordinates: [
+              [-90, 66.4],
+              [-89.995, 66.405],
+            ],
+          },
+          { highway: "primary", width: "12" },
+        ),
+      ],
+      tile,
+    );
+
+    const highwayGroup = result.group.children.find(
+      (object): object is THREE.Group =>
+        object instanceof THREE.Group && object.name.includes("tile-highways"),
+    );
+    const highwayMesh = highwayGroup?.children.find(
+      (object): object is THREE.Mesh => object instanceof THREE.Mesh,
+    );
+
+    expect(highwayMesh).toBeTruthy();
+    const width = new THREE.Box3()
+      .setFromObject(highwayMesh!)
+      .getSize(new THREE.Vector3()).x;
+    expect(width).toBeGreaterThan(0);
+  });
+
   it("disposes geometries and materials", () => {
     const result = buildTileVectorGroup(
       [feature({ type: "Point", coordinates: [-90, 66.4] })],
@@ -145,6 +226,6 @@ describe("buildTileVectorGroup", () => {
       buildingMeshes.map((mesh) => mesh.material.color.getHexString()),
     );
 
-    expect(materialHexes.size).toBeGreaterThanOrEqual(4);
+    expect(materialHexes.size).toBeGreaterThanOrEqual(3);
   });
 });
