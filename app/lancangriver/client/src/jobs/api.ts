@@ -38,6 +38,10 @@ export type RerunCoverageJobResponse = {
   status: "queued";
 };
 
+export type RequestCoverageTileResponse = {
+  accepted: boolean;
+};
+
 type FetchLoadedCoverageOptions = {
   limit: number;
   offset: number;
@@ -58,6 +62,10 @@ type CoverageApi = {
     x: number,
     y: number,
   ) => Promise<RerunCoverageJobResponse>;
+  requestCoverageForTile: (
+    x: number,
+    y: number,
+  ) => Promise<RequestCoverageTileResponse>;
 };
 
 function normalizePrefix(prefix: string): string {
@@ -132,6 +140,18 @@ function createCoverageApi(prefix: string): CoverageApi {
 
       return (await response.json()) as RerunCoverageJobResponse;
     },
+
+    async requestCoverageForTile(x: number, y: number) {
+      const response = await fetch(
+        `${BASE_URL}${routePrefix}/tiles/12/${x}/${y}.pbf`,
+      );
+
+      if (!response.ok && response.status !== 204) {
+        throw new Error(`Coverage tile request failed: ${response.status}`);
+      }
+
+      return { accepted: true };
+    },
   };
 }
 
@@ -185,4 +205,18 @@ export async function rerunFailedCoverageJobHighways(
   y: number,
 ): Promise<RerunCoverageJobResponse> {
   return highwaysCoverageApi.rerunFailedCoverageJob(x, y);
+}
+
+export async function requestCoverageForTile(
+  x: number,
+  y: number,
+): Promise<RequestCoverageTileResponse> {
+  return defaultCoverageApi.requestCoverageForTile(x, y);
+}
+
+export async function requestCoverageForTileHighways(
+  x: number,
+  y: number,
+): Promise<RequestCoverageTileResponse> {
+  return highwaysCoverageApi.requestCoverageForTile(x, y);
 }

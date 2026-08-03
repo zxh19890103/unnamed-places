@@ -51,8 +51,6 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   ) {
     const [west, south, east, north] = tileBounds4326(tile.z, tile.x, tile.y);
 
-    // tile.z === 12, 32
-    // tile.z === 9, 32 * 2^(12 - 9)
     const segments = Math.min(
       96,
       Math.max(16, Math.round(32 * Math.pow(2, (12 - tile.z) * 0.5))),

@@ -218,10 +218,6 @@ export function createScene(container: HTMLElement) {
     osmBuildingTiles.onTileDispose(node);
   };
 
-  const triggerCreateOsmTilesOnce = () => {
-    return osmBuildingTiles.triggerCreateOnce(tileManager.getAttachedNodes());
-  };
-
   const updateZoomFeedback = () => {
     const currentDistance = camera.position.length();
     zoomFeedbackIntensity = computeZoomFeedback({
@@ -336,8 +332,6 @@ export function createScene(container: HTMLElement) {
     onRefreshVisibleTilesAndStats: refreshVisibleTilesOnCameraChanges,
     getMaterialMode: () => terrainState.materialMode,
     applyMaterialMode,
-    triggerCreateOsmTilesOnce,
-    getOsmTilesCreated: () => osmBuildingTiles.isCreationTriggered(),
   });
 
   const resize = () => {

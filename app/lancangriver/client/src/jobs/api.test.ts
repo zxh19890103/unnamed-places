@@ -7,6 +7,8 @@ import {
   fetchCoverageStatus,
   fetchCoverageStatusHighways,
   fetchLoadedCoverage,
+  requestCoverageForTile,
+  requestCoverageForTileHighways,
   rerunFailedCoverageJob,
   rerunFailedCoverageJobHighways,
 } from "./api";
@@ -160,6 +162,38 @@ describe("coverage jobs API", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE_URL}/vector/highways/coverage/12/2212/1539/rerun`,
       { method: "POST" },
+    );
+  });
+
+  it("requests default coverage generation for one tile", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestCoverageForTile(3456, 1523)).resolves.toEqual({
+      accepted: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/tiles/12/3456/1523.pbf`,
+    );
+  });
+
+  it("requests highways coverage generation for one tile", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestCoverageForTileHighways(2212, 1539)).resolves.toEqual({
+      accepted: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/highways/tiles/12/2212/1539.pbf`,
     );
   });
 });

@@ -37,6 +37,7 @@ void main() {
 
 const GROUND_FRAGMENT_SHADER = `
 uniform sampler2D uSatelliteTexture;
+uniform sampler2D landMap;
 
 varying vec2 vUv;
 
@@ -62,15 +63,17 @@ float calcWaterMask(vec3 rgb) {
 
 void main() {
   vec4 color = texture2D(uSatelliteTexture, vUv);
+
   float exgr = calcExgr(color.rgb);
   float waterMask = calcWaterMask(color.rgb);
   float vegMask = step(0.23, exgr);
 
   vec3 vegetation = vec3(0.1, 0.83, 0.4);
   vec3 water = vec3(0.1, 0.5, 0.8);
-  vec3 soil = vec3(1.0, 1.0, 1.0);
 
-  vec3 outputColor = soil;
+  vec4 soilColor = texture2D(landMap, fract(vUv * 70.0));
+  vec3 outputColor = soilColor.rgb * 1.31;
+
   outputColor = mix(outputColor, vegetation, vegMask * (1.0 - waterMask));
   outputColor = mix(outputColor, water, waterMask);
 
@@ -93,9 +96,12 @@ function createGroundTileMesh(
   );
   texture.colorSpace = THREE.SRGBColorSpace;
 
+  const cityGround = textureLoader.load("/city-ground.webp");
+
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uSatelliteTexture: { value: texture },
+      landMap: { value: cityGround },
     },
     vertexShader: GROUND_VERTEX_SHADER,
     fragmentShader: GROUND_FRAGMENT_SHADER,
@@ -120,12 +126,17 @@ function createPointsTrees(
   const width = projection.widthMeters;
   const height = projection.heightMeters;
 
-  const nX = 100;
-  const nZ = 100;
+  const nX = 150;
+  const nZ = 150;
 
   const n = Math.floor(nX * nZ);
 
   const pointsAttr = new THREE.Float32BufferAttribute(
+    new Array(3 * n).fill(0),
+    3,
+  );
+
+  const treesMetadata = new THREE.Float32BufferAttribute(
     new Array(3 * n).fill(0),
     3,
   );
@@ -142,11 +153,19 @@ function createPointsTrees(
         0,
         -height / 2 + Math.random() * height,
       );
+
+      treesMetadata.setXYZ(
+        i,
+        Math.floor(Math.random() * 8),
+        Math.floor(Math.random() * 8),
+        0.5 + Math.random() * 0.5,
+      );
     }
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", pointsAttr);
+  geometry.setAttribute("metadata", treesMetadata);
 
   return new THREE.Points(
     geometry,
@@ -157,29 +176,44 @@ function createPointsTrees(
         },
       },
       vertexShader: `
+    attribute vec3 metadata;
+
+    flat out vec3 vMetadata;
+
     void main() {
       vec3 ipos = position.xyz;
       vec4 vPos = modelViewMatrix * vec4(ipos, 1.0);
-      gl_PointSize = 100.0 * (300.0 / -vPos.z);
+
+      float size_factor = metadata.b * 30000.0;
+      gl_PointSize = size_factor / -vPos.z;
+
+      vPos.y += 10.0;
+
+      vMetadata = metadata;
+
       gl_Position = projectionMatrix * vec4(vPos.xyz, 1.0);
     }
     `,
       fragmentShader: `
     uniform sampler2D map;
+    flat in vec3 vMetadata;
 
     void main() {
 
       vec2 uv = gl_PointCoord;
 
       uv.y = 1.0 - uv.y;
-      vec2 uv_offset = 0.125 * vec2(0.0, 0.0);
+      vec2 uv_offset = 0.125 * vec2(vMetadata.r, vMetadata.g);
       uv = uv_offset  +  0.125 * uv;
       
       vec4 baseColor = texture2D(map, uv);
 
       if (baseColor.a < 0.5) discard;
 
-      gl_FragColor = vec4(baseColor.rgb, 1.0);
+      vec3 outputColor = baseColor.rgb;
+      outputColor *= 0.56;
+
+      gl_FragColor = vec4(outputColor, 1.0);
     }
     `,
     }),

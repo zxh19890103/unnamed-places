@@ -18,8 +18,6 @@ type AttachExploreGuiParameters = {
   onRefreshVisibleTilesAndStats: () => void;
   getMaterialMode: () => TileMaterialMode;
   applyMaterialMode: (mode: TileMaterialMode, zoomLevel: number) => boolean;
-  triggerCreateOsmTilesOnce: () => boolean;
-  getOsmTilesCreated: () => boolean;
 };
 
 export type ExploreGuiHandle = {
@@ -36,13 +34,10 @@ export function attachExploreGui(
     onRefreshVisibleTilesAndStats,
     getMaterialMode,
     applyMaterialMode,
-    triggerCreateOsmTilesOnce,
-    getOsmTilesCreated,
     threeTilesViewer,
   } = parameters;
 
-  const gui = new GUI({ title: "Explore Camera" });
-  const cameraFolder = gui.addFolder("Camera");
+  const gui = new GUI({ title: "Explore" });
   const navigationFolder = gui.addFolder("Navigation");
   const terrainFolder = gui.addFolder("Terrain");
 
@@ -155,21 +150,6 @@ export function attachExploreGui(
 
   const terrainState = {
     materialMode: getMaterialMode(),
-    osmTilesCreated: getOsmTilesCreated(),
-  };
-
-  const osmTileState = {
-    createOnce: () => {
-      const startedNow = triggerCreateOsmTilesOnce();
-      terrainState.osmTilesCreated = getOsmTilesCreated();
-      if (terrainState.osmTilesCreated) {
-        createOsmTilesController.name("create osm tiles (done)");
-      }
-
-      if (startedNow) {
-        onRefreshVisibleTilesAndStats();
-      }
-    },
   };
 
   const materialModeController = terrainFolder
@@ -201,29 +181,6 @@ export function attachExploreGui(
       }
     });
 
-  const createOsmTilesController = terrainFolder
-    .add(osmTileState, "createOnce")
-    .name(
-      terrainState.osmTilesCreated
-        ? "create osm tiles (done)"
-        : "create osm tiles",
-    );
-
-  const flyControlsState = {
-    toggle: () => {
-      if (controlsManager.isFlyMode()) {
-        controlsManager.exitFly();
-      } else {
-        controlsManager.forceFly();
-      }
-    },
-  };
-
-  cameraFolder
-    .add(camera, "fov", 20, 120, 1)
-    .name("fov")
-    .onChange(() => camera.updateProjectionMatrix());
-
   navigationFolder.add(zoomState, "zoomIn").name("zoom +");
   navigationFolder.add(zoomState, "zoomOut").name("zoom -");
   navigationFolder.add(rotationState, "deltaDeg", 1, 180, 1).name("rotate Δ");
@@ -237,10 +194,7 @@ export function attachExploreGui(
   navigationFolder.add(altitudeState, "increaseAltitude").name("alt +");
   navigationFolder.add(altitudeState, "decreaseAltitude").name("alt -");
 
-  cameraFolder.add(flyControlsState, "toggle").name("fly controls on/off");
-
-  cameraFolder.open();
-  navigationFolder.open();
+  navigationFolder.close();
   terrainFolder.open();
 
   return {
@@ -248,12 +202,6 @@ export function attachExploreGui(
     syncTerrainState: () => {
       terrainState.materialMode = getMaterialMode();
       materialModeController.updateDisplay();
-      terrainState.osmTilesCreated = getOsmTilesCreated();
-      createOsmTilesController.name(
-        terrainState.osmTilesCreated
-          ? "create osm tiles (done)"
-          : "create osm tiles",
-      );
     },
   };
 }
