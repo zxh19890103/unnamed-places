@@ -102,6 +102,7 @@ export function createApp(options = {}) {
   app.use(createVectorTilesRouter({
     routePrefix: '/vector',
     queueMissingCoverage,
+    enqueueCoverageJob: (key) => jobsStore.enqueueIfMissing(key),
     getVectorTilePbf: tilePbfGetter,
     getCoverageStatus: (key) => jobsStore.getStatus(key),
     listLoadedCoverage: (pagination) => jobsStore.listLoaded(pagination),
@@ -111,6 +112,7 @@ export function createApp(options = {}) {
   app.use(createVectorTilesRouter({
     routePrefix: '/vector/highways',
     queueMissingCoverage: queueMissingCoverageHighways,
+    enqueueCoverageJob: (key) => highwayJobsStore.enqueueIfMissing(key),
     getVectorTilePbf: highwayTilePbfGetter,
     getCoverageStatus: (key) => highwayJobsStore.getStatus(key),
     listLoadedCoverage: (pagination) => highwayJobsStore.listLoaded(pagination),

@@ -80,6 +80,7 @@ describe('highways-prefixed vector tile routes', () => {
         getStatus: vi.fn().mockResolvedValue('done'),
         listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
         listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+        enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
         rerunFailed: vi.fn().mockResolvedValue('queued')
       }
     });
@@ -100,6 +101,7 @@ describe('highways-prefixed vector tile routes', () => {
       getStatus: vi.fn().mockResolvedValue('running'),
       listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
       listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
       rerunFailed: vi.fn().mockResolvedValue('queued')
     };
 
@@ -125,8 +127,17 @@ describe('highways-prefixed vector tile routes', () => {
 
 describe('vector coverage routes', () => {
   function createCoverageApp(jobsStore) {
+    const fullJobsStore = {
+      getStatus: vi.fn().mockResolvedValue(null),
+      listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
+      listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: true }),
+      rerunFailed: vi.fn().mockResolvedValue('queued'),
+      ...jobsStore
+    };
+
     return createApp({
-      jobsStore,
+      jobsStore: fullJobsStore,
       queueMissingCoverage: vi.fn(),
       getVectorTilePbf: vi.fn()
     });
@@ -247,6 +258,31 @@ describe('vector coverage routes', () => {
       total: 2
     });
     expect(jobsStore.listJobs).toHaveBeenCalledWith({ limit: 25, offset: 0 });
+  });
+
+  it('enqueues a coverage job for one canonical z12 tile', async () => {
+    const jobsStore = {
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: true })
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).post('/vector/coverage/12/3456/1523/enqueue');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ key: '12/3456/1523', enqueued: true });
+    expect(jobsStore.enqueueIfMissing).toHaveBeenCalledWith('12/3456/1523');
+  });
+
+  it('reports an existing coverage job without enqueuing again', async () => {
+    const jobsStore = {
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false })
+    };
+    const app = createCoverageApp(jobsStore);
+
+    const response = await request(app).post('/vector/coverage/12/3456/1523/enqueue');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ key: '12/3456/1523', enqueued: false });
   });
 
   it('requeues a failed coverage job', async () => {

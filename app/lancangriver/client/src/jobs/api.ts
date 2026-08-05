@@ -38,6 +38,11 @@ export type RerunCoverageJobResponse = {
   status: "queued";
 };
 
+export type EnqueueCoverageJobResponse = {
+  key: string;
+  enqueued: boolean;
+};
+
 export type RequestCoverageTileResponse = {
   accepted: boolean;
 };
@@ -62,6 +67,10 @@ type CoverageApi = {
     x: number,
     y: number,
   ) => Promise<RerunCoverageJobResponse>;
+  enqueueCoverageJob: (
+    x: number,
+    y: number,
+  ) => Promise<EnqueueCoverageJobResponse>;
   requestCoverageForTile: (
     x: number,
     y: number,
@@ -141,6 +150,19 @@ function createCoverageApi(prefix: string): CoverageApi {
       return (await response.json()) as RerunCoverageJobResponse;
     },
 
+    async enqueueCoverageJob(x: number, y: number) {
+      const response = await fetch(
+        `${BASE_URL}${routePrefix}/coverage/12/${x}/${y}/enqueue`,
+        { method: "POST" },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Coverage enqueue API failed: ${response.status}`);
+      }
+
+      return (await response.json()) as EnqueueCoverageJobResponse;
+    },
+
     async requestCoverageForTile(x: number, y: number) {
       const response = await fetch(
         `${BASE_URL}${routePrefix}/tiles/12/${x}/${y}.pbf`,
@@ -184,6 +206,13 @@ export async function rerunFailedCoverageJob(
   y: number,
 ): Promise<RerunCoverageJobResponse> {
   return defaultCoverageApi.rerunFailedCoverageJob(x, y);
+}
+
+export async function enqueueCoverageJob(
+  x: number,
+  y: number,
+): Promise<EnqueueCoverageJobResponse> {
+  return defaultCoverageApi.enqueueCoverageJob(x, y);
 }
 
 export async function fetchCoverageJobsHighways({

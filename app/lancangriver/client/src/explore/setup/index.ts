@@ -20,6 +20,10 @@ import {
   sphereToLatlng,
 } from "../../experiments/sphere-zoom/core.js";
 import { computeZoomFeedback, getZoomFeedbackLabel } from "./zoomFeedback.js";
+import {
+  collectVisibleCoverageTiles,
+  type VisibleCoverageTile,
+} from "./coverageVisibility.js";
 
 export function createScene(container: HTMLElement) {
   const scene = new THREE.Scene();
@@ -37,7 +41,7 @@ export function createScene(container: HTMLElement) {
 
   const threeTilesViewer = create3dTilesViewer({
     camera,
-    baseDistance: 32_000_000,
+    baseDistance: 96_000_000,
     maxZoom: 20,
   });
 
@@ -301,6 +305,30 @@ export function createScene(container: HTMLElement) {
     refreshVisibleTilesOnCameraChanges();
   };
 
+  const getVisibleCoverageTiles = (
+    options: { paddingPx?: number; sampleStepPx?: number } = {},
+  ): VisibleCoverageTile[] => {
+    const frustumTiles = threeTilesViewer.getVisibleTiles(
+      camera.position.clone(),
+    );
+    const viewportWidth = renderer.domElement.clientWidth;
+    const viewportHeight = renderer.domElement.clientHeight;
+
+    return collectVisibleCoverageTiles({
+      camera,
+      frustumTiles: frustumTiles.map((tile) => ({
+        z: tile.z,
+        x: tile.x,
+        y: tile.y,
+      })),
+      viewportWidth,
+      viewportHeight,
+      targetZoom: 12,
+      paddingPx: options.paddingPx,
+      sampleStepPx: options.sampleStepPx,
+    });
+  };
+
   const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
     threeTilesViewer.lookAtLatlng(centerLatlng);
 
@@ -363,6 +391,7 @@ export function createScene(container: HTMLElement) {
     tileManager,
     resize,
     getCurrentCenterLatLng: getCurrentCameraLatlng,
+    getVisibleCoverageTiles,
     focusGroundOrbitAtLatLng,
     destroyCameraGui,
     destroyStats,

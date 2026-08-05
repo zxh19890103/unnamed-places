@@ -594,7 +594,7 @@ function addHighwaySegment(
 
   const geometry = new THREE.ExtrudeGeometry(shape, {
     bevelEnabled: false,
-    curveSegments: 12,
+    curveSegments: 100,
     steps: 1,
     extrudePath: path,
   });

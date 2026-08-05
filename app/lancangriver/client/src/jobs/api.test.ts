@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BASE_URL } from "../calc/constants";
 import {
+  enqueueCoverageJob,
   fetchCoverageJobs,
   fetchCoverageJobsHighways,
   fetchCoverageStatus,
@@ -99,6 +100,21 @@ describe("coverage jobs API", () => {
     await expect(rerunFailedCoverageJob(3456, 1523)).resolves.toEqual(payload);
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE_URL}/vector/coverage/12/3456/1523/rerun`,
+      { method: "POST" },
+    );
+  });
+
+  it("enqueues one job and returns whether it was newly created", async () => {
+    const payload = { key: "12/3456/1523", enqueued: true };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(enqueueCoverageJob(3456, 1523)).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/coverage/12/3456/1523/enqueue`,
       { method: "POST" },
     );
   });

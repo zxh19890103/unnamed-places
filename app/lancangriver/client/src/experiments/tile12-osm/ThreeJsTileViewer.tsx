@@ -64,20 +64,10 @@ float calcWaterMask(vec3 rgb) {
 void main() {
   vec4 color = texture2D(uSatelliteTexture, vUv);
 
-  float exgr = calcExgr(color.rgb);
-  float waterMask = calcWaterMask(color.rgb);
-  float vegMask = step(0.23, exgr);
+  vec4 soilColor = texture2D(landMap, fract(vUv * 1.0));
+  vec3 outputColor = soilColor.rgb * color.rgb;
 
-  vec3 vegetation = vec3(0.1, 0.83, 0.4);
-  vec3 water = vec3(0.1, 0.5, 0.8);
-
-  vec4 soilColor = texture2D(landMap, fract(vUv * 70.0));
-  vec3 outputColor = soilColor.rgb * 1.31;
-
-  outputColor = mix(outputColor, vegetation, vegMask * (1.0 - waterMask));
-  outputColor = mix(outputColor, water, waterMask);
-
-  gl_FragColor = vec4(outputColor, 1.0);
+  gl_FragColor = vec4(color.rgb, 1.0);
 }
 `;
 
@@ -375,13 +365,13 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
       renderedTile.projection,
     );
 
-    const trees = createPointsTrees(
-      textureLoader,
-      tile,
-      renderedTile.projection,
-    );
+    // const trees = createPointsTrees(
+    //   textureLoader,
+    //   tile,
+    //   renderedTile.projection,
+    // );
 
-    viewer.scene.add(trees);
+    // viewer.scene.add(trees);
 
     viewer.scene.add(viewer.groundTile);
     viewer.scene.add(renderedTile.group);

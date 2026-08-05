@@ -35,6 +35,7 @@ function routePath(prefix, suffix) {
 export function createVectorTilesRouter(options = {}) {
   const routePrefix = options.routePrefix ?? '';
   const queueMissingCoverage = options.queueMissingCoverage;
+  const enqueueCoverageJob = options.enqueueCoverageJob;
   const getVectorTilePbf = options.getVectorTilePbf;
   const getCoverageStatus = options.getCoverageStatus;
   const listLoadedCoverage = options.listLoadedCoverage;
@@ -43,6 +44,10 @@ export function createVectorTilesRouter(options = {}) {
 
   if (typeof queueMissingCoverage !== 'function') {
     throw new Error('queueMissingCoverage is required');
+  }
+
+  if (typeof enqueueCoverageJob !== 'function') {
+    throw new Error('enqueueCoverageJob is required');
   }
 
   if (typeof getVectorTilePbf !== 'function') {
@@ -111,6 +116,26 @@ export function createVectorTilesRouter(options = {}) {
     });
 
     res.status(200).json({ jobs: parsedJobs, limit, offset, total });
+  });
+
+  router.post(routePath(routePrefix, '/coverage/12/:x/:y/enqueue'), async (req, res) => {
+    const x = parsePositiveInteger(req.params.x);
+    const y = parsePositiveInteger(req.params.y);
+
+    if (x === null || y === null) {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_TILE_COORDS',
+          reason: 'Tile coordinates must be non-negative integers'
+        }
+      });
+      return;
+    }
+
+    const key = `12/${x}/${y}`;
+    const result = await enqueueCoverageJob(key);
+
+    res.status(200).json({ key, enqueued: result.enqueued });
   });
 
   router.post(routePath(routePrefix, '/coverage/12/:x/:y/rerun'), async (req, res) => {

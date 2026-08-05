@@ -106,6 +106,7 @@ Coverage can be queried before requesting PBF data:
 - `GET /vector/coverage/12/:x/:y` returns `{ key, status, loaded }` for one canonical tile. Only `status: "done"` sets `loaded` to `true`; unknown tiles return `status: null`.
 - `GET /vector/coverage/loaded?limit=100&offset=0` returns a stable, paginated list of completed canonical tiles and the total loaded count.
 - `GET /vector/coverage/jobs?limit=100&offset=0` returns all canonical jobs with `queued`, `running`, `done`, or `failed` status.
+- `POST /vector/coverage/12/:x/:y/enqueue` creates the canonical job if it does not already exist and returns `{ key, enqueued }`.
 - `POST /vector/coverage/12/:x/:y/rerun` changes a failed job back to `queued`. Unknown jobs return `404`; jobs that are not failed return `409`.
 - `limit` defaults to `100`, accepts values from `1` through `1000`, and `offset` defaults to `0`.
 
