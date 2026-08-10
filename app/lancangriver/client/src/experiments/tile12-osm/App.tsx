@@ -6,13 +6,13 @@ import { LeafletVectorViewer } from "./leaflet";
 import { parseTile12Key } from "./tile";
 import { ThreeJsTileViewer } from "./ThreeJsTileViewer";
 
-const DEFAULT_TILE_KEY = " 12/2212/1539";
+const DEFAULT_TILE_KEY = "12/2212/1539";
 
 type RendererMode = "three" | "leaflet";
 
 export default function App() {
   const requestGenerationRef = useRef(0);
-  const [tileKey, setTileKey] = useState(DEFAULT_TILE_KEY);
+  const [tileKey, setTileKey] = useState(resolveQueryString);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string>("No tile loaded");
@@ -94,6 +94,7 @@ export default function App() {
       <section className="absolute left-3 right-3 top-3 z-1009 border border-emerald-200/20 bg-slate-950/88 p-4 shadow-2xl backdrop-blur-md sm:right-auto sm:w-110">
         <a
           href="/portal.html"
+          target="_blank"
           className="text-xs font-semibold uppercase text-emerald-300 hover:text-emerald-200"
         >
           Lancangriver Portal
@@ -143,3 +144,13 @@ export default function App() {
     </main>
   );
 }
+
+const resolveQueryString = () => {
+  const queryString = new URLSearchParams(location.search);
+  const tileKey = queryString.get("tilekey");
+  if (/^12\/\d+\/\d+$/.test(tileKey)) {
+    return tileKey;
+  } else {
+    return DEFAULT_TILE_KEY;
+  }
+};

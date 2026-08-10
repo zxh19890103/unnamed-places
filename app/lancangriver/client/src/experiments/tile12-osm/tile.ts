@@ -12,7 +12,7 @@ export type TileProjection = {
   project: (position: GeoJSON.Position) => { x: number; z: number };
 };
 
-export type PolygonFeatureKind = "building" | "water" | "other";
+export type PolygonFeatureKind = "building" | "water" | "highway" | "other";
 
 export function parseTile12Key(value: string): TileCoords | null {
   const match = /^12\/(\d+)\/(\d+)$/.exec(value.trim());
@@ -83,6 +83,10 @@ export function classifyPolygonFeature(
     readProperty(feature, "waterway") !== undefined
   ) {
     return "water";
+  }
+
+  if (readProperty(feature, "highway") !== undefined) {
+    return "highway";
   }
 
   return "other";

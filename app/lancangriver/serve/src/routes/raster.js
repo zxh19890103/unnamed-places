@@ -1,7 +1,10 @@
 import fs from 'node:fs';
+import { spawn } from 'node:child_process';
 import { Router } from 'express';
-import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { PNG } from 'pngjs';
 
@@ -10,6 +13,12 @@ const DEFAULT_SATELLITE_URL_TEMPLATE = 'https://mt1.google.com/vt/lyrs=s&x={x}&y
 const DEFAULT_DEM_PNG_URL_TEMPLATE = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 const MAX_DEM_ZOOM = 15;
 const DEM_TILE_SIZE = 256;
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
+const DEFAULT_PYTHON_EXECUTABLE = resolve(REPO_ROOT, '.venv/bin/python');
+const CLASSIFIER_SCRIPT_PATH = resolve(
+  REPO_ROOT,
+  'app/lancangriver/pipeline/src/preprocess/cv2_clean_satellite_images.py'
+);
 
 function templateUrl(template, values) {
   return template.replace(/\{([^}]+)\}/g, (_match, key) => {
@@ -139,6 +148,23 @@ function buildDemComposePath(composedRoot, z, x, y, extent, scale = 1) {
   );
 }
 
+function buildScaledDemComposePath(composedRoot, z, x, y, scale = 1) {
+  return resolve(composedRoot, 'scaled', String(z), String(x), String(y), `dem@${scale}.png`);
+}
+
+function parsePositiveInteger(value, fallback = 1) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null;
+}
+
 function buildNeighborTiles(z, centerX, centerY, extent) {
   const n = 2 ** z;
   const size = extent + 2;
@@ -212,6 +238,55 @@ async function defaultFetchDemPngTile(z, x, y, rasterOptions) {
   return downloadToFile(url, demPngPath, fetchImpl);
 }
 
+async function defaultCleanSatelliteTile(inputPath, rasterOptions) {
+  const pythonExecutable = rasterOptions.pythonExecutable ?? DEFAULT_PYTHON_EXECUTABLE;
+  const resolvedPythonExecutable = await isExistingPath(pythonExecutable)
+    ? pythonExecutable
+    : 'python3';
+
+  const outputPath = join(
+    tmpdir(),
+    `lancangriver-clean-${process.pid}-${Date.now()}-${Math.round(Math.random() * 1e6)}.png`
+  );
+
+  await ensureDirectory(outputPath);
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(
+      resolvedPythonExecutable,
+      [CLASSIFIER_SCRIPT_PATH, '--input', inputPath, '--output', outputPath],
+      { stdio: ['ignore', 'pipe', 'pipe'] }
+    );
+
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      if (process.env.DEBUG_CLEAN_TILE === '1') {
+        process.stdout.write(chunk);
+      }
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Classifier exited with code ${code}: ${stderr}`));
+    });
+  });
+
+  try {
+    const cleanedBuffer = await readFile(outputPath);
+    return cleanedBuffer;
+  } finally {
+    await unlink(outputPath).catch(() => { });
+  }
+}
+
 const satelliteInFlight = createInFlightMap();
 const demPngInFlight = createInFlightMap();
 const demComposeInFlight = createInFlightMap();
@@ -230,7 +305,9 @@ function createRasterHandlerOptions(options = {}) {
     fetchImpl: rasterOptions.fetchImpl ?? fetch,
     fetchSatelliteTile: rasterOptions.fetchSatelliteTile,
     fetchDemPngTile: rasterOptions.fetchDemPngTile,
-    composeDemNeighborhood: rasterOptions.composeDemNeighborhood
+    composeDemNeighborhood: rasterOptions.composeDemNeighborhood,
+    cleanSatelliteTile: rasterOptions.cleanSatelliteTile ?? defaultCleanSatelliteTile,
+    pythonExecutable: rasterOptions.pythonExecutable
   };
 }
 
@@ -456,11 +533,81 @@ export function createRasterRouter(options = {}) {
     return runWithInFlight(satelliteInFlight, satellitePath, () => fetchSatelliteTile(z, x, y));
   }
 
+  async function cleanSatelliteTileOnce(z, x, y) {
+    const satelliteResult = await fetchSatelliteTileOnce(z, x, y);
+    const satellitePath = satelliteResult.satellitePath ?? satelliteResult.path;
+
+    if (!satellitePath) {
+      throw new Error('Satellite tile path was not provided');
+    }
+
+    if (rasterOptions.cleanSatelliteTile) {
+      return rasterOptions.cleanSatelliteTile(satellitePath, rasterOptions);
+    }
+
+    return defaultCleanSatelliteTile(satellitePath, rasterOptions);
+  }
+
   async function fetchDemPngTileOnce(z, x, y) {
     const { demPngPath } = buildRasterPaths(rasterOptions.rasterRoot, z, x, y);
     return runWithInFlight(demPngInFlight, demPngPath, () => fetchDemPngTile(z, x, y));
   }
 
+  async function composeScaledDemOnce(z, x, y, scale = 1) {
+    const outputPath = buildScaledDemComposePath(rasterOptions.composedRoot, z, x, y, scale);
+
+    if (await isExistingPath(outputPath)) {
+      return { outputPath, cached: true };
+    }
+
+    return runWithInFlight(demComposeInFlight, outputPath, async () => {
+      if (await isExistingPath(outputPath)) {
+        return { outputPath, cached: true };
+      }
+
+      const tileCount = 2 ** scale;
+      const transparentTile = await createTransparentTilePng();
+      const inputs = [];
+
+      for (let row = 0; row < tileCount; row += 1) {
+        for (let col = 0; col < tileCount; col += 1) {
+          const childX = x * tileCount + col;
+          const childY = y * tileCount + row;
+          const left = col * DEM_TILE_SIZE;
+          const top = row * DEM_TILE_SIZE;
+
+          try {
+            const tileResult = await fetchDemPngTileOnce(z + scale, childX, childY);
+            const tilePath = tileResult.pngPath ?? tileResult.path;
+            inputs.push({ input: tilePath, left, top });
+          } catch {
+            inputs.push({ input: transparentTile, left, top });
+          }
+        }
+      }
+
+      await ensureDirectory(outputPath);
+
+      const outputWidth = tileCount * DEM_TILE_SIZE;
+      const outputHeight = tileCount * DEM_TILE_SIZE;
+      const pipeline = sharp({
+        create: {
+          width: outputWidth,
+          height: outputHeight,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      })
+        .composite(inputs)
+        .png();
+
+      await pipeline.toFile(outputPath);
+
+      return { outputPath, cached: false };
+    });
+  }
+
+  // Compose a DEM neighborhood into a single cached image for the requested tile extent and scale.
   async function composeDemNeighborhoodOnce(z, x, y, extent, scale = 1) {
     const outputPath = buildDemComposePath(rasterOptions.composedRoot, z, x, y, extent, scale);
 
@@ -498,6 +645,26 @@ export function createRasterRouter(options = {}) {
       await sendRasterFile(res, satellitePath, 'image/jpeg');
     } catch (_error) {
       sendRasterError(res, 500, 'SATELLITE_TILE_STREAM_FAILED', 'Internal server error', _error);
+    }
+  });
+
+  router.get('/raster/satellite/:z/:x/:y/clean.jpeg', async (req, res) => {
+    const z = parseTileCoordinate(req.params.z);
+    const x = parseTileCoordinate(req.params.x);
+    const y = parseTileCoordinate(req.params.y);
+
+    if (!validateTileCoordinates(z, x, y)) {
+      sendRasterError(res, 400, 'INVALID_TILE_COORDINATES', 'Invalid z/x/y tile coordinates');
+      return;
+    }
+
+    try {
+      const cleanedTile = await cleanSatelliteTileOnce(z, x, y);
+      res.type('image/png');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(cleanedTile);
+    } catch (_error) {
+      sendRasterError(res, 500, 'SATELLITE_TILE_CLEAN_STREAM_FAILED', 'Internal server error', _error);
     }
   });
 
@@ -591,6 +758,35 @@ export function createRasterRouter(options = {}) {
       await sendRasterFile(res, composeResult.outputPath, 'image/png');
     } catch (_error) {
       sendRasterError(res, 500, 'DEM_COMPOSE_STREAM_FAILED', 'Internal server error');
+    }
+  });
+
+  router.get('/raster/dem/:z/:x/:y/scale/:s.png', async (req, res) => {
+    const z = parseTileCoordinate(req.params.z);
+    const x = parseTileCoordinate(req.params.x);
+    const y = parseTileCoordinate(req.params.y);
+    const scale = parsePositiveInteger(req.params.s, 1);
+
+    if (!validateTileCoordinates(z, x, y)) {
+      sendRasterError(res, 400, 'INVALID_TILE_COORDINATES', 'Invalid z/x/y tile coordinates');
+      return;
+    }
+
+    if (scale === null) {
+      sendRasterError(res, 400, 'INVALID_SCALE', 'scale must be an integer >= 1');
+      return;
+    }
+
+    if (z > MAX_DEM_ZOOM) {
+      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'DEM tiles only support zoom levels up to 15');
+      return;
+    }
+
+    try {
+      const composeResult = await composeScaledDemOnce(z, x, y, scale);
+      await sendRasterFile(res, composeResult.outputPath, 'image/png');
+    } catch (_error) {
+      sendRasterError(res, 500, 'DEM_SCALE_COMPOSE_FAILED', 'Internal server error');
     }
   });
 

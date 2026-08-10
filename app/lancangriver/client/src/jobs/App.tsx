@@ -124,6 +124,7 @@ export default function App() {
           <div>
             <a
               href="/portal.html"
+              target="_blank"
               className="text-sm font-medium text-emerald-700 hover:text-emerald-900"
             >
               Lancangriver Portal

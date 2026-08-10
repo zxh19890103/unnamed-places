@@ -1,0 +1,28 @@
+export type RoofStyle = "fun" | "flat" | "skillion" | "gabled" | "hipped";
+
+const OSM_BUILDING_TYPE: Record<string, number> = {
+  unclassified: 1,
+  house: 2,
+  detached: 2,
+  bungalow: 1,
+  hut: 1,
+  cabin: 1,
+  residential: 3,
+  terrace: 3,
+  apartments: 6,
+  dormitory: 5,
+  office: 7,
+  commercial: 5,
+  retail: 3,
+  industrial: 4,
+  warehouse: 3,
+  school: 4,
+  university: 5,
+  hospital: 6,
+  hotel: 8,
+  church: 3,
+  cathedral: 5,
+  mosque: 4,
+  synagogue: 3,
+  government: 5,
+};

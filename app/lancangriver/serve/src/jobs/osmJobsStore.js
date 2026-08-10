@@ -62,7 +62,7 @@ export function createOsmJobsStore({ db }) {
       const pageResult = await db.query(
         `SELECT z12_key, status
          FROM public.osm_ingest_jobs
-         ORDER BY z12_key ASC
+         ORDER BY queued_at DESC
          LIMIT $1 OFFSET $2`,
         [limit, offset]
       );

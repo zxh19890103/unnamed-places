@@ -42,7 +42,13 @@ export function JobsTable({
             ? page.jobs.map((job) => (
                 <tr key={job.key} className="hover:bg-emerald-50">
                   <td className="px-4 py-2.5 font-mono text-slate-950">
-                    {job.key}
+                    <a
+                      target="_blank"
+                      className=" font-semibold hover:underline"
+                      href={`/experiments-tile12-osm.html?tilekey=${job.key}`}
+                    >
+                      {job.key}
+                    </a>
                   </td>
                   <td className="px-4 py-2.5 tabular-nums text-slate-700">
                     {job.z}

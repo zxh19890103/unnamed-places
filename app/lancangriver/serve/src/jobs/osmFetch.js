@@ -221,11 +221,36 @@ export async function fetchOsmHighwayFeaturesForZ12Key(z12Key, options = {}) {
 function postFormJson(endpoint, formValues, options = {}) {
   const logger = options.logger ?? console;
   const label = options.label ?? 'request';
+  const requestTimeoutMs = options.timeoutMs ?? 120_000;
 
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     const target = new URL(endpoint);
     const body = new URLSearchParams(formValues).toString();
+    let settled = false;
+    let progressTimer = null;
+
+    const settleReject = (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (progressTimer) {
+        clearInterval(progressTimer);
+      }
+      reject(error);
+    };
+
+    const settleResolve = (value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (progressTimer) {
+        clearInterval(progressTimer);
+      }
+      resolve(value);
+    };
 
     if (typeof logger?.info === 'function') {
       logger.info(`[overpass] request ${label} post ${target.origin}${target.pathname}`);
@@ -238,6 +263,7 @@ function postFormJson(endpoint, formValues, options = {}) {
         port: target.port || undefined,
         path: `${target.pathname}${target.search}`,
         method: 'POST',
+        timeout: requestTimeoutMs,
         headers: {
           origin: "https://overpass-api.de",
           referer: "https://overpass-api.de/query_form.html",
@@ -246,17 +272,29 @@ function postFormJson(endpoint, formValues, options = {}) {
         }
       },
       (response) => {
+        let dataSize = 0;
+
         const chunks = [];
-        const progressTimer = setInterval(() => {
+
+        progressTimer = setInterval(() => {
           const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+
+          if (dataSize === 0 && elapsedSeconds > 120) {
+            response.destroy(new Error(`Overpass response timed out: no data received after ${elapsedSeconds}s (label=${label}, endpoint=${target.origin}${target.pathname})`));
+            return;
+          }
+
           if (typeof logger?.info === 'function') {
-            logger.info(`[overpass] waiting ${label} status=${response.statusCode ?? 'pending'} elapsed=${elapsedSeconds}s`);
+            logger.info(`[overpass] waiting ${label} status=${response.statusCode ?? 'pending'} elapsed=${elapsedSeconds}s data=${dataSize} bytes`);
           }
         }, 15000);
 
-        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('data', (chunk) => {
+          chunks.push(chunk);
+          dataSize += chunk.length;
+        });
+
         response.on('end', () => {
-          clearInterval(progressTimer);
           const rawBody = Buffer.concat(chunks).toString('utf8');
           const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
 
@@ -266,16 +304,20 @@ function postFormJson(endpoint, formValues, options = {}) {
             );
           }
 
-          if (response.statusCode < 200 || response.statusCode >= 300) {
-            reject(new Error(`Overpass request failed: ${response.statusCode}`));
+          if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+            settleReject(new Error(`Overpass request failed: ${response.statusCode}`));
             return;
           }
 
           try {
-            resolve(JSON.parse(rawBody));
+            settleResolve(JSON.parse(rawBody));
           } catch (error) {
-            reject(new Error(`Overpass response parse failed: ${error.message}`));
+            settleReject(new Error(`Overpass response parse failed: ${error.message}`));
           }
+        });
+
+        response.on('error', (err) => {
+          settleReject(new Error(`Overpass response error: ${err.message}`));
         });
       }
     );
@@ -285,8 +327,26 @@ function postFormJson(endpoint, formValues, options = {}) {
         const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
         logger.warn(`[overpass] request error ${label} elapsed=${elapsedSeconds}s reason=${String(error?.message ?? error)}`);
       }
-      reject(error);
+
+      settleReject(error);
     });
+
+    request.on('timeout', () => {
+      const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+      const timeoutError = new Error(
+        `Overpass request timed out after ${elapsedSeconds}s (label=${label}, endpoint=${target.origin}${target.pathname}, timeoutMs=${requestTimeoutMs})`
+      );
+
+      if (typeof logger?.warn === 'function') {
+        logger.warn(
+          `[overpass] request timeout ${label} elapsed=${elapsedSeconds}s timeoutMs=${requestTimeoutMs}`
+        );
+      }
+
+      request.destroy(timeoutError);
+      settleReject(timeoutError);
+    });
+
     request.write(body);
     request.end();
   });

@@ -48,6 +48,29 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
   });
 });
 
+describe('GET /raster/satellite/:z/:x/:y/clean.jpeg', () => {
+  it('downloads the satellite tile and streams the cleaned image payload', async () => {
+    const fetchTile = vi.fn().mockResolvedValue({
+      path: '/tmp/.tiles/11/1024/768/satellite.jpeg'
+    });
+    const cleanSatelliteTile = vi.fn().mockResolvedValue(Buffer.from('cleaned-png'));
+    const app = createApp({
+      raster: {
+        fetchSatelliteTile: fetchTile,
+        cleanSatelliteTile
+      }
+    });
+
+    const response = await request(app).get('/raster/satellite/11/1024/768/clean.jpeg');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/image\/png/);
+    expect(response.body).toEqual(Buffer.from('cleaned-png'));
+    expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
+    expect(cleanSatelliteTile).toHaveBeenCalledWith('/tmp/.tiles/11/1024/768/satellite.jpeg', expect.any(Object));
+  });
+});
+
 describe('GET /raster/dem/:z/:x/:y.png', () => {
   it('downloads and streams a dem png when it is missing locally', async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
@@ -359,6 +382,75 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
       const meta = await sharp(response.body).metadata();
       expect(meta.width).toBe(384);
       expect(meta.height).toBe(384);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('GET /raster/dem/:z/:x/:y/scale/:s.png', () => {
+  it('rejects invalid scale values', async () => {
+    const app = createApp({
+      raster: {
+        fetchDemPngTile: vi.fn(),
+        fetchSatelliteTile: vi.fn()
+      }
+    });
+
+    const response = await request(app).get('/raster/dem/11/1024/768/scale/0.png');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'INVALID_SCALE',
+        reason: 'scale must be an integer >= 1'
+      }
+    });
+  });
+
+  it('composes descendant DEM tiles into a cached scaled png', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-scale-'));
+    const rasterRoot = join(tempRoot, 'tiles');
+    const fetchDemPngTile = vi.fn(async (_z, x, y) => {
+      const tilePath = join(rasterRoot, String(_z), String(x), String(y), 'dem.png');
+      await mkdir(join(rasterRoot, String(_z), String(x), String(y)), { recursive: true });
+
+      const tileBuffer = await sharp({
+        create: {
+          width: 256,
+          height: 256,
+          channels: 4,
+          background: { r: x % 255, g: y % 255, b: 120, alpha: 1 }
+        }
+      })
+        .png()
+        .toBuffer();
+
+      await writeFile(tilePath, tileBuffer);
+
+      return { path: tilePath, cached: false };
+    });
+
+    try {
+      const app = createApp({
+        raster: {
+          rasterRoot,
+          fetchDemPngTile,
+          fetchSatelliteTile: vi.fn()
+        }
+      });
+
+      const firstResponse = await request(app).get('/raster/dem/11/1024/768/scale/1.png');
+      expect(firstResponse.status).toBe(200);
+      expect(firstResponse.headers['content-type']).toMatch(/image\/png/);
+
+      const scaledPath = join(tempRoot, '.composed', 'scaled', '11', '1024', '768', 'dem@1.png');
+      expect(await import('node:fs/promises').then(({ access }) => access(scaledPath).then(() => true).catch(() => false))).toBe(true);
+      expect(fetchDemPngTile).toHaveBeenCalledTimes(4);
+
+      const secondResponse = await request(app).get('/raster/dem/11/1024/768/scale/1.png');
+      expect(secondResponse.status).toBe(200);
+      expect(fetchDemPngTile).toHaveBeenCalledTimes(4);
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }
