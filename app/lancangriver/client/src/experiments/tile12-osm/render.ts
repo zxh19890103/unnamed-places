@@ -1091,7 +1091,7 @@ function addHighwaySegment(
   const geometry = new THREE.ExtrudeGeometry(shape, {
     bevelEnabled: false,
     curveSegments: 12,
-    steps: Math.max(Math.ceil(distance / 20), 20),
+    steps: Math.max(Math.ceil(distance / 40), 10),
     extrudePath: path,
     UVGenerator: uvGenerator,
   });
@@ -1099,12 +1099,46 @@ function addHighwaySegment(
   const positionAttr = geometry.attributes.position;
   const gisUv = new Float32Array(positionAttr.count * 2);
 
-  for (let i = 0; i < positionAttr.count; i++) {
-    const x = positionAttr.getX(i);
-    const z = positionAttr.getZ(i);
+  // Snap gisUv to centerline so all cross-section vertices sample the same terrain height
+  const centerlineSamples = buildHighwayCenterlineSamples(path, distance);
+  const tmpVec = new THREE.Vector3();
+  const delta = new THREE.Vector3();
+  const fromStart = new THREE.Vector3();
+  const closest = new THREE.Vector3();
 
-    gisUv[i * 2 + 0] = x / tileExtent.x + 0.5;
-    gisUv[i * 2 + 1] = z / tileExtent.y + 0.5;
+  for (let i = 0; i < positionAttr.count; i++) {
+    tmpVec.set(
+      positionAttr.getX(i),
+      positionAttr.getY(i),
+      positionAttr.getZ(i),
+    );
+
+    let bestDistSq = Infinity;
+    let centerX = tmpVec.x;
+    let centerZ = tmpVec.z;
+
+    for (let j = 0; j < centerlineSamples.length - 1; j++) {
+      const segStart = centerlineSamples[j].point;
+      const segEnd = centerlineSamples[j + 1].point;
+
+      delta.subVectors(segEnd, segStart);
+      const lenSq = delta.lengthSq();
+      if (lenSq <= 1e-8) continue;
+
+      fromStart.subVectors(tmpVec, segStart);
+      const t = THREE.MathUtils.clamp(fromStart.dot(delta) / lenSq, 0, 1);
+      closest.copy(segStart).addScaledVector(delta, t);
+
+      const dSq = tmpVec.distanceToSquared(closest);
+      if (dSq < bestDistSq) {
+        bestDistSq = dSq;
+        centerX = closest.x;
+        centerZ = closest.z;
+      }
+    }
+
+    gisUv[i * 2 + 0] = centerX / tileExtent.x + 0.5;
+    gisUv[i * 2 + 1] = centerZ / tileExtent.y + 0.5;
   }
 
   geometry.setAttribute("gisUv", new THREE.BufferAttribute(gisUv, 2));
@@ -1692,6 +1726,8 @@ function createHighwayMaterial(
   textureLoader
     .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
     .then((data) => {
+      // data.magFilter = THREE.NearestFilter;
+      // data.minFilter = THREE.NearestFilter;
       material.uniforms.terrianMap.value = data;
       material.uniforms.terrianMapLoaded.value = 1;
     });
@@ -1751,6 +1787,79 @@ void main() {
     depthTest: false,
     side: THREE.DoubleSide,
   });
+
+  return material;
+}
+
+function createHighwayPolygonMaterial(
+  textureLoader: THREE.TextureLoader,
+  tile: TileCoords,
+): THREE.ShaderMaterial {
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      baseColor: { value: new THREE.Color("#546") },
+      terrianMap: { value: null },
+      terrianMapLoaded: { value: 0.0 },
+      lightDirection: {
+        value: new THREE.Vector3(0.35, 0.8, 0.25).normalize(),
+      },
+      ambientStrength: { value: 0.45 },
+    },
+    vertexShader: `
+attribute vec2 gisUv;
+
+uniform sampler2D terrianMap;
+uniform float terrianMapLoaded;
+
+varying vec3 vWorldNormal;
+
+${shaderGlslSegments.decodeTerrariumHeight}
+
+void main() {
+  vWorldNormal = normalize(normalMatrix * normal);
+
+  vec3 displacePosition = position;
+
+  if (terrianMapLoaded > 0.5) {
+    vec4 rgb = texture2D(terrianMap, gisUv);
+    float heightMeters = decodeTerrariumHeight(rgb);
+    displacePosition.y += heightMeters;
+  }
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(displacePosition, 1.0);
+}
+`,
+    fragmentShader: `
+uniform vec3 baseColor;
+uniform vec3 lightDirection;
+uniform float ambientStrength;
+
+varying vec3 vWorldNormal;
+
+void main() {
+  vec3 normal = normalize(vWorldNormal);
+  vec3 lightDir = normalize(lightDirection);
+
+  if (!gl_FrontFacing) {
+    normal *= -1.0;
+  }
+
+  float diffuse = max(dot(normal, lightDir), 0.0);
+  float lighting = ambientStrength + (1.0 - ambientStrength) * diffuse;
+
+  gl_FragColor = vec4(baseColor * lighting, 1.0);
+}
+`,
+    depthTest: false,
+    side: THREE.DoubleSide,
+  });
+
+  textureLoader
+    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
+    .then((data) => {
+      material.uniforms.terrianMap.value = data;
+      material.uniforms.terrianMapLoaded.value = 1;
+    });
 
   return material;
 }
@@ -2028,7 +2137,7 @@ varying vec3 vWorldNormal;
 varying vec2 vUv;
 
 void main() {
-  vec4 color = texture2D(map, vUv);
+  vec4 color = texture2D(map, fract(vUv));
 
   vec3 normal = normalize(vWorldNormal);
   vec3 lightDir = normalize(lightDirection);
@@ -2210,79 +2319,6 @@ void main() {
   vec2 uv = fract(vFlowUv * 40.0);
   // vec3 texColor = texture2D(map, uv).rgb;
   vec3 normal = texture2D( normalsMap, uv).rgb;
-  vec3 lightDir = normalize(lightDirection);
-
-  if (!gl_FrontFacing) {
-    normal *= -1.0;
-  }
-
-  float diffuse = max(dot(normal, lightDir), 0.0);
-  float lighting = ambientStrength + (1.0 - ambientStrength) * diffuse;
-
-  gl_FragColor = vec4(baseColor * lighting, 1.0);
-}
-`,
-    depthTest: false,
-    side: THREE.DoubleSide,
-  });
-
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
-
-  return material;
-}
-
-function createHighwayPolygonMaterial(
-  textureLoader: THREE.TextureLoader,
-  tile: TileCoords,
-): THREE.ShaderMaterial {
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      baseColor: { value: new THREE.Color("#546") },
-      terrianMap: { value: null },
-      terrianMapLoaded: { value: 0.0 },
-      lightDirection: {
-        value: new THREE.Vector3(0.35, 0.8, 0.25).normalize(),
-      },
-      ambientStrength: { value: 0.45 },
-    },
-    vertexShader: `
-attribute vec2 gisUv;
-
-uniform sampler2D terrianMap;
-uniform float terrianMapLoaded;
-
-varying vec3 vWorldNormal;
-
-${shaderGlslSegments.decodeTerrariumHeight}
-
-void main() {
-  vWorldNormal = normalize(normalMatrix * normal);
-
-  vec3 displacePosition = position;
-
-  if (terrianMapLoaded > 0.5) {
-    vec4 rgb = texture2D(terrianMap, gisUv);
-    float heightMeters = decodeTerrariumHeight(rgb);
-    displacePosition.y += heightMeters;
-  }
-
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(displacePosition, 1.0);
-}
-`,
-    fragmentShader: `
-uniform vec3 baseColor;
-uniform vec3 lightDirection;
-uniform float ambientStrength;
-
-varying vec3 vWorldNormal;
-
-void main() {
-  vec3 normal = normalize(vWorldNormal);
   vec3 lightDir = normalize(lightDirection);
 
   if (!gl_FrontFacing) {
