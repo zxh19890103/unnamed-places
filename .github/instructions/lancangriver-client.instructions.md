@@ -19,7 +19,6 @@ Scope: app/lancangriver/client only.
 - Keep rendering logic modular under src/explore, src/view, and src/calc.
 - Preserve TypeScript + ESM patterns already in use.
 - Favor small, localized changes over broad refactors.
-- When behavior changes, add or update Vitest coverage in app/lancangriver/client/test.
 
 ## Rendering and Tile Guidance
 
@@ -29,7 +28,6 @@ Scope: app/lancangriver/client only.
 
 ## Verify Before Done
 
-- Run npm test for client changes.
 - If rendering/request behavior changed, run npm run dev and validate no obvious console/runtime errors.
 
 ## Reference Docs

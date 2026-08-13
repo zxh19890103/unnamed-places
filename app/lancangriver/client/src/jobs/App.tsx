@@ -3,9 +3,7 @@ import { useEffect, useState } from "react";
 import {
   defaultCoverageApi,
   highwaysCoverageApi,
-  type CoverageJob,
   type CoverageJobsPage,
-  type CoverageJobStatus,
 } from "./api";
 import { JobsTable } from "./JobsTable";
 
@@ -24,7 +22,6 @@ export default function App() {
   const [page, setPage] = useState<CoverageJobsPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [rerunningKey, setRerunningKey] = useState<string | null>(null);
 
   const api =
     activeTab === "highways" ? highwaysCoverageApi : defaultCoverageApi;
@@ -62,49 +59,6 @@ export default function App() {
   const canGoBack = offset > 0 && !loading;
   const canGoForward = offset + PAGE_SIZE < total && !loading;
 
-  const updateJobStatus = (key: string, status: CoverageJobStatus) => {
-    setPage((current) => {
-      if (!current) {
-        return current;
-      }
-
-      return {
-        ...current,
-        jobs: current.jobs.map((job) =>
-          job.key === key ? { ...job, status } : job,
-        ),
-      };
-    });
-  };
-
-  const refreshJobStatus = async (job: CoverageJob) => {
-    try {
-      const response = await api.fetchCoverageStatus(job.x, job.y);
-      if (!response.status) {
-        throw new Error(`Coverage job no longer exists: ${job.key}`);
-      }
-
-      updateJobStatus(job.key, response.status);
-      setError(null);
-    } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    }
-  };
-
-  const rerunJob = async (job: CoverageJob) => {
-    setRerunningKey(job.key);
-
-    try {
-      const response = await api.rerunFailedCoverageJob(job.x, job.y);
-      updateJobStatus(job.key, response.status);
-      setError(null);
-    } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setRerunningKey(null);
-    }
-  };
-
   const switchTab = (tab: TabKey) => {
     if (tab === activeTab) {
       return;
@@ -114,12 +68,11 @@ export default function App() {
     setOffset(0);
     setPage(null);
     setError(null);
-    setRerunningKey(null);
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl h-full flex flex-col">
         <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-slate-300 pb-4">
           <div>
             <a
@@ -178,14 +131,9 @@ export default function App() {
           </div>
         ) : null}
 
-        <JobsTable
-          page={page}
-          loading={loading}
-          error={error}
-          rerunningKey={rerunningKey}
-          onRefreshJobStatus={refreshJobStatus}
-          onRerunJob={rerunJob}
-        />
+        <div className="relative flex-1 min-h-0">
+          <JobsTable page={page} loading={loading} error={error} api={api} />
+        </div>
 
         <footer className="mt-4 flex items-center justify-between gap-4">
           <div className="text-sm tabular-nums text-slate-600">

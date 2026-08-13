@@ -94,7 +94,6 @@ Do not hand-edit generated data unless a task explicitly asks for it.
 
 - Start by identifying target stack (root app vs lancangriver).
 - Prefer minimal, scoped edits and preserve existing module boundaries.
-- When changing behavior, update or add tests in the affected package where available.
 - For setup/runtime issues, consult runbook docs first and then patch code.
 
 ## Existing Repo Preference

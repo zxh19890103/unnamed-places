@@ -18,6 +18,7 @@ export type CoverageJobStatus = "queued" | "running" | "done" | "failed";
 
 export type CoverageJob = LoadedCoverageTile & {
   status: CoverageJobStatus;
+  display_name: string | null;
 };
 
 export type CoverageJobsPage = {
@@ -47,12 +48,18 @@ export type RequestCoverageTileResponse = {
   accepted: boolean;
 };
 
+export type Z12GeoInfo = {
+  z12_key: string;
+  display_name: string;
+  raw_data: unknown;
+};
+
 type FetchLoadedCoverageOptions = {
   limit: number;
   offset: number;
 };
 
-type CoverageApi = {
+export type CoverageApi = {
   fetchLoadedCoverage: (
     options: FetchLoadedCoverageOptions,
   ) => Promise<LoadedCoveragePage>;
@@ -248,4 +255,64 @@ export async function requestCoverageForTileHighways(
   y: number,
 ): Promise<RequestCoverageTileResponse> {
   return highwaysCoverageApi.requestCoverageForTile(x, y);
+}
+
+export async function fetchZ12GeoInfo(
+  x: number,
+  y: number,
+): Promise<Z12GeoInfo | null> {
+  const response = await fetch(`${BASE_URL}/z12geoinfo/12/${x}/${y}`);
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Z12 geo info API failed: ${response.status}`);
+  }
+
+  return (await response.json()) as Z12GeoInfo;
+}
+
+export async function saveZ12GeoInfo(
+  z12Key: string,
+  displayName: string,
+  rawData: unknown,
+): Promise<Z12GeoInfo> {
+  const response = await fetch(`${BASE_URL}/z12geoinfo`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      z12_key: z12Key,
+      display_name: displayName,
+      raw_data: rawData,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Save z12 geo info API failed: ${response.status}`);
+  }
+
+  return (await response.json()) as Z12GeoInfo;
+}
+
+export async function fetchGeoReverse(
+  lat: number,
+  lng: number,
+): Promise<unknown> {
+  const search = new URLSearchParams({
+    lat: String(lat),
+    lng: String(lng),
+  });
+  const response = await fetch(
+    `${BASE_URL}/nominatim/geo-reverse?${search.toString()}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`Geo reverse API failed: ${response.status}`);
+  }
+
+  return (await response.json()) as unknown;
 }

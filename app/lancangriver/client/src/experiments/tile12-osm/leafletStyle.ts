@@ -23,9 +23,9 @@ export function getLeafletFeatureStyle(feature: GeoJSON.Feature): PathOptions {
   }
 
   return {
-    color: "#84cc16",
+    color: "#000",
     weight: 1.5,
-    fillColor: "#84cc16",
+    fillColor: "#000",
     fillOpacity: 0.16,
   };
 }

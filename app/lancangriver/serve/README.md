@@ -56,7 +56,7 @@ export DATABASE_URL='postgres://lancangriver:lancangriver_dev_password@localhost
 npm run migrate:db
 ```
 
-This applies SQL files in `src/sql/migrations/` and creates `public.vector_features` plus indexes.
+This applies SQL files in `src/sql/migrations/` and creates the service tables and indexes, including `public.vector_features` and `public.z12geoinfo`.
 
 ## Environment Variables
 
@@ -82,6 +82,8 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 ## Endpoints
 
 - `GET /health`
+- `POST /z12geoinfo`
+- `GET /z12geoinfo/12/:x/:y`
 - `GET /vector?bbox=minLon,minLat,maxLon,maxLat`
 - `GET /vector/tiles/:z/:x/:y.pbf`
 - `GET /vector/tiles-existing/:z/:x/:y.pbf`
@@ -89,6 +91,13 @@ This applies SQL files in `src/sql/migrations/` and creates `public.vector_featu
 - `GET /raster/satellite/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y`
 - `GET /raster/dem/:z/:x/:y/png`
+
+## Z12 Geo Info
+
+`z12geoinfo` stores reverse-geocoding data for one canonical zoom-12 tile. It requires `DATABASE_URL` and `npm run migrate:db` before use.
+
+- `POST /z12geoinfo` accepts `{ "z12_key": "12/3456/1523", "display_name": "Example place", "raw_data": { "display_name": "Example place" } }`. The key must be canonical `12/x/y`, where each coordinate is an integer from `0` through `4095`. Reposting a key updates its `display_name` and `raw_data`.
+- `GET /z12geoinfo/12/:x/:y` returns `{ z12_key, display_name, raw_data }` for a stored tile. It returns `404` when that tile has not been stored.
 
 ## Vector Tile Endpoint (Async Coverage)
 

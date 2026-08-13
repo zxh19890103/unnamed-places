@@ -29,15 +29,22 @@ export function JobStatus({ label, status, onRefresh }: JobStatusProps) {
   };
 
   return (
-    <button
-      type="button"
-      disabled={refreshing}
-      onClick={() => void refresh()}
-      title="Refresh status"
-      aria-label={`Refresh ${label} status; current status ${status}`}
-      className={`min-w-20 border px-2.5 py-1 text-xs font-semibold uppercase disabled:cursor-wait disabled:opacity-60 ${statusClasses[status]}`}
-    >
-      {refreshing ? "Refreshing" : status}
-    </button>
+    <div className="flex items-center gap-1.5">
+      <span
+        className={`rounded-full border px-2 py-0.5 text-xs font-semibold uppercase ${statusClasses[status]}`}
+      >
+        {status}
+      </span>
+      <button
+        type="button"
+        disabled={refreshing}
+        onClick={() => void refresh()}
+        title="Refresh status"
+        aria-label={`Refresh ${label} status; current status ${status}`}
+        className="grid size-6 place-items-center rounded border border-slate-300 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60"
+      >
+        {refreshing ? "..." : "↻"}
+      </button>
+    </div>
   );
 }

@@ -12,14 +12,17 @@ import {
 import { createCenterlineRouter } from './routes/centerline.js';
 import { createCesiumRouter } from './routes/cesium.js';
 import { createHealthRouter } from './routes/health.js';
+import { createNominatimRouter } from './routes/nominatim.js';
 import { createRasterRouter } from './routes/raster.js';
 import { createStatsRouter } from './routes/stats.js';
 import { createVectorRouter } from './routes/vector.js';
 import { createVectorTilesRouter } from './routes/vectorTiles.js';
+import { createZ12GeoInfoRouter } from './routes/z12GeoInfo.js';
 import { createPhotosRouter } from './routes/photos.js';
 import { getCoveringZ12Tiles } from './jobs/tileCoverage.js';
 import { createOsmJobsStore } from './jobs/osmJobsStore.js';
 import { createOsmHighwayJobsStore } from './jobs/osmHighwayJobsStore.js';
+import { createZ12GeoInfoStore } from './jobs/z12GeoInfoStore.js';
 import { createOsmHighwayIngestWorker, createVectorIngestRunner, createVectorIngestWorker } from './jobs/osmIngestWorker.js';
 import { fetchOsmHighwayFeaturesForZ12Key } from './jobs/osmFetch.js';
 import { getVectorIngestSource } from './jobs/vectorSourceConfig.js';
@@ -35,6 +38,14 @@ function createDefaultJobsStore() {
 
 function createHighwayJobsStore() {
   return createOsmHighwayJobsStore({
+    db: {
+      query: dbQuery
+    }
+  });
+}
+
+function createDefaultZ12GeoInfoStore() {
+  return createZ12GeoInfoStore({
     db: {
       query: dbQuery
     }
@@ -88,6 +99,7 @@ export function createApp(options = {}) {
   const app = express();
   const jobsStore = options.jobsStore ?? createDefaultJobsStore();
   const highwayJobsStore = options.highwayJobsStore ?? createHighwayJobsStore();
+  const z12GeoInfoStore = options.z12GeoInfoStore ?? createDefaultZ12GeoInfoStore();
   const queueMissingCoverage = options.queueMissingCoverage ?? createQueueMissingCoverage(jobsStore);
   const queueMissingCoverageHighways =
     options.queueMissingCoverageHighways ?? createQueueMissingCoverage(highwayJobsStore);
@@ -98,6 +110,8 @@ export function createApp(options = {}) {
   app.use(createHealthRouter());
   app.use(createCenterlineRouter(options));
   app.use(createCesiumRouter(options));
+  app.use(createNominatimRouter(options));
+  app.use(createZ12GeoInfoRouter({ z12GeoInfoStore }));
   app.use(createRasterRouter(options));
   app.use(createStatsRouter(options));
   app.use(createVectorRouter(options));

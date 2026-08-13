@@ -110,9 +110,9 @@ export function createVectorTilesRouter(options = {}) {
     }
 
     const { jobs, total } = await listCoverageJobs({ limit, offset });
-    const parsedJobs = jobs.map(({ key, status }) => {
+    const parsedJobs = jobs.map(({ key, status, displayName }) => {
       const [z, x, y] = key.split('/').map(Number);
-      return { key, z, x, y, status };
+      return { key, z, x, y, status, display_name: displayName ?? null };
     });
 
     res.status(200).json({ jobs: parsedJobs, limit, offset, total });

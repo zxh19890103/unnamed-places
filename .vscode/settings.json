@@ -5,7 +5,7 @@
   // "editor.fontFamily": "Monolisa",
   // "editor.fontFamily": "Wawati TC",
   "editor.fontFamily": "Ubuntu Mono",
-  "editor.fontSize": 16,
+  "editor.fontSize": 14,
   "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
   "editor.fontWeight": "300",

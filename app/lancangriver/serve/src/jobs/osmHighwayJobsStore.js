@@ -60,9 +60,11 @@ export function createOsmHighwayJobsStore({ db }) {
 
     async listJobs({ limit, offset }) {
       const pageResult = await db.query(
-        `SELECT z12_key, status
-         FROM public.osm_ingest_jobs_highways
-         ORDER BY queued_at DESC
+        `SELECT jobs.z12_key, jobs.status, geo_info.display_name
+         FROM public.osm_ingest_jobs_highways AS jobs
+         LEFT JOIN public.z12geoinfo AS geo_info
+           ON geo_info.z12_key = jobs.z12_key
+         ORDER BY jobs.queued_at DESC
          LIMIT $1 OFFSET $2`,
         [limit, offset]
       );
@@ -74,7 +76,8 @@ export function createOsmHighwayJobsStore({ db }) {
       return {
         jobs: pageResult.rows.map((row) => ({
           key: row.z12_key,
-          status: row.status
+          status: row.status,
+          displayName: row.display_name ?? null
         })),
         total: countResult.rows[0]?.total ?? 0
       };

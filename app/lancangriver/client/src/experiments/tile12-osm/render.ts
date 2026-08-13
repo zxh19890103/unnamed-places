@@ -480,7 +480,6 @@ export function buildTileVectorGroup(
         const u =
           ((point.x + halfWidth) / projection.widthMeters) * canvas.width;
         const v =
-          canvas.height -
           ((point.z + halfHeight) / projection.heightMeters) * canvas.height;
 
         if (index === 0) {
