@@ -1,6 +1,5 @@
 import type { PathOptions } from "leaflet";
-
-import { classifyPolygonFeature } from "./tile";
+import { classifyPolygonFeature } from "./_polygon";
 
 export function getLeafletFeatureStyle(feature: GeoJSON.Feature): PathOptions {
   const kind = classifyPolygonFeature(feature);

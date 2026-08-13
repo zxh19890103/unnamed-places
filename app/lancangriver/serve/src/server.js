@@ -10,6 +10,7 @@ import {
   upsertVectorFeaturesHighways
 } from './db.js';
 import { createCenterlineRouter } from './routes/centerline.js';
+import { createCesiumRouter } from './routes/cesium.js';
 import { createHealthRouter } from './routes/health.js';
 import { createRasterRouter } from './routes/raster.js';
 import { createStatsRouter } from './routes/stats.js';
@@ -96,6 +97,7 @@ export function createApp(options = {}) {
   app.use(cors());
   app.use(createHealthRouter());
   app.use(createCenterlineRouter(options));
+  app.use(createCesiumRouter(options));
   app.use(createRasterRouter(options));
   app.use(createStatsRouter(options));
   app.use(createVectorRouter(options));

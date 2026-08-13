@@ -14,4 +14,5 @@ export const uniformSettings = {
   getTerrariumInfoUrl: (tile: TileCoords) => {
     return `${BASE_URL}/raster/dem/${tile.z}/${tile.x}/${tile.y}.png`;
   },
+  GROUND_UV_GRID_SIZE: 1024,
 };

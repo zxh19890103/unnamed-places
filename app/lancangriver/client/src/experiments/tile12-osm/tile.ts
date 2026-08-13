@@ -12,8 +12,6 @@ export type TileProjection = {
   project: (position: GeoJSON.Position) => { x: number; z: number };
 };
 
-export type PolygonFeatureKind = "building" | "water" | "highway" | "other";
-
 export function parseTile12Key(value: string): TileCoords | null {
   const match = /^12\/(\d+)\/(\d+)$/.exec(value.trim());
   if (!match) {
@@ -44,67 +42,7 @@ export function createTileProjection(tile: TileCoords): TileProjection {
     heightMeters: Math.abs(north - south) * METERS_PER_DEGREE_LATITUDE,
     project: ([lng, lat]) => ({
       x: (lng - center.lng) * metersPerDegreeLongitude,
-      z: (lat - center.lat) * METERS_PER_DEGREE_LATITUDE,
+      z: (center.lat - lat) * METERS_PER_DEGREE_LATITUDE,
     }),
   };
-}
-
-function readProperty(feature: GeoJSON.Feature, key: string): unknown {
-  const properties = feature.properties;
-  if (!properties || typeof properties !== "object") {
-    return undefined;
-  }
-
-  if (key in properties) {
-    return properties[key];
-  }
-
-  const tags = properties.tags;
-  if (tags && typeof tags === "object" && key in tags) {
-    return (tags as Record<string, unknown>)[key];
-  }
-
-  return undefined;
-}
-
-export function classifyPolygonFeature(
-  feature: GeoJSON.Feature,
-): PolygonFeatureKind {
-  if (
-    readProperty(feature, "feature_type") === "building" ||
-    readProperty(feature, "building") !== undefined
-  ) {
-    return "building";
-  }
-
-  if (
-    readProperty(feature, "natural") === "water" ||
-    readProperty(feature, "water") !== undefined ||
-    readProperty(feature, "waterway") !== undefined
-  ) {
-    return "water";
-  }
-
-  if (readProperty(feature, "highway") !== undefined) {
-    return "highway";
-  }
-
-  return "other";
-}
-
-export function readFeatureNumber(
-  feature: GeoJSON.Feature,
-  key: string,
-): number | null {
-  const value = readProperty(feature, key);
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
 }
