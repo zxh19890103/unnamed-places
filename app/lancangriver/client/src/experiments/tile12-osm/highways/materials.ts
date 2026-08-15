@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TileCoords } from "../../../osm/tiles.js";
+import { TileCoords } from "@/osm/tiles";
 import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
 
 export function createHighwayMaterial(
@@ -32,7 +32,7 @@ export function createHighwayMaterial(
       terrianMapLoaded: { value: 0 },
       color: { value: new THREE.Color("#3f444b") },
     },
-    vertexShader: `
+    vertexShader: /*glsl */ `
 attribute vec2 gisUv;
 
 uniform sampler2D terrianMap;
@@ -61,7 +61,7 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacePosition, 1.0);
 }
 `,
-    fragmentShader: `
+    fragmentShader: /*glsl */ `
 uniform vec3 color;
 uniform sampler2D map;
 

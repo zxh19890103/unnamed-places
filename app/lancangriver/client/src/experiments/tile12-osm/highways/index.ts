@@ -1,13 +1,12 @@
 import * as THREE from "three";
 import {
-  buildHighwayCenterlineSamples,
+  getHighwayType,
   getHighwayWidthMeters,
   HIGHWAY_WIDTH_METERS_SCALE,
-  projectPointToHighwayCenterline,
 } from "./base.js";
 import { TileProjection } from "../tile.js";
 import { HighwayGeometryEntry } from "./_types.js";
-import { uniformSettings } from "../_cfg.js";
+import { highwayCategories } from "./categories/index.js";
 
 function createRoadRibbonGeometry(
   curve: THREE.Curve<THREE.Vector3>,
@@ -154,28 +153,42 @@ export function createHighwayGeometry(
     return [];
   }
 
+  const highwayType = getHighwayType(feature);
+  const highwayCategory = highwayCategories[highwayType];
+
   const widthMeters = getHighwayWidthMeters(feature);
   const geometries: HighwayGeometryEntry[] = [];
 
-  const points = coordinates.map((coord) => {
+  const centerline = coordinates.map((coord) => {
     const xz = projection.project(coord);
     return new THREE.Vector3(xz.x, 0, xz.z);
   });
 
-  const geometry = addHighwaySegment(
-    points,
-    widthMeters,
-    new THREE.Vector2(projection.widthMeters, projection.heightMeters),
-  );
+  const geometry = highwayCategory.getGeometry
+    ? highwayCategory.getGeometry(feature, centerline, {
+        projection,
+      })
+    : addHighwaySegment(
+        centerline,
+        widthMeters,
+        new THREE.Vector2(projection.widthMeters, projection.heightMeters),
+      );
 
   if (geometry) {
     const offGroundMeters = 0; // getHighwayOffGroundMeters(feature);
     geometry.translate(0, offGroundMeters, 0);
+
     geometries.push({
       offGroundMeters,
       geometry,
       widthMeters,
-      centerline: points,
+      centerline: centerline,
+      category: highwayCategory,
+      styleId:
+        Object.hasOwn(highwayCategory, "getMaterial") &&
+        typeof highwayCategory.getMaterial === "function"
+          ? `style-${highwayCategory.type}-1`
+          : `default`,
     });
   }
 

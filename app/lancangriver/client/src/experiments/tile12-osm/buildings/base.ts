@@ -3,10 +3,12 @@ import { TileProjection } from "../tile.js";
 import * as polygonUtils from "../_polygon.js";
 import { uniformSettings } from "../_cfg.js";
 import {
+  BuildingCategoryDefinition,
   BuildingPalette,
   BuildingVariant,
   BuildingVariantBucket,
 } from "./_types.js";
+import { buildingCategories } from "./categories/index.js";
 
 const METERS_PER_LEVEL = 3.2;
 const RANDOM_HEIGHT_MIN = 6;
@@ -25,63 +27,29 @@ export const BUILDING_FACE_TEXTURE_GRID = new THREE.Vector2(6, 4);
 
 const BUILDING_FACE_MIN_HORIZONTAL_LENGTH_METERS = 12;
 
-const BUILDING_TYPE_LEVEL_HINTS: Record<string, number> = {
-  house: 2,
-  detached: 2,
-  bungalow: 1,
-  hut: 1,
-  cabin: 1,
-  residential: 3,
-  terrace: 3,
-  apartments: 6,
-  dormitory: 5,
-  office: 7,
-  commercial: 5,
-  retail: 3,
-  industrial: 4,
-  warehouse: 3,
-  school: 4,
-  university: 5,
-  hospital: 6,
-  hotel: 8,
-  church: 3,
-  cathedral: 5,
-  mosque: 4,
-  synagogue: 3,
-  government: 5,
+const DEFAULT_BUILDING_CATEGORY: BuildingCategoryDefinition = {
+  type: "default",
+  palette: {
+    roof: "#e7c9a8",
+    face: "#afe01a",
+    wall: "#ffffff",
+  },
+  levelHint: 3,
 };
 
-const DEFAULT_BUILDING_PALETTE: BuildingPalette = {
-  roof: "#e7c9a8",
-  face: "#afe01a",
-  wall: "#ffffff",
-};
+function readBuildingCategory(
+  type: string,
+): BuildingCategoryDefinition | undefined {
+  const normalized = type.toLowerCase().trim();
+  if (!normalized) {
+    return undefined;
+  }
 
-const BUILDING_TYPE_COLOR_HINTS: Record<string, BuildingPalette> = {
-  house: { roof: "#d96f62", wall: "#f2ddc7", face: "#f00" },
-  detached: { roof: "#c96357", wall: "#edd7c0", face: "#f00" },
-  bungalow: { roof: "#b66a4f", wall: "#e5d0bb", face: "#f00" },
-  hut: { roof: "#8a5a3f", wall: "#ccb59d", face: "#f00" },
-  cabin: { roof: "#7c543c", wall: "#c7b19b", face: "#f00" },
-  residential: { roof: "#b87366", wall: "#e9d7c7", face: "#f00" },
-  terrace: { roof: "#a96a5f", wall: "#dfcfbf", face: "#f00" },
-  apartments: { roof: "#7f8793", wall: "#d8dde3", face: "#f00" },
-  dormitory: { roof: "#6f7885", wall: "#d2d9e0", face: "#f00" },
-  office: { roof: "#54687f", wall: "#c6d4e3", face: "#f00" },
-  commercial: { roof: "#6f747f", wall: "#d7d3cf", face: "#f00" },
-  retail: { roof: "#85655f", wall: "#e2cbc1", face: "#f00" },
-  industrial: { roof: "#696f74", wall: "#b9c0c7", face: "#f00" },
-  warehouse: { roof: "#5e6469", wall: "#aeb6be", face: "#f00" },
-  school: { roof: "#a06452", wall: "#e4cfbe", face: "#f00" },
-  university: { roof: "#7e5f7f", wall: "#ddd0df", face: "#f00" },
-  hospital: { roof: "#6c8491", wall: "#d4e4ea", face: "#f00" },
-  hotel: { roof: "#7d5c4f", wall: "#ead8cb", face: "#f00" },
-  church: { roof: "#8e6f56", wall: "#e5d8c6", face: "#f00" },
-  cathedral: { roof: "#6f6760", wall: "#d4cec5", face: "#f00" },
-  mosque: { roof: "#60817c", wall: "#d1e2de", face: "#f00" },
-  synagogue: { roof: "#766985", wall: "#d9d2e4", face: "#f00" },
-  government: { roof: "#617189", wall: "#d4dce8", face: "#f00" },
-};
+  return (
+    buildingCategories[normalized] ??
+    buildingCategories[normalized.split(";")[0]?.trim() ?? normalized]
+  );
+}
 
 let cachedBuildingTexture: THREE.Texture | null | undefined;
 
@@ -469,11 +437,8 @@ export function getBuildingHeight(feature: GeoJSON.Feature): number {
   );
 
   const normalizedType = readNormalizedBuildingType(feature);
-  const inferredLevels =
-    BUILDING_TYPE_LEVEL_HINTS[normalizedType] ??
-    BUILDING_TYPE_LEVEL_HINTS[
-      normalizedType.split(";")[0]?.trim() ?? normalizedType
-    ];
+  const category = readBuildingCategory(normalizedType);
+  const inferredLevels = category?.levelHint;
 
   if (inferredLevels !== undefined) {
     const inferredHeight = (inferredLevels + roofLevels) * METERS_PER_LEVEL;
@@ -509,7 +474,8 @@ export function buildingVariantForFeature(
   feature: GeoJSON.Feature,
 ): BuildingVariant {
   const type = readNormalizedBuildingType(feature);
-  const palette = BUILDING_TYPE_COLOR_HINTS[type] ?? DEFAULT_BUILDING_PALETTE;
+  const category = readBuildingCategory(type) ?? DEFAULT_BUILDING_CATEGORY;
+  const palette = category.palette;
   return {
     key: `${palette.roof}|${palette.wall}`,
     palette,

@@ -47,12 +47,9 @@ function computeSunDirectionForLocation(
 }
 
 function getDefaultCenterLatlng(): LatLng {
-  const latlngExpr = `40.746,14.498`;
-  const [lat, lng] = latlngExpr.split(",").map((seg) => Number(seg));
-
   return {
-    lat: lat ?? START_CENTER_LAT,
-    lng: lng ?? START_CENTER_LON,
+    lat: START_CENTER_LAT,
+    lng: START_CENTER_LON,
   };
 }
 

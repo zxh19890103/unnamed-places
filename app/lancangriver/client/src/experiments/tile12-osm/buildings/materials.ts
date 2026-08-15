@@ -36,7 +36,7 @@ export function createBuildingWallMaterial(
       },
       ambientStrength: { value: 0.45 },
     },
-    vertexShader: `
+    vertexShader: /*glsl */ `
 attribute vec4 metadata;
 
 uniform sampler2D terrianMap;
@@ -64,7 +64,7 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacePosition, 1.0);
 }
 `,
-    fragmentShader: `
+    fragmentShader: /*glsl */ `
 uniform sampler2D map;
 uniform bool useTexture;
 uniform vec3 baseColor;
@@ -149,7 +149,7 @@ export function createBuildingFaceMaterial(
       },
       ambientStrength: { value: 0.45 },
     },
-    vertexShader: `
+    vertexShader: /*glsl */ `
 attribute vec4 metadata;
 
 uniform sampler2D terrianMap;
@@ -177,7 +177,7 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacePosition, 1.0);
 }
 `,
-    fragmentShader: `
+    fragmentShader: /*glsl */ `
 uniform sampler2D map;
 uniform bool mapLoaded;
 uniform vec3 baseColor;

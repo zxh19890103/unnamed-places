@@ -415,16 +415,40 @@ export function buildTileVectorGroup(
   addMergedMesh(group, buckets.river, materials.river);
   addMergedMesh(group, buckets.other, materials.other);
 
-  const highwaysGroup = new THREE.Group();
-  highwaysGroup.name = `tile-highways-${tile.z}-${tile.x}-${tile.y}`;
+  {
+    const defaultHighwaysGroup = new THREE.Group();
+    defaultHighwaysGroup.name = `tile-highways-${tile.z}-${tile.x}-${tile.y}`;
 
-  addMergedMesh(
-    highwaysGroup,
-    buckets.highway.map((entry) => entry.geometry),
-    materials.highway,
-  );
+    const highwayBuckets = new Map<string, HighwayGeometryEntry[]>();
 
-  group.add(highwaysGroup);
+    buckets.highway.forEach((ent) => {
+      const value = highwayBuckets.get(ent.styleId);
+      if (value) {
+        value.push(ent);
+      } else {
+        highwayBuckets.set(ent.styleId, [ent]);
+      }
+    });
+
+    for (const [styleId, entries] of highwayBuckets.entries()) {
+      let material = null;
+
+      if (styleId === "default") {
+        material = materials.highway;
+      } else {
+        material = entries[0].category.getMaterial(textureLoader);
+        disposableMaterials.push(material);
+      }
+
+      addMergedMesh(
+        defaultHighwaysGroup,
+        entries.map((entry) => entry.geometry),
+        material,
+      );
+    }
+
+    group.add(defaultHighwaysGroup);
+  }
 
   addMergedLineSegments(group, buckets.line, materials.line);
   addMergedMesh(group, buckets.point, materials.point);

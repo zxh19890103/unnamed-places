@@ -6,6 +6,12 @@ export type BuildingPalette = {
   face: string;
 };
 
+export type BuildingCategoryDefinition = {
+  type: string;
+  palette: BuildingPalette;
+  levelHint: number;
+};
+
 export type BuildingVariant = {
   key: string;
   palette: BuildingPalette;

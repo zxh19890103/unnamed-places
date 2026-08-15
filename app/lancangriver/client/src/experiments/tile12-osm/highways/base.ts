@@ -1,53 +1,12 @@
 import * as THREE from "three";
 import * as polygonUtils from "../_polygon.js";
 import { HighwayCenterlineSample } from "./_types.js";
+import { highwayCategories } from "./categories/index.js";
 
 export const HIGHWAY_WIDTH_METERS_SCALE = 1.2;
 
 const LANE_WIDTH_METERS = 3.5;
 const DEFAULT_HIGHWAY_WIDTH_METERS = 4;
-
-const HIGHWAY_TYPE_WIDTH_HINTS: Record<string, number> = {
-  motorway: 7.5,
-  trunk: 7.5,
-  primary: 6.5,
-  secondary: 5.75,
-  tertiary: 5,
-  unclassified: 4.25,
-  residential: 4,
-  living_street: 3.25,
-  service: 3,
-  road: 4,
-  track: 2.5,
-  path: 1.5,
-  footway: 1.2,
-  cycleway: 1.6,
-  pedestrian: 2,
-  steps: 1,
-  bus_guideway: 4,
-  corridor: 2,
-};
-
-const highwayClassOffsets: Record<string, number> = {
-  motorway: 0.22,
-  trunk: 0.2,
-  primary: 0.18,
-  secondary: 0.16,
-  tertiary: 0.14,
-  unclassified: 0.12,
-  residential: 0.1,
-  living_street: 0.08,
-  service: 0.06,
-  road: 0.06,
-  track: 0.04,
-  path: 0.03,
-  footway: 0.02,
-  cycleway: 0.025,
-  pedestrian: 0.02,
-  steps: 0.01,
-  bus_guideway: 0.12,
-  corridor: 0.08,
-};
 
 export function getHighwayOffGroundMeters(feature: GeoJSON.Feature) {
   const layer = polygonUtils.readFeatureNumber(feature, "layer") ?? 0;
@@ -125,7 +84,7 @@ function getHighwayClassOffset(feature: GeoJSON.Feature): number {
 
   const normalizedType = type.split(";")[0]?.trim() ?? type;
 
-  return highwayClassOffsets[normalizedType] ?? 0;
+  return highwayCategories[normalizedType]?.classOffset ?? 0;
 }
 
 export function isHighwayFeature(feature: GeoJSON.Feature): boolean {
@@ -229,14 +188,30 @@ function highwayWidthFromType(feature: GeoJSON.Feature): number {
     .readFeatureString(feature, "highway")
     ?.toLowerCase()
     .trim();
+
   if (!highwayType) {
     return DEFAULT_HIGHWAY_WIDTH_METERS;
   }
 
   const normalizedType = highwayType.split(";")[0]?.trim() ?? highwayType;
+
   return (
-    HIGHWAY_TYPE_WIDTH_HINTS[normalizedType] ?? DEFAULT_HIGHWAY_WIDTH_METERS
+    highwayCategories[normalizedType]?.widthMeters ??
+    DEFAULT_HIGHWAY_WIDTH_METERS
   );
+}
+
+export function getHighwayType(feature: GeoJSON.Feature) {
+  const highwayType = polygonUtils
+    .readFeatureString(feature, "highway")
+    ?.toLowerCase()
+    .trim();
+
+  if (!highwayType || !Object.hasOwn(highwayCategories, highwayType))
+    return "unclassified";
+
+  const normalizedType = highwayType.split(";")[0]?.trim() ?? highwayType;
+  return normalizedType;
 }
 
 export function getHighwayWidthMeters(feature: GeoJSON.Feature): number {
