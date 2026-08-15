@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { create3DTilesViewer } from "./3d-tiles";
+import { create3DTilesViewer } from "./3d-tiles.js";
 
 export type ViewMetrics = {
   layerSize: string;

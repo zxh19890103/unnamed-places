@@ -1,4 +1,4 @@
-const experiments = [
+const pages = [
   {
     title: "Map",
     href: "/index.html",
@@ -6,28 +6,34 @@ const experiments = [
   },
   {
     title: "Global Zoom",
-    href: "/experiments-global-zoom.html",
+    href: "/global-zoom",
     description: "3D globe and tiled satellite zoom experiment.",
   },
   {
     title: "Sphere Zoom",
-    href: "/experiments-sphere-zoom.html",
+    href: "/sphere-zoom",
     description: "Sphere-based tile loading and close-range LOD experiment.",
   },
   {
     title: "Shanshui Shader",
-    href: "/experiments-shanshui-shader.html",
+    href: "/shanshui-shader",
     description:
       "DEM-driven terrain shading, normals, slope darkening, and noise.",
   },
   {
     title: "Loaded Vector Tiles",
-    href: "/jobs.html",
+    href: "/jobs",
     description: "Browse zoom-12 OSM coverage ready for vector tile requests.",
   },
   {
+    title: "Jobs Create",
+    href: "/jobs-create?bbox=120.15,22.47,120.45,22.77",
+    description:
+      "Fit a bbox from the URL on a Leaflet map and list the zoom-12 tiles covering it.",
+  },
+  {
     title: "Tile 12 OSM Inspector",
-    href: "/experiments-tile12-osm.html",
+    href: "/tile12-osm",
     description: "Inspect one existing vector tile in a local Three.js scene.",
   },
 ];
@@ -49,7 +55,7 @@ export default function App() {
       </section>
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
-        {experiments.map((experiment) => (
+        {pages.map((experiment) => (
           <a
             key={experiment.href}
             href={experiment.href}

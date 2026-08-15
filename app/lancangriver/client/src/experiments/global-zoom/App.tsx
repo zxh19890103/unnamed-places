@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { createGlobalZoomView } from "./viewer";
+import { createGlobalZoomView } from "./viewer.js";
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);

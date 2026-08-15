@@ -1,34 +1,37 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-import type { TileCoords } from "../../osm/tiles";
-import { createTileProjection, type TileProjection } from "./tile";
+import type { TileCoords } from "../../osm/tiles.js";
+import { createTileProjection, type TileProjection } from "./tile.js";
 
-import * as polygonUtils from "./_polygon";
-import { PolygonFeatureToGeometry } from "./_types";
-import { BuildingVariantBucket } from "./buildings/_types";
+import * as polygonUtils from "./_polygon.js";
+import { PolygonFeatureToGeometry } from "./_types.js";
+import { BuildingVariantBucket } from "./buildings/_types.js";
 import {
   buildBuildingPerFeature,
   buildBuildingPloygonPerFeature,
-} from "./buildings";
-import { getBuildingTexture } from "./buildings/base";
-import { HighwayGeometryEntry } from "./highways/_types";
-import { HIGHWAY_WIDTH_METERS_SCALE, isHighwayFeature } from "./highways/base";
-import { createHighwayGeometry } from "./highways";
-import { addWaterFlow, isRiverWaterFeature } from "./waters";
+} from "./buildings/index.js";
+import { getBuildingTexture } from "./buildings/base.js";
+import { HighwayGeometryEntry } from "./highways/_types.js";
+import {
+  HIGHWAY_WIDTH_METERS_SCALE,
+  isHighwayFeature,
+} from "./highways/base.js";
+import { createHighwayGeometry } from "./highways/index.js";
+import { addWaterFlow, isRiverWaterFeature } from "./waters/index.js";
 import {
   createWaterMaterial,
   createWaterRiverMaterial,
-} from "./waters/materials";
+} from "./waters/materials.js";
 import {
   createHighwayMaterial,
   createHighwayPolygonMaterial,
-} from "./highways/materials";
-import { createBuildingRoofMaterial } from "./roofs/materials";
+} from "./highways/materials.js";
+import { createBuildingRoofMaterial } from "./roofs/materials.js";
 import {
   createBuildingFaceMaterial,
   createBuildingWallMaterial,
-} from "./buildings/materials";
+} from "./buildings/materials.js";
 
 type TileVectorGroup = {
   group: THREE.Group;

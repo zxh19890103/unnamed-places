@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { TileCoords } from "../../../osm/tiles";
-import { shaderGlslSegments, uniformSettings } from "../_cfg";
+import { TileCoords } from "../../../osm/tiles.js";
+import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
 
 export function createWaterMaterial(
   textureLoader: THREE.TextureLoader,
@@ -168,7 +168,7 @@ void main() {
   gl_FragColor = vec4(baseColor * lighting, 1.0);
 }
 `,
-    depthTest: false,
+    depthTest: true,
     side: THREE.DoubleSide,
   });
 

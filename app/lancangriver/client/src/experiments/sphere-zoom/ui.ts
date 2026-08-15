@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { BASE_URL } from "../../calc/constants";
-import { EarthTile } from "./tile";
-import { latlngToSphere, normalizeLongitude, RAD_TO_DEG } from "./core";
+import { BASE_URL } from "../../calc/constants.js";
+import { EarthTile } from "./tile.js";
+import { latlngToSphere, normalizeLongitude, RAD_TO_DEG } from "./core.js";
 
 class EarthTileImageryMaterial extends THREE.ShaderMaterial {
   private pendingImage: HTMLImageElement | null = null;

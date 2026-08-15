@@ -1,10 +1,10 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { BASE_URL } from "../../calc/constants";
-import { fetchTileVector } from "../../osm/tiles";
-import { LeafletVectorViewer } from "./leaflet";
-import { parseTile12Key } from "./tile";
-import { ThreeJsTileViewer } from "./ThreeJsTileViewer";
+import { BASE_URL } from "../../calc/constants.js";
+import { fetchTileVector } from "../../osm/tiles.js";
+import { LeafletVectorViewer } from "./leaflet.js";
+import { parseTile12Key } from "./tile.js";
+import { ThreeJsTileViewer } from "./ThreeJsTileViewer.js";
 
 const DEFAULT_TILE_KEY = "12/2212/1539";
 

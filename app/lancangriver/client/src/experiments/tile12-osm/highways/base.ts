@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import * as polygonUtils from "../_polygon";
-import { HighwayCenterlineSample } from "./_types";
+import * as polygonUtils from "../_polygon.js";
+import { HighwayCenterlineSample } from "./_types.js";
 
 export const HIGHWAY_WIDTH_METERS_SCALE = 1.2;
 
@@ -134,10 +134,14 @@ export function isHighwayFeature(feature: GeoJSON.Feature): boolean {
 }
 
 export function buildHighwayCenterlineSamples(
-  path: THREE.CatmullRomCurve3,
+  path: THREE.CurvePath<THREE.Vector3>,
   distanceMeters: number,
+  segmentCount: number = 0,
 ): HighwayCenterlineSample[] {
-  const sampleCount = Math.max(8, Math.ceil(distanceMeters / 2));
+  const sampleCount = segmentCount
+    ? segmentCount
+    : Math.max(12, Math.ceil(distanceMeters / 2));
+
   const sampledPoints = path.getSpacedPoints(sampleCount);
 
   if (sampledPoints.length < 2) {
@@ -168,7 +172,7 @@ export function buildHighwayCenterlineSamples(
 export function projectPointToHighwayCenterline(
   point: THREE.Vector3,
   centerline: HighwayCenterlineSample[],
-): { sMeters: number; tMeters: number } {
+): { sMeters: number; tMeters: number; point: THREE.Vector3 } {
   let bestDistanceSq = Number.POSITIVE_INFINITY;
   let bestSMeters = 0;
   let bestTMeters = 0;
@@ -209,7 +213,15 @@ export function projectPointToHighwayCenterline(
     }
   }
 
-  return { sMeters: bestSMeters, tMeters: bestTMeters };
+  if (!Number.isFinite(bestDistanceSq)) {
+    return { sMeters: 0, tMeters: 0, point: point.clone() };
+  }
+
+  return {
+    sMeters: bestSMeters,
+    tMeters: bestTMeters,
+    point: closest.clone(),
+  };
 }
 
 function highwayWidthFromType(feature: GeoJSON.Feature): number {

@@ -1,12 +1,12 @@
 import * as THREE from "three";
-import { TileProjection } from "../tile";
-import * as polygonUtils from "../_polygon";
-import { uniformSettings } from "../_cfg";
+import { TileProjection } from "../tile.js";
+import * as polygonUtils from "../_polygon.js";
+import { uniformSettings } from "../_cfg.js";
 import {
   BuildingPalette,
   BuildingVariant,
   BuildingVariantBucket,
-} from "./_types";
+} from "./_types.js";
 
 const METERS_PER_LEVEL = 3.2;
 const RANDOM_HEIGHT_MIN = 6;

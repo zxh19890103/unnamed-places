@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { TileProjection } from "../../tile";
-import * as helpers from "../_helpers";
+import { TileProjection } from "../../tile.js";
+import * as helpers from "../_helpers.js";
 
 const building_roof_building_factories__fun = (
   _roofprint: number[],

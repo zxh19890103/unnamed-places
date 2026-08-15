@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   defaultCoverageApi,
@@ -6,22 +6,44 @@ import {
   type CoverageJobsPage,
 } from "./api";
 import { JobsTable } from "./JobsTable";
+import { tileZxyToCenterLatlng } from "../experiments/sphere-zoom/tile";
 
 const PAGE_SIZE = 100;
 
 type TabKey = "default" | "highways";
+type MapExtentKey = "world" | "china";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "default", label: "Default" },
   { key: "highways", label: "Highways" },
 ];
 
+const mapExtents: Record<
+  MapExtentKey,
+  { label: string; extent: readonly number[]; src: string }
+> = {
+  world: {
+    label: "World",
+    extent: [90, 180, -90, -180] as const,
+    src: "https://www.nationsonline.org/maps/Physical-World-Map-3360.jpg",
+  },
+  china: {
+    label: "China",
+    extent: [54.316, 136.412, 17.151, 70.644] as const,
+    src: "https://www.freeworldmaps.net/asia/china/china-map-physical.jpg",
+  },
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("default");
+  const [mapExtentKey, setMapExtentKey] = useState<MapExtentKey>("china");
+  const [isMapOpen, setIsMapOpen] = useState(true);
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState<CoverageJobsPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   const api =
     activeTab === "highways" ? highwaysCoverageApi : defaultCoverageApi;
@@ -70,8 +92,121 @@ export default function App() {
     setError(null);
   };
 
+  useEffect(() => {
+    const mapExtent = mapExtents[mapExtentKey].extent;
+    let lastId: string = null;
+
+    const projectToUV = (
+      lat: number,
+      lng: number,
+      extent: readonly number[],
+    ) => {
+      const [north, east, south, west] = extent;
+      const u = (lng - west) / (east - west);
+      const v = (north - lat) / (north - south);
+      return { u, v };
+    };
+
+    const overout = (event: MouseEvent) => {
+      if (event.type === "mouseover") {
+        const target = event.target as HTMLTableRowElement;
+        const row = target.closest("tr[itemtype=jobrow]");
+
+        if (row) {
+          const id = row.getAttribute("itemid");
+          if (lastId === id) return;
+
+          lastId = id;
+          const [z, x, y] = id.split("/").map(Number);
+          const latlng = tileZxyToCenterLatlng(z, x, y);
+
+          const [north, east, south, west] = mapExtent;
+
+          // Check if coordinates are within extent bounds
+          const isWithinExtent =
+            latlng.lat >= south &&
+            latlng.lat <= north &&
+            latlng.lng >= west &&
+            latlng.lng <= east;
+
+          if (isWithinExtent) {
+            const { u, v } = projectToUV(latlng.lat, latlng.lng, mapExtent);
+            markerElement.style.display = "block";
+            markerElement.style.top = `${v * 100}%`;
+            markerElement.style.left = `${u * 100}%`;
+          } else {
+            markerElement.style.display = "none";
+          }
+        }
+      } else {
+        lastId = null;
+        console.log("clear");
+        markerElement.style.display = "none";
+      }
+    };
+
+    const tableElement = tableRef.current;
+    tableElement.addEventListener("mouseover", overout);
+    tableElement.addEventListener("mouseout", overout);
+
+    const mapElement = mapRef.current;
+    const markerElement = mapElement.children[1] as HTMLDivElement;
+
+    return () => {
+      tableElement.removeEventListener("mouseover", overout);
+      tableElement.removeEventListener("mouseout", overout);
+    };
+  }, [mapExtentKey]);
+
   return (
-    <main className="min-h-screen h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className=" min-h-screen h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+      <div
+        className={`fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? "w-3xl" : "w-64"}`}
+      >
+        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 rounded-xl border border-white/70 bg-white/90 p-2 shadow-lg shadow-slate-900/15 ring-1 ring-slate-900/5 backdrop-blur-sm">
+          <button
+            onClick={() => setIsMapOpen(!isMapOpen)}
+            className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1"
+          >
+            {isMapOpen ? "Close" : "Open"}
+          </button>
+          {isMapOpen && (
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+              <button
+                onClick={() => setMapExtentKey("china")}
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
+                  mapExtentKey === "china"
+                    ? "bg-white text-sky-800 shadow-sm"
+                    : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                }`}
+              >
+                China
+              </button>
+              <button
+                onClick={() => setMapExtentKey("world")}
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
+                  mapExtentKey === "world"
+                    ? "bg-white text-sky-800 shadow-sm"
+                    : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                }`}
+              >
+                World
+              </button>
+            </div>
+          )}
+        </div>
+        <div
+          ref={mapRef}
+          className="relative overflow-hidden rounded-2xl shadow-xl shadow-slate-900/20 ring-1 ring-slate-900/10"
+        >
+          <img
+            className=" w-full"
+            src={mapExtents[mapExtentKey].src}
+            alt={mapExtents[mapExtentKey].label}
+          />
+          <div className=" transition-all duration-100 ease-in absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full ring-1 ring-offset-1 ring-amber-700 border border-yellow-800 size-4 bg-red-500" />
+        </div>
+      </div>
       <div className="mx-auto max-w-6xl h-full flex flex-col">
         <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-slate-300 pb-4">
           <div>
@@ -102,27 +237,54 @@ export default function App() {
         </header>
 
         <nav
-          className="mb-4 flex items-center gap-2"
-          aria-label="Ingest target"
+          className="mb-4 flex items-center justify-between gap-2"
+          aria-label="Controls"
         >
-          {tabs.map((tab) => {
-            const selected = tab.key === activeTab;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => switchTab(tab.key)}
-                className={`border px-4 py-2 text-sm font-semibold ${
-                  selected
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-                aria-pressed={selected}
+          <div className="flex items-center gap-2" aria-label="Ingest target">
+            {tabs.map((tab) => {
+              const selected = tab.key === activeTab;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => switchTab(tab.key)}
+                  className={`border px-4 py-2 text-sm font-semibold ${
+                    selected
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  aria-pressed={selected}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2" aria-label="Map extent">
+            {(
+              Object.entries(mapExtents) as Array<
+                [MapExtentKey, (typeof mapExtents)[MapExtentKey]]
               >
-                {tab.label}
-              </button>
-            );
-          })}
+            ).map(([key, { label }]) => {
+              const selected = key === mapExtentKey;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setMapExtentKey(key)}
+                  className={`border px-3 py-1 text-xs font-medium ${
+                    selected
+                      ? "border-blue-600 bg-blue-50 text-blue-900"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  aria-pressed={selected}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
         {error ? (
@@ -131,7 +293,7 @@ export default function App() {
           </div>
         ) : null}
 
-        <div className="relative flex-1 min-h-0">
+        <div ref={tableRef} className="relative flex-1 min-h-0">
           <JobsTable page={page} loading={loading} error={error} api={api} />
         </div>
 

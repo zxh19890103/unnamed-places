@@ -1,12 +1,12 @@
 import * as THREE from "three";
-import { TileCoords } from "../../../osm/tiles";
-import { shaderGlslSegments, uniformSettings } from "../_cfg";
+import { TileCoords } from "../../../osm/tiles.js";
+import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
 import {
   BUILDING_ATLAS_UV_INSET,
   BUILDING_FACE_TEXTURE_GRID,
   BUILDING_TEXTURE_GRID,
   BUILDING_WALL_TEXTURE_UV_SCALE,
-} from "./base";
+} from "./base.js";
 
 export function createBuildingWallMaterial(
   color: string,

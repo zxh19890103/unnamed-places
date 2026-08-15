@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getLeafletFeatureStyle } from "./leafletStyle";
+import { getLeafletFeatureStyle } from "./leafletStyle.js";
 
 describe("getLeafletFeatureStyle", () => {
   it("uses a building style for building-like features", () => {

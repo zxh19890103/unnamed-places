@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
-import { fitCameraToObject } from "./camera";
+import { fitCameraToObject } from "./camera.js";
 
 describe("fitCameraToObject", () => {
   it("moves farther away for a portrait viewport", () => {

@@ -1,5 +1,5 @@
-import { BASE_URL } from "../../calc/constants";
-import { TileCoords } from "../../osm/tiles";
+import { BASE_URL } from "../../calc/constants.js";
+import { TileCoords } from "../../osm/tiles.js";
 
 export const shaderGlslSegments = {
   decodeTerrariumHeight: `

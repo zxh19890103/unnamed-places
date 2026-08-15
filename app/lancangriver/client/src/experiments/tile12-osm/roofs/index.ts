@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { RoofGeometryFactory, RoofStyle } from "./_types";
-import { TileProjection } from "../tile";
-import building_roof_building_factories__fence from "./builders/fence";
-import building_roof_building_factories__flat from "./builders/flat";
-import building_roof_building_factories__fun from "./builders/fun";
-import building_roof_building_factories__modern from "./builders/modern";
+import { RoofGeometryFactory, RoofStyle } from "./_types.js";
+import { TileProjection } from "../tile.js";
+import building_roof_building_factories__fence from "./builders/fence.js";
+import building_roof_building_factories__flat from "./builders/flat.js";
+import building_roof_building_factories__fun from "./builders/fun.js";
+import building_roof_building_factories__modern from "./builders/modern.js";
 
 export const createBuildingRoofGeometry = (
   features: GeoJSON.Feature,

@@ -126,12 +126,12 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
   };
 
   return (
-    <tr className="hover:bg-emerald-50">
+    <tr itemType="jobrow" itemID={job.key} className="hover:bg-emerald-50">
       <td className="px-4 py-2.5 font-mono text-slate-950">
         <a
           target="_blank"
           className=" font-semibold hover:underline"
-          href={`/experiments-tile12-osm.html?tilekey=${job.key}`}
+          href={`/tile12-osm?tilekey=${job.key}`}
         >
           {job.key}
         </a>

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TileProjection } from "../tile";
+import { TileProjection } from "../tile.js";
 
 export function distanceOf(p0: number[], p1: number[]) {
   return Math.hypot(p0[0] - p1[0], p0[1] - p1[1], p0[2] - p1[2]);

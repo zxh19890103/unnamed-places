@@ -1,8 +1,13 @@
 import * as THREE from "three";
-import { getHighwayWidthMeters, HIGHWAY_WIDTH_METERS_SCALE } from "./base";
-import { TileProjection } from "../tile";
-import { HighwayGeometryEntry } from "./_types";
-import { uniformSettings } from "../_cfg";
+import {
+  buildHighwayCenterlineSamples,
+  getHighwayWidthMeters,
+  HIGHWAY_WIDTH_METERS_SCALE,
+  projectPointToHighwayCenterline,
+} from "./base.js";
+import { TileProjection } from "../tile.js";
+import { HighwayGeometryEntry } from "./_types.js";
+import { uniformSettings } from "../_cfg.js";
 
 function createRoadRibbonGeometry(
   curve: THREE.Curve<THREE.Vector3>,
@@ -102,27 +107,35 @@ function addHighwaySegment(
     return null;
   }
 
-  const path = new THREE.CatmullRomCurve3(points, false, "catmullrom");
+  const path = new THREE.CurvePath<THREE.Vector3>();
+
+  for (let i = 0; i < points.length - 1; i += 1) {
+    path.add(new THREE.LineCurve3(points[i], points[i + 1]));
+  }
 
   const visualWidth = widthMeters * HIGHWAY_WIDTH_METERS_SCALE;
   const segmentCount = Math.max(12, Math.ceil(distance / 2));
   const geometry = createRoadRibbonGeometry(path, visualWidth, segmentCount);
   const positionAttr = geometry.attributes.position;
 
+  const point = new THREE.Vector3();
+  const positionCount = positionAttr.count;
+
   const gisUv = new Float32Array(positionAttr.count * 2);
+
+  const GROUND_UV_GRID_SIZE = 2048;
+
   for (let i = 0; i < positionAttr.count; i += 1) {
-    const x = positionAttr.getX(i);
-    const z = positionAttr.getZ(i);
+    point.fromBufferAttribute(positionAttr, i);
 
-    const rawU = THREE.MathUtils.clamp(x / tileExtent.x + 0.5, 0, 1);
-    const rawV = THREE.MathUtils.clamp(-z / tileExtent.y + 0.5, 0, 1);
+    const normalized_dist = THREE.MathUtils.clamp(i / positionCount, 0, 1);
+    path.getPointAt(normalized_dist, point);
 
-    const u =
-      Math.round(rawU * uniformSettings.GROUND_UV_GRID_SIZE) /
-      uniformSettings.GROUND_UV_GRID_SIZE;
-    const v =
-      Math.round(rawV * uniformSettings.GROUND_UV_GRID_SIZE) /
-      uniformSettings.GROUND_UV_GRID_SIZE;
+    const rawU = THREE.MathUtils.clamp(point.x / tileExtent.x + 0.5, 0, 1);
+    const rawV = THREE.MathUtils.clamp(-point.z / tileExtent.y + 0.5, 0, 1);
+
+    const u = Math.round(rawU * GROUND_UV_GRID_SIZE) / GROUND_UV_GRID_SIZE;
+    const v = Math.round(rawV * GROUND_UV_GRID_SIZE) / GROUND_UV_GRID_SIZE;
 
     gisUv[i * 2 + 0] = u;
     gisUv[i * 2 + 1] = v;

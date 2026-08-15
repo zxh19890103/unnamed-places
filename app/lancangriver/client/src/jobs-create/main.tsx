@@ -1,8 +1,9 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
-import App from "./App.js";
-import "../../styles.css";
+import App from "./App";
+import "leaflet/dist/leaflet.css";
+import "../styles.css";
 
 const rootElement = document.getElementById("App") ?? document.body;
 

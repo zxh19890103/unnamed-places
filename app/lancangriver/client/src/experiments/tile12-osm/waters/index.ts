@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import * as polygonUtils from "../_polygon";
+import * as polygonUtils from "../_polygon.js";
 
 export function isRiverWaterFeature(feature: GeoJSON.Feature): boolean {
   const waterway = polygonUtils

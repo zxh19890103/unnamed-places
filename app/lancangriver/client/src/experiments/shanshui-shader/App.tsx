@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ShanshuiMaterial } from "./ShanshuiMaterial";
-import { BASE_URL } from "../../calc/constants";
+import { ShanshuiMaterial } from "./ShanshuiMaterial.js";
+import { BASE_URL } from "../../calc/constants.js";
 
 const DEM_URL = `${BASE_URL}/raster/dem/13/4285/2894.png`;
 const DERIVATIVES_URL = `${BASE_URL}/raster/dem/13/4285/2894/derivatives.png`;

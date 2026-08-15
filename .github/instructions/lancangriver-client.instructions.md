@@ -1,38 +1,22 @@
 ---
 applyTo: "app/lancangriver/client/**"
-description: "Use when editing the Lancangriver frontend (Vite + React + Three.js) for rendering, controls, tile streaming, and client tests."
+description: "Use when editing the Lancangriver client. Follow the TypeScript, Tailwind CSS, React, and Three.js stack conventions and the no-TDD, no-unit-tests workflow."
 ---
 
 # Lancangriver Client Instructions
 
-Scope: app/lancangriver/client only.
+## Stack
 
-## Commands
+- Use TypeScript and ES modules.
+- Use React for application and interface components.
+- Use Three.js for 3D scenes, globe rendering, terrain, tiles, and interactions.
+- Use Tailwind CSS for styling when adding or changing client UI.
+- Preserve the existing Vite project structure and entry points.
 
-- Install: npm install (run in app/lancangriver/client)
-- Dev server: npm run dev
-- Build check: npm run build
-- Tests: npm test
+## Workflow
 
-## Working Conventions
-
-- Keep rendering logic modular under src/explore, src/view, and src/calc.
-- Preserve TypeScript + ESM patterns already in use.
-- Favor small, localized changes over broad refactors.
-
-## Rendering and Tile Guidance
-
-- Keep per-frame work bounded; avoid unthrottled request fan-out.
-- Respect existing viewport-driven and LOD-aware loading paths.
-- Avoid introducing synchronous heavy work on frame-critical paths.
-
-## Verify Before Done
-
-- If rendering/request behavior changed, run npm run dev and validate no obvious console/runtime errors.
-
-## Reference Docs
-
-- Runbook: ../../app/lancangriver/docs/runbook.md
-- Client overview: ../../app/lancangriver/client/README.md
-- Render details: ../../app/lancangriver/client/RENDER_LOGIC.md
-- Controls docs: ../../app/lancangriver/client/src/explore/docs/controls.md
+- Do not use a TDD workflow unless the user explicitly requests it.
+- Do not add or write unit tests unless the user explicitly requests them.
+- Prefer focused validation through `npm run build`, `npm run typecheck`, or a manual browser check when appropriate.
+- Keep changes small and consistent with the existing client modules.
+- At the beginning of every new session or task, load the `hi` skill and give a short greeting before working.

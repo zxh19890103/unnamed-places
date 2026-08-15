@@ -1,7 +1,12 @@
 import * as THREE from "three";
-import { EarthTile, EarthTilesManager } from "./tile";
+import { EarthTile, EarthTilesManager } from "./tile.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { EARTH_RADIUS, LatLng, latlngToSphere, sphereToLatlng } from "./core";
+import {
+  EARTH_RADIUS,
+  LatLng,
+  latlngToSphere,
+  sphereToLatlng,
+} from "./core.js";
 
 type Create3dTilesViewerInputs = {
   camera: THREE.PerspectiveCamera;

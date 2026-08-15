@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { type TileProjection } from "../tile";
+import { type TileProjection } from "../tile.js";
 
 export type RoofStyle =
   | "fence"

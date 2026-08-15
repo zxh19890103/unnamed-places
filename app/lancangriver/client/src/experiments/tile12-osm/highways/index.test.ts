@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
-import { createHighwayGeometry } from "./index";
+import { createHighwayGeometry } from "./index.js";
 
 describe("createHighwayGeometry", () => {
   it("builds a flat ribbon mesh from a strongly curved centerline", () => {

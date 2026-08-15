@@ -3,8 +3,7 @@ import * as THREE from "three";
 import {
   EARTH_RADIUS,
   sphereToLatlng,
-} from "../../experiments/sphere-zoom/core.js";
-import { latlngToStandardTileZxy } from "../../experiments/sphere-zoom/tile.js";
+} from "@/experiments/sphere-zoom/core.js";
 
 type TileKeyLike = {
   z: number;
@@ -19,23 +18,10 @@ export type VisibleCoverageTile = {
   y: number;
 };
 
-type CollectVisibleCoverageTilesOptions = {
-  camera: THREE.PerspectiveCamera;
-  frustumTiles: TileKeyLike[];
-  viewportWidth: number;
-  viewportHeight: number;
-  targetZoom?: number;
-  paddingPx?: number;
-  sampleStepPx?: number;
-};
-
-const DEFAULT_TARGET_ZOOM = 12;
 const DEFAULT_PADDING_PX = 40;
 const DEFAULT_SAMPLE_STEP_PX = 56;
-
-function keyOf(tile: TileKeyLike): string {
-  return `${tile.z}/${tile.x}/${tile.y}`;
-}
+const MAX_BBOX_SPAN_KM = 30;
+const KM_PER_LAT_DEGREE = 111.32;
 
 function tileOverlaps(a: TileKeyLike, b: TileKeyLike): boolean {
   if (a.z === b.z) {
@@ -51,39 +37,39 @@ function tileOverlaps(a: TileKeyLike, b: TileKeyLike): boolean {
   return a.x >> delta === b.x && a.y >> delta === b.y;
 }
 
-export function collectVisibleCoverageTiles({
+export type LatLngBBox = {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+};
+
+type ComputeVisibleGroundBBoxOptions = {
+  camera: THREE.PerspectiveCamera;
+  viewportWidth: number;
+  viewportHeight: number;
+  paddingPx?: number;
+  sampleStepPx?: number;
+};
+
+/** Raycasts a screen-space grid onto the earth sphere and returns the lat/lng bbox of the hits. */
+export function computeVisibleGroundBBox({
   camera,
-  frustumTiles,
   viewportWidth,
   viewportHeight,
-  targetZoom = DEFAULT_TARGET_ZOOM,
   paddingPx = DEFAULT_PADDING_PX,
   sampleStepPx = DEFAULT_SAMPLE_STEP_PX,
-}: CollectVisibleCoverageTilesOptions): VisibleCoverageTile[] {
+}: ComputeVisibleGroundBBoxOptions): LatLngBBox | null {
   const safeWidth = Math.max(1, Math.floor(viewportWidth));
   const safeHeight = Math.max(1, Math.floor(viewportHeight));
   const safePadding = Math.max(0, Math.floor(paddingPx));
   const safeStep = Math.max(8, Math.floor(sampleStepPx));
 
-  if (frustumTiles.length === 0) {
-    return [];
-  }
-
-  const frustumCandidates = frustumTiles.map((tile) => ({
-    z: tile.z,
-    x: tile.x,
-    y: tile.y,
-  }));
-
   const raycaster = new THREE.Raycaster();
   const earth = new THREE.Sphere(new THREE.Vector3(0, 0, 0), EARTH_RADIUS);
   const hitPoint = new THREE.Vector3();
 
-  const sampled = new Map<string, VisibleCoverageTile>();
-
   const sampleX: number[] = [];
-  const sampleY: number[] = [];
-
   for (let x = -safePadding; x <= safeWidth + safePadding; x += safeStep) {
     sampleX.push(Math.min(safeWidth + safePadding, x));
   }
@@ -91,12 +77,20 @@ export function collectVisibleCoverageTiles({
     sampleX.push(safeWidth + safePadding);
   }
 
+  const sampleY: number[] = [];
   for (let y = -safePadding; y <= safeHeight + safePadding; y += safeStep) {
     sampleY.push(Math.min(safeHeight + safePadding, y));
   }
+
   if (sampleY[sampleY.length - 1] !== safeHeight + safePadding) {
     sampleY.push(safeHeight + safePadding);
   }
+
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  let hasHit = false;
 
   for (const screenY of sampleY) {
     const ndcY = 1 - (screenY / safeHeight) * 2;
@@ -110,30 +104,39 @@ export function collectVisibleCoverageTiles({
       }
 
       const latlng = sphereToLatlng(hitPoint.x, hitPoint.y, hitPoint.z);
-      const [z, x, y] = latlngToStandardTileZxy(latlng, targetZoom);
-      const candidate = { z, x, y };
-
-      const inFrustumSet = frustumCandidates.some((frustumTile) =>
-        tileOverlaps(frustumTile, candidate),
-      );
-
-      if (!inFrustumSet) {
-        continue;
-      }
-
-      const key = keyOf(candidate);
-      if (!sampled.has(key)) {
-        sampled.set(key, { key, z, x, y });
-      }
+      hasHit = true;
+      west = Math.min(west, latlng.lng);
+      east = Math.max(east, latlng.lng);
+      south = Math.min(south, latlng.lat);
+      north = Math.max(north, latlng.lat);
     }
   }
 
-  return [...sampled.values()].sort((a, b) => {
-    if (a.y !== b.y) {
-      return a.y - b.y;
-    }
-    return a.x - b.x;
-  });
+  if (!hasHit) {
+    return null;
+  }
+
+  return clampBBoxSpanKm({ west, south, east, north }, MAX_BBOX_SPAN_KM);
+}
+
+/** Clamps a bbox so its lat/lng spans never exceed maxSpanKm, keeping it centered. */
+function clampBBoxSpanKm(bbox: LatLngBBox, maxSpanKm: number): LatLngBBox {
+  const centerLat = (bbox.south + bbox.north) / 2;
+  const centerLng = (bbox.west + bbox.east) / 2;
+
+  const maxLatSpanDeg = maxSpanKm / KM_PER_LAT_DEGREE;
+  const cosLat = Math.max(0.01, Math.cos((centerLat * Math.PI) / 180));
+  const maxLngSpanDeg = maxSpanKm / (KM_PER_LAT_DEGREE * cosLat);
+
+  const latSpan = Math.min(bbox.north - bbox.south, maxLatSpanDeg);
+  const lngSpan = Math.min(bbox.east - bbox.west, maxLngSpanDeg);
+
+  return {
+    west: centerLng - lngSpan / 2,
+    east: centerLng + lngSpan / 2,
+    south: centerLat - latSpan / 2,
+    north: centerLat + latSpan / 2,
+  };
 }
 
 export const coverageVisibilityInternals = {

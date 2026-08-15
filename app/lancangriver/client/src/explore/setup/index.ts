@@ -21,8 +21,8 @@ import {
 } from "../../experiments/sphere-zoom/core.js";
 import { computeZoomFeedback, getZoomFeedbackLabel } from "./zoomFeedback.js";
 import {
-  collectVisibleCoverageTiles,
-  type VisibleCoverageTile,
+  computeVisibleGroundBBox,
+  type LatLngBBox,
 } from "./coverageVisibility.js";
 
 export function createScene(container: HTMLElement) {
@@ -305,29 +305,12 @@ export function createScene(container: HTMLElement) {
     refreshVisibleTilesOnCameraChanges();
   };
 
-  const getVisibleCoverageTiles = (
-    options: { paddingPx?: number; sampleStepPx?: number } = {},
-  ): VisibleCoverageTile[] => {
-    const frustumTiles = threeTilesViewer.getVisibleTiles(
-      camera.position.clone(),
-    );
-    const viewportWidth = renderer.domElement.clientWidth;
-    const viewportHeight = renderer.domElement.clientHeight;
-
-    return collectVisibleCoverageTiles({
+  const getVisibleGroundBBox = (): LatLngBBox | null =>
+    computeVisibleGroundBBox({
       camera,
-      frustumTiles: frustumTiles.map((tile) => ({
-        z: tile.z,
-        x: tile.x,
-        y: tile.y,
-      })),
-      viewportWidth,
-      viewportHeight,
-      targetZoom: 12,
-      paddingPx: options.paddingPx,
-      sampleStepPx: options.sampleStepPx,
+      viewportWidth: renderer.domElement.clientWidth,
+      viewportHeight: renderer.domElement.clientHeight,
     });
-  };
 
   const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
     threeTilesViewer.lookAtLatlng(centerLatlng);
@@ -391,7 +374,7 @@ export function createScene(container: HTMLElement) {
     tileManager,
     resize,
     getCurrentCenterLatLng: getCurrentCameraLatlng,
-    getVisibleCoverageTiles,
+    getVisibleGroundBBox,
     focusGroundOrbitAtLatLng,
     destroyCameraGui,
     destroyStats,

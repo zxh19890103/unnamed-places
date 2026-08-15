@@ -222,6 +222,13 @@ export async function enqueueCoverageJob(
   return defaultCoverageApi.enqueueCoverageJob(x, y);
 }
 
+export async function enqueueCoverageJobHighways(
+  x: number,
+  y: number,
+): Promise<EnqueueCoverageJobResponse> {
+  return highwaysCoverageApi.enqueueCoverageJob(x, y);
+}
+
 export async function fetchCoverageJobsHighways({
   limit,
   offset,

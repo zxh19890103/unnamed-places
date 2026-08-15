@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { TileCoords } from "../../../osm/tiles";
-import { shaderGlslSegments, uniformSettings } from "../_cfg";
+import { TileCoords } from "../../../osm/tiles.js";
+import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
 
 export function createBuildingRoofMaterial(
   palette: string,

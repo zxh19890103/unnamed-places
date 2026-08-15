@@ -1,14 +1,9 @@
 import * as THREE from "three";
-import { shaderGlslSegments, uniformSettings } from "../_cfg";
-import { TileCoords } from "../../../osm/tiles";
-import { BASE_URL } from "../../../calc/constants";
-import { TileProjection } from "../tile";
+import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
+import { TileCoords } from "../../../osm/tiles.js";
+import { BASE_URL } from "../../../calc/constants.js";
+import { TileProjection } from "../tile.js";
 import { GUI } from "lil-gui";
-
-// Tune vector/raster alignment with per-axis flips.
-// Common cases: flip Z only, or flip both X+Z.
-export const VECTOR_TILE_FLIP_X = false;
-export const VECTOR_TILE_FLIP_Z = true;
 
 type WaterMaskVars = {
   WATER_LUMINANCE_THRESHOLD: number;
@@ -53,14 +48,19 @@ void main() {
 `;
 
 const GROUND_FRAGMENT_SHADER = `
-uniform sampler2D uSatelliteTexture;
+uniform sampler2D uSatelliteImageryMap;
 uniform sampler2D highwayMaskMap;
-uniform sampler2D uDerivativesTexture;
+uniform sampler2D noiseMap;
+uniform sampler2D uDerivativesMap;
 uniform float highwayMaskEnabled;
 uniform float uDerivativesLoaded;
 uniform float uHillshadeStrength;
 uniform float uSunAzimuthRad;
 uniform float uSunElevationRad;
+uniform float uNoiseLoaded;
+uniform float uNoiseMacroTiling;
+uniform float uNoiseDetailTiling;
+uniform float uNoiseStrength;
 
 uniform float stylizeStrength;
 uniform float detailKeep;
@@ -99,7 +99,7 @@ float calcHillshade(vec2 uv) {
     return 1.0;
   }
 
-  vec4 derivatives = texture2D(uDerivativesTexture, uv);
+  vec4 derivatives = texture2D(uDerivativesMap, uv);
   float slopeDeg = derivatives.r * 90.0;
   float sinAspect = derivatives.g * 2.0 - 1.0;
   float cosAspect = derivatives.b * 2.0 - 1.0;
@@ -116,8 +116,20 @@ float calcHillshade(vec2 uv) {
   return mix(0.72, 1.0, hillshade);
 }
 
+// Two decorrelated perlin octaves (macro patches + fine grain), centered on 0.
+float calcGroundNoise(vec2 uv) {
+  if (uNoiseLoaded < 0.5) {
+    return 0.0;
+  }
+
+  float macro = texture2D(noiseMap, uv * uNoiseMacroTiling).r;
+  float detail = texture2D(noiseMap, uv * uNoiseDetailTiling + vec2(0.37, 0.71)).g;
+
+  return (macro - 0.5) * 0.7 + (detail - 0.5) * 0.3;
+}
+
 void main() {
-  vec3 src = texture2D(uSatelliteTexture, vUv).rgb;
+  vec3 src = texture2D(uSatelliteImageryMap, vUv).rgb;
 
   // Global cleanup: gentle contrast/brightness and slight desaturation.
   float luma = dot(src, vec3(0.299, 0.587, 0.114));
@@ -142,6 +154,17 @@ void main() {
   flatColor = mix(flatColor, waterColor, waterMask);
   flatColor = mix(flatColor, roadColor, roadMask);
 
+  // Break up the flat vegetation color with tiled noise; other classes stay clean.
+  float groundNoise = calcGroundNoise(vUv);
+  float noiseAmount = clamp(uNoiseStrength, 0.0, 1.0) * vegetationMask * (1.0 - roadMask);
+  float noiseValue = groundNoise * noiseAmount;
+
+  vec3 warmTint = vec3(1.08, 1.0, 0.88);
+  vec3 coolTint = vec3(0.92, 0.98, 1.06);
+  vec3 noiseTint = mix(coolTint, warmTint, clamp(groundNoise * 2.0 + 0.5, 0.0, 1.0));
+  flatColor *= mix(vec3(1.0), noiseTint, clamp(abs(noiseValue) * 2.0, 0.0, 1.0));
+  flatColor *= 1.0 + noiseValue;
+
   // Keep a little luminance detail so the ground is not perfectly flat.
   float detail = mix(1.0, luma * 2.0, detailKeep);
   vec3 stylized = flatColor * detail;
@@ -155,30 +178,28 @@ void main() {
 }
 `;
 
-const STENCIL_VERTEX_SHADER = `
-varying vec2 vUv;
+const GROUND_NOISE_TEXTURE_URL = "/perlin-noise-rgb-256x256.png";
 
-void main() {
-  vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`;
+// Shared across tiles; never disposed with an individual tile.
+let groundNoiseTexturePromise: Promise<THREE.Texture> | null = null;
 
-const STENCIL_FRAGMENT_SHADER = `
-uniform sampler2D highwayMaskMap;
-
-varying vec2 vUv;
-
-void main() {
-  float mask = texture2D(highwayMaskMap, vUv).r;
-
-  if (mask > 0.5) {
-    discard;
+function loadGroundNoiseTexture(
+  textureLoader: THREE.TextureLoader,
+): Promise<THREE.Texture> {
+  if (!groundNoiseTexturePromise) {
+    groundNoiseTexturePromise = textureLoader
+      .loadAsync(GROUND_NOISE_TEXTURE_URL)
+      .then((texture) => {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.colorSpace = THREE.NoColorSpace;
+        texture.needsUpdate = true;
+        return texture;
+      });
   }
 
-  gl_FragColor = vec4(1.0);
+  return groundNoiseTexturePromise;
 }
-`;
 
 export function createGroundTileMesh(
   textureLoader: THREE.TextureLoader,
@@ -205,15 +226,20 @@ export function createGroundTileMesh(
   let material: THREE.ShaderMaterial;
   material = new THREE.ShaderMaterial({
     uniforms: {
-      uSatelliteTexture: { value: texture },
+      uSatelliteImageryMap: { value: texture },
       highwayMaskMap: { value: highwayMask },
       highwayMaskEnabled: { value: highwayMask ? 1 : 0 },
-      uDerivativesTexture: { value: null },
+      uDerivativesMap: { value: null },
       uDerivativesLoaded: { value: 0 },
-      uHillshadeStrength: { value: 0.7 },
+      uHillshadeStrength: { value: 0.9 },
       uSunAzimuthRad: { value: 2.2 },
       uSunElevationRad: { value: 0.85 },
       terrianMap: { value: null },
+      noiseMap: { value: null },
+      uNoiseLoaded: { value: 0 },
+      uNoiseMacroTiling: { value: 80 },
+      uNoiseDetailTiling: { value: 160 },
+      uNoiseStrength: { value: 1 },
       terrianMapLoaded: { value: 0 },
       groundLowerMeters: { value: 0 },
       stylizeStrength: { value: 0.85 },
@@ -232,7 +258,7 @@ export function createGroundTileMesh(
     depthWrite: true,
     depthTest: true,
     polygonOffset: true,
-    polygonOffsetFactor: 5,
+    polygonOffsetFactor: 3,
     polygonOffsetUnits: 2,
     transparent: false,
     visible: true,
@@ -241,7 +267,7 @@ export function createGroundTileMesh(
   textureLoader.load(
     `${BASE_URL}/raster/dem/${tile.z}/${tile.x}/${tile.y}/derivatives.png`,
     (derivativesTexture) => {
-      material.uniforms.uDerivativesTexture.value = derivativesTexture;
+      material.uniforms.uDerivativesMap.value = derivativesTexture;
       material.uniforms.uDerivativesLoaded.value = 1;
     },
     undefined,
@@ -257,41 +283,17 @@ export function createGroundTileMesh(
       material.uniforms.terrianMapLoaded.value = 1;
     });
 
-  if (highwayMask) {
-    material.stencilWrite = false;
-    material.stencilRef = 1;
-    material.stencilFunc = THREE.EqualStencilFunc;
-    material.stencilFail = THREE.KeepStencilOp;
-    material.stencilZFail = THREE.KeepStencilOp;
-    material.stencilZPass = THREE.KeepStencilOp;
-  }
+  loadGroundNoiseTexture(textureLoader)
+    .then((noiseTexture) => {
+      material.uniforms.noiseMap.value = noiseTexture;
+      material.uniforms.uNoiseLoaded.value = 1;
+    })
+    .catch(() => {
+      material.uniforms.uNoiseLoaded.value = 0;
+    });
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = -1;
-
-  if (highwayMask) {
-    const stencilMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        highwayMaskMap: { value: highwayMask },
-      },
-      vertexShader: STENCIL_VERTEX_SHADER,
-      fragmentShader: STENCIL_FRAGMENT_SHADER,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false,
-      colorWrite: false,
-      stencilWrite: true,
-      stencilRef: 1,
-      stencilFunc: THREE.AlwaysStencilFunc,
-      stencilFail: THREE.KeepStencilOp,
-      stencilZFail: THREE.KeepStencilOp,
-      stencilZPass: THREE.ReplaceStencilOp,
-    });
-
-    const stencilMesh = new THREE.Mesh(geometry.clone(), stencilMaterial);
-    stencilMesh.renderOrder = -1;
-    mesh.add(stencilMesh);
-  }
 
   return mesh;
 }
@@ -516,11 +518,11 @@ export function disposeGroundTile(mesh: THREE.Mesh | null): void {
   mesh.geometry.dispose();
   const material = mesh.material;
   if (material instanceof THREE.ShaderMaterial) {
-    const mapUniform = material.uniforms.uSatelliteTexture;
+    const mapUniform = material.uniforms.uSatelliteImageryMap;
     if (mapUniform?.value instanceof THREE.Texture) {
       mapUniform.value.dispose();
     }
-    const derivativesUniform = material.uniforms.uDerivativesTexture;
+    const derivativesUniform = material.uniforms.uDerivativesMap;
     if (derivativesUniform?.value instanceof THREE.Texture) {
       derivativesUniform.value.dispose();
     }

@@ -3,15 +3,11 @@ import { GUI } from "lil-gui";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-import type { TileCoords } from "../../osm/tiles";
-import { fitCameraToTileCenter } from "./camera";
-import { buildTileVectorGroup } from "./render";
-import {
-  createGroundTileMesh,
-  disposeGroundTile,
-  VECTOR_TILE_FLIP_X,
-  VECTOR_TILE_FLIP_Z,
-} from "./ground";
+import type { TileCoords } from "../../osm/tiles.js";
+import { fitCameraToTileCenter } from "./camera.js";
+import { buildTileVectorGroup } from "./render.js";
+import { createGroundTileMesh, disposeGroundTile } from "./ground/index.js";
+import { createPointsTrees } from "./vegetation/index.js";
 
 type ThreeJsTileViewerProps = {
   features: GeoJSON.Feature[];
@@ -22,8 +18,6 @@ type Viewer = {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
-  axesHelper: THREE.AxesHelper;
-  gridHelper: THREE.GridHelper;
   groundTile: THREE.Mesh | null;
   currentTile: ReturnType<typeof buildTileVectorGroup> | null;
 };
@@ -70,9 +64,8 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     camera.lookAt(controls.target);
     controls.update();
 
-    const axesHelper = new THREE.AxesHelper(1_000);
-    const gridHelper = new THREE.GridHelper(1_000, 10, "#ef0fea", "#ffffff");
-
+    // const axesHelper = new THREE.AxesHelper(1_000);
+    // const gridHelper = new THREE.GridHelper(1_000, 10, "#ef0fea", "#ffffff");
     // scene.add(axesHelper, gridHelper);
 
     const resize = () => {
@@ -112,8 +105,6 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
       scene,
       camera,
       controls,
-      axesHelper,
-      gridHelper,
       groundTile: null,
       currentTile: null,
     };
@@ -177,23 +168,16 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     //   renderedTile.projection,
     // );
 
-    // waterMaskGuiRef.current?.destroy();
-    // waterMaskGuiRef.current = createWaterMaskGui(trees.landClsMask);
-
     // viewer.scene.add(trees.points);
 
     viewer.scene.add(renderedTile.group);
 
-    const tileCenter = new THREE.Box3()
-      .setFromObject(renderedTile.group)
-      .getCenter(new THREE.Vector3());
-    viewer.axesHelper.position.copy(tileCenter);
-    viewer.gridHelper.position.copy(tileCenter);
     const fit = fitCameraToTileCenter(
       viewer.camera,
       renderedTile.projection.widthMeters,
       renderedTile.projection.heightMeters,
     );
+
     viewer.controls.target.copy(fit.target);
     viewer.controls.minDistance = fit.radius * 0.05;
     viewer.controls.maxDistance = fit.distance * 5;

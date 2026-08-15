@@ -84,20 +84,11 @@ Do not hand-edit generated data unless a task explicitly asks for it.
 
 - Repository overview: [README](../README.md)
 - Lancangriver overview: [app/lancangriver/README.md](../app/lancangriver/README.md)
-- Lancangriver runbook: [app/lancangriver/docs/runbook.md](../app/lancangriver/docs/runbook.md)
 - Service details: [app/lancangriver/serve/README.md](../app/lancangriver/serve/README.md)
-- Client rendering details: [app/lancangriver/client/RENDER_LOGIC.md](../app/lancangriver/client/RENDER_LOGIC.md)
 - Pipeline setup/details: [app/lancangriver/pipeline/README.md](../app/lancangriver/pipeline/README.md)
-- Milestone checklist: [app/lancangriver/docs/milestone-1-checklist.md](../app/lancangriver/docs/milestone-1-checklist.md)
 
 ## Working Style for AI Agents
 
 - Start by identifying target stack (root app vs lancangriver).
 - Prefer minimal, scoped edits and preserve existing module boundaries.
 - For setup/runtime issues, consult runbook docs first and then patch code.
-
-## Existing Repo Preference
-
-Follow the local skill policy already used in this repo:
-
-- use Skill `skills/hi/SKILL.md` to greet the user and set context at the beginning of a task.

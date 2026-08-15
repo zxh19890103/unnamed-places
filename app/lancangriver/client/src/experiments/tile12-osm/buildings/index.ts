@@ -1,8 +1,11 @@
 import * as THREE from "three";
-import { PolygonFeatureKind, PolygonFeatureToGeometry } from "../_types";
-import { createBuildingRoofGeometry, resolveBuildingRoofStyle } from "../roofs";
-import { TileProjection } from "../tile";
-import { BuildingVariantBucket } from "./_types";
+import { PolygonFeatureKind, PolygonFeatureToGeometry } from "../_types.js";
+import {
+  createBuildingRoofGeometry,
+  resolveBuildingRoofStyle,
+} from "../roofs/index.js";
+import { TileProjection } from "../tile.js";
+import { BuildingVariantBucket } from "./_types.js";
 import {
   applyBuildingRepeatUv,
   BUILDING_FACE_TEXTURE_GRID,
@@ -12,7 +15,7 @@ import {
   getBuildingHeight,
   getOrCreateBuildingBucket,
   splitBuildingGeometryByFaceType,
-} from "./base";
+} from "./base.js";
 
 export const buildBuildingPerFeature = (
   polygon: PolygonFeatureToGeometry,

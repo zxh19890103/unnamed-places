@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as L from "leaflet";
 
-import { getLeafletFeatureStyle } from "./leafletStyle";
+import { getLeafletFeatureStyle } from "./leafletStyle.js";
 
 import "leaflet/dist/leaflet.css";
 

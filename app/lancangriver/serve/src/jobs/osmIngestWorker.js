@@ -10,7 +10,7 @@ export function createVectorIngestWorker({
       const job = await jobs.claimNextQueued();
       if (!job) {
         if (typeof logger?.debug === 'function') {
-          logger.debug(`[vector-jobs source=${source}] idle: no queued jobs`);
+          // logger.debug(`[vector-jobs source=${source}] idle: no queued jobs`);
         }
         return false;
       }

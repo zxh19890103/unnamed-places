@@ -1,9 +1,9 @@
 import { memo, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { create3dTilesViewer, Create3dTilesViewer } from "./viewer";
-import { EARTH_RADIUS } from "./core";
-import { TileMesh } from "./ui";
+import { create3dTilesViewer, Create3dTilesViewer } from "./viewer.js";
+import { EARTH_RADIUS } from "./core.js";
+import { TileMesh } from "./ui.js";
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -181,7 +181,9 @@ const Panel = memo(
         <div className="mt-2 flex gap-1.5">
           <button
             type="button"
-            onClick={threeTiles.lookAtLatlng}
+            onClick={() => {
+              threeTiles.lookAtLatlng();
+            }}
             className="rounded-md bg-slate-800 px-2 py-1 text-slate-100 transition-colors hover:bg-slate-700"
           >
             look at (latlng)

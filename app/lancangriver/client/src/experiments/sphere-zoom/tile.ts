@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { shortestDistanceToCap } from "./cap";
+import { shortestDistanceToCap } from "./cap.js";
 import {
   DEG_TO_RAD,
   EARTH_RADIUS,
@@ -9,7 +9,7 @@ import {
   normalizeLongitude,
   RAD_TO_DEG,
   WEB_MERCATOR_MAX_LAT,
-} from "./core";
+} from "./core.js";
 
 export class EarthTile {
   readonly latlng: LatLng;

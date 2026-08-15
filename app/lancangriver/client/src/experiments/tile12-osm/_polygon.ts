@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { TileProjection } from "./tile";
-import { PolygonFeatureKind } from "./_types";
+import { TileProjection } from "./tile.js";
+import { PolygonFeatureKind } from "./_types.js";
 
 const EARTH_RADIUS_METERS = 6_378_137;
 const DEG_TO_RAD = Math.PI / 180;

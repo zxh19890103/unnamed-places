@@ -1,13 +1,13 @@
-import { LeafletMap } from "./flat/map.js";
-import { MapIntroCard } from "./flat/MapIntroCard.js";
+import { LeafletMap } from "./map.js";
+import { MapIntroCard } from "./MapIntroCard.js";
 import {
   readInitialCenterFromSearch,
   FLAT_CENTER_CONFIRMED,
-} from "./flat/protocol.js";
-import { fetchTileVector } from "./osm/tiles.js";
-import { tileBounds4326 } from "./calc/mercator.js";
+} from "./protocol.js";
+import { fetchTileVector } from "../osm/tiles.js";
+import { tileBounds4326 } from "../calc/mercator.js";
 import { useMemo, useState } from "react";
-import type { LatLng } from "./calc/types";
+import type { LatLng } from "../calc/types.js";
 
 export default function LeafletApp() {
   const initialCenter = useMemo(

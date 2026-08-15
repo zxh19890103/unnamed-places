@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ELEVATION_SCALE } from "../../calc/constants";
+import { ELEVATION_SCALE } from "../../calc/constants.js";
 import vertexShader from "./shaders/shanshui.vert.glsl?raw";
 import fragmentShader from "./shaders/shanshui.frag.glsl?raw";
 

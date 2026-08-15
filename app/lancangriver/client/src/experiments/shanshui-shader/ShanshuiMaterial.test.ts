@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ShanshuiMaterial } from "./ShanshuiMaterial";
-import { ELEVATION_SCALE } from "../../calc/constants";
+import { ShanshuiMaterial } from "./ShanshuiMaterial.js";
+import { ELEVATION_SCALE } from "../../calc/constants.js";
 
 describe("ShanshuiMaterial", () => {
   it("uses a terrain-scale displacement value by default", () => {

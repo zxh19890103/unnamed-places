@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { TileCoords } from "../../../osm/tiles";
-import { shaderGlslSegments, uniformSettings } from "../_cfg";
+import { TileCoords } from "../../../osm/tiles.js";
+import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
 
 export function createHighwayMaterial(
   textureLoader: THREE.TextureLoader,
@@ -55,8 +55,8 @@ void main() {
     vec4 rgb = texture2D(terrianMap, gisUv);
     displacePosition.y += decodeTerrariumHeight(rgb);
   }
-  
-  displacePosition.y += 2.0;
+
+  displacePosition.y += offGroundMeters;
 
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacePosition, 1.0);
 }
@@ -75,7 +75,7 @@ void main() {
     gl_FragColor = vec4(baseColor.rgb, 1.0);
 }
 `,
-    depthTest: true,
+    depthTest: false,
     side: THREE.DoubleSide,
   });
 
@@ -141,7 +141,7 @@ void main() {
   gl_FragColor = vec4(baseColor * lighting, 1.0);
 }
 `,
-    depthTest: false,
+    depthTest: true,
     side: THREE.DoubleSide,
   });
 
