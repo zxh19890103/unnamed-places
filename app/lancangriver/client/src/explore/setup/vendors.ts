@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { VendorBundle } from "./types";
+import { VendorBundle } from "./_types";
 
 export function createVendors(): VendorBundle {
   const loadingManager = new THREE.LoadingManager();

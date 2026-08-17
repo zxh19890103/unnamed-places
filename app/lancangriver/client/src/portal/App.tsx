@@ -32,6 +32,12 @@ const pages = [
       "Fit a bbox from the URL on a Leaflet map and list the zoom-12 tiles covering it.",
   },
   {
+    title: "Static Leaflet Map",
+    href: "/static-leaflet-map",
+    description:
+      "Full-screen non-interactive Leaflet map centered by the parent page.",
+  },
+  {
     title: "Tile 12 OSM Inspector",
     href: "/tile12-osm",
     description: "Inspect one existing vector tile in a local Three.js scene.",

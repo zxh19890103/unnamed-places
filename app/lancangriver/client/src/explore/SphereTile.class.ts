@@ -1,11 +1,9 @@
 import * as THREE from "three";
-import { ITileNode, SphereTileKey } from "../calc/types";
+import { ITileNode, SphereTileKey } from "./_types";
 import { tileBounds4326 } from "../calc/mercator";
 import { TileGeometry } from "./geometries/TileGeometry.class";
 import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
-import { TileDemAdvanceMaterial } from "./materials/TileDemAdvanceMaterial.class";
-import { TileEmptyMaterial } from "./materials/TileEmptyMaterial.class";
 import { TileDebugMaterial } from "./materials/TileDebugMaterial.class";
 import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
 import { ShanshuiMaterial } from "../experiments/shanshui-shader/ShanshuiMaterial";
@@ -16,7 +14,6 @@ export enum TileMaterialMode {
   Basic = "basic",
   Dem = "dem",
   Clean = "clean",
-  DemAdvance = "dem-advance",
   Debug = "debug",
   ShanshuiWash = "shanshui-wash",
 }
@@ -24,8 +21,6 @@ export enum TileMaterialMode {
 type TileSurfaceMaterial =
   | TileBasicMaterial
   | TileDemMaterial
-  | TileDemAdvanceMaterial
-  | TileEmptyMaterial
   | TileDebugMaterial
   | TileCleanMaterial
   | ShanshuiMaterial;
@@ -84,7 +79,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     );
   }
 
-  canUseDemMaterial(): boolean {
+  canUseAdvancedDemMaterial(): boolean {
     return this.tile.z <= SphereTile.MAX_DEM_ZOOM;
   }
 
@@ -117,24 +112,10 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
         });
 
       case TileMaterialMode.Dem:
-        if (!this.canUseDemMaterial()) {
-          return null;
-        }
         return new TileDemMaterial(this.textureLoader, this.imageLoader, {
           tileKey: this.tile,
         });
 
-      case TileMaterialMode.DemAdvance:
-        if (!this.canUseDemMaterial()) {
-          return null;
-        }
-        return new TileDemAdvanceMaterial(
-          this.textureLoader,
-          this.imageLoader,
-          {
-            tileKey: this.tile,
-          },
-        );
       case TileMaterialMode.Clean:
         return new TileCleanMaterial(this.textureLoader, {
           tileKey: this.tile,
@@ -165,9 +146,6 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
 
       case TileMaterialMode.Dem:
         return this.material instanceof TileDemMaterial;
-
-      case TileMaterialMode.DemAdvance:
-        return this.material instanceof TileDemAdvanceMaterial;
 
       case TileMaterialMode.Debug:
         return this.material instanceof TileDebugMaterial;

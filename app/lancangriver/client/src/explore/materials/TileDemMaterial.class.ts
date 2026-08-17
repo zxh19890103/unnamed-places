@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { BASE_URL, ELEVATION_SCALE } from "../../calc/constants";
-import { SphereTileKey } from "../../calc/types";
+import { BASE_URL, ELEVATION_SCALE, MAX_DEM_ZOOM } from "../../calc/constants";
+import { SphereTileKey } from "../_types";
 import vertexShader from "./shaders/tiledem.vert.glsl?raw";
 import fragmentShader from "./shaders/tiledem.basic.frag.glsl?raw";
 
@@ -8,6 +8,34 @@ type Parameters = {
   tileKey: SphereTileKey;
   elevationScale?: number;
 };
+
+function getDemSource(tileKey: SphereTileKey): {
+  tileKey: SphereTileKey;
+  uvOffset: THREE.Vector2;
+  uvScale: THREE.Vector2;
+} {
+  const sourceZoom = Math.min(tileKey.z, MAX_DEM_ZOOM);
+  const zoomDelta = tileKey.z - sourceZoom;
+  const childTilesPerSourceTile = 2 ** zoomDelta;
+  const relativeX = tileKey.x % childTilesPerSourceTile;
+  const relativeY = tileKey.y % childTilesPerSourceTile;
+
+  return {
+    tileKey: {
+      z: sourceZoom,
+      x: Math.floor(tileKey.x / childTilesPerSourceTile),
+      y: Math.floor(tileKey.y / childTilesPerSourceTile),
+    },
+    uvOffset: new THREE.Vector2(
+      relativeX / childTilesPerSourceTile,
+      1 - (relativeY + 1) / childTilesPerSourceTile,
+    ),
+    uvScale: new THREE.Vector2(
+      1 / childTilesPerSourceTile,
+      1 / childTilesPerSourceTile,
+    ),
+  };
+}
 
 export class TileDemMaterial extends THREE.ShaderMaterial {
   private pendingSatelliteImage: HTMLImageElement | null = null;
@@ -20,6 +48,7 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
     parameters: Parameters,
   ) {
     const { tileKey, elevationScale = ELEVATION_SCALE } = parameters;
+    const demSource = getDemSource(tileKey);
 
     super({
       side: THREE.BackSide,
@@ -33,6 +62,8 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
           uSatelliteReady: { value: 0 },
           uDemReady: { value: 0 },
           uElevationScale: { value: elevationScale },
+          uDemUvOffset: { value: demSource.uvOffset },
+          uDemUvScale: { value: demSource.uvScale },
           uDemTexelSize: { value: new THREE.Vector2(1 / 256, 1 / 256) },
           uSaturation: { value: 1.0 },
           uContrast: { value: 1.0 },
@@ -76,7 +107,7 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
     );
 
     this.pendingDemImage = imageLoader.load(
-      `${BASE_URL}/raster/dem/${tileKey.z}/${tileKey.x}/${tileKey.y}.png`,
+      `${BASE_URL}/raster/dem/${demSource.tileKey.z}/${demSource.tileKey.x}/${demSource.tileKey.y}.png`,
       (image) => {
         if (!this.pendingDemImage) {
           return;

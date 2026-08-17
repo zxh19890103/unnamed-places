@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { SphereTileKey } from "../../calc/types";
+import { SphereTileKey } from "../_types";
 
 type Parameters = {
   tileKey: SphereTileKey;

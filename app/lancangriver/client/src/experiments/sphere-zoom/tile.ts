@@ -23,6 +23,9 @@ export class EarthTile {
   readonly position: THREE.Vector3;
   readonly normal: THREE.Vector3;
 
+  readonly minElevation: number = 0;
+  readonly maxElevation: number = 0;
+
   private capHalfAngleRad: number;
 
   /**
@@ -52,8 +55,11 @@ export class EarthTile {
     readonly zoom: number,
     id: string,
     zxy?: [number, number, number],
+    minElevation?: number,
+    maxElevation?: number,
   ) {
     const [z, x, y] = zxy ?? latlngToStandardTileZxy(latlng, zoom);
+
     const centerLatlng = tileZxyToCenterLatlng(z, x, y);
     const southWest = tileZxyToSouthWestLatlng(z, x, y);
     const northEast = tileZxyToNorthEastLatlng(z, x, y);
@@ -62,22 +68,25 @@ export class EarthTile {
     this.z = z;
     this.x = x;
     this.y = y;
+
+    this.minElevation = minElevation;
+    this.maxElevation = maxElevation;
     this.latlng = centerLatlng;
 
     this.southWest = southWest;
 
     this.lb = new THREE.Vector3().copy(
-      latlngToSphere(this.southWest.lat, this.southWest.lng),
+      latlngToSphere(this.southWest.lat, this.southWest.lng, this.maxElevation),
     );
 
     this.northEast = northEast;
 
     this.rt = new THREE.Vector3().copy(
-      latlngToSphere(this.northEast.lat, this.northEast.lng),
+      latlngToSphere(this.northEast.lat, this.northEast.lng, this.maxElevation),
     );
 
     this.position = new THREE.Vector3().copy(
-      latlngToSphere(centerLatlng.lat, centerLatlng.lng),
+      latlngToSphere(centerLatlng.lat, centerLatlng.lng, this.maxElevation),
     );
 
     this.normal = this.position.clone().normalize();
@@ -94,22 +103,31 @@ export class EarthTile {
 
   private computeHalfCapAngle() {
     const northWest = new THREE.Vector3().copy(
-      latlngToSphere(this.northEast.lat, this.southWest.lng),
+      latlngToSphere(this.northEast.lat, this.southWest.lng, this.maxElevation),
     );
 
     const southEast = new THREE.Vector3().copy(
-      latlngToSphere(this.southWest.lat, this.northEast.lng),
+      latlngToSphere(this.southWest.lat, this.northEast.lng, this.maxElevation),
     );
 
     const corners = [this.lb, this.rt, northWest, southEast];
+
     let maxCornerAngle = 0;
+
     for (const corner of corners) {
+      const cornerRadius = corner.length();
+      if (cornerRadius === 0) {
+        continue;
+      }
+
       const cosTheta = THREE.MathUtils.clamp(
-        this.normal.dot(corner) / EARTH_RADIUS,
+        this.normal.dot(corner) / cornerRadius,
         -1,
         1,
       );
+
       const theta = Math.acos(cosTheta);
+
       if (theta > maxCornerAngle) {
         maxCornerAngle = theta;
       }
@@ -118,6 +136,9 @@ export class EarthTile {
     this.capHalfAngleRad = maxCornerAngle;
   }
 
+  /**
+   * we don't use this for now!
+   */
   private computeTileVolume(): THREE.Box3 {
     return null;
   }
@@ -129,6 +150,7 @@ export class EarthTile {
   isInFrustum(frustum: THREE.Frustum) {
     for (const plane of frustum.planes) {
       const normalLen = plane.normal.length();
+
       if (normalLen === 0) {
         continue;
       }
@@ -140,10 +162,15 @@ export class EarthTile {
       );
       const beta = Math.acos(cosBeta);
       const angularDelta = Math.max(0, beta - this.capHalfAngleRad);
+      const capDirectionProjection = normalLen * Math.cos(angularDelta);
+      const supportRadius =
+        capDirectionProjection >= 0
+          ? EARTH_RADIUS + this.maxElevation
+          : EARTH_RADIUS + this.minElevation;
 
-      // Maximum signed distance from this spherical cap to the current plane.
+      // Pick the terrain-radius endpoint furthest into this plane.
       const maxSignedDistance =
-        EARTH_RADIUS * normalLen * Math.cos(angularDelta) + plane.constant;
+        supportRadius * capDirectionProjection + plane.constant;
 
       if (maxSignedDistance < 0) {
         return false;
@@ -155,7 +182,7 @@ export class EarthTile {
 
   distanceTo(target: THREE.Vector3): number {
     return shortestDistanceToCap(
-      EARTH_RADIUS,
+      EARTH_RADIUS + this.maxElevation,
       [0, 0, 0],
       this.normal.toArray(),
       this.capHalfAngleRad,
@@ -241,15 +268,49 @@ export class EarthTilesManager {
   tilesToAdd: EarthTile[];
   tilesToRemove: EarthTile[];
 
+  avgMinElevation: number = 0;
+  avgMaxElevation: number = 0;
+
+  setAvgMaxElevation(value: number) {
+    this.setElevationRange(this.avgMinElevation, value);
+  }
+
+  setElevationRange(minElevation: number, maxElevation: number) {
+    if (
+      minElevation !== this.avgMinElevation ||
+      maxElevation !== this.avgMaxElevation
+    ) {
+      this.tileCache.clear();
+    }
+
+    this.avgMinElevation = minElevation;
+    this.avgMaxElevation = maxElevation;
+  }
+
   create(latlng: LatLng, zoom: number): EarthTile {
     const [z, x, y] = latlngToStandardTileZxy(latlng, zoom);
     const key = keyOfTile(z, x, y);
     const cached = this.tileCache.get(key);
+
     if (cached) {
+      if (
+        cached.minElevation !== this.avgMinElevation ||
+        cached.maxElevation !== this.avgMaxElevation
+      ) {
+        console.warn(`Hi, the elevation on tile changes, please check it!`);
+      }
+
       return cached;
     }
 
-    const tile = new EarthTile(latlng, zoom, key, [z, x, y]);
+    const tile = new EarthTile(
+      latlng,
+      zoom,
+      key,
+      [z, x, y],
+      this.avgMinElevation,
+      this.avgMaxElevation,
+    );
     this.tileCache.set(key, tile);
     return tile;
   }
@@ -257,12 +318,26 @@ export class EarthTilesManager {
   createZxy(z: number, x: number, y: number) {
     const key = keyOfTile(z, x, y);
     const cached = this.tileCache.get(key);
+
     if (cached) {
+      if (
+        cached.minElevation !== this.avgMinElevation ||
+        cached.maxElevation !== this.avgMaxElevation
+      ) {
+        console.warn(`Hi, the elevation on tile changes, please check it!`);
+      }
       return cached;
     }
 
     const tileCenter = tileZxyToCenterLatlng(z, x, y);
-    const tile = new EarthTile(tileCenter, z, key, [z, x, y]);
+    const tile = new EarthTile(
+      tileCenter,
+      z,
+      key,
+      [z, x, y],
+      this.avgMinElevation,
+      this.avgMaxElevation,
+    );
     this.tileCache.set(key, tile);
     return tile;
   }

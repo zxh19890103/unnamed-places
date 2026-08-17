@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { SphereTileKey } from "../../calc/types";
+import { SphereTileKey } from "../_types";
 import { BASE_URL } from "../../calc/constants";
 import vertexShader from "./shaders/tilebasic.vert.glsl?raw";
 import fragmentShader from "./shaders/tilebasic.frag.glsl?raw";

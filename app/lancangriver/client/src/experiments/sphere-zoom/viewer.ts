@@ -32,6 +32,8 @@ export type Create3dTilesViewer = {
   dispose: () => void;
   update: () => void;
   getVisibleTiles: (eyes: THREE.Vector3) => EarthTile[];
+  setElevationRange: (minMeters: number, maxMeters: number) => void;
+  setMaxElevation: (maxMeters: number) => void;
   zoomToDistance: (zoom: number) => number;
   distanceToZoom: (dist: number) => number;
   enableUpdate: (enabled: boolean) => void;
@@ -68,9 +70,6 @@ export function create3dTilesViewer({
     return clampZoom(zoomLevel);
   }
 
-  /**
-   * @todo has a infinite calls when zoom to the max, near the surface of earth.
-   */
   function traverseVisibleTiles(
     tile: EarthTile,
     eyes: THREE.Vector3,
@@ -284,6 +283,7 @@ export function create3dTilesViewer({
       new THREE.Vector3(0, 0, 0),
       EARTH_RADIUS,
     );
+
     const centerRaycaster = new THREE.Raycaster();
     const centerNdc = new THREE.Vector2(0, 0);
     const hitPoint = new THREE.Vector3();
@@ -320,7 +320,7 @@ export function create3dTilesViewer({
 
       controls.target.set(0, 0, 0);
       controls.enableDamping = true;
-      controls.minDistance = EARTH_RADIUS + 500;
+      controls.minDistance = EARTH_RADIUS + 150;
       controls.maxDistance = EARTH_RADIUS * 2;
 
       const cameraMove = () => {
@@ -347,35 +347,38 @@ export function create3dTilesViewer({
 
       const target = new THREE.Vector3(point.x, point.y, point.z);
       const localUp = target.clone().normalize();
-      const worldNorth = new THREE.Vector3(0, 1, 0);
 
-      let tangentRight = new THREE.Vector3().crossVectors(worldNorth, localUp);
-      if (tangentRight.lengthSq() < 1e-12) {
-        tangentRight = new THREE.Vector3(1, 0, 0).cross(localUp);
-      }
-      tangentRight.normalize();
+      const camDistance = camera.position.length();
 
-      const offset = camera.position.clone().sub(target);
-      const offsetDistance = Math.max(offset.length(), 1_000);
-      let horizontalDir = offset
-        .clone()
-        .sub(localUp.clone().multiplyScalar(offset.dot(localUp)));
+      // const worldNorth = new THREE.Vector3(0, 1, 0);
 
-      if (horizontalDir.lengthSq() < 1e-12) {
-        horizontalDir = tangentRight;
-      } else {
-        horizontalDir.normalize();
-      }
+      // let tangentRight = new THREE.Vector3().crossVectors(worldNorth, localUp);
+      // if (tangentRight.lengthSq() < 1e-12) {
+      //   tangentRight = new THREE.Vector3(1, 0, 0).cross(localUp);
+      // }
+      // tangentRight.normalize();
 
-      const altitudeAngleRad = Math.PI / 4;
-      const viewDir = horizontalDir
-        .multiplyScalar(Math.cos(altitudeAngleRad))
-        .add(localUp.clone().multiplyScalar(Math.sin(altitudeAngleRad)))
-        .normalize();
+      // const offset = camera.position.clone().sub(target);
+      // const offsetDistance = Math.max(offset.length(), 1_000);
+      // let horizontalDir = offset
+      //   .clone()
+      //   .sub(localUp.clone().multiplyScalar(offset.dot(localUp)));
 
-      camera.position.copy(target).add(viewDir.multiplyScalar(offsetDistance));
+      // if (horizontalDir.lengthSq() < 1e-12) {
+      //   horizontalDir = tangentRight;
+      // } else {
+      //   horizontalDir.normalize();
+      // }
 
-      camera.up.copy(localUp);
+      // const altitudeAngleRad = Math.PI / 4;
+      // const viewDir = horizontalDir
+      //   .multiplyScalar(Math.cos(altitudeAngleRad))
+      //   .add(localUp.clone().multiplyScalar(Math.sin(altitudeAngleRad)))
+      //   .normalize();
+
+      camera.position.copy(localUp).setLength(camDistance);
+
+      // camera.up.copy(localUp);
 
       controls.minDistance = 500;
       controls.maxDistance = EARTH_RADIUS;
@@ -393,10 +396,11 @@ export function create3dTilesViewer({
     lookAtOrigin: () => {
       const worldCenter = new THREE.Vector3(0, 0, 0);
 
+      const currentTarget = controls.target.clone();
       controls.target.copy(worldCenter);
 
       const minRadius = EARTH_RADIUS + 500;
-      const cameraDir = camera.position.clone().normalize();
+      const cameraDir = currentTarget.normalize();
       const nextRadius = Math.max(camera.position.length(), minRadius);
       camera.position.copy(cameraDir.multiplyScalar(nextRadius));
 
@@ -421,6 +425,19 @@ export function create3dTilesViewer({
      * update per frame.
      */
     update,
+    setMaxElevation: (maxMeters: number) => {
+      const safeMaxElevation =
+        Number.isFinite(maxMeters) && maxMeters > 0 ? maxMeters : 0;
+      tilesManager.setElevationRange(0, safeMaxElevation);
+    },
+    setElevationRange: (minMeters: number, maxMeters: number) => {
+      const safeMinElevation = Number.isFinite(minMeters) ? minMeters : 0;
+      const safeMaxElevation =
+        Number.isFinite(maxMeters) && maxMeters >= safeMinElevation
+          ? maxMeters
+          : safeMinElevation;
+      tilesManager.setElevationRange(safeMinElevation, safeMaxElevation);
+    },
     getVisibleTiles,
     /**
      * According to given zoom value `Z`,

@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Sphere, SphereStatsPayload } from "../Sphere.class";
 import { TilesBytes } from "./TilesBytes";
 
 type SceneMonitorProps = {
   sphere: Sphere | null;
+  threeJsStats: any;
 };
 
 function formatDistance(distanceMeters: number | null) {
@@ -67,15 +68,19 @@ function formatFrameP95(stats: SphereStatsPayload | null) {
   return `${stats.frameTimeP95Ms.toFixed(1)} ms`;
 }
 
-export function SceneMonitor({ sphere }: SceneMonitorProps) {
+export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
   const [stats, setStats] = useState<SphereStatsPayload | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const threejsStatsDivRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!sphere) {
       setStats(null);
       return;
     }
+
+    const threejsStatsDiv = threejsStatsDivRef.current;
+    threejsStatsDiv.appendChild(threeJsStats.dom);
 
     setStats(sphere.getStatsSnapshot());
 
@@ -90,6 +95,7 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
     sphere.addStatsListener(handleStats as (event: Event) => void);
     return () => {
       sphere.removeStatsListener(handleStats as (event: Event) => void);
+      threejsStatsDiv.removeChild(threeJsStats.dom);
     };
   }, [sphere]);
 
@@ -105,47 +111,79 @@ export function SceneMonitor({ sphere }: SceneMonitorProps) {
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="text-base tracking-[0.08em] opacity-70">
-          Runtime Monitor
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-300">
+            Live diagnostics
+          </div>
+          <div className="mt-0.5 text-sm font-semibold tracking-wide text-white">
+            Scene monitor
+          </div>
         </div>
         <button
           type="button"
           onClick={() => setIsCollapsed((prev) => !prev)}
-          className="cursor-pointer rounded-lg border border-white/25 bg-white/10 px-2 py-1 text-xs leading-[1.2] text-white transition-colors hover:bg-white/15"
+          className="cursor-pointer rounded-md border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:border-white/30 hover:bg-white/15"
           aria-label={
-            isCollapsed ? "Open runtime monitor" : "Collapse runtime monitor"
+            isCollapsed ? "Expand scene monitor" : "Collapse scene monitor"
           }
         >
-          {isCollapsed ? "Open" : "Collapse"}
+          {isCollapsed ? "Expand" : "Hide"}
         </button>
       </div>
+      <div className=" mt-3" ref={threejsStatsDivRef} />
       {!isCollapsed && (
-        <div className="mt-2.5 grid gap-2 text-[13px]">
-          <div>
-            <div className="opacity-[0.68]">Camera distance</div>
-            <div>{formatDistance(distanceMeters)}</div>
+        <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
+          <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">
+              Camera distance
+            </div>
+            <div className="mt-1 font-medium tabular-nums text-slate-100">
+              {formatDistance(distanceMeters)}
+            </div>
           </div>
-          <div>
-            <div className="opacity-[0.68]">Zoom level</div>
-            <div>{formatZoom(zoomLevel)}</div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">
+              Zoom level
+            </div>
+            <div className="mt-1 font-medium tabular-nums text-slate-100">
+              {formatZoom(zoomLevel)}
+            </div>
           </div>
-          <div>
-            <div className="opacity-[0.68]">Visible tiles</div>
-            <div>{formatTileCount(visibleTilesCount)}</div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">
+              Visible tiles
+            </div>
+            <div className="mt-1 font-medium tabular-nums text-slate-100">
+              {formatTileCount(visibleTilesCount)}
+            </div>
           </div>
-          <div>
-            <div className="opacity-[0.68]">Controls mode</div>
-            <div>{formatControlMode(controlMode)}</div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">
+              Control mode
+            </div>
+            <div className="mt-1 truncate font-medium text-slate-100">
+              {formatControlMode(controlMode)}
+            </div>
           </div>
-          <div>
-            <div className="opacity-[0.68]">Asset loading</div>
-            <div>{formatLoadingProgress(stats)}</div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">
+              Asset loading
+            </div>
+            <div className="mt-1 font-medium tabular-nums text-slate-100">
+              {formatLoadingProgress(stats)}
+            </div>
           </div>
-          <div>
-            <div className="opacity-[0.68]">Frame p95</div>
-            <div>{formatFrameP95(stats)}</div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">
+              Frame p95
+            </div>
+            <div className="mt-1 font-medium tabular-nums text-slate-100">
+              {formatFrameP95(stats)}
+            </div>
           </div>
-          <TilesBytes />
+          <div className="col-span-2 rounded-lg border border-white/10 bg-white/[0.06] p-2.5">
+            <TilesBytes />
+          </div>
         </div>
       )}
     </aside>

@@ -65,7 +65,7 @@ export function perfectSphereToLatlng(x: number, y: number, z: number): LatLng {
   return { lat, lng: normalizeLongitude(lng) };
 }
 
-export function latlngToEllipsoid(lat: number, lng: number): THREE.Vector3Like {
+function latlngToEllipsoid(lat: number, lng: number): THREE.Vector3Like {
   const latRad = lat * DEG_TO_RAD;
   const lngRad = lng * DEG_TO_RAD;
   const sinLat = Math.sin(latRad);
@@ -79,7 +79,7 @@ export function latlngToEllipsoid(lat: number, lng: number): THREE.Vector3Like {
   };
 }
 
-export function ellipsoidToLatlng(x: number, y: number, z: number): LatLng {
+function ellipsoidToLatlng(x: number, y: number, z: number): LatLng {
   const horizontal = Math.hypot(x, z);
 
   if (horizontal === 0 && y === 0) {

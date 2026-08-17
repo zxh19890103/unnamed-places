@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 import { EARTH_RADIUS } from "../calc/sphere";
 import { SphereTile } from "./SphereTile.class";
-import { SphereTileKey } from "../calc/types";
+import { SphereTileKey } from "./_types";
 import { ControlMode, ControlsManager } from "./ControlsManager.class";
 import type { TilesManager } from "./TilesManager.class";
 import { Create3dTilesViewer } from "../experiments/sphere-zoom/viewer";

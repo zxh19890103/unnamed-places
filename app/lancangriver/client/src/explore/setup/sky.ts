@@ -6,7 +6,7 @@ import { EARTH_RADIUS, getLocalBasisAtPoint } from "../../calc/sphere";
 import { START_CENTER_LAT, START_CENTER_LON } from "../../calc/constants";
 import { getDateForLocalTimeAtLatLng } from "../../calc/timezone";
 import { LatLng } from "../../calc/types";
-import { SkyRig, SkySyncParams } from "./types";
+import { SkyRig, SkySyncParams } from "./_types";
 import {
   latlngToSphere,
   sphereToLatlng,

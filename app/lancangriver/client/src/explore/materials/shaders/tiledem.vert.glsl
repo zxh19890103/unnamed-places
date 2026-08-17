@@ -1,6 +1,8 @@
 uniform sampler2D uDemTexture;
 uniform float uDemReady;
 uniform float uElevationScale;
+uniform vec2 uDemUvOffset;
+uniform vec2 uDemUvScale;
 uniform vec2 uDemTexelSize;
 
 varying vec2 vUv;
@@ -14,8 +16,9 @@ void main() {
 
   vec3 displaced = position;
 
-  if (uDemReady > 0.5) {
-    vec3 demRgb = texture2D(uDemTexture, uv).rgb * 255.0;
+  if(uDemReady > 0.5) {
+    vec2 demUv = uDemUvOffset + uv * uDemUvScale;
+    vec3 demRgb = texture2D(uDemTexture, demUv).rgb * 255.0;
     float elevation = (demRgb.r * 256.0 + demRgb.g + demRgb.b / 256.0) - 32768.0;
     displaced = position + normal * (elevation * uElevationScale);
   }

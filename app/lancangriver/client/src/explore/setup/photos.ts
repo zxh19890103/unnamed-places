@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 import { mergeTileExtents, tileExtent } from "../../calc/mercator";
-import { SphereTileKey } from "../../calc/types";
+import { SphereTileKey } from "../_types";
 import { JourneyDayNode, PhotoRecord } from "../../photos/types";
 import { PhotoMarkerGeometry } from "../geometries/PhotoMarkerGeometry.class";
 import { PhotoMarkerMaterial } from "../materials/PhotoMarkerMaterial.class";

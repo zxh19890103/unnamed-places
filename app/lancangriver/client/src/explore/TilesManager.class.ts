@@ -1,4 +1,4 @@
-import { ITileNode, SphereTileKey, TileNodeState } from "../calc/types";
+import { ITileNode, SphereTileKey, TileNodeState } from "./_types";
 import { SphereTile } from "./SphereTile.class";
 
 export class TileNode implements ITileNode {
