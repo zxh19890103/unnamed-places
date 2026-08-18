@@ -20,11 +20,10 @@ import type { JourneyDayNode, PhotoRecord } from "./photos/types";
 import type { TilesManager } from "./explore/TilesManager.class";
 import type { LatLngBBox } from "./explore/setup/coverageVisibility";
 import { BASE_URL, ELEVATION_SCALE } from "./calc/constants";
-import { TileMaterialMode } from "./explore/SphereTile.class";
+import { SphereTile, TileMaterialMode } from "./explore/SphereTile.class";
 import { Create3dTilesViewer } from "./experiments/sphere-zoom/viewer";
 import { MiniMap } from "./explore/dom/MiniMap";
 import { ControlsManager } from "./explore/ControlsManager.class";
-import { EARTH_RADIUS } from "./calc/sphere";
 import { latlngToStandardTileZxy } from "./experiments/sphere-zoom/tile";
 
 type OrbitClickEvent = {
@@ -85,8 +84,10 @@ const CreateScene = memo(
 
       const clickRaycaster = new THREE.Raycaster();
       const clickCoordinates = new THREE.Vector2();
-      const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 128, 128);
-      const earthMesh = new THREE.Mesh(earthGeometry);
+      const sphereWorldPosition = new THREE.Vector3();
+      const cameraWorldPosition = new THREE.Vector3();
+      const surfaceNormal = new THREE.Vector3();
+      const surfaceToCamera = new THREE.Vector3();
 
       const handleMapClick = (event: MouseEvent) => {
         const rect = renderer.domElement.getBoundingClientRect();
@@ -95,7 +96,39 @@ const CreateScene = memo(
           -((event.clientY - rect.top) / rect.height) * 2 + 1;
         clickRaycaster.setFromCamera(clickCoordinates, camera);
 
-        const hit = clickRaycaster.intersectObject(earthMesh, false)[0];
+        sceneState.sphere.updateWorldMatrix(true, true);
+        sceneState.sphere.getWorldPosition(sphereWorldPosition);
+        camera.getWorldPosition(cameraWorldPosition);
+
+        const hit = clickRaycaster
+          .intersectObject(sceneState.sphere, true)
+          .find((intersection) => {
+            if (!(intersection.object instanceof SphereTile)) {
+              return false;
+            }
+
+            let object: THREE.Object3D | null = intersection.object;
+            while (object) {
+              if (!object.visible) {
+                return false;
+              }
+              if (object === sceneState.sphere) {
+                break;
+              }
+              object = object.parent;
+            }
+
+            surfaceNormal
+              .copy(intersection.point)
+              .sub(sphereWorldPosition)
+              .normalize();
+            surfaceToCamera
+              .copy(cameraWorldPosition)
+              .sub(intersection.point)
+              .normalize();
+
+            return surfaceNormal.dot(surfaceToCamera) > 0;
+          });
         if (!hit) {
           return;
         }
@@ -140,11 +173,12 @@ const CreateScene = memo(
       animate();
 
       console.log("why????");
+      renderer.domElement.addEventListener("click", handleMapClick);
+
       return () => {
         console.log("why?");
         window.removeEventListener("resize", handleResize);
         renderer.domElement.removeEventListener("click", handleMapClick);
-        earthGeometry.dispose();
         window.cancelAnimationFrame(frameId);
       };
     }, [sceneState]);
@@ -306,7 +340,7 @@ const CreateScene = memo(
         <MiniMap
           controls={sceneState.controlsManager}
           positionGetter={sceneState.getCurrentCenterLatLng}
-          precision={6}
+          precision={9}
         />
       </>
     );

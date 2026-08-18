@@ -50,7 +50,7 @@ export const MiniMap = memo(
 
       const orbitControls = controls.orbitControls;
 
-      orbitControls.addEventListener("end", handle);
+      // orbitControls.addEventListener("end", handle);
       const customOrbitControls = orbitControls as typeof orbitControls & {
         addEventListener: (
           type: "click",

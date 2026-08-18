@@ -1,7 +1,5 @@
 import { Vector3 } from "three";
 
-export const EARTH_RADIUS = 6_371_008.8;
-
 export function getLocalBasisAtPoint(target: Vector3) {
   const up = target.clone().normalize();
   const worldNorth = new Vector3(0, 1, 0);

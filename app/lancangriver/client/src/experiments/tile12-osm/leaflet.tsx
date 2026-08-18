@@ -39,9 +39,17 @@ export function LeafletVectorViewer({
       zoom: 2,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-      maxZoom: 19,
+    // L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    //   attribution: "&copy; OpenStreetMap contributors",
+    //   maxZoom: 19,
+    // }).addTo(map);
+
+    L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+      attribution: "&copy; Google Maps",
+      subdomains: ["0", "1", "2", "3"],
+      maxZoom: 20,
+      maxNativeZoom: 21,
+      detectRetina: true,
     }).addTo(map);
 
     mapRef.current = map;

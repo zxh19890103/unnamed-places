@@ -1,12 +1,11 @@
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 
-import { EARTH_RADIUS } from "../../calc/sphere.js";
+import { EARTH_RADIUS, BASE_URL } from "@/calc/constants.js";
 import { Sphere } from "../Sphere.class.js";
 import { TilesManager } from "../TilesManager.class.js";
 import { ControlsManager, type ControlMode } from "../ControlsManager.class.js";
 import { TileMaterialMode } from "../SphereTile.class.js";
-import { BASE_URL } from "../../calc/constants.js";
 import { LatLng } from "@/calc/types.js";
 import { createVendors } from "./vendors.js";
 import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky.js";

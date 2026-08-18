@@ -1,6 +1,9 @@
 import * as THREE from "three";
+import { LatLng } from "@/calc/types";
 
 export const EARTH_RADIUS = 6_371_008.8;
+export const DEG_TO_RAD = Math.PI / 180;
+export const RAD_TO_DEG = 180 / Math.PI;
 
 // 6,378 km, 6,357 km
 
@@ -8,21 +11,8 @@ export type EarthTileRuntime = {
   eyeAngle: number;
 };
 
-export type LatLng = {
-  /**
-   * -90 ~ +90
-   */
-  lat: number;
-  /**
-   * -180 ~ +180
-   */
-  lng: number;
+export type { LatLng };
 
-  alt?: number;
-};
-
-export const DEG_TO_RAD = Math.PI / 180;
-export const RAD_TO_DEG = 180 / Math.PI;
 export const WEB_MERCATOR_MAX_LAT = 85.05112878;
 
 const WGS84_A = 6_378_137;
@@ -52,7 +42,7 @@ export function latlngToPerfectSphere(
   };
 }
 
-export function perfectSphereToLatlng(x: number, y: number, z: number): LatLng {
+function perfectSphereToLatlng(x: number, y: number, z: number): LatLng {
   const radius = Math.hypot(x, y, z);
 
   if (radius === 0) {
@@ -109,7 +99,7 @@ function ellipsoidToLatlng(x: number, y: number, z: number): LatLng {
   };
 }
 
-export function getLocalBasisAtPoint(target: THREE.Vector3) {
+function getLocalBasisAtPoint(target: THREE.Vector3) {
   const up = target.clone().normalize();
   const worldNorth = new THREE.Vector3(0, 1, 0);
   let east = worldNorth.clone().cross(up);

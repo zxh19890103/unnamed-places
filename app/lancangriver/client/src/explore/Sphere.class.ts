@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { EARTH_RADIUS } from "../calc/sphere";
+import { EARTH_RADIUS } from "../calc/constants";
 import { SphereTile } from "./SphereTile.class";
 import { SphereTileKey } from "./_types";
 import { ControlMode, ControlsManager } from "./ControlsManager.class";

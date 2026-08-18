@@ -3,15 +3,17 @@ import type { WorldExtent } from "./types";
 const MIN_LAT = -85.05112878;
 const MAX_LAT = 85.05112878;
 
+const tileSize = 256;
+
 function clampLat(lat: number): number {
   return Math.max(MIN_LAT, Math.min(MAX_LAT, lat));
 }
 
 function worldPixelSize(zoom: number): number {
-  return 256 * 2 ** zoom;
+  return tileSize * 2 ** zoom;
 }
 
-export function lonLatToWorldPixel(
+function lonLatToWorldPixel(
   lon: number,
   lat: number,
   zoom: number,
@@ -37,6 +39,19 @@ function worldPixelToLonLat(
   return { lon, lat };
 }
 
+export function tileXY(
+  lon: number,
+  lat: number,
+  zoom: number,
+): { x: number; y: number } {
+  const pixel = lonLatToWorldPixel(lon, lat, zoom);
+  const maxIndex = 2 ** zoom - 1;
+  return {
+    x: Math.min(maxIndex, Math.max(0, Math.floor(pixel.x / 256))),
+    y: Math.min(maxIndex, Math.max(0, Math.floor(pixel.y / 256))),
+  };
+}
+
 /**
  * west,south,east,north
  */
@@ -45,14 +60,22 @@ export function tileBounds4326(
   x: number,
   y: number,
 ): [number, number, number, number] {
-  const northwest = worldPixelToLonLat(x * 256, y * 256, z);
-  const southeast = worldPixelToLonLat((x + 1) * 256, (y + 1) * 256, z);
+  const northwest = worldPixelToLonLat(x * tileSize, y * tileSize, z);
+  const southeast = worldPixelToLonLat(
+    (x + 1) * tileSize,
+    (y + 1) * tileSize,
+    z,
+  );
   return [northwest.lon, southeast.lat, southeast.lon, northwest.lat];
 }
 
 export function tileExtent(z: number, x: number, y: number): WorldExtent {
-  const northwest = worldPixelToLonLat(x * 256, y * 256, z);
-  const southeast = worldPixelToLonLat((x + 1) * 256, (y + 1) * 256, z);
+  const northwest = worldPixelToLonLat(x * tileSize, y * tileSize, z);
+  const southeast = worldPixelToLonLat(
+    (x + 1) * tileSize,
+    (y + 1) * tileSize,
+    z,
+  );
 
   return {
     west: northwest.lon,

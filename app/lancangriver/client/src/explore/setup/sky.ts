@@ -2,15 +2,16 @@ import * as THREE from "three";
 import * as SunCalc from "suncalc";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 
-import { EARTH_RADIUS, getLocalBasisAtPoint } from "../../calc/sphere";
-import { START_CENTER_LAT, START_CENTER_LON } from "../../calc/constants";
-import { getDateForLocalTimeAtLatLng } from "../../calc/timezone";
-import { LatLng } from "../../calc/types";
-import { SkyRig, SkySyncParams } from "./_types";
+import { getLocalBasisAtPoint } from "@/calc/sphere";
 import {
-  latlngToSphere,
-  sphereToLatlng,
-} from "../../experiments/sphere-zoom/core";
+  START_CENTER_LAT,
+  START_CENTER_LON,
+  EARTH_RADIUS,
+} from "@/calc/constants";
+import { getDateForLocalTimeAtLatLng } from "@/calc/timezone";
+import { LatLng } from "@/calc/types";
+import { SkyRig, SkySyncParams } from "./_types";
+import { latlngToSphere, sphereToLatlng } from "@/experiments/sphere-zoom/core";
 
 export const SKY_DISTANCE = EARTH_RADIUS * 8;
 export const SKY_COLOR = new THREE.Color("#ffffff");

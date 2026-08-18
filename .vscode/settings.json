@@ -19,5 +19,6 @@
     "**/Thumbs.db": true,
     "**/node_modules": false,
   },
-  "js/ts.tsdk.path": "./app/__deprecated/serve/node_modules/typescript/lib"
+  "js/ts.tsdk.path": "./app/__deprecated/serve/node_modules/typescript/lib",
+  "webgl-glsl-editor.diagnostics": false
 }

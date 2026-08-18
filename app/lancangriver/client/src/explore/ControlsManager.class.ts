@@ -1,8 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FlyControls } from "three/examples/jsm/controls/FlyControls.js";
-import { FLY_MOVEMENT_SPEED, FLY_ROLL_SPEED } from "../calc/constants";
-import { EARTH_RADIUS } from "../calc/sphere";
+import {
+  FLY_MOVEMENT_SPEED,
+  FLY_ROLL_SPEED,
+  EARTH_RADIUS,
+} from "../calc/constants";
 import { PointerControls } from "./controls/PointerControls.class";
 import { Create3dTilesViewer } from "../experiments/sphere-zoom/viewer";
 

@@ -1,23 +1,10 @@
-import { lonLatToWorldPixel } from "../calc/mercator.js";
+import { tileXY } from "../calc/mercator.js";
 import type { BBox } from "./bbox.js";
 
 export type TileKey = { z: number; x: number; y: number; id: string };
 
 const MAX_BBOX_SPAN_KM = 30;
 const KM_PER_LAT_DEGREE = 111.32;
-
-function tileXY(
-  lon: number,
-  lat: number,
-  zoom: number,
-): { x: number; y: number } {
-  const pixel = lonLatToWorldPixel(lon, lat, zoom);
-  const maxIndex = 2 ** zoom - 1;
-  return {
-    x: Math.min(maxIndex, Math.max(0, Math.floor(pixel.x / 256))),
-    y: Math.min(maxIndex, Math.max(0, Math.floor(pixel.y / 256))),
-  };
-}
 
 function exceedsMaxSpan(bbox: BBox): boolean {
   const centerLat = (bbox.south + bbox.north) / 2;
