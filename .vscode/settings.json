@@ -20,5 +20,6 @@
     "**/node_modules": false,
   },
   "js/ts.tsdk.path": "./app/__deprecated/serve/node_modules/typescript/lib",
-  "webgl-glsl-editor.diagnostics": false
+  "webgl-glsl-editor.diagnostics": false,
+  "css.lint.unknownAtRules": "ignore"
 }

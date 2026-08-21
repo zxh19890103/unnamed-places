@@ -9,10 +9,10 @@ type JobStatusProps = {
 };
 
 const statusClasses: Record<CoverageJobStatus, string> = {
-  queued: "border-amber-300 bg-amber-50 text-amber-800",
-  running: "border-sky-300 bg-sky-50 text-sky-800",
-  done: "border-emerald-300 bg-emerald-50 text-emerald-800",
-  failed: "border-rose-300 bg-rose-50 text-rose-800",
+  queued: "border-amber-400/30 bg-amber-400/15 text-amber-200",
+  running: "border-sky-400/30 bg-sky-400/15 text-sky-200",
+  done: "border-emerald-400/30 bg-emerald-400/15 text-emerald-200",
+  failed: "border-rose-400/30 bg-rose-400/15 text-rose-200",
 };
 
 export function JobStatus({ label, status, onRefresh }: JobStatusProps) {
@@ -31,7 +31,7 @@ export function JobStatus({ label, status, onRefresh }: JobStatusProps) {
   return (
     <div className="flex items-center gap-1.5">
       <span
-        className={`rounded-full border px-2 py-0.5 text-xs font-semibold uppercase ${statusClasses[status]}`}
+        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold uppercase ${statusClasses[status]}`}
       >
         {status}
       </span>
@@ -41,7 +41,7 @@ export function JobStatus({ label, status, onRefresh }: JobStatusProps) {
         onClick={() => void refresh()}
         title="Refresh status"
         aria-label={`Refresh ${label} status; current status ${status}`}
-        className="grid size-6 place-items-center rounded border border-slate-300 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60"
+        className="grid size-6 place-items-center rounded-lg border border-white/10 text-sm text-slate-400 hover:bg-white/10 hover:text-slate-200 disabled:cursor-wait disabled:opacity-60"
       >
         {refreshing ? "..." : "↻"}
       </button>

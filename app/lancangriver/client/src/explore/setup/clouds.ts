@@ -4,20 +4,12 @@ import { CloudGeometry } from "../geometries/CloudGeometry.class";
 import { CloudMaterial } from "../materials/CloudMaterial.class";
 
 export type GroundOrbitCloudsController = {
-  replaceCloudsAtTarget: (params: {
-    latlng: LatLng;
-    orbitTarget: THREE.Vector3;
-    cameraDistanceMeters: number;
-    viewportHeight: number;
-  }) => void;
   syncCloudsAtTarget: (params: {
     latlng: LatLng;
     orbitTarget: THREE.Vector3;
     cameraDistanceMeters: number;
     viewportHeight: number;
   }) => void;
-  clear: () => void;
-  syncViewportHeight: (height: number) => void;
   dispose: () => void;
 };
 
@@ -26,7 +18,8 @@ export function createGroundOrbitCloudsController(params: {
   cloudAtlasTexture: THREE.Texture;
 }): GroundOrbitCloudsController {
   const { scene, cloudAtlasTexture } = params;
-  const CLOUD_RADIUS_MULTIPLIER = 10;
+  const CLOUD_RADIUS_MULTIPLIER = 16;
+
   const REBUILD_LAT_LNG_THRESHOLD_DEG = 0.2;
   const REBUILD_RADIUS_RATIO_THRESHOLD = 0.35;
 
@@ -89,12 +82,13 @@ export function createGroundOrbitCloudsController(params: {
       latlng,
       radius: cloudRadius,
       count: 100,
-      maxAltitudeDeg: 60,
+      maxAltitudeDeg: 15,
       bandWidth: 0,
     });
+
     const cloudMaterial = new CloudMaterial({
       color: "#ffffff",
-      size: 600,
+      size: 300,
       opacity: 0.55,
       softness: 0.6,
       sizeAttenuation: false,
@@ -108,6 +102,7 @@ export function createGroundOrbitCloudsController(params: {
     groundOrbitClouds.scale.setScalar(1);
     lastLatlng = { ...latlng };
     lastCloudRadius = cloudRadius;
+    groundOrbitClouds.frustumCulled = false;
     scene.add(groundOrbitClouds);
   };
 
@@ -153,28 +148,11 @@ export function createGroundOrbitCloudsController(params: {
       1,
       viewportHeight,
     );
-  };
-
-  const syncViewportHeight = (height: number) => {
-    if (!groundOrbitClouds) {
-      return;
-    }
-
-    groundOrbitClouds.material.uniforms.uViewportHeight.value = Math.max(
-      1,
-      height,
-    );
-  };
-
-  const dispose = () => {
-    clear();
+    groundOrbitClouds.frustumCulled = false;
   };
 
   return {
-    replaceCloudsAtTarget,
     syncCloudsAtTarget,
-    clear,
-    syncViewportHeight,
-    dispose,
+    dispose: clear,
   };
 }

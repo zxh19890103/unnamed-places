@@ -9,6 +9,7 @@ import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
 import { ShanshuiMaterial } from "../experiments/shanshui-shader/ShanshuiMaterial";
 import { latlngToSphere } from "../experiments/sphere-zoom/core";
 import { BASE_URL, ELEVATION_SCALE } from "../calc/constants";
+import { type TilesManager } from "./TilesManager.class";
 
 export enum TileMaterialMode {
   Basic = "basic",
@@ -30,9 +31,11 @@ type Parameters = {
 };
 
 export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
-  $tNode: ITileNode;
+  $node: ITileNode;
+
   center: THREE.Vector3;
   centerLatlng: { lat: number; lng: number };
+
   private materialMode: TileMaterialMode = TileMaterialMode.Basic;
 
   static readonly MAX_DEM_ZOOM = 15;
@@ -79,20 +82,18 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     );
   }
 
-  canUseAdvancedDemMaterial(): boolean {
-    return this.tile.z <= SphereTile.MAX_DEM_ZOOM;
-  }
-
   setMaterialMode(mode: TileMaterialMode): void {
     if (this.materialMode === mode && this.isCurrentMaterialForMode(mode)) {
       return; // Already in requested mode
     }
 
-    const nextMaterial = this.createMaterialForMode(mode);
+    const nextMaterial = this.createModeMaterial(mode);
 
     if (nextMaterial) {
       const prevMaterial = this.material;
+
       this.material = nextMaterial;
+
       prevMaterial.dispose();
       this.materialMode = mode;
     }
@@ -102,7 +103,17 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     return this.materialMode;
   }
 
-  private createMaterialForMode(
+  applyMaterialUniforms(uniforms: Record<string, any>) {
+    if (!this.material) return;
+
+    if (this.material instanceof THREE.ShaderMaterial) {
+      const uniforms0 = this.material.uniforms;
+      Object.assign(uniforms0, uniforms);
+      this.material.needsUpdate = true;
+    }
+  }
+
+  private createModeMaterial(
     mode: TileMaterialMode,
   ): TileSurfaceMaterial | null {
     switch (mode) {

@@ -7,6 +7,8 @@ import {
   latlngToSphere,
   sphereToLatlng,
 } from "./core.js";
+import { useEffect, useReducer, useState } from "react";
+import { getLocalBasisAtPoint } from "@/calc/sphere.js";
 
 type Create3dTilesViewerInputs = {
   camera: THREE.PerspectiveCamera;
@@ -29,15 +31,17 @@ type Create3dTilesViewerInputs = {
 };
 
 export type Create3dTilesViewer = {
+  state: ViewerState;
   dispose: () => void;
   update: () => void;
   getVisibleTiles: (eyes: THREE.Vector3) => EarthTile[];
   setElevationRange: (minMeters: number, maxMeters: number) => void;
-  setMaxElevation: (maxMeters: number) => void;
+  getElevationRange: () => { min: number; max: number };
   zoomToDistance: (zoom: number) => number;
   distanceToZoom: (dist: number) => number;
   enableUpdate: (enabled: boolean) => void;
   getZoom: (dist: number) => number;
+  getLookAtZoom: () => number;
   getTileCount: () => number;
   lookAtLatlng: (latlng?: LatLng) => void;
   lookAtOrigin: () => void;
@@ -278,7 +282,7 @@ export function create3dTilesViewer({
     camera.updateProjectionMatrix();
   }
 
-  function getCenterLatlng(): LatLng {
+  function getViewCenterLatlng(): LatLng {
     const earthSphere = new THREE.Sphere(
       new THREE.Vector3(0, 0, 0),
       EARTH_RADIUS,
@@ -309,10 +313,76 @@ export function create3dTilesViewer({
     return { lat: clampedLat, lng: wrappedLng };
   }
 
-  return {
+  function getLookAtZoom() {
+    if (state.lookat === "latlng") {
+      return getZoomLevel(camera.position.distanceTo(controls.target));
+    } else {
+      return getZoomLevel(camera.position.length() - EARTH_RADIUS);
+    }
+  }
+
+  const state: ViewerState = {
+    lookat: "origin",
+    zoomLevel: 0,
+    elevation: {
+      min: 0,
+      max: 0,
+    },
+  };
+
+  const handleCameraMove = () => {
+    const altitude = getAltitude();
+
+    if (speedNoUpdate) {
+    } else {
+      adjustControlsZoomSpeed(altitude);
+    }
+
+    adjustFarNear(altitude);
+
+    update();
+
+    const zl = getLookAtZoom();
+
+    if (zl !== state.zoomLevel) {
+      state.zoomLevel = zl;
+      console.log("zoom changed", zl);
+      runDispatches({ name: "zoomLevel", value: zl });
+    }
+  };
+
+  function computeOrbitPositionFromAzimuthAltitude(
+    target: THREE.Vector3,
+    azimuthDeg: number,
+    altitudeDeg: number,
+    radiusMeters: number,
+  ) {
+    const { up, east, north } = getLocalBasisAtPoint(target);
+    const azimuthRad = THREE.MathUtils.degToRad(azimuthDeg);
+    const altitudeRad = THREE.MathUtils.degToRad(altitudeDeg);
+
+    const horizontal = east
+      .clone()
+      .multiplyScalar(Math.sin(azimuthRad))
+      .add(north.clone().multiplyScalar(Math.cos(azimuthRad)));
+
+    const viewDirection = horizontal
+      .multiplyScalar(Math.cos(altitudeRad))
+      .add(up.multiplyScalar(Math.sin(altitudeRad)))
+      .normalize();
+
+    return target.clone().addScaledVector(viewDirection, radiusMeters);
+  }
+
+  currentThreeDTilesViewer = {
+    state,
     getZoom: getZoomLevel,
     getTileCount: () => tilesManager.tiles.length,
-    dispose: () => {},
+    dispose: () => {
+      console.log("viewer disposed");
+      controls.removeEventListener("end", handleCameraMove);
+      currentThreeDTilesViewer = null;
+    },
     useOrbitControls: (_controls) => {
       if (controls !== null) return;
 
@@ -320,80 +390,56 @@ export function create3dTilesViewer({
 
       controls.target.set(0, 0, 0);
       controls.enableDamping = true;
-      controls.minDistance = EARTH_RADIUS + 150;
+
+      controls.minDistance = EARTH_RADIUS + 100;
       controls.maxDistance = EARTH_RADIUS * 2;
 
-      const cameraMove = () => {
-        const altitude = getAltitude();
+      controls.addEventListener("end", handleCameraMove);
 
-        if (speedNoUpdate) {
-        } else {
-          adjustControlsZoomSpeed(altitude);
-        }
-
-        adjustFarNear(altitude);
-
-        update();
-      };
-
-      controls.addEventListener("end", cameraMove);
+      handleCameraMove();
     },
     lookAtLatlng: (latlng0: LatLng = null) => {
-      const latlng = latlng0 ?? getCenterLatlng();
+      if (state.lookat === "latlng") return;
 
-      const point = latlngToSphere(latlng.lat, latlng.lng);
+      const latlng = latlng0 ?? getViewCenterLatlng();
+
+      const point = latlngToSphere(latlng.lat, latlng.lng, state.elevation.min);
 
       controls.target.set(point.x, point.y, point.z);
 
       const target = new THREE.Vector3(point.x, point.y, point.z);
       const localUp = target.clone().normalize();
+      camera.up.copy(localUp);
 
-      const camDistance = camera.position.length();
+      const camDistance = camera.position.distanceTo(target);
 
-      // const worldNorth = new THREE.Vector3(0, 1, 0);
+      const cameraPos = computeOrbitPositionFromAzimuthAltitude(
+        target,
+        180,
+        45,
+        camDistance,
+      );
 
-      // let tangentRight = new THREE.Vector3().crossVectors(worldNorth, localUp);
-      // if (tangentRight.lengthSq() < 1e-12) {
-      //   tangentRight = new THREE.Vector3(1, 0, 0).cross(localUp);
-      // }
-      // tangentRight.normalize();
-
-      // const offset = camera.position.clone().sub(target);
-      // const offsetDistance = Math.max(offset.length(), 1_000);
-      // let horizontalDir = offset
-      //   .clone()
-      //   .sub(localUp.clone().multiplyScalar(offset.dot(localUp)));
-
-      // if (horizontalDir.lengthSq() < 1e-12) {
-      //   horizontalDir = tangentRight;
-      // } else {
-      //   horizontalDir.normalize();
-      // }
-
-      // const altitudeAngleRad = Math.PI / 4;
-      // const viewDir = horizontalDir
-      //   .multiplyScalar(Math.cos(altitudeAngleRad))
-      //   .add(localUp.clone().multiplyScalar(Math.sin(altitudeAngleRad)))
-      //   .normalize();
-
-      camera.position.copy(localUp).setLength(camDistance);
-
-      // camera.up.copy(localUp);
+      camera.position.copy(cameraPos);
 
       controls.minDistance = 500;
       controls.maxDistance = EARTH_RADIUS;
 
       camera.lookAt(controls.target);
       controls.update();
-
       update();
 
       controls.rotateSpeed = 1;
       controls.zoomSpeed = 1;
 
       speedNoUpdate = true;
+
+      state.lookat = "latlng";
+      runDispatches({ name: "lookat", value: "latlng" });
     },
     lookAtOrigin: () => {
+      if (state.lookat === "origin") return;
+
       const worldCenter = new THREE.Vector3(0, 0, 0);
 
       const currentTarget = controls.target.clone();
@@ -417,6 +463,9 @@ export function create3dTilesViewer({
       speedNoUpdate = false;
 
       adjustControlsZoomSpeed(getAltitude());
+
+      state.lookat = "origin";
+      runDispatches({ name: "lookat", value: "origin" });
     },
     enableUpdate: (enabled: boolean) => {
       updateEnabled = enabled;
@@ -425,18 +474,28 @@ export function create3dTilesViewer({
      * update per frame.
      */
     update,
-    setMaxElevation: (maxMeters: number) => {
-      const safeMaxElevation =
-        Number.isFinite(maxMeters) && maxMeters > 0 ? maxMeters : 0;
-      tilesManager.setElevationRange(0, safeMaxElevation);
-    },
     setElevationRange: (minMeters: number, maxMeters: number) => {
       const safeMinElevation = Number.isFinite(minMeters) ? minMeters : 0;
       const safeMaxElevation =
         Number.isFinite(maxMeters) && maxMeters >= safeMinElevation
           ? maxMeters
           : safeMinElevation;
+
       tilesManager.setElevationRange(safeMinElevation, safeMaxElevation);
+
+      state.elevation.min = safeMinElevation;
+      state.elevation.max = safeMaxElevation;
+
+      runDispatches({
+        name: "elevation",
+        value: { min: safeMinElevation, max: safeMaxElevation },
+      });
+    },
+    getElevationRange: () => {
+      return {
+        min: tilesManager.avgMinElevation,
+        max: tilesManager.avgMaxElevation,
+      };
     },
     getVisibleTiles,
     /**
@@ -451,5 +510,89 @@ export function create3dTilesViewer({
      * According to dist, get the zoom there.
      */
     distanceToZoom: getZoomLevel,
+    getLookAtZoom: getLookAtZoom,
   };
+
+  Object.setPrototypeOf(
+    currentThreeDTilesViewer,
+    THREE.EventDispatcher.prototype,
+  );
+
+  return currentThreeDTilesViewer;
 }
+
+type ViewerState = {
+  zoomLevel: number;
+  lookat: "origin" | "latlng";
+  elevation: {
+    min: number;
+    max: number;
+  };
+};
+
+type ViewerStateKey = keyof ViewerState;
+
+export let currentThreeDTilesViewer: Create3dTilesViewer = null;
+
+type Action<K extends ViewerStateKey = ViewerStateKey> = {
+  name: K;
+  value: ViewerState[K];
+};
+
+const currentThreeDTilesViewerStateReducer = (
+  state: ViewerState,
+  action: Action,
+) => {
+  console.log(currentThreeDTilesViewer);
+
+  if (currentThreeDTilesViewer) {
+    console.log("hi");
+    // @ts-expect-error
+    currentThreeDTilesViewer.dispatchEvent({
+      type: `change:${action.name}`,
+      ...action,
+    });
+  }
+
+  return { ...state, [action.name]: action.value };
+};
+
+type Meta = {
+  field: keyof ViewerState;
+  dispatch: React.ActionDispatch<[action: Action]>;
+};
+
+const dispatches = new Set<Meta>();
+
+const runDispatches = (action: Action) => {
+  for (const dispatch of dispatches) {
+    if (!dispatch.field || (dispatch.field && action.name === dispatch.field)) {
+      dispatch.dispatch(action);
+    }
+  }
+};
+
+export const useCurrentThreeDTilesViewerState = <K extends ViewerStateKey>(
+  field: K,
+): ViewerState[K] => {
+  const [state, dispatchState] = useReducer(
+    currentThreeDTilesViewerStateReducer,
+    currentThreeDTilesViewer.state,
+  );
+
+  useEffect(() => {
+    const meta: Meta = {
+      field,
+      dispatch: dispatchState,
+    };
+
+    dispatches.add(meta);
+    console.log("dis size", dispatches.size);
+    return () => {
+      dispatches.delete(meta);
+      console.log("dis size", dispatches.size);
+    };
+  }, [field]);
+
+  return state[field];
+};

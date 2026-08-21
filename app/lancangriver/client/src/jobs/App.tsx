@@ -159,25 +159,25 @@ export default function App() {
   }, [mapExtentKey]);
 
   return (
-    <main className=" min-h-screen h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen h-screen overflow-hidden bg-slate-950 px-4 py-4 text-slate-100 sm:px-6 lg:px-8">
       <div
         className={`fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? "w-3xl" : "w-64"}`}
       >
-        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 rounded-xl border border-white/70 bg-white/90 p-2 shadow-lg shadow-slate-900/15 ring-1 ring-slate-900/5 backdrop-blur-sm">
+        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 rounded-xl border border-white/10 bg-[rgba(8,10,14,0.88)] p-2 shadow-2xl shadow-black/30 backdrop-blur-md">
           <button
             onClick={() => setIsMapOpen(!isMapOpen)}
-            className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1"
+            className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 shadow-sm transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
             {isMapOpen ? "Close" : "Open"}
           </button>
           {isMapOpen && (
-            <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+            <div className="flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
               <button
                 onClick={() => setMapExtentKey("china")}
                 className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
                   mapExtentKey === "china"
-                    ? "bg-white text-sky-800 shadow-sm"
-                    : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                    ? "bg-sky-400/15 text-sky-200 shadow-sm"
+                    : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
                 }`}
               >
                 China
@@ -186,8 +186,8 @@ export default function App() {
                 onClick={() => setMapExtentKey("world")}
                 className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
                   mapExtentKey === "world"
-                    ? "bg-white text-sky-800 shadow-sm"
-                    : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                    ? "bg-sky-400/15 text-sky-200 shadow-sm"
+                    : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
                 }`}
               >
                 World
@@ -197,47 +197,47 @@ export default function App() {
         </div>
         <div
           ref={mapRef}
-          className="relative overflow-hidden rounded-2xl shadow-xl shadow-slate-900/20 ring-1 ring-slate-900/10"
+          className="relative overflow-hidden rounded-2xl shadow-2xl shadow-black/40 ring-1 ring-white/10"
         >
           <img
             className=" w-full"
             src={mapExtents[mapExtentKey].src}
             alt={mapExtents[mapExtentKey].label}
           />
-          <div className=" transition-all duration-100 ease-in absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full ring-1 ring-offset-1 ring-amber-700 border border-yellow-800 size-4 bg-red-500" />
+          <div className="absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-200 bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.25)] transition-all duration-100 ease-in" />
         </div>
       </div>
       <div className="mx-auto max-w-6xl h-full flex flex-col">
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-slate-300 pb-4">
+        <header className="mb-4 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <a
               href="/portal.html"
               target="_blank"
-              className="text-sm font-medium text-emerald-700 hover:text-emerald-900"
+              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-400 hover:text-sky-300"
             >
               Lancangriver Portal
             </a>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-950">
+            <h1 className="mt-1 text-xl font-semibold text-white">
               Vector Ingest Jobs
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-400">
               Zoom-12 OSM coverage status and failed-job controls for default
               and highways targets.
             </p>
           </div>
 
           <div className="text-right">
-            <div className="text-xs font-medium uppercase text-slate-500">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
               Jobs total
             </div>
-            <div className="text-2xl font-semibold tabular-nums text-slate-950">
+            <div className="text-2xl font-semibold tabular-nums text-slate-100">
               {total.toLocaleString()}
             </div>
           </div>
         </header>
 
         <nav
-          className="mb-4 flex items-center justify-between gap-2"
+          className="mb-3 flex flex-wrap items-center justify-between gap-3"
           aria-label="Controls"
         >
           <div className="flex items-center gap-2" aria-label="Ingest target">
@@ -250,8 +250,8 @@ export default function App() {
                   onClick={() => switchTab(tab.key)}
                   className={`border px-4 py-2 text-sm font-semibold ${
                     selected
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      ? "border-sky-400/50 bg-sky-400/15 text-sky-200"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
                   }`}
                   aria-pressed={selected}
                 >
@@ -275,8 +275,8 @@ export default function App() {
                   onClick={() => setMapExtentKey(key)}
                   className={`border px-3 py-1 text-xs font-medium ${
                     selected
-                      ? "border-blue-600 bg-blue-50 text-blue-900"
-                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      ? "border-sky-400/50 bg-sky-400/15 text-sky-200"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
                   }`}
                   aria-pressed={selected}
                 >
@@ -288,7 +288,7 @@ export default function App() {
         </nav>
 
         {error ? (
-          <div className="border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <div className="mb-3 rounded-lg border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-300">
             {error}
           </div>
         ) : null}
@@ -298,7 +298,7 @@ export default function App() {
         </div>
 
         <footer className="mt-4 flex items-center justify-between gap-4">
-          <div className="text-sm tabular-nums text-slate-600">
+          <div className="text-xs tabular-nums text-slate-500">
             {total === 0
               ? "0 results"
               : `${offset + 1}-${Math.min(offset + PAGE_SIZE, total)} of ${total}`}
@@ -310,7 +310,7 @@ export default function App() {
               onClick={() =>
                 setOffset((current) => Math.max(0, current - PAGE_SIZE))
               }
-              className="border border-slate-400 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Previous
             </button>
@@ -318,7 +318,7 @@ export default function App() {
               type="button"
               disabled={!canGoForward}
               onClick={() => setOffset((current) => current + PAGE_SIZE)}
-              className="border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-sky-400/50 bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next
             </button>

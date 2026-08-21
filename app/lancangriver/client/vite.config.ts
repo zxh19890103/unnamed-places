@@ -7,6 +7,7 @@ const pagesCfg = {
   jobs: `./src/jobs`,
   ["jobs-create"]: `./src/jobs-create`,
   ["static-leaflet-map"]: `./src/static-leaflet-map`,
+  ["ui-design-implement"]: `./src/ui-design-implement`,
   flat: `./src/flat`,
   ["global-zoom"]: `./src/experiments/global-zoom`,
   ["shanshui-shader"]: `./src/experiments/shanshui-shader`,

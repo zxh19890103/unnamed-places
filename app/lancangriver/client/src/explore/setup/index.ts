@@ -8,7 +8,12 @@ import { ControlsManager, type ControlMode } from "../ControlsManager.class.js";
 import { TileMaterialMode } from "../SphereTile.class.js";
 import { LatLng } from "@/calc/types.js";
 import { createVendors } from "./vendors.js";
-import { createSkyRig, FOG_COLOR, SKY_COLOR } from "./sky.js";
+import {
+  createSkyRig,
+  FOG_COLOR,
+  getDefaultCenterLatlng,
+  SKY_COLOR,
+} from "./sky.js";
 import { createGroundOrbitCloudsController } from "./clouds.js";
 import { createPhotoLocationsPresenter } from "./photos.js";
 import { create3dTilesViewer } from "@/experiments/sphere-zoom/viewer.js";
@@ -32,18 +37,27 @@ const alwaysReturns12Func = () => 12;
 export let getZoomLevel = alwaysReturns12Func;
 
 export function createSceneState(container: HTMLElement) {
+  const { loadingSnapshot, textureLoader, imageLoader, cloudAtlasTexture } =
+    createVendors();
+
   const scene = new THREE.Scene();
-  scene.background = SKY_COLOR.clone();
+  scene.background = textureLoader.load(
+    "/Euclid_Deep_Field_South_16x_zoom_pillars.jpg",
+  );
+  scene.background.colorSpace = THREE.SRGBColorSpace;
   scene.fog = new THREE.FogExp2(FOG_COLOR, 0);
 
-  const { initialCenter, syncSkyWithCamera } = createSkyRig(scene);
-
   const camera = new THREE.PerspectiveCamera(
-    75,
+    120,
     container.clientWidth / container.clientHeight,
     100,
     EARTH_RADIUS * 2,
   );
+
+  const skyRig = createSkyRig({
+    scene,
+    camera,
+  });
 
   const threeTilesViewer = create3dTilesViewer({
     camera,
@@ -51,73 +65,54 @@ export function createSceneState(container: HTMLElement) {
     maxZoom: 20,
   });
 
-  getZoomLevel = () =>
-    threeTilesViewer.getZoom(
-      camera.position.distanceTo(controlsManager.orbitControls.target) -
-        EARTH_RADIUS,
-    );
+  getZoomLevel = () => threeTilesViewer.getLookAtZoom();
+
+  const defualtLookAtLatlng = getDefaultCenterLatlng();
 
   const startCameraPosition = latlngToSphere(
-    initialCenter.lat,
-    initialCenter.lng,
-    EARTH_RADIUS * 0.1,
+    defualtLookAtLatlng.lat,
+    defualtLookAtLatlng.lng,
+    EARTH_RADIUS + 1_602_964,
   );
 
-  camera.position.set(
-    startCameraPosition.x,
-    startCameraPosition.y,
-    startCameraPosition.z,
-  );
+  const tilesManager = new TilesManager();
 
-  camera.lookAt(0, 0, 0);
+  tilesManager.onTileCreate = (node) => {
+    const tile = sphereGlobal.createTileByKey(node.key);
+    // add uniforms before it is added;
+    // threeTilesViewer.state.elevation.mi
+    tile.applyMaterialUniforms({
+      minElevationMeters: threeTilesViewer.state.elevation.min,
+      maxElevationMeters: threeTilesViewer.state.elevation.max,
+    });
 
-  const { loadingSnapshot, textureLoader, imageLoader, cloudAtlasTexture } =
-    createVendors();
+    tile.$node = node;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(container.clientWidth, container.clientHeight, true);
-  container.appendChild(renderer.domElement);
+    tile.setMaterialMode(globalTileMaterialMode);
+    node.tile = tile;
+  };
 
-  const stats = new Stats();
-  stats.dom.style.position = "static";
+  tilesManager.onTileAttach = (node) => {
+    if (node.tile) {
+      sphereGlobal.attachTile(node.tile);
+    }
+  };
 
-  const controlsManager = new ControlsManager({
-    threeTilesViewer,
-    camera,
-    domElement: renderer.domElement,
-    renderer,
-  });
+  tilesManager.onTileDetach = (node) => {
+    if (node.tile) {
+      sphereGlobal.detachTile(node.tile);
+    }
+  };
 
-  const tileManager = new TilesManager();
-
-  const sphereGlobal = new Sphere(
-    threeTilesViewer,
-    textureLoader,
-    imageLoader,
-    {
-      camera,
-      tilesManager: tileManager,
-      controlsManager,
-      getLoadingSnapshot: () => loadingSnapshot,
-    },
-  );
-
-  scene.add(sphereGlobal);
-
-  const cloudsController = createGroundOrbitCloudsController({
-    scene,
-    cloudAtlasTexture,
-  });
-
-  const photoLocationsPresenter = createPhotoLocationsPresenter({
-    scene,
-    textureLoader,
-    baseUrl: BASE_URL,
-  });
+  tilesManager.onTileDispose = (node) => {
+    if (node.tile) {
+      sphereGlobal.disposeTile(node.tile);
+      node.tile = null;
+    }
+  };
 
   const reconcileAttachedNodeMaterials = () => {
-    for (const node of tileManager.getAttachedNodes()) {
+    for (const node of tilesManager.getAttachedNodes()) {
       if (!node.tile) {
         continue;
       }
@@ -127,93 +122,14 @@ export function createSceneState(container: HTMLElement) {
   };
 
   const refreshVisibleTilesOnCameraChanges = () => {
-    if (tileManager.frozen) return;
+    if (tilesManager.frozen) return;
 
     const earthTiles = threeTilesViewer.getVisibleTiles(
       camera.position.clone(),
     );
 
-    tileManager.setNodes(earthTiles);
+    tilesManager.setNodes(earthTiles);
   };
-
-  tileManager.onTileCreate = (node) => {
-    const tile = sphereGlobal.createTileByKey(node.key);
-    tile.$tNode = node;
-    tile.setMaterialMode(globalTileMaterialMode);
-
-    node.tile = tile;
-  };
-
-  tileManager.onTileAttach = (node) => {
-    if (node.tile) {
-      sphereGlobal.attachTile(node.tile);
-    }
-  };
-
-  tileManager.onTileDetach = (node) => {
-    if (node.tile) {
-      sphereGlobal.detachTile(node.tile);
-    }
-  };
-
-  tileManager.onTileDispose = (node) => {
-    if (node.tile) {
-      sphereGlobal.disposeTile(node.tile);
-      node.tile = null;
-    }
-  };
-
-  const syncCloudsWithCamera = () => {
-    const orbitTarget = camera.position
-      .clone()
-      .normalize()
-      .multiplyScalar(EARTH_RADIUS);
-
-    const cloudLatLng = sphereToLatlng(
-      orbitTarget.x,
-      orbitTarget.y,
-      orbitTarget.z,
-    );
-
-    const cameraDistanceMeters = Math.max(
-      1,
-      2.5 * (camera.position.length() - EARTH_RADIUS),
-    );
-
-    cloudsController.syncCloudsAtTarget({
-      latlng: cloudLatLng,
-      orbitTarget,
-      cameraDistanceMeters,
-      viewportHeight: container.clientHeight,
-    });
-  };
-
-  controlsManager.onModeChange = (from: ControlMode, to: ControlMode) => {
-    console.log(`[Controls] Mode change: ${from} → ${to}`);
-    if (to === "fly") {
-      tileManager.frozen = true;
-      const modeLabel = to === "fly" ? "fly compositor" : "ground orbit";
-      console.log(`[Tiles] Entering resolution mode (${modeLabel})`);
-    } else {
-      tileManager.frozen = false;
-      reconcileAttachedNodeMaterials();
-      console.log("[Tiles] Tile finding resumed");
-      refreshVisibleTilesOnCameraChanges();
-    }
-  };
-
-  controlsManager.pointerControls.onChange = () => {
-    syncCloudsWithCamera();
-    refreshVisibleTilesOnCameraChanges();
-  };
-
-  controlsManager.orbitControls.addEventListener("end", () => {
-    reconcileAttachedNodeMaterials();
-    refreshVisibleTilesOnCameraChanges();
-    syncCloudsWithCamera();
-  });
-
-  threeTilesViewer.useOrbitControls(controlsManager.orbitControls);
 
   const getCurrentCameraLatlng = () => {
     const pos = camera.position;
@@ -243,21 +159,17 @@ export function createSceneState(container: HTMLElement) {
   const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
     threeTilesViewer.lookAtLatlng(centerLatlng);
 
-    const orbitLatlng = centerLatlng;
-    const orbitTarget = controlsManager.orbitControls.target.clone();
+    skyRig.createEarthSurfaceSky(centerLatlng);
 
-    const cameraDistanceMeters =
-      2.5 * (camera.position.length() - EARTH_RADIUS);
-
-    syncSkyWithCamera({
-      orbitCenter: orbitTarget,
-      cameraDistanceMeters,
-    });
+    const cameraDistanceMeters = Math.max(
+      1,
+      camera.position.length() - EARTH_RADIUS,
+    );
 
     cloudsController.syncCloudsAtTarget({
-      latlng: orbitLatlng,
-      orbitTarget,
-      cameraDistanceMeters,
+      latlng: centerLatlng,
+      orbitTarget: controlsManager.orbitControls.target.clone(),
+      cameraDistanceMeters: cameraDistanceMeters,
       viewportHeight: container.clientHeight,
     });
 
@@ -270,7 +182,6 @@ export function createSceneState(container: HTMLElement) {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, true);
-    cloudsController.syncViewportHeight(height);
   };
 
   const destroyStats = () => {
@@ -279,8 +190,71 @@ export function createSceneState(container: HTMLElement) {
     }
   };
 
+  camera.position.set(
+    startCameraPosition.x,
+    startCameraPosition.y,
+    startCameraPosition.z,
+  );
+
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(container.clientWidth, container.clientHeight, true);
+  container.appendChild(renderer.domElement);
+
+  const stats = new Stats();
+  stats.dom.style.position = "static";
+
+  const cloudsController = createGroundOrbitCloudsController({
+    scene,
+    cloudAtlasTexture,
+  });
+
+  const photoLocationsPresenter = createPhotoLocationsPresenter({
+    scene,
+    textureLoader,
+    baseUrl: BASE_URL,
+  });
+
+  const controlsManager = new ControlsManager({
+    threeTilesViewer,
+    camera,
+    domElement: renderer.domElement,
+    renderer,
+  });
+
+  const sphereGlobal = new Sphere(
+    threeTilesViewer,
+    textureLoader,
+    imageLoader,
+    {
+      camera,
+      tilesManager: tilesManager,
+      controlsManager,
+      getLoadingSnapshot: () => loadingSnapshot,
+    },
+  );
+
+  scene.add(sphereGlobal);
+
+  controlsManager.pointerControls.onChange = () => {
+    refreshVisibleTilesOnCameraChanges();
+  };
+
+  controlsManager.orbitControls.addEventListener("end", () => {
+    reconcileAttachedNodeMaterials();
+    refreshVisibleTilesOnCameraChanges();
+  });
+
+  threeTilesViewer.useOrbitControls(controlsManager.orbitControls);
+
   refreshVisibleTilesOnCameraChanges();
-  syncCloudsWithCamera();
+
+  // @ts-expect-error
+  threeTilesViewer.addEventListener("change:lookAt", (event) => {
+    console.log(event);
+  });
 
   return {
     scene,
@@ -289,7 +263,7 @@ export function createSceneState(container: HTMLElement) {
     controlsManager,
     sphere: sphereGlobal,
     stats,
-    tileManager,
+    tileManager: tilesManager,
     resize,
     refreshVisibleTilesOnCameraChanges,
     getCurrentCenterLatLng: getCurrentCameraLatlng,
@@ -301,14 +275,17 @@ export function createSceneState(container: HTMLElement) {
     threeTilesViewer,
     onFrame: (frameTimeMs: number) => {
       sphereGlobal.recordFrameTime(frameTimeMs);
-      syncCloudsWithCamera();
     },
     cleanup: () => {
       getZoomLevel = alwaysReturns12Func;
+
       cloudsController.dispose();
+      skyRig.dispose();
+
       photoLocationsPresenter.dispose();
       sphereGlobal.dispose();
       controlsManager.dispose();
+      threeTilesViewer.dispose();
       destroyStats();
       renderer.dispose();
     },

@@ -37,7 +37,7 @@ export default function App() {
       maxZoom: 20,
       maxNativeZoom: 21,
       // zoomOffset: 0,
-      detectRetina: false,
+      detectRetina: true,
     }).addTo(map);
 
     const marker = L.marker(DEFAULT_CENTER, {

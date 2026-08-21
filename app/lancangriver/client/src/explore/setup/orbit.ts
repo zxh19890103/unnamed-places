@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { getLocalBasisAtPoint } from "../../calc/sphere";
+import { getLocalBasisAtPoint } from "@/calc/sphere";
 
 export function computeOrbitPositionFromAzimuthAltitude(
   target: THREE.Vector3,

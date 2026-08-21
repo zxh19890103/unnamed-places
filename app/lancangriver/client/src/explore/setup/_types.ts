@@ -15,15 +15,3 @@ export type VendorBundle = {
   imageLoader: THREE.ImageLoader;
   cloudAtlasTexture: THREE.Texture;
 };
-
-export type SkySyncParams = {
-  orbitCenter: THREE.Vector3;
-  cameraDistanceMeters: number;
-};
-
-export type SkyRig = {
-  sky: THREE.Object3D;
-  sunLight: THREE.DirectionalLight;
-  initialCenter: { lat: number; lng: number };
-  syncSkyWithCamera: (params: SkySyncParams) => void;
-};

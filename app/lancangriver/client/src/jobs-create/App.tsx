@@ -26,8 +26,8 @@ export default function App() {
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
-      <main className="h-full flex-1">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
+      <main className="min-h-0 min-w-0 flex-1">
         <LeafletBBoxMap
           focusTile={focusTile}
           bbox={bbox}
@@ -36,15 +36,25 @@ export default function App() {
         />
       </main>
 
-      <aside className="flex h-full w-80 flex-col border-l border-slate-200 bg-white">
-        <header className="border-b border-slate-200 px-4 py-3">
-          <h1 className="text-sm font-semibold tracking-wide text-slate-900">
-            Zoom {COVERAGE_ZOOM} Coverage
-          </h1>
-          <p className="mt-1 text-xs text-slate-500">
+      <aside className="flex h-[43vh] w-full shrink-0 flex-col border-t border-white/10 bg-[rgba(8,10,14,0.94)] shadow-2xl shadow-black/30 backdrop-blur-md lg:h-full lg:w-96 lg:border-l lg:border-t-0">
+        <header className="border-b border-white/10 px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-400">
+                Coverage workspace
+              </p>
+              <h1 className="mt-1 text-sm font-semibold tracking-wide text-white">
+                Zoom {COVERAGE_ZOOM} Coverage
+              </h1>
+            </div>
+            <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-mono text-[10px] tabular-nums text-slate-400">
+              {tiles.length} tiles
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
             {tiles.length === 0
               ? "Visible map exceeds 30km, zoom in to list tiles"
-              : `${tiles.length} tile${tiles.length === 1 ? "" : "s"} cover the visible map`}
+              : "Tiles covering the current map view"}
           </p>
         </header>
         <TileList
@@ -61,26 +71,29 @@ const TileList = ({ tiles, focusTile, onTileClick }) => {
   const elementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const leafletTileContainer = document.querySelector(
-      ".leaflet-tile-container",
-    );
+    const element = elementRef.current;
+    if (!element) return;
 
-    elementRef.current.addEventListener("click", (event) => {
+    const handleClick = (event: MouseEvent) => {
       // if it is the button of itemtype = `where?`, trigger
       const target = event.target as HTMLElement;
       const button = target.closest('button[itemtype="tile/where"]');
 
-      console.log(button);
-
       if (button) {
         const id = button.getAttribute("itemid");
-        onTileClick(id);
+        if (id) onTileClick(id);
       }
-    });
+    };
+
+    element.addEventListener("click", handleClick);
+    return () => element.removeEventListener("click", handleClick);
   }, [onTileClick]);
 
   return (
-    <div ref={elementRef} className="flex-1 overflow-y-auto bg-slate-50">
+    <div
+      ref={elementRef}
+      className="min-h-0 flex-1 overflow-y-auto bg-black/10"
+    >
       <ul className="flex flex-col gap-2 px-3 py-3">
         {tiles.map((tile) => (
           <TileListItem
@@ -168,27 +181,27 @@ const TileListItem = memo(
       <li
         key={`${tile.z}/${tile.x}/${tile.y}`}
         className={
-          "rounded-xl border bg-white p-3 text-xs shadow-sm transition-shadow hover:shadow-md" +
+          "rounded-xl border bg-white/5 p-3 text-xs shadow-lg shadow-black/10 transition-colors hover:bg-white/10" +
           (focused
-            ? " border-indigo-400 ring-2 ring-indigo-100"
-            : " border-slate-200")
+            ? " border-sky-400/70 ring-1 ring-sky-400/30"
+            : " border-white/10")
         }
       >
         <div className="grid gap-2">
           <a
             href={`/tile12-osm?tilekey=${tile.id}`}
             target="_blank"
-            className="font-mono text-sm font-semibold text-indigo-600 hover:text-indigo-500 hover:underline"
+            className="font-mono text-sm font-semibold text-slate-200 hover:text-sky-300 hover:underline"
           >
             {tile.z}/{tile.x}/{tile.y}
           </a>
           <div className="flex flex-wrap gap-1.5">
             <button
               className={
-                "cursor-pointer rounded-full border px-2.5 py-1 font-medium transition-colors" +
+                "cursor-pointer rounded-lg border px-2.5 py-1 font-medium transition-colors" +
                 (focused
-                  ? " border-amber-300 bg-amber-100 text-amber-800"
-                  : " border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200")
+                  ? " border-sky-400/50 bg-sky-400/15 text-sky-200"
+                  : " border-white/10 bg-white/5 text-slate-300 hover:bg-white/10")
               }
               itemID={tile.id}
               itemType="tile/where"
@@ -198,7 +211,7 @@ const TileListItem = memo(
             <button
               onClick={() => void handleDownloadOsm()}
               disabled={downloadStatus === "queuing"}
-              className="cursor-pointer rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="cursor-pointer rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {downloadStatus === "queuing"
                 ? "queuing..."
@@ -211,7 +224,7 @@ const TileListItem = memo(
             <button
               onClick={() => void handleDownloadHighwayOsm()}
               disabled={highwayDownloadStatus === "queuing"}
-              className="cursor-pointer rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 font-medium text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="cursor-pointer rounded-lg border border-sky-400/25 bg-sky-400/10 px-2.5 py-1 font-medium text-sky-300 transition-colors hover:bg-sky-400/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {highwayDownloadStatus === "queuing"
                 ? "queuing..."
@@ -223,13 +236,13 @@ const TileListItem = memo(
             </button>
             <button
               onClick={() => void handleCheckStatus("buildings")}
-              className="cursor-pointer rounded-full border border-slate-200 px-2.5 py-1 font-medium text-slate-600 transition-colors hover:bg-slate-100"
+              className="cursor-pointer rounded-lg border border-white/10 px-2.5 py-1 font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
             >
               buildings & waters?
             </button>
             <button
               onClick={() => void handleCheckStatus("highways")}
-              className="cursor-pointer rounded-full border border-slate-200 px-2.5 py-1 font-medium text-slate-600 transition-colors hover:bg-slate-100"
+              className="cursor-pointer rounded-lg border border-white/10 px-2.5 py-1 font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
             >
               highways?
             </button>
@@ -239,7 +252,7 @@ const TileListItem = memo(
         <dialog
           ref={statusDialogRef}
           onClose={() => setStatusDialogInfo(null)}
-          className="fixed top-1/2 left-1/2 m-0 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm"
+          className="fixed top-1/2 left-1/2 m-0 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-[rgba(8,10,14,0.96)] p-0 text-slate-200 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
         >
           {statusDialogInfo && (
             <div className="p-5">
@@ -255,7 +268,7 @@ const TileListItem = memo(
                 <button
                   onClick={() => setStatusDialogInfo(null)}
                   aria-label="Close"
-                  className="cursor-pointer rounded-full px-1.5 py-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                  className="cursor-pointer rounded-lg px-1.5 py-0.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
                 >
                   ✕
                 </button>
@@ -263,20 +276,20 @@ const TileListItem = memo(
 
               <div className="mt-4 space-y-2 text-sm">
                 {statusDialogInfo.errorText ? (
-                  <p className="rounded-lg bg-rose-50 px-3 py-2 text-rose-600">
+                  <p className="rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-rose-300">
                     {statusDialogInfo.errorText}
                   </p>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                      <span className="text-slate-500">Job status</span>
-                      <span className="font-medium text-slate-800">
+                    <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+                      <span className="text-slate-400">Job status</span>
+                      <span className="font-medium text-slate-200">
                         {statusDialogInfo.statusText}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                      <span className="text-slate-500">Data loaded</span>
-                      <span className="font-medium text-slate-800">
+                    <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+                      <span className="text-slate-400">Data loaded</span>
+                      <span className="font-medium text-slate-200">
                         {statusDialogInfo.loadedText}
                       </span>
                     </div>
@@ -286,7 +299,7 @@ const TileListItem = memo(
 
               <button
                 onClick={() => setStatusDialogInfo(null)}
-                className="mt-5 w-full cursor-pointer rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500"
+                className="mt-5 w-full cursor-pointer rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400"
               >
                 Close
               </button>

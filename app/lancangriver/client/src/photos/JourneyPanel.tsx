@@ -16,18 +16,31 @@ export function JourneyPanel({
   onSelectDay,
 }: JourneyPanelProps) {
   return (
-    <aside className="max-h-[calc(100vh-2rem)] w-[320px] overflow-hidden rounded-xl bg-slate-950/70 p-3 text-white backdrop-blur-sm">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide">
-        Life Journey
-      </h2>
+    <aside className="flex max-h-[calc(100vh-6rem)] w-[min(320px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-(--jade-border) bg-(--jade-panel)/95 p-3 text-(--jade-text) shadow-xl shadow-[#182a36]/20 backdrop-blur-md">
+      <div className="mb-2 border-b border-(--jade-border-soft) pb-2">
+        <p className="text-[10px] font-semibold tracking-[0.16em] text-(--jade-river) uppercase">
+          Photo timeline
+        </p>
+        <h2 className="mt-0.5 text-sm font-semibold">Life journey</h2>
+      </div>
 
-      {loading && <p className="text-xs text-slate-300">Loading photos...</p>}
-      {!loading && error && <p className="text-xs text-rose-300">{error}</p>}
+      {loading && (
+        <p className="text-xs text-(--jade-text-muted)" role="status">
+          Loading photo locations...
+        </p>
+      )}
+      {!loading && error && (
+        <p className="text-xs text-(--jade-error)" role="status">
+          {error}
+        </p>
+      )}
       {!loading && !error && days.length === 0 && (
-        <p className="text-xs text-slate-300">No geotagged photos found</p>
+        <p className="text-xs text-(--jade-text-muted)">
+          No geotagged photos found
+        </p>
       )}
 
-      <div className="mt-2 space-y-2 overflow-y-auto pr-1">
+      <div className="mt-2 min-h-0 space-y-2 overflow-y-auto pr-1">
         {days.map((day) => {
           const isSelected = selectedDayKey === day.dayKey;
 
@@ -36,15 +49,18 @@ export function JourneyPanel({
               key={day.dayKey}
               type="button"
               onClick={() => onSelectDay(day.dayKey)}
-              className={`w-full rounded-lg border p-3 text-left transition-colors ${
+              aria-pressed={isSelected}
+              className={`w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--jade-river) ${
                 isSelected
-                  ? "border-sky-400 bg-sky-500/20"
-                  : "border-slate-700 bg-slate-900/50 hover:bg-slate-900/80"
+                  ? "border-(--jade-river) bg-(--jade-river-soft)"
+                  : "border-(--jade-border-soft) bg-(--jade-depth)/40 hover:border-(--jade-border) hover:bg-(--jade-control)"
               }`}
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium">{day.displayLabel}</span>
-                <span className="text-xs text-slate-300">
+                <span className="min-w-0 truncate text-sm font-medium text-(--jade-text)">
+                  {day.displayLabel}
+                </span>
+                <span className="shrink-0 text-xs tabular-nums text-(--jade-text-muted)">
                   {day.photoCount} photos
                 </span>
               </div>
@@ -53,7 +69,7 @@ export function JourneyPanel({
                 {day.placeChips.map((chip) => (
                   <span
                     key={chip}
-                    className="rounded bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200"
+                    className="max-w-full truncate rounded-md bg-jade-lotus-soft px-2 py-0.5 text-[11px] text-jade-lotus"
                   >
                     {chip}
                   </span>

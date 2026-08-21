@@ -1,17 +1,17 @@
 import { memo, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import * as THREE from "three";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { Cross1Icon } from "@radix-ui/react-icons";
 
 import {
   createSceneState,
-  getZoomLevel,
   setGlobalTileMaterialMode,
   globalTileMaterialMode,
   SceneState,
 } from "./explore/setup";
 import { SceneMonitor } from "./explore/dom/SceneMonitor";
 import type { LatLng } from "./calc/types";
-import type { Sphere } from "./explore/Sphere.class";
 import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from "./flat/protocol";
 import { JourneyPanel } from "./photos/JourneyPanel";
 import { buildJourneyDays } from "./photos/journey";
@@ -21,7 +21,10 @@ import type { TilesManager } from "./explore/TilesManager.class";
 import type { LatLngBBox } from "./explore/setup/coverageVisibility";
 import { BASE_URL, ELEVATION_SCALE } from "./calc/constants";
 import { SphereTile, TileMaterialMode } from "./explore/SphereTile.class";
-import { Create3dTilesViewer } from "./experiments/sphere-zoom/viewer";
+import {
+  Create3dTilesViewer,
+  useCurrentThreeDTilesViewerState,
+} from "./experiments/sphere-zoom/viewer";
 import { MiniMap } from "./explore/dom/MiniMap";
 import { ControlsManager } from "./explore/ControlsManager.class";
 import { latlngToStandardTileZxy } from "./experiments/sphere-zoom/tile";
@@ -65,7 +68,10 @@ export default function App() {
 const CreateScene = memo(
   ({ host, sceneState }: { sceneState: SceneState; host: HTMLDivElement }) => {
     const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
+    const [isFlatFrameLoading, setIsFlatFrameLoading] = useState(false);
     const [flatFrameUrl, setFlatFrameUrl] = useState("/flat.html");
+    const flatCloseButtonRef = useRef<HTMLButtonElement>(null);
+    const flatModalTriggerRef = useRef<HTMLElement | null>(null);
     const [journeyRecords, setJourneyRecords] = useState<PhotoRecord[]>([]);
     const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
     const [journeyError, setJourneyError] = useState<string | null>(null);
@@ -204,23 +210,42 @@ const CreateScene = memo(
       return () => window.removeEventListener("message", handleMessage);
     }, []);
 
+    useEffect(() => {
+      if (!isFlatModalOpen) {
+        return;
+      }
+
+      flatCloseButtonRef.current?.focus();
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          setIsFlatModalOpen(false);
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        flatModalTriggerRef.current?.focus();
+      };
+    }, [isFlatModalOpen]);
+
     const openFlatModal = async () => {
       const center = sceneState.getCurrentCenterLatLng();
+      flatModalTriggerRef.current =
+        document.activeElement as HTMLElement | null;
       setFlatFrameUrl(buildFlatModalUrl(center));
+      setIsFlatFrameLoading(true);
       setIsFlatModalOpen(true);
     };
 
-    let isTopdownView = true;
     const handleDirectSwitchTo3dView = async () => {
-      if (isTopdownView) {
+      if (sceneState.threeTilesViewer.state.lookat === "origin") {
         const center = sceneState.getCurrentCenterLatLng();
         focus3dAtCenter(center);
-        isTopdownView = false;
       } else {
         // const target = sceneState.controlsManager.orbitControls.target;
         sceneState.threeTilesViewer.lookAtOrigin();
         sceneState.refreshVisibleTilesOnCameraChanges();
-        isTopdownView = true;
       }
     };
 
@@ -262,6 +287,7 @@ const CreateScene = memo(
         throw new Error("not implemented");
       } catch (error) {
         console.warn("Failed to focus journey day", error);
+        setJourneyError("Could not focus that day");
       }
     };
 
@@ -278,7 +304,7 @@ const CreateScene = memo(
 
     return (
       <>
-        <div className="pointer-events-none fixed left-1/2 top-3 z-40 flex -translate-x-1/2 flex-wrap justify-center gap-1.5 px-2">
+        <div className="pointer-events-none fixed inset-x-3 top-3 z-40 flex flex-nowrap justify-start gap-1.5 overflow-x-auto pb-1 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:justify-center">
           <TerrianModeSelect
             controls={sceneState.controlsManager}
             tileManager={sceneState.tileManager}
@@ -289,7 +315,7 @@ const CreateScene = memo(
           />
         </div>
 
-        <div className="fixed left-4 top-3 z-40 ">
+        <div className="fixed left-3 top-18 z-40 sm:left-4">
           <JourneyPanel
             days={journeyDays}
             selectedDayKey={selectedDayKey}
@@ -311,7 +337,7 @@ const CreateScene = memo(
           threeTilesViewer={sceneState.threeTilesViewer}
         />
 
-        <div className="fixed bottom-3 left-4 z-30 ">
+        <div className="fixed bottom-76 left-3 z-30 sm:bottom-3 sm:left-4">
           <SceneMonitor
             sphere={sceneState.sphere}
             threeJsStats={sceneState.stats}
@@ -319,20 +345,51 @@ const CreateScene = memo(
         </div>
 
         {isFlatModalOpen && (
-          <div className="absolute inset-0 z-1994 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
-            <div className="relative h-[80vh] w-[80vw] overflow-hidden rounded-2xl bg-white shadow-2xl">
-              <button
-                type="button"
-                onClick={() => setIsFlatModalOpen(false)}
-                className="absolute right-3 top-3 z-10 rounded-md bg-slate-950/80 px-3 py-1.5 text-sm text-white transition-colors hover:bg-slate-900"
-              >
-                Close
-              </button>
-              <iframe
-                title="Flat map selector"
-                src={flatFrameUrl}
-                className="h-full w-full border-0"
-              />
+          <div className="absolute inset-0 z-1994 grid place-items-center bg-[#182a36]/45 p-3 backdrop-blur-[2px]">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="flat-map-dialog-title"
+              className="flex h-[min(80vh,760px)] w-[min(90vw,1100px)] flex-col overflow-hidden rounded-xl border border-(--jade-border) bg-(--jade-panel) text-(--jade-text) shadow-2xl shadow-[#182a36]/25"
+            >
+              <header className="flex min-h-14 items-center justify-between gap-3 border-b border-(--jade-border-soft) px-4 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold tracking-[0.16em] text-(--jade-river) uppercase">
+                    Choose location
+                  </p>
+                  <h2
+                    id="flat-map-dialog-title"
+                    className="truncate text-sm font-semibold"
+                  >
+                    Flat map selector
+                  </h2>
+                </div>
+                <button
+                  ref={flatCloseButtonRef}
+                  type="button"
+                  onClick={() => setIsFlatModalOpen(false)}
+                  aria-label="Close flat map selector"
+                  className="min-h-10 rounded-full border border-jade-border-soft bg--jade-control px-3 text-sm font-medium text-(--jade-text) transition-colors hover:border-(--jade-border) hover:bg-jade-control-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--jade-river)"
+                >
+                  <Cross1Icon />
+                </button>
+              </header>
+              <div className="relative min-h-0 flex-1 bg-jade-depth">
+                <iframe
+                  title="Flat map selector"
+                  src={flatFrameUrl}
+                  onLoad={() => setIsFlatFrameLoading(false)}
+                  className="h-full w-full border-0"
+                />
+                {isFlatFrameLoading && (
+                  <div
+                    className="absolute inset-0 grid place-items-center bg-(--jade-depth) text-sm text-(--jade-text-muted)"
+                    role="status"
+                  >
+                    Loading flat map...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -365,58 +422,86 @@ const OpsPanel = ({
   tileManager,
   threeTilesViewer,
 }: OpsPanelProps) => {
+  const state = useCurrentThreeDTilesViewerState("zoomLevel");
+  console.log("state.zoomls", state);
+
   const [viewerUpdateEnabled, setViewerUpdateEnabled] = useState(
     !tileManager.frozen,
   );
 
+  const iconButtonClass =
+    "grid size-11 place-items-center rounded-lg bg-jade-panel/95 text-jade-text-muted shadow-lg shadow-[#182a36]/20 backdrop-blur-md transition-colors hover:border-jade-river hover:bg-jade-control-hover hover:text-jade-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river";
+
   return (
-    <div className="pointer-events-none fixed bottom-3 right-4 z-40 w-[min(280px,calc(100vw-2rem))]">
-      <div className="pointer-events-auto rounded-xl border border-white/10 bg-slate-950/80 p-2.5 text-white shadow-[0_14px_35px_rgba(0,0,0,0.3)] backdrop-blur-md">
-        <div className="mb-2 border-b border-white/10 px-1 pb-2">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-300">
-            Map workspace
-          </div>
-          <div className="mt-0.5 text-sm font-semibold tracking-wide">
-            Scene controls
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
+    <Tooltip.Provider delayDuration={250} skipDelayDuration={100}>
+      <div
+        className="pointer-events-none fixed top-1/2 right-3 z-40 flex -translate-y-1/2 flex-col gap-2 sm:right-4"
+        role="toolbar"
+        aria-label="Scene controls"
+        aria-orientation="vertical"
+      >
+        <SceneControlTooltip
+          label={
+            viewerUpdateEnabled ? "Pause tile updates" : "Resume tile updates"
+          }
+        >
           <button
             type="button"
+            aria-label={
+              viewerUpdateEnabled ? "Pause tile updates" : "Resume tile updates"
+            }
+            aria-pressed={!viewerUpdateEnabled}
             onClick={() => {
               const nextFrozen = !tileManager.frozen;
               tileManager.frozen = nextFrozen;
               const nextUpdateEnabled = !nextFrozen;
               setViewerUpdateEnabled(nextUpdateEnabled);
             }}
-            className="rounded-lg border border-white/10 bg-white/8 px-3 py-2 text-left text-sm text-white transition-colors hover:bg-white/[0.14]"
+            className={`${iconButtonClass} pointer-events-auto ${
+              viewerUpdateEnabled
+                ? ""
+                : "border-jade-river bg-jade-river-soft text-jade-text"
+            }`}
           >
-            {viewerUpdateEnabled ? "Pause tile updates" : "Resume tile updates"}
+            {viewerUpdateEnabled ? <PauseTilesIcon /> : <ResumeTilesIcon />}
           </button>
+        </SceneControlTooltip>
+        <SceneControlTooltip label="Open flat map">
           <button
             type="button"
+            aria-label="Open flat map"
             onClick={() => void openFlatModal()}
-            className="rounded-lg border border-white/10 bg-white/8 px-3 py-2 text-left text-sm text-white transition-colors hover:bg-white/[0.14]"
+            className={`${iconButtonClass} pointer-events-auto`}
           >
-            Open flat map
+            <FlatMapIcon />
           </button>
+        </SceneControlTooltip>
+        <SceneControlTooltip label="Switch top-down / perspective view">
           <button
             type="button"
+            aria-label="Switch top-down or perspective view"
             onClick={() => void handleDirectSwitchTo3dView()}
-            className="rounded-lg border border-white/10 bg-white/[0.08] px-3 py-2 text-left text-sm text-white transition-colors hover:bg-white/[0.14]"
+            className={`${iconButtonClass} pointer-events-auto`}
           >
-            Top Down / 45
+            <ViewAngleIcon />
           </button>
+        </SceneControlTooltip>
+        <SceneControlTooltip label="Load photo locations">
           <button
             type="button"
+            aria-label="Load photo locations"
             onClick={() => void handleLoadGeotaggedPhotos()}
-            className="rounded-lg border border-white/10 bg-white/[0.08] px-3 py-2 text-left text-sm text-white transition-colors hover:bg-white/[0.14]"
+            className={`${iconButtonClass} pointer-events-auto`}
           >
-            Load photo locations
+            <PhotoLocationsIcon />
           </button>
+        </SceneControlTooltip>
+        <SceneControlTooltip label="Create OSM tile job">
           <a
             target="_blank"
+            rel="noreferrer"
             href="/jobs-create"
+            aria-label="Create OSM tile job"
             onClick={(event) => {
               event.preventDefault();
               const center = getCurrentLookingAtCenter();
@@ -425,15 +510,157 @@ const OpsPanel = ({
                 "_blank",
               );
             }}
-            className="rounded-lg border border-white/10 bg-white/[0.08] px-3 py-2 text-left text-sm text-white transition-colors hover:bg-white/[0.14]"
+            className={`${iconButtonClass} pointer-events-auto`}
           >
-            Create OSM tile job
+            <CreateTileJobIcon />
           </a>
-        </div>
+        </SceneControlTooltip>
       </div>
-    </div>
+    </Tooltip.Provider>
   );
 };
+
+function SceneControlTooltip({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactElement;
+}) {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content
+          side="left"
+          align="center"
+          sideOffset={10}
+          className="z-2000 rounded-lg px-3 py-2 text-xs font-medium text-white shadow-xl shadow-[#182a36]/20 select-none"
+        >
+          {label}
+          {/* <Tooltip.Arrow className="fill-jade-panel-raised" /> */}
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}
+
+const iconClass = "size-5.5";
+
+function PauseTilesIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      >
+        <path d="m3.5 7 8.5-4 8.5 4-8.5 4-8.5-4Z" />
+        <path d="m3.5 11 8.5 4 8.5-4M3.5 15l8.5 4 3.5-1.65" opacity=".65" />
+        <path d="M18 15.5v5M21 15.5v5" strokeWidth="2.2" />
+      </g>
+    </svg>
+  );
+}
+
+function ResumeTilesIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      >
+        <path d="m3.5 7 8.5-4 8.5 4-8.5 4-8.5-4Z" />
+        <path d="m3.5 11 8.5 4 8.5-4M3.5 15l8.5 4 3.5-1.65" opacity=".65" />
+      </g>
+      <path d="m17 15 4 2.75-4 2.75V15Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function FlatMapIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.75"
+      >
+        <path d="m3 5 5-2 8 3 5-2v15l-5 2-8-3-5 2V5Z" />
+        <path d="M8 3v15M16 6v4" opacity=".7" />
+        <path d="M19 13.5c0 2-3 5-3 5s-3-3-3-5a3 3 0 1 1 6 0Z" />
+        <circle cx="16" cy="13.5" r=".8" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  );
+}
+
+function ViewAngleIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.75"
+      >
+        <path d="m3 16 9-4 9 4-9 4-9-4Z" />
+        <path d="M12 3v7M9.5 5.5 12 3l2.5 2.5" />
+        <path d="M5 12.5 8.5 9M5 9v3.5h3.5" opacity=".8" />
+      </g>
+    </svg>
+  );
+}
+
+function PhotoLocationsIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.75"
+      >
+        <rect x="3" y="5.5" width="14" height="12" rx="2" />
+        <path d="m5.5 15 3.5-3 2.5 2 2-1.5 3.5 3M7 5.5l1-2h4l1 2" />
+        <circle cx="13" cy="9.5" r="1.4" />
+        <path
+          d="M22 15.5c0 2-3 5-3 5s-3-3-3-5a3 3 0 1 1 6 0Z"
+          fill="var(--jade-panel)"
+        />
+        <circle cx="19" cy="15.5" r=".8" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  );
+}
+
+function CreateTileJobIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.75"
+      >
+        <path d="m3 7 6-3 6 3-6 3-6-3Z" />
+        <path d="m3 11 6 3 6-3M3 15l6 3 3-1.5" opacity=".75" />
+        <circle cx="18" cy="17" r="4" fill="var(--jade-panel)" />
+        <path d="M18 15v4M16 17h4" strokeWidth="2" />
+      </g>
+    </svg>
+  );
+}
 
 const TerrianModeSelect = memo(
   ({
@@ -450,23 +677,11 @@ const TerrianModeSelect = memo(
       maxMeters: number,
     ) => void;
   }) => {
+    const zoomLevel = useCurrentThreeDTilesViewerState("zoomLevel");
+    console.log("zoml", zoomLevel);
+
     const [mode, setMode] = useState(globalTileMaterialMode);
-    const [zoomLevel, setZoomLevel] = useState(() => getZoomLevel());
     const [isElevationLoading, setIsElevationLoading] = useState(false);
-
-    useEffect(() => {
-      const syncZoomLevel = () => setZoomLevel(getZoomLevel());
-      const orbitControls = controls.orbitControls;
-
-      syncZoomLevel();
-      orbitControls.addEventListener("change", syncZoomLevel);
-      orbitControls.addEventListener("end", syncZoomLevel);
-
-      return () => {
-        orbitControls.removeEventListener("change", syncZoomLevel);
-        orbitControls.removeEventListener("end", syncZoomLevel);
-      };
-    }, [controls]);
 
     const modeLabels: Record<TileMaterialMode, string> = {
       [TileMaterialMode.Basic]: "Satellite",
@@ -488,7 +703,6 @@ const TerrianModeSelect = memo(
 
     const applyElevationMode = async () => {
       if (zoomLevel < 11 || isElevationLoading) {
-        alert("hi, zoom level shall be greater than 11");
         return;
       }
 
@@ -535,16 +749,17 @@ const TerrianModeSelect = memo(
 
     return (
       <>
-        <span>{zoomLevel}</span>
         {Object.values(TileMaterialMode).map((materialMode) => {
           const isSelected = mode === materialMode;
           const isElevationMode = materialMode === TileMaterialMode.Dem;
-          const isDisabled = isElevationMode && isElevationLoading;
-          const title =
-            isElevationMode && isElevationLoading
-              ? "Loading elevation data"
+          const isZoomBlocked = isElevationMode && zoomLevel < 11;
+          const isDisabled =
+            isZoomBlocked || (isElevationMode && isElevationLoading);
+          const title = isElevationLoading
+            ? "Loading elevation data"
+            : isZoomBlocked
+              ? "Zoom in past level 11 to use elevation terrain"
               : modeLabels[materialMode];
-
           return (
             <button
               key={materialMode}
@@ -568,11 +783,11 @@ const TerrianModeSelect = memo(
                   setGlobalTileMaterialMode(requested);
                 }
               }}
-              className={`pointer-events-auto flex min-h-12 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium shadow-[0_8px_20px_rgba(0,0,0,0.2)] backdrop-blur-md transition-colors ${
+              className={`pointer-events-auto flex min-h-12 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium shadow-lg shadow-[#182a36]/15 backdrop-blur-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
                 isSelected
-                  ? "border-sky-300/70 bg-sky-400/20 text-white"
-                  : "border-white/10 bg-slate-950/75 text-slate-300 hover:border-white/25 hover:bg-slate-900/90 hover:text-white"
-              } disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-slate-950/45 disabled:text-slate-600 disabled:shadow-none`}
+                  ? "border-jade-river bg-jade-river-soft text-jade-text"
+                  : "border-jade-border-soft bg-jade-panel/95 text-jade-text-muted hover:border-jade-border hover:bg-jade-control-hover hover:text-jade-text"
+              } disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-(--jade-depth)/90 disabled:text-jade-text-muted disabled:opacity-55 disabled:shadow-none`}
             >
               <MaterialModeIcon mode={materialMode} />
               <span className="whitespace-nowrap">

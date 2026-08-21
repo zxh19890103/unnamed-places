@@ -24,7 +24,7 @@ export function normalizeLongitude(lng: number): number {
   return wrapped - 180;
 }
 
-export function latlngToPerfectSphere(
+function latlngToPerfectSphere(
   lat: number,
   lng: number,
   alt: number = 0,

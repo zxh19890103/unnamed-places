@@ -1,17 +1,17 @@
 import sharp from "sharp";
 import { join } from "node:path";
-import { __app_root_dir } from "../context.js";
 import spriteElements from "../steal/sprite-elements.mjs";
+import { __app_root_dir } from "../context.js";
 
-const cat = "plants.hackberry";
-const dimension = 8;
-const size = 2048;
+const cat = "clouds";
+const dimension = 5;
+const size = 1280;
 
 const tileSize = size / dimension;
 const padding = 8;
 const n = size / tileSize;
 const aTileSize = tileSize - 2 * padding;
-const prefix = '1-'
+const prefix = ''
 
 const images = Promise.all(
   spriteElements[cat]
@@ -57,7 +57,7 @@ const images = Promise.all(
 
 const destination = join(
   __app_root_dir,
-  `./steal/data-vecteezy/${cat}/_in-one.png`,
+  `./steal/data-vecteezy/${cat}/_in-one-next.png`,
 );
 
 images.then((files) => {

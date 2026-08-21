@@ -10,15 +10,12 @@ import {
 } from "@/calc/constants";
 import { getDateForLocalTimeAtLatLng } from "@/calc/timezone";
 import { LatLng } from "@/calc/types";
-import { SkyRig, SkySyncParams } from "./_types";
-import { latlngToSphere, sphereToLatlng } from "@/experiments/sphere-zoom/core";
+import { latlngToSphere } from "@/experiments/sphere-zoom/core";
 
-export const SKY_DISTANCE = EARTH_RADIUS * 8;
 export const SKY_COLOR = new THREE.Color("#ffffff");
 export const FOG_COLOR = new THREE.Color("#ffffff");
+
 const SKY_SCALE_MULTIPLIER = 8;
-const SKY_MIN_SCALE = EARTH_RADIUS * 1.5;
-const SKY_MAX_SCALE = EARTH_RADIUS * 12;
 
 function computeSunDirectionForLocation(
   date: Date,
@@ -47,7 +44,7 @@ function computeSunDirectionForLocation(
     .normalize();
 }
 
-function getDefaultCenterLatlng(): LatLng {
+export function getDefaultCenterLatlng(): LatLng {
   return {
     lat: START_CENTER_LAT,
     lng: START_CENTER_LON,
@@ -55,49 +52,50 @@ function getDefaultCenterLatlng(): LatLng {
 }
 
 function getLatlngNow(latlng: LatLng) {
-  const localTime = `07:32`;
+  const localTime = `12:32`;
   return getDateForLocalTimeAtLatLng(latlng, localTime);
 }
 
-export function createSkyRig(scene: THREE.Scene): SkyRig {
-  const sky = new Sky();
-  sky.scale.setScalar(SKY_DISTANCE);
-  scene.add(sky);
+export function createSkyRig({
+  scene,
+  camera,
+}: {
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+}) {
+  function createEarthSpace() {}
 
-  const initialCenter = getDefaultCenterLatlng();
-  const sunDirection = computeSunDirectionForLocation(
-    getLatlngNow(initialCenter),
-    initialCenter.lat,
-    initialCenter.lng,
-  );
+  let createEarthSurfaceSky_dispose: VoidFunction = null;
 
-  const skyUniforms = sky.material.uniforms;
-  skyUniforms.turbidity.value = 0.01;
-  skyUniforms.rayleigh.value = 0.2;
-  skyUniforms.mieCoefficient.value = 0.00015;
-  skyUniforms.mieDirectionalG.value = 0.05;
-  skyUniforms.sunPosition.value.copy(sunDirection);
-  skyUniforms.up.value.set(0, 1, 0);
+  function createEarthSurfaceSky(latlng: LatLng) {
+    createEarthSurfaceSky_dispose?.();
 
-  const sunLight = new THREE.DirectionalLight("#fff2d6", 0.45);
-  sunLight.position.copy(sunDirection).multiplyScalar(SKY_DISTANCE * 0.25);
-  scene.add(sunLight);
+    const sky = new Sky();
+    scene.add(sky);
 
-  const syncSkyWithCamera = ({
-    orbitCenter,
-    cameraDistanceMeters,
-  }: SkySyncParams) => {
-    const scale = THREE.MathUtils.clamp(
-      cameraDistanceMeters * SKY_SCALE_MULTIPLIER,
-      SKY_MIN_SCALE,
-      SKY_MAX_SCALE,
-    );
+    const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
+    const orbitCenter = latlngToSphere(latlng.lat, latlng.lng);
 
+    const scale = cameraDistanceMeters * SKY_SCALE_MULTIPLIER;
     sky.scale.setScalar(scale);
     sky.position.copy(orbitCenter);
     sky.rotation.set(0, 0, 0);
 
-    const latlng = sphereToLatlng(orbitCenter.x, orbitCenter.y, orbitCenter.z);
+    const initialCenter = getDefaultCenterLatlng();
+    const sunDirection = computeSunDirectionForLocation(
+      getLatlngNow(initialCenter),
+      initialCenter.lat,
+      initialCenter.lng,
+    );
+
+    const skyUniforms = sky.material.uniforms;
+    skyUniforms.turbidity.value = 0.01;
+    skyUniforms.rayleigh.value = 0.2;
+    skyUniforms.mieCoefficient.value = 0.00015;
+    skyUniforms.mieDirectionalG.value = 0.05;
+    skyUniforms.sunPosition.value.copy(sunDirection);
+    skyUniforms.up.value.set(0, 1, 0);
+
     const nextSunDirection = computeSunDirectionForLocation(
       getLatlngNow(latlng),
       latlng.lat,
@@ -106,12 +104,26 @@ export function createSkyRig(scene: THREE.Scene): SkyRig {
 
     skyUniforms.sunPosition.value.copy(nextSunDirection);
     skyUniforms.up.value.copy(orbitCenter).normalize();
-  };
+
+    const sunLight = new THREE.DirectionalLight("#fff2d6", 0.45);
+    sunLight.position.copy(sunDirection).multiplyScalar(scale * 0.25);
+    scene.add(sunLight);
+
+    createEarthSurfaceSky_dispose = () => {
+      scene.remove(sky);
+      scene.remove(sunLight);
+
+      createEarthSurfaceSky_dispose = null;
+    };
+
+    return createEarthSurfaceSky_dispose;
+  }
 
   return {
-    sky,
-    sunLight,
-    initialCenter,
-    syncSkyWithCamera,
+    dispose: () => {
+      createEarthSurfaceSky_dispose?.();
+    },
+    createEarthSpace,
+    createEarthSurfaceSky,
   };
 }

@@ -73,9 +73,11 @@ export class Sphere extends THREE.Group {
 
     this._statsTimer = setInterval(() => {
       const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
+
       const zoomLevel =
         this.threeTilesViewer.distanceToZoom(cameraDistanceMeters);
       const loadingSnapshot = getLoadingSnapshot();
+
       this.dispatchStats({
         cameraDistanceMeters,
         zoomLevel,

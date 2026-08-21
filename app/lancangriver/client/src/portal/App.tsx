@@ -42,6 +42,12 @@ const pages = [
     href: "/tile12-osm",
     description: "Inspect one existing vector tile in a local Three.js scene.",
   },
+  {
+    title: "UI Design Implement",
+    href: "/ui-design-implement",
+    description:
+      "Examples of buttons, panels, and tables grouped with reusable section blocks.",
+  },
 ];
 
 export default function App() {
