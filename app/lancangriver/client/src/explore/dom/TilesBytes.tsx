@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import clsx from "clsx";
 
 import { BASE_URL } from "../../calc/constants";
 
@@ -68,33 +69,32 @@ export function TilesBytes() {
   }, [loadBytes]);
 
   return (
-    <div>
-      <div style={{ opacity: 0.68 }}>Tiles cache size</div>
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}
-      >
-        <span>{error ? error : formatBytes(bytes)}</span>
+    <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-3">
+      <div className="text-[11px] font-medium uppercase tracking-normal text-jade-text-muted">
+        Tiles cache size
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <span
+          className={clsx(
+            "min-w-0 text-sm font-medium tabular-nums text-jade-text",
+            error && "text-jade-error",
+          )}
+        >
+          {error ? error : formatBytes(bytes)}
+        </span>
         <button
           type="button"
           disabled={isBusy}
+          aria-busy={isBusy}
           onClick={() => {
             void loadBytes(true);
           }}
-          style={{
-            pointerEvents: "auto",
-            border: "1px solid rgba(255,255,255,0.25)",
-            borderRadius: 8,
-            background: "rgba(255,255,255,0.1)",
-            color: "#fff",
-            fontSize: 11,
-            padding: "2px 8px",
-            cursor: isBusy ? "default" : "pointer",
-          }}
+          className="rounded-lg border border-jade-border-soft bg-jade-control px-2.5 py-1 text-[11px] font-medium text-jade-text transition-colors hover:bg-jade-control-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBusy ? "..." : "Recompute"}
         </button>
       </div>
-      <div style={{ opacity: 0.5, fontSize: 11, marginTop: 2 }}>
+      <div className="mt-2 text-[11px] text-jade-text-muted">
         {updatedAt
           ? `Updated ${new Date(updatedAt).toLocaleTimeString()}`
           : "Not loaded"}

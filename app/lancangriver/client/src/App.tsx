@@ -28,6 +28,7 @@ import {
 import { MiniMap } from "./explore/dom/MiniMap";
 import { ControlsManager } from "./explore/ControlsManager.class";
 import { latlngToStandardTileZxy } from "./experiments/sphere-zoom/tile";
+import { ChildWindow, IconButton } from "./_components";
 
 type OrbitClickEvent = {
   type: "click";
@@ -68,9 +69,11 @@ export default function App() {
 const CreateScene = memo(
   ({ host, sceneState }: { sceneState: SceneState; host: HTMLDivElement }) => {
     const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
-    const [isFlatFrameLoading, setIsFlatFrameLoading] = useState(false);
     const [flatFrameUrl, setFlatFrameUrl] = useState("/flat.html");
-    const flatCloseButtonRef = useRef<HTMLButtonElement>(null);
+    const [isJobsManageModalOpen, setIsJobsManageModalOpen] = useState(false);
+    const [jobsManageFrameUrl, setJobsManageFrameUrl] = useState("./jobs");
+    const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
+    const [createJobFrameUrl, setCreateJobFrameUrl] = useState("./jobs-create");
     const flatModalTriggerRef = useRef<HTMLElement | null>(null);
     const [journeyRecords, setJourneyRecords] = useState<PhotoRecord[]>([]);
     const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
@@ -215,7 +218,6 @@ const CreateScene = memo(
         return;
       }
 
-      flatCloseButtonRef.current?.focus();
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Escape") {
           setIsFlatModalOpen(false);
@@ -234,8 +236,21 @@ const CreateScene = memo(
       flatModalTriggerRef.current =
         document.activeElement as HTMLElement | null;
       setFlatFrameUrl(buildFlatModalUrl(center));
-      setIsFlatFrameLoading(true);
       setIsFlatModalOpen(true);
+    };
+
+    const openJobsManageModal = () => {
+      setJobsManageFrameUrl("./jobs");
+      setIsJobsManageModalOpen(true);
+    };
+
+    const openCreateJobModal = () => {
+      const center = sceneState.getCurrentCenterLatLng();
+      const nextUrl = center
+        ? `./jobs-create?latlng=${center.lat},${center.lng}`
+        : "./jobs-create";
+      setCreateJobFrameUrl(nextUrl);
+      setIsCreateJobModalOpen(true);
     };
 
     const handleDirectSwitchTo3dView = async () => {
@@ -315,7 +330,7 @@ const CreateScene = memo(
           />
         </div>
 
-        <div className="fixed left-3 top-18 z-40 sm:left-4">
+        <div className="fixed left-3 top-3 z-40 sm:left-4">
           <JourneyPanel
             days={journeyDays}
             selectedDayKey={selectedDayKey}
@@ -329,6 +344,8 @@ const CreateScene = memo(
 
         <OpsPanel
           openFlatModal={openFlatModal}
+          onOpenJobsManage={openJobsManageModal}
+          onOpenCreateJob={openCreateJobModal}
           handleDirectSwitchTo3dView={handleDirectSwitchTo3dView}
           handleLoadGeotaggedPhotos={handleLoadGeotaggedPhotos}
           getVisibleGroundBBox={sceneState.getVisibleGroundBBox}
@@ -345,53 +362,36 @@ const CreateScene = memo(
         </div>
 
         {isFlatModalOpen && (
-          <div className="absolute inset-0 z-1994 grid place-items-center bg-[#182a36]/45 p-3 backdrop-blur-[2px]">
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="flat-map-dialog-title"
-              className="flex h-[min(80vh,760px)] w-[min(90vw,1100px)] flex-col overflow-hidden rounded-xl border border-(--jade-border) bg-(--jade-panel) text-(--jade-text) shadow-2xl shadow-[#182a36]/25"
-            >
-              <header className="flex min-h-14 items-center justify-between gap-3 border-b border-(--jade-border-soft) px-4 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold tracking-[0.16em] text-(--jade-river) uppercase">
-                    Choose location
-                  </p>
-                  <h2
-                    id="flat-map-dialog-title"
-                    className="truncate text-sm font-semibold"
-                  >
-                    Flat map selector
-                  </h2>
-                </div>
-                <button
-                  ref={flatCloseButtonRef}
-                  type="button"
-                  onClick={() => setIsFlatModalOpen(false)}
-                  aria-label="Close flat map selector"
-                  className="min-h-10 rounded-full border border-jade-border-soft bg--jade-control px-3 text-sm font-medium text-(--jade-text) transition-colors hover:border-(--jade-border) hover:bg-jade-control-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--jade-river)"
-                >
-                  <Cross1Icon />
-                </button>
-              </header>
-              <div className="relative min-h-0 flex-1 bg-jade-depth">
-                <iframe
-                  title="Flat map selector"
-                  src={flatFrameUrl}
-                  onLoad={() => setIsFlatFrameLoading(false)}
-                  className="h-full w-full border-0"
-                />
-                {isFlatFrameLoading && (
-                  <div
-                    className="absolute inset-0 grid place-items-center bg-(--jade-depth) text-sm text-(--jade-text-muted)"
-                    role="status"
-                  >
-                    Loading flat map...
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ChildWindow.Modal>
+            <ChildWindow
+              title="Flat map selector"
+              winRole="choose location"
+              pageUrl={flatFrameUrl}
+              onOpenStateChange={setIsFlatModalOpen}
+            />
+          </ChildWindow.Modal>
+        )}
+
+        {isJobsManageModalOpen && (
+          <ChildWindow.Modal>
+            <ChildWindow
+              title="Jobs manager"
+              winRole="manage jobs"
+              pageUrl={jobsManageFrameUrl}
+              onOpenStateChange={setIsJobsManageModalOpen}
+            />
+          </ChildWindow.Modal>
+        )}
+
+        {isCreateJobModalOpen && (
+          <ChildWindow.Modal>
+            <ChildWindow
+              title="Create OSM tile job"
+              winRole="create job"
+              pageUrl={createJobFrameUrl}
+              onOpenStateChange={setIsCreateJobModalOpen}
+            />
+          </ChildWindow.Modal>
         )}
 
         <MiniMap
@@ -406,6 +406,8 @@ const CreateScene = memo(
 
 type OpsPanelProps = {
   openFlatModal: () => Promise<void>;
+  onOpenJobsManage: () => void;
+  onOpenCreateJob: () => void;
   handleDirectSwitchTo3dView: () => Promise<void>;
   handleLoadGeotaggedPhotos: () => Promise<void>;
   getVisibleGroundBBox: () => LatLngBBox | null;
@@ -416,6 +418,8 @@ type OpsPanelProps = {
 
 const OpsPanel = ({
   openFlatModal,
+  onOpenJobsManage,
+  onOpenCreateJob,
   handleDirectSwitchTo3dView,
   handleLoadGeotaggedPhotos,
   getCurrentLookingAtCenter,
@@ -496,24 +500,25 @@ const OpsPanel = ({
             <PhotoLocationsIcon />
           </button>
         </SceneControlTooltip>
+        <SceneControlTooltip label="Open jobs manager">
+          <button
+            type="button"
+            aria-label="Open jobs manager"
+            onClick={() => onOpenJobsManage()}
+            className={`${iconButtonClass} pointer-events-auto`}
+          >
+            <JobsManageIcon />
+          </button>
+        </SceneControlTooltip>
         <SceneControlTooltip label="Create OSM tile job">
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href="/jobs-create"
+          <button
+            type="button"
             aria-label="Create OSM tile job"
-            onClick={(event) => {
-              event.preventDefault();
-              const center = getCurrentLookingAtCenter();
-              window.open(
-                `/jobs-create?latlng=${center.lat},${center.lng}`,
-                "_blank",
-              );
-            }}
+            onClick={() => onOpenCreateJob()}
             className={`${iconButtonClass} pointer-events-auto`}
           >
             <CreateTileJobIcon />
-          </a>
+          </button>
         </SceneControlTooltip>
       </div>
     </Tooltip.Provider>
@@ -653,10 +658,31 @@ function CreateTileJobIcon() {
         strokeLinejoin="round"
         strokeWidth="1.75"
       >
-        <path d="m3 7 6-3 6 3-6 3-6-3Z" />
-        <path d="m3 11 6 3 6-3M3 15l6 3 3-1.5" opacity=".75" />
-        <circle cx="18" cy="17" r="4" fill="var(--jade-panel)" />
-        <path d="M18 15v4M16 17h4" strokeWidth="2" />
+        <path d="M4 5.5h16" />
+        <path d="M7 3.5v4" />
+        <path d="M17 3.5v4" />
+        <rect x="4" y="5.5" width="16" height="13" rx="2" />
+        <path d="M8 13.5h8" />
+        <path d="M12 9.5v8" />
+      </g>
+    </svg>
+  );
+}
+
+function JobsManageIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.75"
+      >
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <path d="M8 8h8" />
+        <path d="M8 12h8" />
+        <path d="M8 16h5" />
       </g>
     </svg>
   );

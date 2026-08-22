@@ -24,12 +24,10 @@ export function LeafletMap({
   onCenterChange,
   focusCenter,
   focusZoom,
-  features,
 }: LeafletMapProps) {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
-  const featuresLayerRef = useRef<L.GeoJSON | null>(null);
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -44,23 +42,19 @@ export function LeafletMap({
       zoomControl: true,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-      maxZoom: 19,
+    L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+      attribution: "&copy; Google Maps",
+      subdomains: ["0", "1", "2", "3"],
+      maxZoom: 20,
+      maxNativeZoom: 21,
+      // zoomOffset: 0,
+      detectRetina: true,
     }).addTo(map);
 
     const marker = L.marker(centerTuple, {
-      draggable: true,
+      draggable: false,
       icon: FOOTBALL_MARKER_ICON,
-    })
-      .addTo(map)
-      .bindPopup("Drag to choose a center")
-      .openPopup();
-
-    marker.on("dragend", () => {
-      const center = marker.getLatLng();
-      onCenterChange({ lat: center.lat, lng: center.lng });
-    });
+    }).addTo(map);
 
     map.on("click", (event) => {
       marker.setLatLng(event.latlng);
@@ -79,37 +73,6 @@ export function LeafletMap({
   }, [initialCenter, onCenterChange]);
 
   useEffect(() => {
-    if (!mapRef.current) {
-      return;
-    }
-
-    if (featuresLayerRef.current) {
-      featuresLayerRef.current.remove();
-      featuresLayerRef.current = null;
-    }
-
-    if (!features || features.length === 0) {
-      return;
-    }
-
-    const geojson = {
-      type: "FeatureCollection",
-      features: features,
-    };
-
-    const layer = L.geoJSON(geojson as GeoJSON.FeatureCollection, {
-      style: {
-        color: "#22d3ee",
-        weight: 2,
-        fillColor: "#06b6d4",
-        fillOpacity: 0.22,
-      },
-    }).addTo(mapRef.current);
-
-    featuresLayerRef.current = layer;
-  }, [features]);
-
-  useEffect(() => {
     if (!mapRef.current || !focusCenter) {
       return;
     }
@@ -118,8 +81,7 @@ export function LeafletMap({
     const nextZoom = focusZoom ?? mapRef.current.getZoom();
 
     markerRef.current?.setLatLng(centerTuple);
-    mapRef.current.setView(centerTuple, nextZoom);
-    onCenterChange(focusCenter);
+    mapRef.current.flyTo(centerTuple, nextZoom);
   }, [focusCenter, focusZoom, onCenterChange]);
 
   return <div ref={mapElementRef} className="h-full w-full" />;

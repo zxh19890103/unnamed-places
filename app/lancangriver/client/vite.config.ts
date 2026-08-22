@@ -5,10 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 const pagesCfg = {
   portal: `./src/portal`,
   jobs: `./src/jobs`,
+  flat: `./src/flat`,
   ["jobs-create"]: `./src/jobs-create`,
   ["static-leaflet-map"]: `./src/static-leaflet-map`,
   ["ui-design-implement"]: `./src/ui-design-implement`,
-  flat: `./src/flat`,
+  ["ui-design-storybook"]: `./src/ui-design-storybook`,
   ["global-zoom"]: `./src/experiments/global-zoom`,
   ["shanshui-shader"]: `./src/experiments/shanshui-shader`,
   ["sphere-zoom"]: `./src/experiments/sphere-zoom`,

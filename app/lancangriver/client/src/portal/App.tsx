@@ -38,6 +38,11 @@ const pages = [
       "Full-screen non-interactive Leaflet map centered by the parent page.",
   },
   {
+    title: "UI Design Storybook",
+    href: "/ui-design-storybook",
+    description: "A minimal new page scaffold for the Lancangriver client.",
+  },
+  {
     title: "Tile 12 OSM Inspector",
     href: "/tile12-osm",
     description: "Inspect one existing vector tile in a local Three.js scene.",
