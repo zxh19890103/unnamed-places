@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Button, IconButton } from "../_components";
 import { LeafletBBoxMap } from "./map.js";
 import { readBBoxFromSearch, readLatLngFromSearch, type BBox } from "./bbox.js";
 import { coverageTilesForBBox, TileKey } from "./tiles.js";
@@ -26,7 +27,7 @@ export default function App() {
   );
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-jade-foundation text-jade-text font-[SUSEMono] lg:flex-row">
       <main className="min-h-0 min-w-0 flex-1">
         <LeafletBBoxMap
           focusTile={focusTile}
@@ -36,22 +37,22 @@ export default function App() {
         />
       </main>
 
-      <aside className="flex h-[43vh] w-full shrink-0 flex-col border-t border-white/10 bg-[rgba(8,10,14,0.94)] shadow-2xl shadow-black/30 backdrop-blur-md lg:h-full lg:w-96 lg:border-l lg:border-t-0">
-        <header className="border-b border-white/10 px-4 py-4">
+      <aside className="flex h-[43vh] w-full shrink-0 flex-col border-t border-jade-border-soft bg-jade-panel/95 shadow-2xl shadow-[#182a36]/15 backdrop-blur-md lg:h-full lg:w-96 lg:border-l lg:border-t-0">
+        <header className="border-b border-jade-border-soft px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river">
                 Coverage workspace
               </p>
-              <h1 className="mt-1 text-sm font-semibold tracking-wide text-white">
+              <h1 className="mt-1 text-sm font-semibold tracking-wide text-jade-text">
                 Zoom {COVERAGE_ZOOM} Coverage
               </h1>
             </div>
-            <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-mono text-[10px] tabular-nums text-slate-400">
+            <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 font-[SUSEMono] text-[10px] tabular-nums text-jade-text-muted">
               {tiles.length} tiles
             </span>
           </div>
-          <p className="mt-2 text-xs leading-5 text-slate-400">
+          <p className="mt-2 text-xs leading-5 text-jade-text-muted">
             {tiles.length === 0
               ? "Visible map exceeds 30km, zoom in to list tiles"
               : "Tiles covering the current map view"}
@@ -181,17 +182,17 @@ const TileListItem = memo(
       <li
         key={`${tile.z}/${tile.x}/${tile.y}`}
         className={
-          "rounded-xl border bg-white/5 p-3 text-xs shadow-lg shadow-black/10 transition-colors hover:bg-white/10" +
+          "rounded-xl border bg-jade-panel/90 p-3 text-xs shadow-lg shadow-[#182a36]/10 transition-colors hover:bg-jade-control" +
           (focused
-            ? " border-sky-400/70 ring-1 ring-sky-400/30"
-            : " border-white/10")
+            ? " border-jade-river ring-1 ring-jade-river/30"
+            : " border-jade-border-soft")
         }
       >
         <div className="grid gap-2">
           <a
             href={`/tile12-osm?tilekey=${tile.id}`}
             target="_blank"
-            className="font-mono text-sm font-semibold text-slate-200 hover:text-sky-300 hover:underline"
+            className="font-[SUSEMono] text-sm font-semibold text-jade-text hover:text-jade-river hover:underline"
           >
             {tile.z}/{tile.x}/{tile.y}
           </a>
@@ -200,8 +201,8 @@ const TileListItem = memo(
               className={
                 "cursor-pointer rounded-lg border px-2.5 py-1 font-medium transition-colors" +
                 (focused
-                  ? " border-sky-400/50 bg-sky-400/15 text-sky-200"
-                  : " border-white/10 bg-white/5 text-slate-300 hover:bg-white/10")
+                  ? " border-jade-river bg-jade-river-soft text-jade-text"
+                  : " border-jade-border-soft bg-jade-control text-jade-text-muted hover:bg-jade-control-hover")
               }
               itemID={tile.id}
               itemType="tile/where"
@@ -211,7 +212,7 @@ const TileListItem = memo(
             <button
               onClick={() => void handleDownloadOsm()}
               disabled={downloadStatus === "queuing"}
-              className="cursor-pointer rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 font-medium text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+              className="cursor-pointer rounded-lg border border-jade-success/25 bg-jade-success/10 px-2.5 py-1 font-medium text-jade-success transition-colors hover:bg-jade-success/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {downloadStatus === "queuing"
                 ? "queuing..."
@@ -224,7 +225,7 @@ const TileListItem = memo(
             <button
               onClick={() => void handleDownloadHighwayOsm()}
               disabled={highwayDownloadStatus === "queuing"}
-              className="cursor-pointer rounded-lg border border-sky-400/25 bg-sky-400/10 px-2.5 py-1 font-medium text-sky-300 transition-colors hover:bg-sky-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+              className="cursor-pointer rounded-lg border border-jade-sky/25 bg-jade-sky-soft px-2.5 py-1 font-medium text-jade-sky transition-colors hover:bg-jade-sky/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {highwayDownloadStatus === "queuing"
                 ? "queuing..."
@@ -236,13 +237,13 @@ const TileListItem = memo(
             </button>
             <button
               onClick={() => void handleCheckStatus("buildings")}
-              className="cursor-pointer rounded-lg border border-white/10 px-2.5 py-1 font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
+              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
             >
               buildings & waters?
             </button>
             <button
               onClick={() => void handleCheckStatus("highways")}
-              className="cursor-pointer rounded-lg border border-white/10 px-2.5 py-1 font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
+              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
             >
               highways?
             </button>
@@ -252,23 +253,23 @@ const TileListItem = memo(
         <dialog
           ref={statusDialogRef}
           onClose={() => setStatusDialogInfo(null)}
-          className="fixed top-1/2 left-1/2 m-0 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-[rgba(8,10,14,0.96)] p-0 text-slate-200 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+          className="fixed top-1/2 left-1/2 m-0 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-jade-border-soft bg-jade-panel/95 p-0 text-jade-text shadow-2xl shadow-[#182a36]/20 backdrop:bg-jade-950/40 backdrop:backdrop-blur-sm"
         >
           {statusDialogInfo && (
             <div className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900">
+                  <h2 className="text-sm font-semibold text-jade-text">
                     {statusDialogInfo.label}
                   </h2>
-                  <p className="mt-0.5 font-mono text-xs text-slate-400">
+                  <p className="mt-0.5 font-[SUSEMono] text-xs text-jade-text-muted">
                     tile {tile.z}/{tile.x}/{tile.y}
                   </p>
                 </div>
                 <button
                   onClick={() => setStatusDialogInfo(null)}
                   aria-label="Close"
-                  className="cursor-pointer rounded-lg px-1.5 py-0.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
+                  className="cursor-pointer rounded-lg px-1.5 py-0.5 text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
                 >
                   ✕
                 </button>
@@ -281,15 +282,15 @@ const TileListItem = memo(
                   </p>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
-                      <span className="text-slate-400">Job status</span>
-                      <span className="font-medium text-slate-200">
+                    <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
+                      <span className="text-jade-text-muted">Job status</span>
+                      <span className="font-medium text-jade-text">
                         {statusDialogInfo.statusText}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
-                      <span className="text-slate-400">Data loaded</span>
-                      <span className="font-medium text-slate-200">
+                    <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
+                      <span className="text-jade-text-muted">Data loaded</span>
+                      <span className="font-medium text-jade-text">
                         {statusDialogInfo.loadedText}
                       </span>
                     </div>
@@ -297,12 +298,13 @@ const TileListItem = memo(
                 )}
               </div>
 
-              <button
+              <Button
                 onClick={() => setStatusDialogInfo(null)}
-                className="mt-5 w-full cursor-pointer rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400"
+                variant="primary"
+                className="mt-5 w-full"
               >
                 Close
-              </button>
+              </Button>
             </div>
           )}
         </dialog>

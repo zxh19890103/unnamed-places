@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Button, IconButton } from "../_components";
 
 import {
   defaultCoverageApi,
@@ -159,35 +160,35 @@ export default function App() {
   }, [mapExtentKey]);
 
   return (
-    <main className="min-h-screen h-screen overflow-hidden bg-slate-950 px-4 py-4 text-slate-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen h-screen overflow-hidden bg-jade-foundation px-4 py-4 text-jade-text sm:px-6 lg:px-8">
       <div
         className={`fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? "w-3xl" : "w-64"}`}
       >
-        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 rounded-xl border border-white/10 bg-[rgba(8,10,14,0.88)] p-2 shadow-2xl shadow-black/30 backdrop-blur-md">
+        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 rounded-xl border border-jade-border-soft bg-jade-panel/95 p-2 shadow-2xl shadow-[#182a36]/20 backdrop-blur-md">
           <button
             onClick={() => setIsMapOpen(!isMapOpen)}
-            className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 shadow-sm transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            className="rounded-lg border border-jade-border-soft bg-jade-control px-3 py-1.5 text-xs font-semibold text-jade-text shadow-sm transition-colors hover:bg-jade-control-hover focus:outline-none focus:ring-2 focus:ring-jade-river"
           >
             {isMapOpen ? "Close" : "Open"}
           </button>
           {isMapOpen && (
-            <div className="flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+            <div className="flex gap-1 rounded-lg border border-jade-border-soft bg-jade-control/70 p-1">
               <button
                 onClick={() => setMapExtentKey("china")}
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
                   mapExtentKey === "china"
-                    ? "bg-sky-400/15 text-sky-200 shadow-sm"
-                    : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                    ? "bg-jade-river-soft text-jade-text shadow-sm"
+                    : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
                 }`}
               >
                 China
               </button>
               <button
                 onClick={() => setMapExtentKey("world")}
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
                   mapExtentKey === "world"
-                    ? "bg-sky-400/15 text-sky-200 shadow-sm"
-                    : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                    ? "bg-jade-river-soft text-jade-text shadow-sm"
+                    : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
                 }`}
               >
                 World
@@ -197,7 +198,7 @@ export default function App() {
         </div>
         <div
           ref={mapRef}
-          className="relative overflow-hidden rounded-2xl shadow-2xl shadow-black/40 ring-1 ring-white/10"
+          className="relative overflow-hidden rounded-2xl border border-jade-border-soft bg-jade-panel/80 shadow-2xl shadow-[#182a36]/20"
         >
           <img
             className=" w-full"
@@ -213,24 +214,24 @@ export default function App() {
             <a
               href="/portal.html"
               target="_blank"
-              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-400 hover:text-sky-300"
+              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river hover:text-jade-river/80"
             >
               Lancangriver Portal
             </a>
-            <h1 className="mt-1 text-xl font-semibold text-white">
+            <h1 className="mt-1 text-xl font-semibold text-jade-text">
               Vector Ingest Jobs
             </h1>
-            <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-400">
+            <p className="mt-1 max-w-2xl text-sm leading-5 text-jade-text-muted">
               Zoom-12 OSM coverage status and failed-job controls for default
               and highways targets.
             </p>
           </div>
 
           <div className="text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-jade-text-muted">
               Jobs total
             </div>
-            <div className="text-2xl font-semibold tabular-nums text-slate-100">
+            <div className="text-2xl font-semibold tabular-nums text-jade-text">
               {total.toLocaleString()}
             </div>
           </div>
@@ -248,10 +249,10 @@ export default function App() {
                   key={tab.key}
                   type="button"
                   onClick={() => switchTab(tab.key)}
-                  className={`border px-4 py-2 text-sm font-semibold ${
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
                     selected
-                      ? "border-sky-400/50 bg-sky-400/15 text-sky-200"
-                      : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                      ? "border-jade-river bg-jade-river-soft text-jade-text"
+                      : "border-jade-border-soft bg-jade-control text-jade-text-muted hover:bg-jade-control-hover"
                   }`}
                   aria-pressed={selected}
                 >
@@ -273,10 +274,10 @@ export default function App() {
                   key={key}
                   type="button"
                   onClick={() => setMapExtentKey(key)}
-                  className={`border px-3 py-1 text-xs font-medium ${
+                  className={`rounded-lg border px-3 py-1 text-xs font-medium ${
                     selected
-                      ? "border-sky-400/50 bg-sky-400/15 text-sky-200"
-                      : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                      ? "border-jade-river bg-jade-river-soft text-jade-text"
+                      : "border-jade-border-soft bg-jade-control text-jade-text-muted hover:bg-jade-control-hover"
                   }`}
                   aria-pressed={selected}
                 >
@@ -288,7 +289,7 @@ export default function App() {
         </nav>
 
         {error ? (
-          <div className="mb-3 rounded-lg border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-300">
+          <div className="mb-3 rounded-lg border border-jade-error/25 bg-jade-error/10 px-4 py-3 text-sm text-jade-error">
             {error}
           </div>
         ) : null}
@@ -298,7 +299,7 @@ export default function App() {
         </div>
 
         <footer className="mt-4 flex items-center justify-between gap-4">
-          <div className="text-xs tabular-nums text-slate-500">
+          <div className="text-xs tabular-nums text-jade-text-muted">
             {total === 0
               ? "0 results"
               : `${offset + 1}-${Math.min(offset + PAGE_SIZE, total)} of ${total}`}
@@ -310,7 +311,7 @@ export default function App() {
               onClick={() =>
                 setOffset((current) => Math.max(0, current - PAGE_SIZE))
               }
-              className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-jade-border-soft bg-jade-control px-4 py-2 text-sm font-medium text-jade-text-muted hover:bg-jade-control-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               Previous
             </button>
@@ -318,7 +319,7 @@ export default function App() {
               type="button"
               disabled={!canGoForward}
               onClick={() => setOffset((current) => current + PAGE_SIZE)}
-              className="rounded-lg border border-sky-400/50 bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-jade-river bg-jade-river px-4 py-2 text-sm font-semibold text-white hover:bg-jade-river/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next
             </button>

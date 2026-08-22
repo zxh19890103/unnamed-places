@@ -32,7 +32,7 @@ function TableColGroup() {
 
 function TableHead() {
   return (
-    <thead className="bg-white/10 text-slate-200">
+    <thead className="bg-jade-control/70 text-jade-text">
       <tr>
         <th className="px-4 py-3 font-medium">Tile ID</th>
         <th className="px-4 py-3 font-medium">Latlng</th>
@@ -50,7 +50,7 @@ function TableHead() {
 
 export function JobsTable({ page, loading, error, api }: JobsTableProps) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.035] shadow-2xl shadow-black/20">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-jade-border-soft bg-jade-panel/90 shadow-2xl shadow-[#182a36]/15">
       <div className=" w-full">
         <table className=" table-fixed w-full min-w-190 border-collapse text-left text-sm">
           <TableColGroup />
@@ -60,7 +60,7 @@ export function JobsTable({ page, loading, error, api }: JobsTableProps) {
       <div className=" flex-1  min-h-0 overflow-y-auto">
         <table className="table-fixed w-full min-w-190 border-collapse text-left text-sm">
           <TableColGroup />
-          <tbody className="divide-y divide-white/10">
+          <tbody className="divide-y divide-jade-border-soft/70">
             {hasJobs(page)
               ? page.jobs.map((job) => (
                   <JobRow key={job.key} job={job} api={api} />
@@ -71,12 +71,12 @@ export function JobsTable({ page, loading, error, api }: JobsTableProps) {
       </div>
 
       {loading ? (
-        <div className="px-4 py-10 text-center text-sm text-slate-400">
+        <div className="px-4 py-10 text-center text-sm text-jade-text-muted">
           Loading tiles...
         </div>
       ) : null}
       {!loading && !error && page?.jobs.length === 0 ? (
-        <div className="px-4 py-10 text-center text-sm text-slate-400">
+        <div className="px-4 py-10 text-center text-sm text-jade-text-muted">
           No vector ingest jobs found.
         </div>
       ) : null}
@@ -129,12 +129,12 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
     <tr
       itemType="jobrow"
       itemID={job.key}
-      className="text-slate-300 transition-colors hover:bg-sky-400/10"
+      className="text-jade-text transition-colors hover:bg-jade-river-soft/40"
     >
-      <td className="px-4 py-2.5 font-mono text-slate-200">
+      <td className="px-4 py-2.5 font-[SUSEMono] text-jade-text">
         <a
           target="_blank"
-          className="font-semibold hover:text-sky-300 hover:underline"
+          className="font-semibold hover:text-jade-river hover:underline"
           href={`/tile12-osm?tilekey=${job.key}`}
         >
           {job.key}
@@ -165,12 +165,12 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
             type="button"
             disabled={rerunning}
             onClick={() => void handleRerun()}
-            className="rounded-lg border border-rose-400/30 bg-rose-400/15 px-3 py-1 text-xs font-semibold text-rose-200 hover:bg-rose-400/25 disabled:cursor-wait disabled:opacity-50"
+            className="rounded-lg border border-jade-error/30 bg-jade-error/10 px-3 py-1 text-xs font-semibold text-jade-error hover:bg-jade-error/20 disabled:cursor-wait disabled:opacity-50"
           >
             {rerunning ? "Rerunning" : "Rerun"}
           </button>
         ) : (
-          <span className="text-slate-400">-</span>
+          <span className="text-jade-text-muted">-</span>
         )}
       </td>
     </tr>
@@ -242,12 +242,12 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
         onClick={() => void handleClick()}
         disabled={loadingReverse || displayName !== null}
         title={error ?? undefined}
-        className="max-w-64 rounded-lg px-2 py-1 text-left text-slate-300 disabled:cursor-default disabled:opacity-70"
+        className="max-w-64 rounded-lg px-2 py-1 text-left text-jade-text disabled:cursor-default disabled:opacity-70"
       >
         {loadingReverse
           ? "Loading..."
           : (displayName ?? (
-              <i className="cursor-pointer text-sky-300 hover:underline">
+              <i className="cursor-pointer text-jade-river hover:underline">
                 (load from Nominatim)
               </i>
             ))}
@@ -257,7 +257,7 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
           type="button"
           onClick={() => void handleSave()}
           disabled={saving}
-          className="rounded-lg border border-emerald-400/25 bg-emerald-400/15 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-400/25 disabled:cursor-wait disabled:opacity-50"
+          className="rounded-lg border border-jade-success/25 bg-jade-success/10 px-2 py-1 text-xs font-semibold text-jade-success hover:bg-jade-success/20 disabled:cursor-wait disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -295,7 +295,7 @@ const JobLatlng = memo(({ job }: { job: CoverageJob }) => {
     <button
       type="button"
       onClick={() => void handleCopy()}
-      className="font-mono text-xs hover:underline"
+      className="font-[SUSEMono] text-xs text-jade-text-muted hover:underline"
       title="Copy coordinates"
     >
       {copied ? "Copied" : coordinateText}
