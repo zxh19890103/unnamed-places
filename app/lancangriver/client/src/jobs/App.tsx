@@ -8,6 +8,7 @@ import {
 } from "./api";
 import { JobsTable } from "./JobsTable";
 import { tileZxyToCenterLatlng } from "../experiments/sphere-zoom/tile";
+import { ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons";
 
 const PAGE_SIZE = 100;
 
@@ -19,6 +20,57 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "highways", label: "Highways" },
 ];
 
+type ProjectionFn = (lat: number, lng: number) => { u: number; v: number };
+
+type GeoPoint = { lat: number; lng: number };
+type PixelPoint = { x: number; y: number };
+
+function buildProjection({
+  imageSize,
+  geographicExtent,
+  referencePoints,
+}: {
+  imageSize: readonly [number, number];
+  geographicExtent: readonly [number, number, number, number];
+  referencePoints?: readonly [
+    { name: string; geo: GeoPoint; pixel: PixelPoint },
+    { name: string; geo: GeoPoint; pixel: PixelPoint },
+  ];
+}): ProjectionFn {
+  if (referencePoints) {
+    const [imageWidth, imageHeight] = imageSize;
+
+    const [startPoint, endPoint] = referencePoints;
+    const geoDeltaLng = endPoint.geo.lng - startPoint.geo.lng;
+    const geoDeltaLat = endPoint.geo.lat - startPoint.geo.lat;
+    const pixelDeltaX = endPoint.pixel.x - startPoint.pixel.x;
+    const pixelDeltaY = endPoint.pixel.y - startPoint.pixel.y;
+
+    return (lat, lng) => {
+      const pixelX =
+        startPoint.pixel.x +
+        ((lng - startPoint.geo.lng) / geoDeltaLng) * pixelDeltaX;
+      const pixelY =
+        startPoint.pixel.y +
+        ((lat - startPoint.geo.lat) / geoDeltaLat) * pixelDeltaY;
+
+      return {
+        u: Math.min(1, Math.max(0, pixelX / imageWidth)),
+        v: Math.min(1, Math.max(0, pixelY / imageHeight)),
+      };
+    };
+  }
+
+  const [north, east, south, west] = geographicExtent;
+
+  return (lat, lng) => {
+    const u = (lng - west) / (east - west);
+    const v = (north - lat) / (north - south);
+
+    return { u, v };
+  };
+}
+
 const mapExtents: Record<
   MapExtentKey,
   { label: string; extent: readonly number[]; src: string }
@@ -26,19 +78,19 @@ const mapExtents: Record<
   world: {
     label: "World",
     extent: [90, 180, -90, -180] as const,
-    src: "https://www.nationsonline.org/maps/Physical-World-Map-3360.jpg",
+    src: "https://cdn.britannica.com/37/245037-050-79129D52/world-map-continents-oceans.jpg",
   },
   china: {
     label: "China",
-    extent: [54.316, 136.412, 17.151, 70.644] as const,
-    src: "https://www.freeworldmaps.net/asia/china/china-map-physical.jpg",
+    extent: [54, 130, 17, 72] as const,
+    src: "/China-Physical-Map.jpg",
   },
 };
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("default");
-  const [mapExtentKey, setMapExtentKey] = useState<MapExtentKey>("china");
-  const [isMapOpen, setIsMapOpen] = useState(true);
+  const [mapExtentKey, setMapExtentKey] = useState<MapExtentKey>("world");
+  const [isMapOpen, setIsMapOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState<CoverageJobsPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,16 +149,31 @@ export default function App() {
     const mapExtent = mapExtents[mapExtentKey].extent;
     let lastId: string = null;
 
-    const projectToUV = (
-      lat: number,
-      lng: number,
-      extent: readonly number[],
-    ) => {
-      const [north, east, south, west] = extent;
-      const u = (lng - west) / (east - west);
-      const v = (north - lat) / (north - south);
-      return { u, v };
-    };
+    const projection = buildProjection({
+      geographicExtent: mapExtent as readonly [number, number, number, number],
+      imageSize: [2000, 1670],
+      referencePoints:
+        mapExtentKey === "china"
+          ? [
+              {
+                name: "kunming",
+                geo: {
+                  lat: 24.85765547616758,
+                  lng: 102.85225000259094,
+                },
+                pixel: { x: 1015, y: 1350 },
+              },
+              {
+                name: "dalian",
+                geo: {
+                  lat: 38.90359289501615,
+                  lng: 121.61380158553524,
+                },
+                pixel: { x: 1652, y: 683 },
+              },
+            ]
+          : undefined,
+    });
 
     const overout = (event: MouseEvent) => {
       if (event.type === "mouseover") {
@@ -131,7 +198,7 @@ export default function App() {
             latlng.lng <= east;
 
           if (isWithinExtent) {
-            const { u, v } = projectToUV(latlng.lat, latlng.lng, mapExtent);
+            const { u, v } = projection(latlng.lat, latlng.lng);
             markerElement.style.display = "block";
             markerElement.style.top = `${v * 100}%`;
             markerElement.style.left = `${u * 100}%`;
@@ -162,15 +229,18 @@ export default function App() {
   return (
     <main className="min-h-screen h-screen overflow-hidden bg-jade-foundation px-4 py-4 text-jade-text sm:px-6 lg:px-8">
       <div
-        className={`fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? "w-3xl" : "w-64"}`}
+        className={`fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? " w-xl" : "w-64"}`}
       >
-        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 rounded-xl border border-jade-border-soft bg-jade-panel/95 p-2 shadow-2xl shadow-[#182a36]/20 backdrop-blur-md">
-          <button
-            onClick={() => setIsMapOpen(!isMapOpen)}
-            className="rounded-lg border border-jade-border-soft bg-jade-control px-3 py-1.5 text-xs font-semibold text-jade-text shadow-sm transition-colors hover:bg-jade-control-hover focus:outline-none focus:ring-2 focus:ring-jade-river"
-          >
-            {isMapOpen ? "Close" : "Open"}
-          </button>
+        <div className="absolute right-3 top-3 z-20 space-y-2 rounded-xl p-2">
+          <div className=" text-right">
+            <button
+              onClick={() => setIsMapOpen(!isMapOpen)}
+              className="rounded-full p-2 font-semibold text-jade-text shadow-sm transition-colors hover:bg-jade-control-hover focus:outline-none focus:ring-2 focus:ring-jade-river"
+            >
+              {isMapOpen ? <ZoomOutIcon /> : <ZoomInIcon />}
+            </button>
+          </div>
+
           {isMapOpen && (
             <div className="flex gap-1 rounded-lg border border-jade-border-soft bg-jade-control/70 p-1">
               <button
@@ -205,7 +275,7 @@ export default function App() {
             src={mapExtents[mapExtentKey].src}
             alt={mapExtents[mapExtentKey].label}
           />
-          <div className="absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-200 bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.25)] transition-all duration-100 ease-in" />
+          <div className="absolute left-1/2 top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-600 bg-amber-400 shadow shadow-amber-600/65 transition-all duration-100 ease-in" />
         </div>
       </div>
       <div className="mx-auto max-w-6xl h-full flex flex-col">

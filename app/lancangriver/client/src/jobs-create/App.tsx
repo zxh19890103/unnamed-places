@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Button, IconButton } from "../_components";
+import { Tile12OsmLink } from "../_partials";
 import { LeafletBBoxMap } from "./map.js";
 import { readBBoxFromSearch, readLatLngFromSearch, type BBox } from "./bbox.js";
 import { coverageTilesForBBox, TileKey } from "./tiles.js";
@@ -189,13 +190,12 @@ const TileListItem = memo(
         }
       >
         <div className="grid gap-2">
-          <a
-            href={`/tile12-osm?tilekey=${tile.id}`}
-            target="_blank"
+          <Tile12OsmLink
+            tileKey={tile.id}
             className="font-[SUSEMono] text-sm font-semibold text-jade-text hover:text-jade-river hover:underline"
           >
             {tile.z}/{tile.x}/{tile.y}
-          </a>
+          </Tile12OsmLink>
           <div className="flex flex-wrap gap-1.5">
             <button
               className={

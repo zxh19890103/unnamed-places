@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 
+import { Button } from "../../_components";
 import { BASE_URL } from "../../calc/constants.js";
 import { fetchTileVector } from "../../osm/tiles.js";
 import { LeafletVectorViewer } from "./leaflet.js";
@@ -82,7 +83,7 @@ export default function App() {
   };
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-[#09110f] text-slate-100">
+    <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation text-jade-text">
       <div className="absolute inset-0">
         {mode === "three" ? (
           <ThreeJsTileViewer features={features} tile={tile} />
@@ -91,15 +92,27 @@ export default function App() {
         )}
       </div>
 
-      <section className="absolute left-3 right-3 top-3 z-1009 border border-emerald-200/20 bg-slate-950/88 p-4 shadow-2xl backdrop-blur-md sm:right-auto sm:w-110">
-        <a
-          href="/portal.html"
-          target="_blank"
-          className="text-xs font-semibold uppercase text-emerald-300 hover:text-emerald-200"
-        >
-          Lancangriver Portal
-        </a>
-        <h1 className="mt-1 text-xl font-semibold">Tile 12 OSM Inspector</h1>
+      <section className="absolute left-3 right-3 top-3 z-1009 w-[min(28rem,calc(100%-1.5rem))] rounded-2xl border border-jade-border-soft bg-jade-panel/95 p-4 shadow-2xl shadow-[#182a36]/15 backdrop-blur-md">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <a
+              href="/portal.html"
+              target="_blank"
+              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river hover:text-jade-sky"
+            >
+              Lancangriver Portal
+            </a>
+            <h1 className="mt-1 text-sm font-semibold tracking-wide text-jade-text">
+              Tile 12 OSM Inspector
+            </h1>
+            <p className="mt-1 text-xs leading-5 text-jade-text-muted">
+              Inspect vector tiles and switch between 2D and 3D views.
+            </p>
+          </div>
+          <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 text-[10px] tabular-nums text-jade-text-muted">
+            {mode === "three" ? "3D" : "2D"}
+          </span>
+        </div>
 
         <form onSubmit={submit} className="mt-4 flex flex-wrap gap-2">
           <label className="min-w-0 flex-1">
@@ -108,37 +121,41 @@ export default function App() {
               value={tileKey}
               onChange={(event) => setTileKey(event.target.value)}
               spellCheck={false}
-              className="h-10 w-full border border-slate-600 bg-slate-900 px-3 font-mono text-sm text-slate-100 outline-none focus:border-emerald-400"
+              className="h-10 w-full rounded-lg border border-jade-border-soft bg-jade-control/70 px-3 font-[SUSEMono] text-sm text-jade-text outline-none transition-colors placeholder:text-jade-text-muted focus:border-jade-river focus:bg-jade-panel"
               aria-label="Zoom-12 tile key"
+              placeholder="12/2212/1539"
             />
           </label>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
+              size="base"
+              variant={mode === "three" ? "primary" : "default"}
               onClick={() => setMode("three")}
-              className={`h-10 border px-3 text-sm font-semibold ${mode === "three" ? "border-emerald-400 bg-emerald-400 text-slate-950" : "border-slate-600 bg-slate-900 text-slate-100 hover:border-emerald-400"}`}
             >
               3D
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="base"
+              variant={mode === "leaflet" ? "primary" : "default"}
               onClick={() => setMode("leaflet")}
-              className={`h-10 border px-3 text-sm font-semibold ${mode === "leaflet" ? "border-emerald-400 bg-emerald-400 text-slate-950" : "border-slate-600 bg-slate-900 text-slate-100 hover:border-emerald-400"}`}
             >
               2D
-            </button>
+            </Button>
           </div>
-          <button
+          <Button
             type="submit"
+            size="base"
+            variant="primary"
             disabled={loading}
-            className="h-10 border border-emerald-400 bg-emerald-400 px-4 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-50"
           >
-            {loading ? "Loading" : "Load"}
-          </button>
+            {loading ? "Loading..." : "Load"}
+          </Button>
         </form>
 
-        <div className="mt-3 wrap-break-word font-mono text-xs leading-5 text-slate-300">
-          {error ? <span className="text-rose-300">{error}</span> : summary}
+        <div className="mt-3 rounded-lg border border-jade-border-soft bg-jade-control/60 px-3 py-2 font-[SUSEMono] text-xs leading-5 text-jade-text-muted">
+          {error ? <span className="text-jade-error">{error}</span> : summary}
         </div>
       </section>
     </main>

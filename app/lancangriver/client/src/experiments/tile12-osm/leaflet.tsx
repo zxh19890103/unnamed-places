@@ -33,7 +33,7 @@ export function LeafletVectorViewer({
     }
 
     const map = L.map(container, {
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: true,
       center: [0, 0],
       zoom: 2,

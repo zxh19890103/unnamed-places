@@ -1,9 +1,4 @@
 {
-  // "editor.fontFamily": "Cascadia Code, Yuppy TC",
-  // "editor.fontFamily": "Anonymous Pro, Yuppy TC",
-  // "editor.fontFamily": "Chalkboard SE, Yuppy TC",
-  // "editor.fontFamily": "Monolisa",
-  // "editor.fontFamily": "Wawati TC",
   "editor.fontFamily": "Ubuntu Mono",
   "editor.fontSize": 14,
   "workbench.fontAliasing": "antialiased",
@@ -21,5 +16,5 @@
   },
   "js/ts.tsdk.path": "./app/__deprecated/serve/node_modules/typescript/lib",
   "webgl-glsl-editor.diagnostics": false,
-  "css.lint.unknownAtRules": "ignore"
+  "css.lint.unknownAtRules": "ignore",
 }

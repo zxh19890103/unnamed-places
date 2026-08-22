@@ -68,6 +68,9 @@ export default function App() {
 
 const CreateScene = memo(
   ({ host, sceneState }: { sceneState: SceneState; host: HTMLDivElement }) => {
+    const [tile12OsmFrameUrl, setTile12OsmFrameUrl] = useState<
+      string | boolean
+    >(null);
     const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
     const [flatFrameUrl, setFlatFrameUrl] = useState("/flat.html");
     const [isJobsManageModalOpen, setIsJobsManageModalOpen] = useState(false);
@@ -198,15 +201,19 @@ const CreateScene = memo(
           return;
         }
 
-        if (event.data?.type !== FLAT_CENTER_CONFIRMED) {
-          return;
+        const eventType = event.data?.type;
+        switch (eventType) {
+          case FLAT_CENTER_CONFIRMED: {
+            const center = event.data.payload as LatLng | undefined;
+            void focus3dAtCenter(center);
+            break;
+          }
+          case "tile12osm": {
+            const url = event.data.urlToGo;
+            setTile12OsmFrameUrl(url);
+            break;
+          }
         }
-
-        const center = event.data.payload as LatLng | undefined;
-
-        console.log("the center picked", center);
-
-        void focus3dAtCenter(center);
       };
 
       window.addEventListener("message", handleMessage);
@@ -390,6 +397,17 @@ const CreateScene = memo(
               winRole="create job"
               pageUrl={createJobFrameUrl}
               onOpenStateChange={setIsCreateJobModalOpen}
+            />
+          </ChildWindow.Modal>
+        )}
+
+        {tile12OsmFrameUrl && (
+          <ChildWindow.Modal size={96}>
+            <ChildWindow
+              title="Check Tile Osm"
+              winRole="tile osm"
+              pageUrl={tile12OsmFrameUrl as string}
+              onOpenStateChange={setTile12OsmFrameUrl}
             />
           </ChildWindow.Modal>
         )}

@@ -1,3 +1,4 @@
+import { IconJarLogoIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
 import React from "react";
 
@@ -97,4 +98,19 @@ export const IconButton = ({
       {children}
     </button>
   );
+};
+
+Button.__storybook = () => {
+  return {
+    children: "Hello, World!",
+    onClick: () => {
+      alert("hello, world!");
+    },
+  };
+};
+
+IconButton.__storybook = () => {
+  return {
+    children: <IconJarLogoIcon />,
+  };
 };

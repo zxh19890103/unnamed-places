@@ -77,3 +77,26 @@ export const Panel = ({
     </section>
   );
 };
+
+Panel.__storybook = (): Props => {
+  return {
+    title: "River overview",
+    description: "Current selection and nearby context",
+    children: (
+      <div className="space-y-3 text-sm text-jade-text">
+        <div className="rounded-lg border border-jade-border-soft bg-jade-panel/70 p-3">
+          <p className="font-medium text-jade-text">Status</p>
+          <p className="mt-1 text-jade-text-muted">
+            All layers are synchronized.
+          </p>
+        </div>
+        <div className="rounded-lg border border-jade-border-soft bg-jade-panel/70 p-3">
+          <p className="font-medium text-jade-text">Next action</p>
+          <p className="mt-1 text-jade-text-muted">
+            Review the selected river segment.
+          </p>
+        </div>
+      </div>
+    ),
+  };
+};

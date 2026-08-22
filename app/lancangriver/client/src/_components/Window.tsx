@@ -9,6 +9,7 @@ type Props = {
   pageUrl: string;
   iframeElementRef?: React.RefObject<HTMLIFrameElement>;
   className?: string;
+  size?: number;
   onOpenStateChange?: (open: boolean) => void;
 };
 
@@ -21,6 +22,7 @@ export const ChildWindow = ({
   onOpenStateChange = onOpenStateChangeStub,
   iframeElementRef,
   className,
+  size = null,
 }: Props) => {
   const [isPageLoading, setIsPageLoading] = useState(true);
 
@@ -79,12 +81,38 @@ export const ChildWindow = ({
   );
 };
 
-ChildWindow.Modal = ({ children }: React.PropsWithChildren<{}>) => {
+ChildWindow.Modal = ({
+  children,
+  className,
+  size = null,
+}: React.PropsWithChildren<{
+  className?: string;
+  size?: number;
+}>) => {
   return (
     <div className="absolute inset-0 z-1994 grid place-items-center bg-jade-950/45 p-3 backdrop-blur-[2px]">
-      <div className="h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl border border-jade-border bg-jade-panel shadow-2xl shadow-[#182a36]/25">
+      <div
+        className={clsx(
+          "h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl border border-jade-border bg-jade-panel shadow-2xl shadow-[#182a36]/25",
+          className,
+        )}
+        style={
+          size
+            ? {
+                width: `${size}vw`,
+                height: `${size}vh`,
+              }
+            : null
+        }
+      >
         {children}
       </div>
     </div>
   );
+};
+
+ChildWindow.__storybook = (): Props => {
+  return {
+    pageUrl: "/flat",
+  };
 };

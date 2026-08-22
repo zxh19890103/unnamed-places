@@ -4,6 +4,7 @@ import type { CoverageJob, CoverageJobsPage, CoverageJobStatus } from "./api";
 import { fetchGeoReverse, saveZ12GeoInfo } from "./api";
 import { tileZxyToCenterLatlng } from "../experiments/sphere-zoom/tile";
 import { tileExtent } from "../calc/mercator";
+import { Tile12OsmLink } from "../_partials";
 
 type JobsTableProps = {
   page: CoverageJobsPage | null;
@@ -132,13 +133,12 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
       className="text-jade-text transition-colors hover:bg-jade-river-soft/40"
     >
       <td className="px-4 py-2.5 font-[SUSEMono] text-jade-text">
-        <a
-          target="_blank"
+        <Tile12OsmLink
+          tileKey={job.key}
           className="font-semibold hover:text-jade-river hover:underline"
-          href={`/tile12-osm?tilekey=${job.key}`}
         >
           {job.key}
-        </a>
+        </Tile12OsmLink>
       </td>
       <td className=" px-4 py-2.5">
         <JobLatlng job={job} />

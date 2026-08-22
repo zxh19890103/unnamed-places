@@ -1,20 +1,31 @@
 import clsx from "clsx";
 import React, { useState } from "react";
 
+function __defaultStorybook() {
+  return {};
+}
+
 export default function App({ components }) {
   const [namedFcs] = useState(() =>
     Object.entries(components)
-      .map(([name, fc]) => {
-        if (typeof fc !== "function") return null;
+      .map(([name, component]) => {
+        if (typeof component !== "function") return null;
+
+        const storybook =
+          typeof component["__storybook"] === "function"
+            ? component["__storybook"]
+            : __defaultStorybook;
+
         return {
           name,
-          fc,
+          fc: component,
+          __storybook: storybook,
         };
       })
       .filter(Boolean),
   );
 
-  const [fc, setFc] = useState(namedFcs[1]);
+  const [fc, setFc] = useState(namedFcs[0]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -47,12 +58,16 @@ export default function App({ components }) {
             );
           })}
         </div>
-        <div>{fc ? <LoadFc fc={fc} /> : <div>no fc</div>}</div>
+        <div>{fc ? <LoadFc fc={fc} /> : <div>no component selected.</div>}</div>
       </section>
     </main>
   );
 }
 
 const LoadFc = ({ fc }) => {
-  return <div>{React.createElement(fc.fc, {})}</div>;
+  const props = React.useMemo(() => {
+    return fc.__storybook();
+  }, [fc]);
+
+  return <div>{React.createElement(fc.fc, props)}</div>;
 };

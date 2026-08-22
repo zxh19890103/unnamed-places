@@ -24,6 +24,12 @@
 }
 
 @theme inline {
+  --font-suse-mono:
+    "SUSEMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-share-tech-mono:
+    "ShareTechMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+
   --color-jade-foundation: #eaf2f7;
   --color-jade-depth: #dce8f0;
   --color-jade-panel: #f8fbfd;
@@ -154,30 +160,6 @@
 }
 
 @font-face {
-  font-family: "Poiret One";
-  src: url("/Poiret_One/PoiretOne-Regular.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Montserrat";
-  src: url("/Montserrat/Montserrat-VariableFont_wght.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Manrope";
-  src: url("/Manrope/Manrope-VariableFont_wght.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
   font-family: "SUSEMono";
   src: url("/SUSE_Mono/SUSEMono-VariableFont_wght.ttf") format("truetype");
   font-style: normal;
@@ -194,13 +176,12 @@
 }
 
 html,
-body,
-#App {
+body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  font-family: "ShareTechMono", sans-serif;
+  font-family: "SUSEMono", sans-serif;
 }
 
 .spin-when-moving {
