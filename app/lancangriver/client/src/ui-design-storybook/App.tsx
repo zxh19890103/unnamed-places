@@ -64,10 +64,21 @@ export default function App({ components }) {
   );
 }
 
+let _id = 1911;
+
 const LoadFc = ({ fc }) => {
-  const props = React.useMemo(() => {
-    return fc.__storybook();
+  const propsArray = React.useMemo(() => {
+    const props = fc.__storybook();
+    const asArray = Array.isArray(props) ? props : [props];
+    asArray.forEach((item) => (item.key = `__id_${_id++}`));
+    return asArray;
   }, [fc]);
 
-  return <div>{React.createElement(fc.fc, props)}</div>;
+  return (
+    <div className=" flex flex-col gap-2 ">
+      {propsArray.map((props) => {
+        return React.createElement(fc.fc, props);
+      })}
+    </div>
+  );
 };

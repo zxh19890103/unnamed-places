@@ -8,7 +8,12 @@ import {
 } from "./api";
 import { JobsTable } from "./JobsTable";
 import { tileZxyToCenterLatlng } from "../experiments/sphere-zoom/tile";
-import { ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "@radix-ui/react-icons";
 
 const PAGE_SIZE = 100;
 
@@ -227,45 +232,44 @@ export default function App() {
   }, [mapExtentKey]);
 
   return (
-    <main className="min-h-screen h-screen overflow-hidden bg-jade-foundation px-4 py-4 text-jade-text sm:px-6 lg:px-8">
+    <main className=" min-h-screen h-screen overflow-hidden bg-jade-foundation px-4 py-4 text-jade-text sm:px-6 lg:px-8">
       <div
-        className={`fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? " w-xl" : "w-64"}`}
+        className={` fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? " w-xl" : "w-64"}`}
       >
-        <div className="absolute right-3 top-3 z-20 space-y-2 rounded-xl p-2">
-          <div className=" text-right">
+        <div className="absolute right-3 top-3 z-20 rounded-xl p-1">
+          <button
+            onClick={() => setIsMapOpen(!isMapOpen)}
+            className="rounded-full p-2 font-semibold text-jade-text shadow-sm transition-colors hover:bg-jade-control-hover focus:outline-none focus:ring-2 focus:ring-jade-river"
+          >
+            {isMapOpen ? <ZoomOutIcon /> : <ZoomInIcon />}
+          </button>
+        </div>
+
+        {isMapOpen && (
+          <div className=" z-20 absolute left-3 top-3 flex gap-1 rounded-lg border border-jade-border-soft bg-jade-control/70 p-1">
             <button
-              onClick={() => setIsMapOpen(!isMapOpen)}
-              className="rounded-full p-2 font-semibold text-jade-text shadow-sm transition-colors hover:bg-jade-control-hover focus:outline-none focus:ring-2 focus:ring-jade-river"
+              onClick={() => setMapExtentKey("china")}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
+                mapExtentKey === "china"
+                  ? "bg-jade-river-soft text-jade-text shadow-sm"
+                  : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
+              }`}
             >
-              {isMapOpen ? <ZoomOutIcon /> : <ZoomInIcon />}
+              China
+            </button>
+            <button
+              onClick={() => setMapExtentKey("world")}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
+                mapExtentKey === "world"
+                  ? "bg-jade-river-soft text-jade-text shadow-sm"
+                  : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
+              }`}
+            >
+              World
             </button>
           </div>
+        )}
 
-          {isMapOpen && (
-            <div className="flex gap-1 rounded-lg border border-jade-border-soft bg-jade-control/70 p-1">
-              <button
-                onClick={() => setMapExtentKey("china")}
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
-                  mapExtentKey === "china"
-                    ? "bg-jade-river-soft text-jade-text shadow-sm"
-                    : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
-                }`}
-              >
-                China
-              </button>
-              <button
-                onClick={() => setMapExtentKey("world")}
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
-                  mapExtentKey === "world"
-                    ? "bg-jade-river-soft text-jade-text shadow-sm"
-                    : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
-                }`}
-              >
-                World
-              </button>
-            </div>
-          )}
-        </div>
         <div
           ref={mapRef}
           className="relative overflow-hidden rounded-2xl border border-jade-border-soft bg-jade-panel/80 shadow-2xl shadow-[#182a36]/20"
@@ -278,7 +282,7 @@ export default function App() {
           <div className="absolute left-1/2 top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-600 bg-amber-400 shadow shadow-amber-600/65 transition-all duration-100 ease-in" />
         </div>
       </div>
-      <div className="mx-auto max-w-6xl h-full flex flex-col">
+      <div className="mx-auto h-full flex flex-col">
         <header className="mb-4 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <a
@@ -315,19 +319,14 @@ export default function App() {
             {tabs.map((tab) => {
               const selected = tab.key === activeTab;
               return (
-                <button
+                <Button
                   key={tab.key}
-                  type="button"
+                  variant={selected ? "primary" : "default"}
                   onClick={() => switchTab(tab.key)}
-                  className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
-                    selected
-                      ? "border-jade-river bg-jade-river-soft text-jade-text"
-                      : "border-jade-border-soft bg-jade-control text-jade-text-muted hover:bg-jade-control-hover"
-                  }`}
                   aria-pressed={selected}
                 >
                   {tab.label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -375,24 +374,22 @@ export default function App() {
               : `${offset + 1}-${Math.min(offset + PAGE_SIZE, total)} of ${total}`}
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               disabled={!canGoBack}
               onClick={() =>
                 setOffset((current) => Math.max(0, current - PAGE_SIZE))
               }
-              className="rounded-lg border border-jade-border-soft bg-jade-control px-4 py-2 text-sm font-medium text-jade-text-muted hover:bg-jade-control-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Previous
-            </button>
-            <button
+              <ArrowLeftIcon />
+            </Button>
+            <Button
               type="button"
               disabled={!canGoForward}
               onClick={() => setOffset((current) => current + PAGE_SIZE)}
-              className="rounded-lg border border-jade-river bg-jade-river px-4 py-2 text-sm font-semibold text-white hover:bg-jade-river/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next
-            </button>
+              <ArrowRightIcon />
+            </Button>
           </div>
         </footer>
       </div>

@@ -23,7 +23,7 @@ function TableColGroup() {
       <col width="120px" />
       <col width="120px" />
       <col width="100px" />
-      <col width="150px" />
+      <col width="180px" />
       <col width="400px" />
       <col width="150px" />
       <col width="auto" />
@@ -132,7 +132,7 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
       itemID={job.key}
       className="text-jade-text transition-colors hover:bg-jade-river-soft/40"
     >
-      <td className="px-4 py-2.5 font-[SUSEMono] text-jade-text">
+      <td className="px-4 py-2.5 font-suse-mono text-jade-text">
         <Tile12OsmLink
           tileKey={job.key}
           className="font-semibold hover:text-jade-river hover:underline"
@@ -149,7 +149,7 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
       <td className=" px-4 py-2.5">
         <JobTileSize job={job} />
       </td>
-      <td>
+      <td className=" px-4 py-2.5">
         <LoadGeoInfoReverse tile={job} />
       </td>
       <td className="px-4 py-2.5">
@@ -236,13 +236,13 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
   };
 
   return (
-    <div className="flex text-xs items-center gap-2 px-4 py-2.5">
+    <div className="flex text-xs items-center gap-2">
       <button
         type="button"
         onClick={() => void handleClick()}
         disabled={loadingReverse || displayName !== null}
         title={error ?? undefined}
-        className="max-w-64 rounded-lg px-2 py-1 text-left text-jade-text disabled:cursor-default disabled:opacity-70"
+        className="max-w-64 rounded-lg text-left text-jade-text disabled:cursor-default disabled:opacity-70"
       >
         {loadingReverse
           ? "Loading..."

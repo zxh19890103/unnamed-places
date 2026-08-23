@@ -10,6 +10,7 @@ const pagesCfg = {
   ["static-leaflet-map"]: `./src/static-leaflet-map`,
   ["ui-design-implement"]: `./src/ui-design-implement`,
   ["ui-design-storybook"]: `./src/ui-design-storybook`,
+  ["geometries-debug-show"]: `./src/geometries-debug-show`,
   ["global-zoom"]: `./src/experiments/global-zoom`,
   ["shanshui-shader"]: `./src/experiments/shanshui-shader`,
   ["sphere-zoom"]: `./src/experiments/sphere-zoom`,

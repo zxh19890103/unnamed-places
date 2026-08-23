@@ -2,7 +2,6 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import * as THREE from "three";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { Cross1Icon } from "@radix-ui/react-icons";
 
 import {
   createSceneState,
@@ -28,7 +27,8 @@ import {
 import { MiniMap } from "./explore/dom/MiniMap";
 import { ControlsManager } from "./explore/ControlsManager.class";
 import { latlngToStandardTileZxy } from "./experiments/sphere-zoom/tile";
-import { ChildWindow, IconButton } from "./_components";
+import { Button, ChildWindow, IconButton } from "./_components";
+import clsx from "clsx";
 
 type OrbitClickEvent = {
   type: "click";
@@ -326,7 +326,7 @@ const CreateScene = memo(
 
     return (
       <>
-        <div className="pointer-events-none fixed inset-x-3 top-3 z-40 flex flex-nowrap justify-start gap-1.5 overflow-x-auto pb-1 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:justify-center">
+        <div className=" p-2 pointer-events-none fixed inset-x-3 top-3 z-40 flex flex-nowrap justify-start gap-1.5 overflow-x-auto sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:justify-center">
           <TerrianModeSelect
             controls={sceneState.controlsManager}
             tileManager={sceneState.tileManager}
@@ -451,9 +451,6 @@ const OpsPanel = ({
     !tileManager.frozen,
   );
 
-  const iconButtonClass =
-    "grid size-11 place-items-center rounded-lg bg-jade-panel/95 text-jade-text-muted shadow-lg shadow-[#182a36]/20 backdrop-blur-md transition-colors hover:border-jade-river hover:bg-jade-control-hover hover:text-jade-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river";
-
   return (
     <Tooltip.Provider delayDuration={250} skipDelayDuration={100}>
       <div
@@ -467,8 +464,7 @@ const OpsPanel = ({
             viewerUpdateEnabled ? "Pause tile updates" : "Resume tile updates"
           }
         >
-          <button
-            type="button"
+          <IconButton
             aria-label={
               viewerUpdateEnabled ? "Pause tile updates" : "Resume tile updates"
             }
@@ -479,64 +475,64 @@ const OpsPanel = ({
               const nextUpdateEnabled = !nextFrozen;
               setViewerUpdateEnabled(nextUpdateEnabled);
             }}
-            className={`${iconButtonClass} pointer-events-auto ${
+            className={`pointer-events-auto ${
               viewerUpdateEnabled
                 ? ""
                 : "border-jade-river bg-jade-river-soft text-jade-text"
             }`}
           >
             {viewerUpdateEnabled ? <PauseTilesIcon /> : <ResumeTilesIcon />}
-          </button>
+          </IconButton>
         </SceneControlTooltip>
         <SceneControlTooltip label="Open flat map">
-          <button
+          <IconButton
             type="button"
             aria-label="Open flat map"
             onClick={() => void openFlatModal()}
-            className={`${iconButtonClass} pointer-events-auto`}
+            className={`pointer-events-auto`}
           >
             <FlatMapIcon />
-          </button>
+          </IconButton>
         </SceneControlTooltip>
         <SceneControlTooltip label="Switch top-down / perspective view">
-          <button
+          <IconButton
             type="button"
             aria-label="Switch top-down or perspective view"
             onClick={() => void handleDirectSwitchTo3dView()}
-            className={`${iconButtonClass} pointer-events-auto`}
+            className={`pointer-events-auto`}
           >
             <ViewAngleIcon />
-          </button>
+          </IconButton>
         </SceneControlTooltip>
         <SceneControlTooltip label="Load photo locations">
-          <button
+          <IconButton
             type="button"
             aria-label="Load photo locations"
             onClick={() => void handleLoadGeotaggedPhotos()}
-            className={`${iconButtonClass} pointer-events-auto`}
+            className={`pointer-events-auto`}
           >
             <PhotoLocationsIcon />
-          </button>
+          </IconButton>
         </SceneControlTooltip>
         <SceneControlTooltip label="Open jobs manager">
-          <button
+          <IconButton
             type="button"
             aria-label="Open jobs manager"
             onClick={() => onOpenJobsManage()}
-            className={`${iconButtonClass} pointer-events-auto`}
+            className={`pointer-events-auto`}
           >
             <JobsManageIcon />
-          </button>
+          </IconButton>
         </SceneControlTooltip>
         <SceneControlTooltip label="Create OSM tile job">
-          <button
+          <IconButton
             type="button"
             aria-label="Create OSM tile job"
             onClick={() => onOpenCreateJob()}
-            className={`${iconButtonClass} pointer-events-auto`}
+            className={`pointer-events-auto`}
           >
             <CreateTileJobIcon />
-          </button>
+          </IconButton>
         </SceneControlTooltip>
       </div>
     </Tooltip.Provider>
@@ -804,16 +800,20 @@ const TerrianModeSelect = memo(
             : isZoomBlocked
               ? "Zoom in past level 11 to use elevation terrain"
               : modeLabels[materialMode];
+
           return (
-            <button
+            <Button
               key={materialMode}
-              type="button"
               aria-label={
                 isDisabled ? title : `Use ${modeLabels[materialMode]} terrain`
               }
               aria-pressed={isSelected}
               disabled={isDisabled}
               title={title}
+              className={clsx(
+                " pointer-events-auto",
+                isSelected ? " relative top-1" : null,
+              )}
               onClick={() => {
                 const requested = materialMode;
 
@@ -827,17 +827,12 @@ const TerrianModeSelect = memo(
                   setGlobalTileMaterialMode(requested);
                 }
               }}
-              className={`pointer-events-auto flex min-h-12 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium shadow-lg shadow-[#182a36]/15 backdrop-blur-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
-                isSelected
-                  ? "border-jade-river bg-jade-river-soft text-jade-text"
-                  : "border-jade-border-soft bg-jade-panel/95 text-jade-text-muted hover:border-jade-border hover:bg-jade-control-hover hover:text-jade-text"
-              } disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-(--jade-depth)/90 disabled:text-jade-text-muted disabled:opacity-55 disabled:shadow-none`}
             >
               <MaterialModeIcon mode={materialMode} />
               <span className="whitespace-nowrap">
                 {modeLabels[materialMode]}
               </span>
-            </button>
+            </Button>
           );
         })}
       </>
