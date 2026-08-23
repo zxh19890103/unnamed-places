@@ -11,9 +11,9 @@ const pagesCfg = {
   ["ui-design-implement"]: `./src/ui-design-implement`,
   ["ui-design-storybook"]: `./src/ui-design-storybook`,
   ["ui-3js-geometries-storybook"]: `./src/ui-3js-geometries-storybook`,
-  ["global-zoom"]: `./src/experiments/global-zoom`,
-  ["shanshui-shader"]: `./src/experiments/shanshui-shader`,
-  ["sphere-zoom"]: `./src/experiments/sphere-zoom`,
+  ["global-zoom"]: `./src/(experiments)/global-zoom`,
+  ["shanshui-shader"]: `./src/(experiments)/shanshui-shader`,
+  ["sphere-zoom"]: `./src/(experiments)/sphere-zoom`,
   ["tile12-osm"]: `./src/tile12-osm`,
 };
 
