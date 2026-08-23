@@ -1,9 +1,16 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import { Button, IconButton } from "../_components";
 import { Tile12OsmLink } from "../_partials";
 import { LeafletBBoxMap } from "./map.js";
 import { readBBoxFromSearch, readLatLngFromSearch, type BBox } from "./bbox.js";
-import { coverageTilesForBBox, TileKey } from "./tiles.js";
+import { coverageTilesForBBox, type TileKey } from "./tiles.js";
 import {
   enqueueCoverageJob,
   enqueueCoverageJobHighways,
@@ -21,11 +28,34 @@ export default function App() {
   );
   const [visibleBounds, setVisibleBounds] = useState<BBox>(bbox);
   const [focusTile, setFocusTile] = useState<string | null>(null);
+  const [manualTiles, setManualTiles] = useState<TileKey[]>([]);
 
   const tiles = useMemo(
     () => coverageTilesForBBox(visibleBounds, COVERAGE_ZOOM),
     [visibleBounds],
   );
+
+  const combinedTiles = useMemo(
+    () => [
+      ...tiles.map((tile) => ({ ...tile, isManual: false })),
+      ...manualTiles.map((tile) => ({ ...tile, isManual: true })),
+    ],
+    [manualTiles, tiles],
+  );
+
+  const handleAddManualTile = (tile: TileKey) => {
+    setManualTiles((current) => {
+      if (current.some((entry) => entry.id === tile.id)) {
+        return current;
+      }
+      return [...current, tile];
+    });
+    setFocusTile(tile.id);
+  };
+
+  const handleRemoveManualTile = (tileId: string) => {
+    setManualTiles((current) => current.filter((tile) => tile.id !== tileId));
+  };
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-jade-foundation text-jade-text font-[SUSEMono] lg:flex-row">
@@ -34,7 +64,9 @@ export default function App() {
           focusTile={focusTile}
           bbox={bbox}
           latlng={latlng}
+          manualTiles={manualTiles}
           onBoundsChange={setVisibleBounds}
+          onTileAdd={handleAddManualTile}
         />
       </main>
 
@@ -50,33 +82,44 @@ export default function App() {
               </h1>
             </div>
             <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 font-[SUSEMono] text-[10px] tabular-nums text-jade-text-muted">
-              {tiles.length} tiles
+              {combinedTiles.length} tiles
             </span>
           </div>
           <p className="mt-2 text-xs leading-5 text-jade-text-muted">
             {tiles.length === 0
               ? "Visible map exceeds 30km, zoom in to list tiles"
-              : "Tiles covering the current map view"}
+              : "Click the map to add manual zoom-12 tiles to this list."}
           </p>
         </header>
         <TileList
-          tiles={tiles}
+          tiles={combinedTiles}
           focusTile={focusTile}
           onTileClick={setFocusTile}
+          onRemoveManualTile={handleRemoveManualTile}
         />
       </aside>
     </div>
   );
 }
 
-const TileList = ({ tiles, focusTile, onTileClick }) => {
+const TileList = ({
+  tiles,
+  focusTile,
+  onTileClick,
+  onRemoveManualTile,
+}: {
+  tiles: Array<TileKey & { isManual?: boolean }>;
+  focusTile: string | null;
+  onTileClick: (tileId: string) => void;
+  onRemoveManualTile?: (tileId: string) => void;
+}) => {
   const elementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const element = elementRef.current;
     if (!element) return;
 
-    const handleClick = (event: MouseEvent) => {
+    const handleClick = (event: PointerEvent) => {
       // if it is the button of itemtype = `where?`, trigger
       const target = event.target as HTMLElement;
       const button = target.closest('button[itemtype="tile/where"]');
@@ -102,6 +145,8 @@ const TileList = ({ tiles, focusTile, onTileClick }) => {
             focused={focusTile === tile.id}
             key={tile.id}
             tile={tile}
+            isManualTile={tile.isManual}
+            onRemove={() => onRemoveManualTile?.(tile.id)}
           />
         ))}
       </ul>
@@ -110,7 +155,17 @@ const TileList = ({ tiles, focusTile, onTileClick }) => {
 };
 
 const TileListItem = memo(
-  ({ focused, tile }: { focused: boolean; tile: TileKey }) => {
+  ({
+    focused,
+    tile,
+    isManualTile,
+    onRemove,
+  }: {
+    focused: boolean;
+    tile: TileKey & { isManual?: boolean };
+    isManualTile?: boolean;
+    onRemove?: () => void;
+  }) => {
     const [downloadStatus, setDownloadStatus] = useState<
       "idle" | "queuing" | "queued" | "error"
     >("idle");
@@ -190,13 +245,30 @@ const TileListItem = memo(
         }
       >
         <div className="grid gap-2">
-          <Tile12OsmLink
-            tileKey={tile.id}
-            className="font-[SUSEMono] text-sm font-semibold text-jade-text hover:text-jade-river hover:underline"
-          >
-            {tile.z}/{tile.x}/{tile.y}
-          </Tile12OsmLink>
+          <div className="flex flex-wrap items-center gap-2">
+            <Tile12OsmLink
+              tileKey={tile.id}
+              className="text-sm font-semibold text-jade-text hover:text-jade-river hover:underline"
+            >
+              {tile.z}/{tile.x}/{tile.y}
+            </Tile12OsmLink>
+            {isManualTile ? (
+              <span className="rounded-full border border-jade-sky/25 bg-jade-sky-soft px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-jade-sky">
+                manual
+              </span>
+            ) : null}
+          </div>
           <div className="flex flex-wrap gap-1.5">
+            {isManualTile ? (
+              <Button
+                onClick={onRemove}
+                variant="destructive"
+                size="sm"
+                className="min-h-8 px-2.5 py-1 text-[11px]"
+              >
+                remove
+              </Button>
+            ) : null}
             <button
               className={
                 "cursor-pointer rounded-lg border px-2.5 py-1 font-medium transition-colors" +

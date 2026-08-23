@@ -1,3 +1,5 @@
+import { ArrowRightIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
+
 const pages = [
   {
     title: "Map",
@@ -43,6 +45,12 @@ const pages = [
     description: "A minimal new page scaffold for the Lancangriver client.",
   },
   {
+    title: "Geometries Debug / Show",
+    href: "/geometries-debug-show",
+    description:
+      "Inspect geometry builders and their storybook params in one place.",
+  },
+  {
     title: "Tile 12 OSM Inspector",
     href: "/tile12-osm",
     description: "Inspect one existing vector tile in a local Three.js scene.",
@@ -57,39 +65,70 @@ const pages = [
 
 export default function App() {
   return (
-    <main className="mx-auto max-w-260 px-6 pb-18 pt-14">
-      <section className="mb-7 rounded-[20px] border border-slate-400/20 bg-slate-950/55 px-7.5 py-7 shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur-md">
-        <div className="text-xs tracking-[0.18em] text-emerald-300 uppercase">
-          Lancangriver
-        </div>
-        <h1 className="my-2.5 text-[42px] leading-[1.05] text-slate-100">
-          Experiments Portal
-        </h1>
-        <p className="m-0 max-w-170 text-base leading-[1.6] text-slate-300">
-          Open the current rendering experiments from one place. Each entry is a
-          standalone multi-page HTML page in the client.
-        </p>
-      </section>
+    <main className="min-h-screen bg-jade-foundation px-4 py-6 text-jade-text font-[SUSEMono] sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+        <section className="overflow-hidden rounded-2xl border border-jade-border bg-jade-panel/95 shadow-2xl shadow-[#182a36]/15 backdrop-blur-md">
+          <div className="border-b border-jade-border-soft px-6 py-6 sm:px-7">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-2xl">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river">
+                  Lancangriver
+                </p>
+                <h1 className="mt-2 text-3xl font-semibold text-jade-text sm:text-4xl">
+                  Experiments Portal
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-jade-text-muted sm:text-base">
+                  Open the current rendering experiments from one place. Each
+                  entry is a standalone multi-page experience in the client.
+                </p>
+              </div>
+              <div className="rounded-lg border border-jade-border-soft bg-jade-control/70 px-3 py-2 text-sm text-jade-text-muted">
+                <span className="font-medium text-jade-text">11</span> live
+                views
+              </div>
+            </div>
+          </div>
 
-      <section className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
-        {pages.map((experiment) => (
-          <a
-            key={experiment.href}
-            href={experiment.href}
-            className="block rounded-[18px] border border-slate-400/20 bg-linear-to-b from-slate-900/90 to-slate-900/65 p-5 shadow-[0_16px_40px_rgba(0,0,0,0.18)] transition-[transform,border-color,background] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-300/45 hover:from-slate-800/95 hover:to-slate-900/80"
-          >
-            <div className="mb-2 text-[13px] text-emerald-300">
-              {experiment.href}
-            </div>
-            <div className="mb-2.5 text-[22px] font-semibold text-slate-50">
-              {experiment.title}
-            </div>
-            <div className="leading-[1.6] text-slate-300">
-              {experiment.description}
-            </div>
-          </a>
-        ))}
-      </section>
+          <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
+            {pages.map((experiment) => (
+              <a
+                key={experiment.href}
+                href={experiment.href}
+                className="group flex h-full flex-col rounded-xl border border-jade-border-soft bg-jade-panel/80 p-5 shadow-lg shadow-[#182a36]/10 transition-all duration-150 hover:-translate-y-0.5 hover:border-jade-river hover:bg-jade-panel-raised"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="rounded-full border border-jade-river/25 bg-jade-river-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-jade-river">
+                    View
+                  </span>
+                  <ExternalLinkIcon
+                    className="size-4 text-jade-text-muted transition-colors group-hover:text-jade-river"
+                    aria-hidden="true"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <h2 className="text-lg font-semibold text-jade-text">
+                    {experiment.title}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-jade-text-muted">
+                    {experiment.description}
+                  </p>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between gap-3 border-t border-jade-border-soft pt-4 text-sm">
+                  <span className="truncate text-jade-text-muted">
+                    {experiment.href}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 font-medium text-jade-river transition-colors group-hover:text-jade-sky">
+                    Open
+                    <ArrowRightIcon className="size-4" aria-hidden="true" />
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
