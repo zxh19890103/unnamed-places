@@ -1,6 +1,6 @@
 # Lancangriver Service (`serve`)
 
-Express service for health, vector bbox queries, and raster (satellite/DEM) tile fetch + cache.
+Express service for health checks, vector and highway vector tile queries, raster (satellite/DEM) tile fetch + cache, reverse geocoding, photo metadata, and vector ingest jobs.
 
 ## Prerequisites
 
@@ -47,6 +47,12 @@ Queue only (do not ingest immediately):
 npm run osm:ingest:job -- --key 12/3456/1523 --enqueue-only
 ```
 
+Run a highways-only ingest job for the same canonical z12 key:
+
+```bash
+npm run osm:ingest:highways:job -- --key 12/3456/1523
+```
+
 ## Migrations
 
 From `app/lancangriver/serve`:
@@ -65,6 +71,10 @@ This applies SQL files in `src/sql/migrations/` and creates the service tables a
 - `OPENTOPOGRAPHY_API_KEY` or `OPEN_TOPOGRAPHY_API_KEY`: required for DEM tile download
 - `VECTOR_INGEST_SOURCE` (optional): `osm` (default) or `overture`
 - `OSM_OVERPASS_ENDPOINT` (optional): override Overpass API endpoint for OSM ingest jobs
+- `CESIUM_ION_ACCESS_TOKEN` or `CESIUM_ACCESS_TOKEN` (optional): used by the Cesium reverse geocode route
+- `CESIUM_REVERSE_GEOCODE_ENDPOINT` (optional): override the Cesium reverse geocode endpoint
+- `NOMINATIM_REVERSE_ENDPOINT` (optional): override the Nominatim reverse geocoding endpoint
+- `NOMINATIM_USER_AGENT` (optional): set a custom user agent for Nominatim requests
 - `OVERTUREMAPS_CMD` (optional): override overture CLI command (default `overturemaps`)
 - `OVERTURE_ALLOW_PARTIAL` (optional): `true` (default) allows building-only ingest if water fetch fails; set `false` to fail job on water fetch errors
 - `OVERTURE_WATER_INLAND_ONLY` (optional): `true` to exclude ocean/sea water features
@@ -78,76 +88,6 @@ This applies SQL files in `src/sql/migrations/` and creates the service tables a
 - `OVERTURE_DOWNLOAD_RETRY_DELAY_MS` (optional): delay between retries in milliseconds (default `1500`).
 - `SATELLITE_URL_TEMPLATE` (optional): override Google satellite URL template
 - `OPENTOPOGRAPHY_URL_TEMPLATE` (optional): override DEM URL template
-
-## Endpoints
-
-- `GET /health`
-- `POST /z12geoinfo`
-- `GET /z12geoinfo/12/:x/:y`
-- `GET /vector?bbox=minLon,minLat,maxLon,maxLat`
-- `GET /vector/tiles/:z/:x/:y.pbf`
-- `GET /vector/tiles-existing/:z/:x/:y.pbf`
-- `GET /photos/geotagged?root=/absolute/folder/path`
-- `GET /raster/satellite/:z/:x/:y`
-- `GET /raster/dem/:z/:x/:y`
-- `GET /raster/dem/:z/:x/:y/png`
-
-## Z12 Geo Info
-
-`z12geoinfo` stores reverse-geocoding data for one canonical zoom-12 tile. It requires `DATABASE_URL` and `npm run migrate:db` before use.
-
-- `POST /z12geoinfo` accepts `{ "z12_key": "12/3456/1523", "display_name": "Example place", "raw_data": { "display_name": "Example place" } }`. The key must be canonical `12/x/y`, where each coordinate is an integer from `0` through `4095`. Reposting a key updates its `display_name` and `raw_data`.
-- `GET /z12geoinfo/12/:x/:y` returns `{ z12_key, display_name, raw_data }` for a stored tile. It returns `404` when that tile has not been stored.
-
-## Vector Tile Endpoint (Async Coverage)
-
-- Endpoint: `GET /vector/tiles/:z/:x/:y.pbf`
-- Request path computes covering zoom-12 canonical tiles for dedupe-safe ingest jobs.
-- If required coverage is missing or still ingesting, the service returns `204 No Content` and queues missing jobs.
-- Once coverage is marked `done`, the endpoint returns `200` with `application/x-protobuf` (MVT pbf bytes).
-- A background worker fetches source data based on `VECTOR_INGEST_SOURCE`, upserts into `public.vector_features`, and updates job states.
-- `VECTOR_INGEST_SOURCE=osm` uses Overpass and preserves existing behavior.
-- `VECTOR_INGEST_SOURCE=overture` uses the `overturemaps` CLI (install with `pip install overturemaps`) and ingests buildings + water from Overture.
-- `GET /vector/tiles-existing/:z/:x/:y.pbf` reads PBF data directly from `public.vector_features` without checking coverage or creating ingest jobs.
-
-Coverage can be queried before requesting PBF data:
-
-- `GET /vector/coverage/12/:x/:y` returns `{ key, status, loaded }` for one canonical tile. Only `status: "done"` sets `loaded` to `true`; unknown tiles return `status: null`.
-- `GET /vector/coverage/loaded?limit=100&offset=0` returns a stable, paginated list of completed canonical tiles and the total loaded count.
-- `GET /vector/coverage/jobs?limit=100&offset=0` returns all canonical jobs with `queued`, `running`, `done`, or `failed` status.
-- `POST /vector/coverage/12/:x/:y/enqueue` creates the canonical job if it does not already exist and returns `{ key, enqueued }`.
-- `POST /vector/coverage/12/:x/:y/rerun` changes a failed job back to `queued`. Unknown jobs return `404`; jobs that are not failed return `409`.
-- `limit` defaults to `100`, accepts values from `1` through `1000`, and `offset` defaults to `0`.
-
-## Geotagged Photos Mode Matrix
-
-- DEV: client calls `GET /photos/geotagged?root=...` on this local service.
-- PROD: packaged Electron uses folder picker + preload bridge instead of this endpoint.
-- Shared payload contract (same shape in both modes):
-  - `id: string`
-  - `filePath: string`
-  - `lat: number`
-  - `lng: number`
-  - `takenAt: string | null`
-
-## Vector table contract
-
-`/vector` reads from `public.vector_features` with these required columns:
-
-- `feature_id` (`TEXT`, primary key)
-- `feature_type` (`TEXT`)
-- `tags` (`JSONB`)
-- `geom` (`geometry(Geometry, 4326)`)
-
-Additional columns are returned automatically as GeoJSON properties.
-
-## Tile Cache Layout
-
-Default cache root is `./.tiles`:
-
-- `.tiles/{z}/{x}/{y}/satellite.jpeg`
-- `.tiles/{z}/{x}/{y}/dem.gtiff`
-- `.tiles/{z}/{x}/{y}/dem.png`
 
 ## Prefetch Tiles
 
