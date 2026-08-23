@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ShanshuiMaterial } from "./ShanshuiMaterial.js";
+import { ExperimentalShanshuiMaterial } from "./ShanshuiMaterial.js";
 import { BASE_URL } from "../../calc/constants.js";
 
 const DEM_URL = `${BASE_URL}/raster/dem/13/4285/2894.png`;
@@ -18,7 +18,7 @@ type DemAltitudeResponse = {
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const materialRef = useRef<ShanshuiMaterial | null>(null);
+  const materialRef = useRef<ExperimentalShanshuiMaterial | null>(null);
   const sunControlsEnabledRef = useRef(false);
   const lightHelperRef = useRef<THREE.DirectionalLightHelper | null>(null);
   const targetHelperRef = useRef<THREE.AxesHelper | null>(null);
@@ -60,7 +60,9 @@ export default function App() {
     controls.target.set(0, 0, 0);
 
     const geometry = new THREE.PlaneGeometry(1, 1, 255, 255);
-    const material = new ShanshuiMaterial({ displacementScale: 0.0002 });
+    const material = new ExperimentalShanshuiMaterial({
+      displacementScale: 0.0002,
+    });
     materialRef.current = material;
     material.setShowNormals(showNormals);
     material.setSlopeDarkenStrength(slopeDarkenStrength);

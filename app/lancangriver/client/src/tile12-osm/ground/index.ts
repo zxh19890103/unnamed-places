@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
-import { TileCoords } from "../../../osm/tiles.js";
-import { BASE_URL } from "../../../calc/constants.js";
+import { TileCoords } from "@/osm/tiles.js";
+import { BASE_URL } from "@/calc/constants.js";
 import { TileProjection } from "../tile.js";
 import { GUI } from "lil-gui";
 

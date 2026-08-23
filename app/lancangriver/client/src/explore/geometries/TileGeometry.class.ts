@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { LatLng } from "../../calc/types";
-import { latlngToSphere } from "../../experiments/sphere-zoom/core";
+import { LatLng } from "@/calc/types";
+import { latlngToSphere } from "@/_3dtiles";
 
 type Parameters = {
   southwest: LatLng;

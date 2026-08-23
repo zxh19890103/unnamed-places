@@ -4,23 +4,18 @@ import Stats from "three/examples/jsm/libs/stats.module.js";
 import { EARTH_RADIUS, BASE_URL } from "@/calc/constants.js";
 import { Sphere } from "../Sphere.class.js";
 import { TilesManager } from "../TilesManager.class.js";
-import { ControlsManager, type ControlMode } from "../ControlsManager.class.js";
+import { ControlsManager } from "../ControlsManager.class.js";
 import { TileMaterialMode } from "../SphereTile.class.js";
 import { LatLng } from "@/calc/types.js";
 import { createVendors } from "./vendors.js";
-import {
-  createSkyRig,
-  FOG_COLOR,
-  getDefaultCenterLatlng,
-  SKY_COLOR,
-} from "./sky.js";
+import { createSkyRig, FOG_COLOR, getDefaultCenterLatlng } from "./sky.js";
 import { createGroundOrbitCloudsController } from "./clouds.js";
 import { createPhotoLocationsPresenter } from "./photos.js";
-import { create3dTilesViewer } from "@/experiments/sphere-zoom/viewer.js";
 import {
+  create3dTilesViewer,
   latlngToSphere,
   sphereToLatlng,
-} from "@/experiments/sphere-zoom/core.js";
+} from "@/_3dtiles";
 import {
   computeVisibleGroundBBox,
   type LatLngBBox,
@@ -145,6 +140,8 @@ export function createSceneState(container: HTMLElement) {
     minMeters: number,
     maxMeters: number,
   ) => {
+    // camera.position.y += maxMeters;
+    // controlsManager.orbitControls.update();
     threeTilesViewer.setElevationRange(minMeters, maxMeters);
     refreshVisibleTilesOnCameraChanges();
   };

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ELEVATION_SCALE } from "../../calc/constants.js";
+import { ELEVATION_SCALE } from "@/calc/constants.js";
 import vertexShader from "./shaders/shanshui.vert.glsl?raw";
 import fragmentShader from "./shaders/shanshui.frag.glsl?raw";
 
@@ -14,11 +14,7 @@ type ShanshuiMaterialParameters = {
   displacementScale?: number;
 };
 
-/**
- * Don use this in product!
- * @example
- */
-export class ExperimentalShanshuiMaterial extends THREE.ShaderMaterial {
+export class ShanshuiMaterial extends THREE.ShaderMaterial {
   private demTexture: THREE.Texture | null = null;
   private derivativesTexture: THREE.Texture | null = null;
 

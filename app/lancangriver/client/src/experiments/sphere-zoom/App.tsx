@@ -1,8 +1,8 @@
 import { memo, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { create3dTilesViewer, Create3dTilesViewer } from "./viewer.js";
-import { EARTH_RADIUS } from "./core.js";
+import { create3dTilesViewer, Create3dTilesViewer } from "@/_3dtiles";
+import { EARTH_RADIUS } from "@/calc/constants.js";
 import { TileMesh } from "./ui.js";
 
 export default function App() {

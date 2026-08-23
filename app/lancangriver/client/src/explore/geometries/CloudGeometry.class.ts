@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { getLocalBasisAtPoint } from "../../calc/sphere";
-import { LatLng } from "../../calc/types";
-import { latlngToSphere } from "../../experiments/sphere-zoom/core";
+import { getLocalBasisAtPoint } from "@/calc/sphere";
+import { LatLng } from "@/calc/types";
+import { latlngToSphere } from "@/_3dtiles";
 
 type Parameters = {
   /**

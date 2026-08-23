@@ -35,13 +35,16 @@ export default function App() {
     [visibleBounds],
   );
 
-  const combinedTiles = useMemo(
-    () => [
-      ...tiles.map((tile) => ({ ...tile, isManual: false })),
+  const combinedTiles = useMemo(() => {
+    const manualTileKeys = manualTiles.map((tile) => tile.id);
+
+    return [
+      ...tiles
+        .map((tile) => ({ ...tile, isManual: false }))
+        .filter((tile) => !manualTileKeys.includes(tile.id)),
       ...manualTiles.map((tile) => ({ ...tile, isManual: true })),
-    ],
-    [manualTiles, tiles],
-  );
+    ];
+  }, [manualTiles, tiles]);
 
   const handleAddManualTile = (tile: TileKey) => {
     setManualTiles((current) => {
@@ -70,8 +73,8 @@ export default function App() {
         />
       </main>
 
-      <aside className="flex h-[43vh] w-full shrink-0 flex-col border-t border-jade-border-soft bg-jade-panel/95 shadow-2xl shadow-[#182a36]/15 backdrop-blur-md lg:h-full lg:w-96 lg:border-l lg:border-t-0">
-        <header className="border-b border-jade-border-soft px-4 py-4">
+      <aside className="flex z-999 h-[43vh] w-full shrink-0 flex-col bg-jade-panel/95 shadow-2xl shadow-jade-800 backdrop-blur-md lg:h-full lg:w-96">
+        <header className=" px-4 py-4 shadow-2xl shadow-jade-400">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river">
@@ -135,10 +138,7 @@ const TileList = ({
   }, [onTileClick]);
 
   return (
-    <div
-      ref={elementRef}
-      className="min-h-0 flex-1 overflow-y-auto bg-black/10"
-    >
+    <div ref={elementRef} className="min-h-0 flex-1 overflow-y-auto">
       <ul className="flex flex-col gap-2 px-3 py-3">
         {tiles.map((tile) => (
           <TileListItem

@@ -116,6 +116,8 @@ export function LeafletBBoxMap({
       ],
       { color: "#facc15", weight: 2, fillColor: "#facc15", fillOpacity: 0.25 },
     ).addTo(mapRef.current);
+
+    mapRef.current.flyTo([south, west], 11);
   }, [focusTile]);
 
   useEffect(() => {

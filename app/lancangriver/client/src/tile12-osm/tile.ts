@@ -1,5 +1,5 @@
-import { tileBounds4326 } from "../../calc/mercator.js";
-import type { TileCoords } from "../../osm/tiles.js";
+import { tileBounds4326 } from "@/calc/mercator.js";
+import type { TileCoords } from "@/osm/tiles.js";
 
 const ZOOM = 12;
 const MAX_COORDINATE = 2 ** ZOOM - 1;

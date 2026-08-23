@@ -1,9 +1,6 @@
 import * as THREE from "three";
 
-import {
-  EARTH_RADIUS,
-  sphereToLatlng,
-} from "@/experiments/sphere-zoom/core.js";
+import { EARTH_RADIUS, sphereToLatlng } from "@/_3dtiles";
 
 type TileKeyLike = {
   z: number;

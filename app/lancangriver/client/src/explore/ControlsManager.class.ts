@@ -7,7 +7,7 @@ import {
   EARTH_RADIUS,
 } from "../calc/constants";
 import { PointerControls } from "./controls/PointerControls.class";
-import { Create3dTilesViewer } from "../experiments/sphere-zoom/viewer";
+import { Create3dTilesViewer } from "@/_3dtiles";
 
 export type ControlMode = "none" | "pointer" | "orbit" | "fly";
 

@@ -7,7 +7,7 @@ import {
   latlngToSphere,
   sphereToLatlng,
 } from "./core.js";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer } from "react";
 import { getLocalBasisAtPoint } from "@/calc/sphere.js";
 
 type Create3dTilesViewerInputs = {
@@ -21,6 +21,11 @@ type Create3dTilesViewerInputs = {
    * @default 21
    */
   maxZoom?: number;
+  /**
+   * to avoid too small tiles at the center when in 3d mode.
+   * @default 10
+   */
+  subdivisionMaxZoom?: number;
   /**
    * @default 8
    */
@@ -55,6 +60,7 @@ export function create3dTilesViewer({
   ...inputs
 }: Create3dTilesViewerInputs): Create3dTilesViewer {
   const minZoom = 0;
+
   const safeBaseDistance =
     Number.isFinite(baseDistance) && baseDistance > 0 ? baseDistance : 1;
 

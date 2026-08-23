@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TileCoords } from "../../../osm/tiles.js";
+import { TileCoords } from "@/osm/tiles.js";
 import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
 
 export function createBuildingRoofMaterial(

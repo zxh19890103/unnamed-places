@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, IconButton } from "../_components";
+import { Button } from "../_components";
 
 import {
   defaultCoverageApi,
@@ -7,10 +7,12 @@ import {
   type CoverageJobsPage,
 } from "./api";
 import { JobsTable } from "./JobsTable";
-import { tileZxyToCenterLatlng } from "../experiments/sphere-zoom/tile";
+import { tileZxyToCenterLatlng } from "@/_3dtiles";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  GlobeIcon,
+  StarIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons";
@@ -21,7 +23,7 @@ type TabKey = "default" | "highways";
 type MapExtentKey = "world" | "china";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "default", label: "Default" },
+  { key: "default", label: "Default (Buildings & Waters)" },
   { key: "highways", label: "Highways" },
 ];
 
@@ -78,14 +80,21 @@ function buildProjection({
 
 const mapExtents: Record<
   MapExtentKey,
-  { label: string; extent: readonly number[]; src: string }
+  {
+    icon: React.ReactNode;
+    label: string;
+    extent: readonly number[];
+    src: string;
+  }
 > = {
   world: {
+    icon: <GlobeIcon />,
     label: "World",
     extent: [90, 180, -90, -180] as const,
     src: "https://cdn.britannica.com/37/245037-050-79129D52/world-map-continents-oceans.jpg",
   },
   china: {
+    icon: <StarIcon />,
     label: "China",
     extent: [54, 130, 17, 72] as const,
     src: "/China-Physical-Map.jpg",
@@ -312,7 +321,7 @@ export default function App() {
         </header>
 
         <nav
-          className="mb-3 flex flex-wrap items-center justify-between gap-3"
+          className="mb-3 flex flex-wrap items-center gap-3"
           aria-label="Controls"
         >
           <div className="flex items-center gap-2" aria-label="Ingest target">
@@ -336,20 +345,21 @@ export default function App() {
               Object.entries(mapExtents) as Array<
                 [MapExtentKey, (typeof mapExtents)[MapExtentKey]]
               >
-            ).map(([key, { label }]) => {
+            ).map(([key, { icon, label }]) => {
               const selected = key === mapExtentKey;
               return (
                 <button
                   key={key}
                   type="button"
                   onClick={() => setMapExtentKey(key)}
-                  className={`rounded-lg border px-3 py-1 text-xs font-medium ${
+                  className={`rounded-lg flex gap-1 px-3 py-1 text-xs font-medium ${
                     selected
-                      ? "border-jade-river bg-jade-river-soft text-jade-text"
-                      : "border-jade-border-soft bg-jade-control text-jade-text-muted hover:bg-jade-control-hover"
+                      ? " bg-jade-river-soft text-jade-text"
+                      : " bg-jade-control text-jade-text-muted hover:bg-jade-control-hover"
                   }`}
                   aria-pressed={selected}
                 >
+                  {icon}
                   {label}
                 </button>
               );
@@ -367,7 +377,7 @@ export default function App() {
           <JobsTable page={page} loading={loading} error={error} api={api} />
         </div>
 
-        <footer className="mt-4 flex items-center justify-between gap-4">
+        <footer className="mt-4 flex items-center justify-between gap-4 px-4">
           <div className="text-xs tabular-nums text-jade-text-muted">
             {total === 0
               ? "0 results"

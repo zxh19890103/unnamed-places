@@ -3,11 +3,10 @@ import { GUI } from "lil-gui";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-import type { TileCoords } from "../../osm/tiles.js";
+import type { TileCoords } from "@/osm/tiles.js";
 import { fitCameraToTileCenter } from "./camera.js";
 import { buildTileVectorGroup } from "./render.js";
 import { createGroundTileMesh, disposeGroundTile } from "./ground/index.js";
-import { createPointsTrees } from "./vegetation/index.js";
 
 type ThreeJsTileViewerProps = {
   features: GeoJSON.Feature[];

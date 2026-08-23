@@ -6,10 +6,9 @@ import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
 import { TileDemMaterial } from "./materials/TileDemMaterial.class";
 import { TileDebugMaterial } from "./materials/TileDebugMaterial.class";
 import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
-import { ShanshuiMaterial } from "../experiments/shanshui-shader/ShanshuiMaterial";
-import { latlngToSphere } from "../experiments/sphere-zoom/core";
+import { ShanshuiMaterial } from "./materials/ShanshuiMaterial.class";
+import { latlngToSphere } from "@/_3dtiles";
 import { BASE_URL, ELEVATION_SCALE } from "../calc/constants";
-import { type TilesManager } from "./TilesManager.class";
 
 export enum TileMaterialMode {
   Basic = "basic",

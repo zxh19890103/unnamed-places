@@ -5,8 +5,7 @@ import { SphereTile } from "./SphereTile.class";
 import { SphereTileKey } from "./_types";
 import { ControlMode, ControlsManager } from "./ControlsManager.class";
 import type { TilesManager } from "./TilesManager.class";
-import { Create3dTilesViewer } from "../experiments/sphere-zoom/viewer";
-import { latlngToStandardTileZxy } from "../experiments/sphere-zoom/tile";
+import { latlngToStandardTileZxy, Create3dTilesViewer } from "@/_3dtiles";
 
 export type SphereStatsPayload = {
   cameraDistanceMeters: number;

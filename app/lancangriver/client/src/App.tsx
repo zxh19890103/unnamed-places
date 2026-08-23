@@ -23,10 +23,10 @@ import { SphereTile, TileMaterialMode } from "./explore/SphereTile.class";
 import {
   Create3dTilesViewer,
   useCurrentThreeDTilesViewerState,
-} from "./experiments/sphere-zoom/viewer";
+  latlngToStandardTileZxy,
+} from "./_3dtiles";
 import { MiniMap } from "./explore/dom/MiniMap";
 import { ControlsManager } from "./explore/ControlsManager.class";
-import { latlngToStandardTileZxy } from "./experiments/sphere-zoom/tile";
 import { Button, ChildWindow, IconButton } from "./_components";
 import clsx from "clsx";
 
@@ -777,6 +777,7 @@ const TerrianModeSelect = memo(
           altitude.min * ELEVATION_SCALE,
           altitude.max * ELEVATION_SCALE,
         );
+
         applyMaterialMode(TileMaterialMode.Dem);
         setMode(TileMaterialMode.Dem);
         setGlobalTileMaterialMode(TileMaterialMode.Dem);

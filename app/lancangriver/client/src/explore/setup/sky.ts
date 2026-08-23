@@ -10,7 +10,7 @@ import {
 } from "@/calc/constants";
 import { getDateForLocalTimeAtLatLng } from "@/calc/timezone";
 import { LatLng } from "@/calc/types";
-import { latlngToSphere } from "@/experiments/sphere-zoom/core";
+import { latlngToSphere } from "@/_3dtiles";
 
 export const SKY_COLOR = new THREE.Color("#ffffff");
 export const FOG_COLOR = new THREE.Color("#ffffff");

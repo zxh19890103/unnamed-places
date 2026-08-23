@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { EARTH_RADIUS } from "@/calc/constants";
-import { Create3dTilesViewer } from "@/experiments/sphere-zoom/viewer";
+import { Create3dTilesViewer } from "@/_3dtiles";
 
 export interface PointerControlsOptions {
   enabled?: boolean;

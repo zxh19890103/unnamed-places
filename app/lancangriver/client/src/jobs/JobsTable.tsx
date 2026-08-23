@@ -2,9 +2,9 @@ import { memo, useEffect, useState } from "react";
 import { JobStatus } from "./JobStatus";
 import type { CoverageJob, CoverageJobsPage, CoverageJobStatus } from "./api";
 import { fetchGeoReverse, saveZ12GeoInfo } from "./api";
-import { tileZxyToCenterLatlng } from "../experiments/sphere-zoom/tile";
-import { tileExtent } from "../calc/mercator";
-import { Tile12OsmLink } from "../_partials";
+import { tileZxyToCenterLatlng } from "@/_3dtiles";
+import { tileExtent } from "@/calc/mercator";
+import { Tile12OsmLink } from "@/_partials";
 
 type JobsTableProps = {
   page: CoverageJobsPage | null;
@@ -51,8 +51,8 @@ function TableHead() {
 
 export function JobsTable({ page, loading, error, api }: JobsTableProps) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-jade-border-soft bg-jade-panel/90 shadow-2xl shadow-[#182a36]/15">
-      <div className=" w-full">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl bg-jade-panel/90 shadow-2xl shadow-[#182a36]/15">
+      <div className=" w-full shadow-2xl shadow-jade-800/40">
         <table className=" table-fixed w-full min-w-190 border-collapse text-left text-sm">
           <TableColGroup />
           <TableHead />

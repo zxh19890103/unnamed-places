@@ -45,8 +45,8 @@ const pages = [
     description: "A minimal new page scaffold for the Lancangriver client.",
   },
   {
-    title: "Geometries Debug / Show",
-    href: "/geometries-debug-show",
+    title: "3Js Geometries Debug / Show",
+    href: "/ui-3js-geometries-storybook",
     description:
       "Inspect geometry builders and their storybook params in one place.",
   },
