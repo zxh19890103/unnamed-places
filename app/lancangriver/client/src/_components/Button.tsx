@@ -2,8 +2,14 @@ import { IconJarLogoIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
 import React from "react";
 
-type ButtonVariant = "default" | "primary" | "secondary" | "destructive";
-type ButtonSize = "base" | "sm" | "lg";
+type ButtonVariant =
+  | "default"
+  | "primary"
+  | "secondary"
+  | "destructive"
+  | "success"
+  | "silt";
+type ButtonSize = "xs" | "sm" | "base" | "lg";
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -24,18 +30,23 @@ const buttonVariants: Record<ButtonVariant, string> = {
     "bg-jade-panel text-jade-text hover:bg-jade-control active:bg-jade-depth",
   destructive:
     "bg-jade-error text-white hover:bg-jade-error/90 active:bg-jade-error/80",
+  success:
+    "bg-jade-success text-white hover:bg-jade-success/90 active:bg-jade-success/80",
+  silt: "bg-jade-silt text-white hover:bg-jade-silt/90 active:bg-jade-silt/80",
 };
 
 const baseIconButtonClassName =
   "inline-flex select-none items-center justify-center rounded-full transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river active:translate-y-px active:scale-[0.97] active:ring-2 active:ring-offset-1 active:ring-offset-jade-foundation disabled:cursor-not-allowed disabled:opacity-60 disabled:translate-y-0 disabled:scale-100 disabled:shadow-none disabled:ring-0 disabled:transition-none disabled:active:translate-y-0 disabled:active:scale-100 disabled:active:shadow-none disabled:active:ring-0";
 
 const buttonSizes: Record<ButtonSize, string> = {
+  xs: "min-h-7 px-2 py-1 text-[11px]",
   base: "min-h-10 px-3 py-2 text-sm",
   sm: "min-h-8 px-2.5 py-1.5 text-xs",
   lg: "min-h-11 px-4 py-2.5 text-base",
 };
 
 const iconButtonSizes: Record<ButtonSize, string> = {
+  xs: "size-7",
   base: "size-10",
   sm: "size-8",
   lg: "size-11",
@@ -50,6 +61,9 @@ const iconButtonVariants: Record<ButtonVariant, string> = {
     "bg-jade-panel text-jade-text hover:bg-jade-control active:bg-jade-depth",
   destructive:
     "bg-jade-error text-white hover:bg-jade-error/90 active:bg-jade-error/80",
+  success:
+    "bg-jade-success text-white hover:bg-jade-success/90 active:bg-jade-success/80",
+  silt: "bg-jade-silt text-white hover:bg-jade-silt/90 active:bg-jade-silt/80",
 };
 
 const buttonPressVariants: Record<ButtonVariant, string> = {
@@ -61,6 +75,9 @@ const buttonPressVariants: Record<ButtonVariant, string> = {
     "active:shadow-[0_0_0_2px_rgba(7,142,165,0.16)] active:ring-jade-river/20",
   destructive:
     "active:shadow-[0_0_0_2px_rgba(191,69,69,0.18)] active:ring-jade-error/25",
+  success:
+    "active:shadow-[0_0_0_2px_rgba(46,155,102,0.18)] active:ring-jade-success/25",
+  silt: "active:shadow-[0_0_0_2px_rgba(199,131,19,0.18)] active:ring-jade-silt/25",
 };
 
 const iconButtonPressVariants: Record<ButtonVariant, string> = {
@@ -72,6 +89,9 @@ const iconButtonPressVariants: Record<ButtonVariant, string> = {
     "active:shadow-[0_0_0_2px_rgba(7,142,165,0.16)] active:ring-jade-river/20",
   destructive:
     "active:shadow-[0_0_0_2px_rgba(191,69,69,0.18)] active:ring-jade-error/25",
+  success:
+    "active:shadow-[0_0_0_2px_rgba(46,155,102,0.18)] active:ring-jade-success/25",
+  silt: "active:shadow-[0_0_0_2px_rgba(199,131,19,0.18)] active:ring-jade-silt/25",
 };
 
 export const Button = ({
@@ -141,6 +161,14 @@ Button.__storybook = (): Props[] => {
       children: "Hello, World!",
       variant: "secondary",
     },
+    {
+      children: "Hello, World!",
+      variant: "success",
+    },
+    {
+      children: "Hello, World!",
+      variant: "silt",
+    },
   ];
 };
 
@@ -160,6 +188,14 @@ IconButton.__storybook = (): Props[] => {
     {
       children: <IconJarLogoIcon />,
       variant: "primary",
+    },
+    {
+      children: <IconJarLogoIcon />,
+      variant: "success",
+    },
+    {
+      children: <IconJarLogoIcon />,
+      variant: "silt",
     },
   ];
 };

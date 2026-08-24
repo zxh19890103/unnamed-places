@@ -1,10 +1,6 @@
 import { Panel } from "@/_components";
 import type { JourneyDayNode } from "./types";
-import {
-  ArrowBottomLeftIcon,
-  ArrowBottomRightIcon,
-  ArrowTopLeftIcon,
-} from "@radix-ui/react-icons";
+import { ArrowBottomRightIcon, ArrowTopLeftIcon } from "@radix-ui/react-icons";
 
 type JourneyPanelProps = {
   days: JourneyDayNode[];
@@ -24,9 +20,10 @@ export function JourneyPanel({
   return (
     <Panel
       title="Photo timeline"
+      defaultMinimized
       description="Life journey"
       minIcon={<ArrowBottomRightIcon />}
-      maxIcon={<ArrowBottomLeftIcon />}
+      maxIcon={<ArrowTopLeftIcon />}
     >
       {loading && (
         <p className="text-xs text-jade-text-muted" role="status">

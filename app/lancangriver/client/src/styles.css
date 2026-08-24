@@ -187,3 +187,13 @@ body {
 .spin-when-moving {
   transition: transform 0.3s ease-in;
 }
+
+@keyframes tag-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}

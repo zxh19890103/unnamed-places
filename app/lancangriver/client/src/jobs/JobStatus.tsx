@@ -1,18 +1,13 @@
 import { useState } from "react";
 
 import type { CoverageJobStatus } from "./api";
+import { IconButton, Tag } from "@/_components";
+import { DotsHorizontalIcon, ReloadIcon } from "@radix-ui/react-icons";
 
 type JobStatusProps = {
   label: string;
   status: CoverageJobStatus;
   onRefresh: () => Promise<void>;
-};
-
-const statusClasses: Record<CoverageJobStatus, string> = {
-  queued: "border-jade-silt/30 bg-jade-silt/10 text-jade-silt",
-  running: "border-jade-sky/30 bg-jade-sky-soft text-jade-sky",
-  done: "border-jade-success/30 bg-jade-success/10 text-jade-success",
-  failed: "border-jade-error/30 bg-jade-error/10 text-jade-error",
 };
 
 export function JobStatus({ label, status, onRefresh }: JobStatusProps) {
@@ -28,23 +23,34 @@ export function JobStatus({ label, status, onRefresh }: JobStatusProps) {
     }
   };
 
+  const tagVariant =
+    status === "done"
+      ? "success"
+      : status === "failed"
+        ? "destructive"
+        : status === "running"
+          ? "primary"
+          : "silt";
+
   return (
     <div className="flex items-center gap-1.5">
-      <span
-        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold uppercase ${statusClasses[status]}`}
+      <Tag
+        size="sm"
+        variant={tagVariant}
+        running={status === "running"}
+        uppercase
       >
         {status}
-      </span>
-      <button
-        type="button"
+      </Tag>
+      <IconButton
         disabled={refreshing}
         onClick={() => void refresh()}
         title="Refresh status"
         aria-label={`Refresh ${label} status; current status ${status}`}
-        className="grid size-6 place-items-center rounded-lg border border-jade-border-soft text-sm text-jade-text-muted hover:bg-jade-control hover:text-jade-text disabled:cursor-wait disabled:opacity-60"
+        size="xs"
       >
-        {refreshing ? "..." : "↻"}
-      </button>
+        {refreshing ? <DotsHorizontalIcon /> : <ReloadIcon />}
+      </IconButton>
     </div>
   );
 }

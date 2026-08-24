@@ -75,7 +75,7 @@ const LoadFc = ({ fc }) => {
   }, [fc]);
 
   return (
-    <div className=" flex flex-col gap-2 ">
+    <div className=" flex flex-wrap gap-2 ">
       {propsArray.map((props) => {
         return React.createElement(fc.fc, props);
       })}

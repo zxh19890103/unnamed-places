@@ -32,7 +32,7 @@ export const Panel = ({
   return (
     <section
       className={clsx(
-        "overflow-hidden rounded-xl bg-jade-panel/95 text-jade-text",
+        "overflow-hidden rounded-xl bg-jade-panel-raised/95 text-jade-text",
         isMaximized ? "w-full max-w-none" : "w-[min(360px,100%)]",
         className,
       )}

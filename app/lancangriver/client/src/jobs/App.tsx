@@ -241,7 +241,7 @@ export default function App() {
   }, [mapExtentKey]);
 
   return (
-    <main className=" min-h-screen h-screen overflow-hidden bg-jade-foundation px-4 py-4 text-jade-text sm:px-6 lg:px-8">
+    <main className=" min-h-screen h-screen overflow-hidden bg-jade-panel-raised px-4 py-4 text-jade-text sm:px-6 lg:px-8">
       <div
         className={` fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? " w-xl" : "w-64"}`}
       >

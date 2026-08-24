@@ -72,7 +72,7 @@ export const MiniMap = memo(
     }, [controls, positionGetter]);
 
     return (
-      <div className="fixed top-3 right-1 z-50">
+      <div className="">
         <div className=" absolute right-1 top-2">
           {isOpen ? null : (
             <Button

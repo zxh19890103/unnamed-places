@@ -6,7 +6,7 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import { Button, IconButton } from "../_components";
+import { Alert, AlertProvider, Button, IconButton } from "../_components";
 import { Tile12OsmLink } from "../_partials";
 import { LeafletBBoxMap } from "./map.js";
 import { readBBoxFromSearch, readLatLngFromSearch, type BBox } from "./bbox.js";
@@ -61,47 +61,65 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-jade-foundation text-jade-text font-[SUSEMono] lg:flex-row">
-      <main className="min-h-0 min-w-0 flex-1">
-        <LeafletBBoxMap
-          focusTile={focusTile}
-          bbox={bbox}
-          latlng={latlng}
-          manualTiles={manualTiles}
-          onBoundsChange={setVisibleBounds}
-          onTileAdd={handleAddManualTile}
-        />
-      </main>
+    <AlertProvider>
+      <div className="flex h-screen w-screen flex-col overflow-hidden bg-jade-foundation text-jade-text font-[SUSEMono] lg:flex-row">
+        <main className="min-h-0 min-w-0 flex-1">
+          <LeafletBBoxMap
+            focusTile={focusTile}
+            bbox={bbox}
+            latlng={latlng}
+            manualTiles={manualTiles}
+            onBoundsChange={setVisibleBounds}
+            onTileAdd={handleAddManualTile}
+          />
+        </main>
 
-      <aside className="flex z-999 h-[43vh] w-full shrink-0 flex-col bg-jade-panel/95 shadow-2xl shadow-jade-800 backdrop-blur-md lg:h-full lg:w-96">
-        <header className=" px-4 py-4 shadow-2xl shadow-jade-400">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river">
-                Coverage workspace
-              </p>
-              <h1 className="mt-1 text-sm font-semibold tracking-wide text-jade-text">
-                Zoom {COVERAGE_ZOOM} Coverage
-              </h1>
+        <aside className="flex z-999 h-[43vh] w-full shrink-0 flex-col bg-jade-panel/95 shadow-2xl shadow-jade-800 backdrop-blur-md lg:h-full lg:w-96">
+          <header className=" px-4 py-4 shadow-2xl shadow-jade-400">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river">
+                  Coverage workspace
+                </p>
+                <h1 className="mt-1 text-sm font-semibold tracking-wide text-jade-text">
+                  Zoom {COVERAGE_ZOOM} Coverage
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() =>
+                    Alert.create({
+                      title: "Share this coverage view",
+                      description:
+                        "Create a shareable snapshot for the current selection and tile list.",
+                      actionLabel: "Create link",
+                    })
+                  }
+                >
+                  create alert
+                </Button>
+                <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 font-[SUSEMono] text-[10px] tabular-nums text-jade-text-muted">
+                  {combinedTiles.length} tiles
+                </span>
+              </div>
             </div>
-            <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 font-[SUSEMono] text-[10px] tabular-nums text-jade-text-muted">
-              {combinedTiles.length} tiles
-            </span>
-          </div>
-          <p className="mt-2 text-xs leading-5 text-jade-text-muted">
-            {tiles.length === 0
-              ? "Visible map exceeds 30km, zoom in to list tiles"
-              : "Click the map to add manual zoom-12 tiles to this list."}
-          </p>
-        </header>
-        <TileList
-          tiles={combinedTiles}
-          focusTile={focusTile}
-          onTileClick={setFocusTile}
-          onRemoveManualTile={handleRemoveManualTile}
-        />
-      </aside>
-    </div>
+            <p className="mt-2 text-xs leading-5 text-jade-text-muted">
+              {tiles.length === 0
+                ? "Visible map exceeds 30km, zoom in to list tiles"
+                : "Click the map to add manual zoom-12 tiles to this list."}
+            </p>
+          </header>
+          <TileList
+            tiles={combinedTiles}
+            focusTile={focusTile}
+            onTileClick={setFocusTile}
+            onRemoveManualTile={handleRemoveManualTile}
+          />
+        </aside>
+      </div>
+    </AlertProvider>
   );
 }
 

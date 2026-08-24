@@ -4,6 +4,8 @@ import { Tooltip } from "./Tooltip";
 import { ChildWindow } from "./Window";
 import { Button, IconButton } from "./Button";
 import { Tab } from "./Tab";
+import { Tag } from "./Tag";
+import { Alert, AlertProvider, useAlert } from "./Alert";
 
 const meta = JSON.stringify(import.meta);
 
@@ -16,4 +18,8 @@ export {
   Button,
   IconButton,
   Tab,
+  Tag,
+  Alert,
+  AlertProvider,
+  useAlert,
 };

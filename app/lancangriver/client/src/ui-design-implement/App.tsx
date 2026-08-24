@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   CameraIcon,
   CheckIcon,
@@ -12,6 +11,8 @@ import {
   ReloadIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
+
+import { Tooltip } from "../_components";
 
 type MaterialMode =
   | "Satellite"
@@ -74,19 +75,9 @@ function IconTooltip({
   children: ReactNode;
 }) {
   return (
-    <Tooltip.Root>
-      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Content
-          side="top"
-          sideOffset={8}
-          className="z-50 rounded-lg border border-jade-border bg-jade-panel-raised px-3 py-2 text-xs font-medium text-jade-text shadow-lg shadow-[#182a36]/15"
-        >
-          {label}
-          <Tooltip.Arrow className="fill-jade-panel-raised" />
-        </Tooltip.Content>
-      </Tooltip.Portal>
-    </Tooltip.Root>
+    <Tooltip label={label} side="top" sideOffset={8}>
+      {children as React.ReactElement}
+    </Tooltip>
   );
 }
 
@@ -94,87 +85,85 @@ function ButtonSystem() {
   const [paused, setPaused] = useState(false);
 
   return (
-    <Tooltip.Provider delayDuration={250}>
-      <div className="grid gap-5 rounded-xl border border-jade-border bg-jade-panel p-4 lg:grid-cols-[1fr_auto]">
-        <div>
-          <p className={labelClass}>Command buttons</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="button" className={primaryRiverClass}>
-              <DrawingPinIcon className="size-4" aria-hidden="true" />
-              Use center
-            </button>
-            <button type="button" className={controlClass}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              aria-busy="true"
-              className={`${controlClass} inline-flex items-center gap-2`}
-            >
-              <ReloadIcon className="size-4 animate-spin" aria-hidden="true" />
-              Loading map
-            </button>
-            <button type="button" disabled className={controlClass}>
-              Unavailable
-            </button>
-            <button
-              type="button"
-              className="min-h-10 rounded-lg border border-jade-error bg-jade-error px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-error"
-            >
-              <TrashIcon className="size-4" aria-hidden="true" />
-              Delete job
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <p className={labelClass}>Icon toolbar</p>
-          <div
-            className="mt-3 flex gap-2"
-            role="toolbar"
-            aria-label="Map actions"
+    <div className="grid gap-5 rounded-xl border border-jade-border bg-jade-panel p-4 lg:grid-cols-[1fr_auto]">
+      <div>
+        <p className={labelClass}>Command buttons</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" className={primaryRiverClass}>
+            <DrawingPinIcon className="size-4" aria-hidden="true" />
+            Use center
+          </button>
+          <button type="button" className={controlClass}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            aria-busy="true"
+            className={`${controlClass} inline-flex items-center gap-2`}
           >
-            <IconTooltip label={paused ? "Resume updates" : "Pause updates"}>
-              <button
-                type="button"
-                aria-label={paused ? "Resume updates" : "Pause updates"}
-                aria-pressed={paused}
-                onClick={() => setPaused((value) => !value)}
-                className={`${iconButtonClass} ${
-                  paused
-                    ? "border-jade-river bg-jade-river-soft text-jade-text"
-                    : ""
-                }`}
-              >
-                {paused ? (
-                  <CheckIcon className="size-5" aria-hidden="true" />
-                ) : (
-                  <PauseIcon className="size-5" aria-hidden="true" />
-                )}
-              </button>
-            </IconTooltip>
-            <IconTooltip label="Photo locations">
-              <button
-                type="button"
-                aria-label="Photo locations"
-                className={`${iconButtonClass} text-jade-lotus`}
-              >
-                <CameraIcon className="size-5" aria-hidden="true" />
-              </button>
-            </IconTooltip>
-            <IconTooltip label="Close toolbar">
-              <button
-                type="button"
-                aria-label="Close toolbar"
-                className={iconButtonClass}
-              >
-                <Cross2Icon className="size-5" aria-hidden="true" />
-              </button>
-            </IconTooltip>
-          </div>
+            <ReloadIcon className="size-4 animate-spin" aria-hidden="true" />
+            Loading map
+          </button>
+          <button type="button" disabled className={controlClass}>
+            Unavailable
+          </button>
+          <button
+            type="button"
+            className="min-h-10 rounded-lg border border-jade-error bg-jade-error px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-error"
+          >
+            <TrashIcon className="size-4" aria-hidden="true" />
+            Delete job
+          </button>
         </div>
       </div>
-    </Tooltip.Provider>
+
+      <div>
+        <p className={labelClass}>Icon toolbar</p>
+        <div
+          className="mt-3 flex gap-2"
+          role="toolbar"
+          aria-label="Map actions"
+        >
+          <IconTooltip label={paused ? "Resume updates" : "Pause updates"}>
+            <button
+              type="button"
+              aria-label={paused ? "Resume updates" : "Pause updates"}
+              aria-pressed={paused}
+              onClick={() => setPaused((value) => !value)}
+              className={`${iconButtonClass} ${
+                paused
+                  ? "border-jade-river bg-jade-river-soft text-jade-text"
+                  : ""
+              }`}
+            >
+              {paused ? (
+                <CheckIcon className="size-5" aria-hidden="true" />
+              ) : (
+                <PauseIcon className="size-5" aria-hidden="true" />
+              )}
+            </button>
+          </IconTooltip>
+          <IconTooltip label="Photo locations">
+            <button
+              type="button"
+              aria-label="Photo locations"
+              className={`${iconButtonClass} text-jade-lotus`}
+            >
+              <CameraIcon className="size-5" aria-hidden="true" />
+            </button>
+          </IconTooltip>
+          <IconTooltip label="Close toolbar">
+            <button
+              type="button"
+              aria-label="Close toolbar"
+              className={iconButtonClass}
+            >
+              <Cross2Icon className="size-5" aria-hidden="true" />
+            </button>
+          </IconTooltip>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -843,84 +832,82 @@ function Tokens() {
 
 export default function App() {
   return (
-    <Tooltip.Provider delayDuration={250} skipDelayDuration={100}>
-      <main className="min-h-screen px-4 py-6 text-[var(--jade-text)] sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-310">
-          <header className="flex flex-col gap-5 py-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <p className={labelClass}>Lancangriver interface system</p>
-              <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
-                River Mist UI Workbench
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-[var(--jade-text-muted)]">
-                A light blue-gray language with river, sky, lotus, leaf, and sun
-                accents for map controls and operational views.
-              </p>
-            </div>
-            <nav
-              aria-label="Specimen sections"
-              className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--jade-border-soft)] bg-[var(--jade-panel)] p-1"
-            >
-              {[
-                ["workspace", "Workspace"],
-                ["pages", "Pages"],
-                ["modal", "Modal"],
-                ["window", "Window"],
-              ].map(([href, label]) => (
-                <a
-                  key={href}
-                  href={`#${href}`}
-                  className="min-h-10 shrink-0 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--jade-text-muted)] hover:bg-[var(--jade-control)] hover:text-[var(--jade-text)]"
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
-          </header>
+    <main className="min-h-screen px-4 py-6 text-[var(--jade-text)] sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-310">
+        <header className="flex flex-col gap-5 py-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className={labelClass}>Lancangriver interface system</p>
+            <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
+              River Mist UI Workbench
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-[var(--jade-text-muted)]">
+              A light blue-gray language with river, sky, lotus, leaf, and sun
+              accents for map controls and operational views.
+            </p>
+          </div>
+          <nav
+            aria-label="Specimen sections"
+            className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--jade-border-soft)] bg-[var(--jade-panel)] p-1"
+          >
+            {[
+              ["workspace", "Workspace"],
+              ["pages", "Pages"],
+              ["modal", "Modal"],
+              ["window", "Window"],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={`#${href}`}
+                className="min-h-10 shrink-0 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--jade-text-muted)] hover:bg-[var(--jade-control)] hover:text-[var(--jade-text)]"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+        </header>
 
-          <Tokens />
-          <Section
-            id="buttons"
-            eyebrow="00 / Controls"
-            title="Button system"
-            description="Stable SUSE Mono controls for commands, loading, destructive actions, toggles, and icon-only map tools."
-          >
-            <ButtonSystem />
-          </Section>
-          <Section
-            id="workspace"
-            eyebrow="01 / Map overlays"
-            title="Map workspace"
-            description="Controls remain compact and legible while the terrain stays primary. Interactive states mirror OpsPanel, material modes, diagnostics, and the journey timeline."
-          >
-            <MapWorkspace />
-          </Section>
-          <Section
-            id="pages"
-            eyebrow="02 / Standalone views"
-            title="DOM and Leaflet pages"
-            description="One shared surface language supports dense operational data and full-screen map selection without hiding native map affordances."
-          >
-            <PageSpecimens />
-          </Section>
-          <Section
-            id="modal"
-            eyebrow="03 / 3D interruption"
-            title="Flat map modal"
-            description="A focused location decision uses a bounded dialog, clear backdrop, keyboard dismissal, and explicit confirmation."
-          >
-            <FlatMapDialog />
-          </Section>
-          <Section
-            id="window"
-            eyebrow="04 / Browser boundary"
-            title="Iframe floating window"
-            description="A real offline iframe demonstrates independent content with stable window controls and a viewport-bounded mobile treatment."
-          >
-            <IframeWindow />
-          </Section>
-        </div>
-      </main>
-    </Tooltip.Provider>
+        <Tokens />
+        <Section
+          id="buttons"
+          eyebrow="00 / Controls"
+          title="Button system"
+          description="Stable SUSE Mono controls for commands, loading, destructive actions, toggles, and icon-only map tools."
+        >
+          <ButtonSystem />
+        </Section>
+        <Section
+          id="workspace"
+          eyebrow="01 / Map overlays"
+          title="Map workspace"
+          description="Controls remain compact and legible while the terrain stays primary. Interactive states mirror OpsPanel, material modes, diagnostics, and the journey timeline."
+        >
+          <MapWorkspace />
+        </Section>
+        <Section
+          id="pages"
+          eyebrow="02 / Standalone views"
+          title="DOM and Leaflet pages"
+          description="One shared surface language supports dense operational data and full-screen map selection without hiding native map affordances."
+        >
+          <PageSpecimens />
+        </Section>
+        <Section
+          id="modal"
+          eyebrow="03 / 3D interruption"
+          title="Flat map modal"
+          description="A focused location decision uses a bounded dialog, clear backdrop, keyboard dismissal, and explicit confirmation."
+        >
+          <FlatMapDialog />
+        </Section>
+        <Section
+          id="window"
+          eyebrow="04 / Browser boundary"
+          title="Iframe floating window"
+          description="A real offline iframe demonstrates independent content with stable window controls and a viewport-bounded mobile treatment."
+        >
+          <IframeWindow />
+        </Section>
+      </div>
+    </main>
   );
 }

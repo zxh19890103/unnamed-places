@@ -118,7 +118,11 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
   const controlMode = stats?.controlMode ?? null;
 
   return (
-    <Panel title="Live diagnostics" description="Scene monitor">
+    <Panel
+      defaultMinimized
+      title="Live diagnostics"
+      description="Scene monitor"
+    >
       <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
         <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
           <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">

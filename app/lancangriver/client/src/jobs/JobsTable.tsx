@@ -5,6 +5,8 @@ import { fetchGeoReverse, saveZ12GeoInfo } from "./api";
 import { tileZxyToCenterLatlng } from "@/_3dtiles";
 import { tileExtent } from "@/calc/mercator";
 import { Tile12OsmLink } from "@/_partials";
+import { Button, IconButton } from "@/_components";
+import { DownloadIcon } from "@radix-ui/react-icons";
 
 type JobsTableProps = {
   page: CoverageJobsPage | null;
@@ -21,7 +23,7 @@ function TableColGroup() {
   return (
     <colgroup>
       <col width="120px" />
-      <col width="120px" />
+      <col width="150px" />
       <col width="100px" />
       <col width="180px" />
       <col width="400px" />
@@ -161,14 +163,14 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
         title={actionError ?? undefined}
       >
         {status === "failed" ? (
-          <button
-            type="button"
+          <Button
+            size="sm"
             disabled={rerunning}
             onClick={() => void handleRerun()}
-            className="rounded-lg border border-jade-error/30 bg-jade-error/10 px-3 py-1 text-xs font-semibold text-jade-error hover:bg-jade-error/20 disabled:cursor-wait disabled:opacity-50"
+            variant="destructive"
           >
             {rerunning ? "Rerunning" : "Rerun"}
-          </button>
+          </Button>
         ) : (
           <span className="text-jade-text-muted">-</span>
         )}
@@ -237,30 +239,27 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
 
   return (
     <div className="flex text-xs items-center gap-2">
-      <button
-        type="button"
-        onClick={() => void handleClick()}
-        disabled={loadingReverse || displayName !== null}
-        title={error ?? undefined}
-        className="max-w-64 rounded-lg text-left text-jade-text disabled:cursor-default disabled:opacity-70"
-      >
-        {loadingReverse
-          ? "Loading..."
-          : (displayName ?? (
-              <i className="cursor-pointer text-jade-river hover:underline">
-                (load from Nominatim)
-              </i>
-            ))}
-      </button>
+      {loadingReverse
+        ? "Loading..."
+        : (displayName ?? (
+            <Button
+              size="sm"
+              onClick={() => void handleClick()}
+              disabled={loadingReverse || displayName !== null}
+              title={error ?? undefined}
+            >
+              (<DownloadIcon /> load from Nominatim)
+            </Button>
+          ))}
       {hasUnsavedReverseResult && displayName !== null && rawData !== null ? (
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={() => void handleSave()}
           disabled={saving}
-          className="rounded-lg border border-jade-success/25 bg-jade-success/10 px-2 py-1 text-xs font-semibold text-jade-success hover:bg-jade-success/20 disabled:cursor-wait disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save"}
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -295,7 +294,7 @@ const JobLatlng = memo(({ job }: { job: CoverageJob }) => {
     <button
       type="button"
       onClick={() => void handleCopy()}
-      className="font-[SUSEMono] text-xs text-jade-text-muted hover:underline"
+      className=" text-jade-text-muted hover:underline"
       title="Copy coordinates"
     >
       {copied ? "Copied" : coordinateText}
