@@ -2,6 +2,7 @@ import { Cross1Icon } from "@radix-ui/react-icons";
 import { IconButton } from "./Button";
 import React, { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import { ComponentStoryBook } from "./_types";
 
 type Props = {
   winRole?: string;
@@ -101,7 +102,6 @@ ChildWindow.Modal = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log("hi");
       if (event.key === "Escape") {
         event.preventDefault();
         onClose?.(closeSignal);
@@ -110,16 +110,15 @@ ChildWindow.Modal = ({
 
     const requestClose = (event) => {
       event.stopPropagation();
-      console.log("em?");
       onClose?.(closeSignal);
     };
 
-    backrdopRef.current?.addEventListener("click", requestClose);
+    // backrdopRef.current?.addEventListener("click", requestClose);
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      backrdopRef.current?.removeEventListener("click", requestClose);
+      // backrdopRef.current?.removeEventListener("click", requestClose);
     };
   }, [closeSignal, onClose]);
 
@@ -152,7 +151,7 @@ ChildWindow.Modal = ({
   );
 };
 
-ChildWindow.__storybook = (): Props => {
+ChildWindow.__storybook = (): ComponentStoryBook<Props> => {
   return {
     pageUrl: "/flat",
   };

@@ -14,6 +14,8 @@ import { fetchGeotaggedPhotos } from "./photos/sources";
 import type { JourneyDayNode, PhotoRecord } from "./photos/types";
 import { MiniMap } from "./explore/dom/MiniMap";
 import { ChildWindow } from "./_components";
+import { latlngToSphere } from "./_3dtiles";
+import { EARTH_RADIUS } from "./calc/constants";
 
 type OrbitClickEvent = {
   type: "click";
@@ -184,7 +186,7 @@ const CreateScene = memo(
         switch (eventType) {
           case FLAT_CENTER_CONFIRMED: {
             const center = event.data.payload as LatLng | undefined;
-            void focus3dAtCenter(center);
+            void moveCameraTo(center);
             break;
           }
           case "tile12osm": {
@@ -198,24 +200,6 @@ const CreateScene = memo(
       window.addEventListener("message", handleMessage);
       return () => window.removeEventListener("message", handleMessage);
     }, []);
-
-    useEffect(() => {
-      if (!isFlatModalOpen) {
-        return;
-      }
-
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === "Escape") {
-          setIsFlatModalOpen(false);
-        }
-      };
-
-      window.addEventListener("keydown", handleKeyDown);
-      return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-        flatModalTriggerRef.current?.focus();
-      };
-    }, [isFlatModalOpen]);
 
     const openFlatModal = async () => {
       const center = sceneState.getCurrentCenterLatLng();
@@ -301,6 +285,12 @@ const CreateScene = memo(
 
       await sceneState.focusGroundOrbitAtLatLng(center);
       setIsFlatModalOpen(false);
+    };
+
+    const moveCameraTo = async (to: LatLng) => {
+      const alt = sceneState.camera.position.length() - EARTH_RADIUS;
+      const position = latlngToSphere(to.lat, to.lng, alt);
+      sceneState.camera.position.copy(position);
     };
 
     return (

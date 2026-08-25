@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
-import { TileCoords } from "@/osm/tiles.js";
+import { TileCoords } from "@/tile12-osm/vector-tiles.js";
 import { BASE_URL } from "@/calc/constants.js";
 import { TileProjection } from "../tile.js";
 import { GUI } from "lil-gui";
@@ -244,9 +244,9 @@ export function createGroundTileMesh(
       groundLowerMeters: { value: 0 },
       stylizeStrength: { value: 0.85 },
       detailKeep: { value: 0.1 },
-      saturation: { value: 0.4 },
-      brightness: { value: 0.02 },
-      contrast: { value: 1.08 },
+      saturation: { value: 0.1 },
+      brightness: { value: 0.9 },
+      contrast: { value: 1.38 },
       waterColor: { value: new THREE.Color("#66a7bd") },
       vegetationColor: { value: new THREE.Color("#9fae0a") },
       groundColor: { value: new THREE.Color("#cfc8b8") },

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-import type { TileCoords } from "@/osm/tiles.js";
+import type { TileCoords } from "@/tile12-osm/vector-tiles.js";
 import { createTileProjection, type TileProjection } from "./tile.js";
 
 import * as polygonUtils from "./_polygon.js";

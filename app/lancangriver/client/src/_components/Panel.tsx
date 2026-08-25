@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import clsx from "clsx";
 import { ArrowBottomLeftIcon, ArrowTopRightIcon } from "@radix-ui/react-icons";
 import { IconButton } from "./Button";
+import { ComponentStoryBook } from "./_types";
 
 type Props = {
   title: React.ReactNode;
@@ -78,7 +79,7 @@ export const Panel = ({
   );
 };
 
-Panel.__storybook = (): Props => {
+Panel.__storybook = (): ComponentStoryBook<Props> => {
   return {
     title: "River overview",
     description: "Current selection and nearby context",

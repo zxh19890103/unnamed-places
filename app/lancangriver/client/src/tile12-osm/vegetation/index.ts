@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TileCoords } from "@/osm/tiles";
+import { TileCoords } from "@/tile12-osm/vector-tiles.js";
 import { TileProjection } from "../tile.js";
 import { BASE_URL } from "@/calc/constants";
 import { shaderGlslSegments, uniformSettings } from "../_cfg.js";

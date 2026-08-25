@@ -69,8 +69,6 @@ function formatFrameP95(stats: SphereStatsPayload | null) {
   return `${stats.frameTimeP95Ms.toFixed(1)} ms`;
 }
 
-//
-
 function ThreejsStats({ threeJsStats }) {
   const threejsStatsDivRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +81,12 @@ function ThreejsStats({ threeJsStats }) {
     };
   }, []);
 
-  return <div className=" mt-3" ref={threejsStatsDivRef} />;
+  return (
+    <div
+      className=" size-fit rounded-lg overflow-hidden border border-jade-silt-200  z-99 absolute left-0 -top-2 -translate-y-full"
+      ref={threejsStatsDivRef}
+    />
+  );
 }
 
 export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
@@ -123,6 +126,7 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
       title="Live diagnostics"
       description="Scene monitor"
     >
+      <ThreejsStats threeJsStats={threeJsStats} />
       <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
         <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
           <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">

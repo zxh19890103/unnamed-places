@@ -2,7 +2,7 @@ import { FormEvent, useRef, useState } from "react";
 
 import { Button } from "@/_components";
 import { BASE_URL } from "@/calc/constants.js";
-import { fetchTileVector } from "@/osm/tiles.js";
+import { fetchTileVector } from "@/tile12-osm/vector-tiles.js";
 import { LeafletVectorViewer } from "./leaflet.js";
 import { parseTile12Key } from "./tile.js";
 import { ThreeJsTileViewer } from "./ThreeJsTileViewer.js";

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { TileProjection } from "../tile";
-import { TileCoords } from "@/osm/tiles";
+import { TileCoords } from "@/tile12-osm/vector-tiles";
 
 export type HighwayGeometryEntry = {
   geometry: THREE.BufferGeometry;

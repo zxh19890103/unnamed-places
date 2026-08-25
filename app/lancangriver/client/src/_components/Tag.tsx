@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import React from "react";
+import { ComponentStoryBook } from "./_types";
 
 type TagVariant =
   | "default"
@@ -66,7 +67,7 @@ export const Tag = ({
   );
 };
 
-Tag.__storybook = (): Props[] => {
+Tag.__storybook = (): ComponentStoryBook<Props> => {
   return [
     {
       children: "Queued",

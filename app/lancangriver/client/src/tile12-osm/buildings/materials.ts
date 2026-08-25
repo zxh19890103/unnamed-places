@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TileCoords } from "@/osm/tiles.js";
+import { TileCoords } from "@/tile12-osm/vector-tiles.js";
 import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
 import {
   BUILDING_ATLAS_UV_INSET,

@@ -1,6 +1,7 @@
 import * as RadixTooltip from "@radix-ui/react-tooltip";
 import clsx from "clsx";
 import React from "react";
+import { ComponentStoryBook } from "./_types";
 
 type TooltipSide = "top" | "right" | "bottom" | "left";
 type TooltipAlign = "start" | "center" | "end";
@@ -66,7 +67,7 @@ export const Tooltip = ({
   );
 };
 
-Tooltip.__storybook = (): Props[] => {
+Tooltip.__storybook = (): ComponentStoryBook<Props> => {
   return [
     {
       label: "Open details",

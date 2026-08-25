@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import type { ReactNode } from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { ComponentStoryBook } from "./_types";
 
 export type TabItem = {
   value: string;
@@ -81,7 +82,7 @@ export const Tab = ({
   );
 };
 
-Tab.__storybook = (): Props => {
+Tab.__storybook = (): ComponentStoryBook<Props> => {
   return {
     defaultValue: "overview",
     items: [

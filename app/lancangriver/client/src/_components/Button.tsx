@@ -1,6 +1,7 @@
 import { IconJarLogoIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
 import React from "react";
+import { ComponentStoryBook } from "./_types";
 
 type ButtonVariant =
   | "default"
@@ -172,7 +173,7 @@ Button.__storybook = (): Props[] => {
   ];
 };
 
-IconButton.__storybook = (): Props[] => {
+IconButton.__storybook = (): ComponentStoryBook<Props> => {
   return [
     {
       children: <IconJarLogoIcon />,

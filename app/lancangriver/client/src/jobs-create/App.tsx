@@ -1,12 +1,5 @@
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent,
-} from "react";
-import { Alert, AlertProvider, Button, IconButton } from "../_components";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, AlertProvider, Button } from "../_components";
 import { Tile12OsmLink } from "../_partials";
 import { LeafletBBoxMap } from "./map.js";
 import { readBBoxFromSearch, readLatLngFromSearch, type BBox } from "./bbox.js";
@@ -86,20 +79,6 @@ export default function App() {
                 </h1>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() =>
-                    Alert.create({
-                      title: "Share this coverage view",
-                      description:
-                        "Create a shareable snapshot for the current selection and tile list.",
-                      actionLabel: "Create link",
-                    })
-                  }
-                >
-                  create alert
-                </Button>
                 <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 font-[SUSEMono] text-[10px] tabular-nums text-jade-text-muted">
                   {combinedTiles.length} tiles
                 </span>
@@ -190,21 +169,6 @@ const TileListItem = memo(
     const [highwayDownloadStatus, setHighwayDownloadStatus] = useState<
       "idle" | "queuing" | "queued" | "error"
     >("idle");
-    const [statusDialogInfo, setStatusDialogInfo] = useState<{
-      label: string;
-      statusText?: string;
-      loadedText?: string;
-      errorText?: string;
-    } | null>(null);
-    const statusDialogRef = useRef<HTMLDialogElement>(null);
-
-    useEffect(() => {
-      if (statusDialogInfo) {
-        statusDialogRef.current?.showModal();
-      } else {
-        statusDialogRef.current?.close();
-      }
-    }, [statusDialogInfo]);
 
     const handleDownloadOsm = async () => {
       setDownloadStatus("queuing");
@@ -242,12 +206,37 @@ const TileListItem = memo(
           ? "yes, data is loaded in the database"
           : "no, not loaded yet";
 
-        setStatusDialogInfo({ label, statusText, loadedText });
+        Alert.create({
+          title: label,
+          description: `tile ${tile.z}/${tile.x}/${tile.y}`,
+          actionLabel: "Close",
+          cancelLabel: "Dismiss",
+          children: (
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
+                <span className="text-jade-text-muted">Job status</span>
+                <span className="font-medium text-jade-text">{statusText}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
+                <span className="text-jade-text-muted">Data loaded</span>
+                <span className="font-medium text-jade-text">{loadedText}</span>
+              </div>
+            </div>
+          ),
+        });
       } catch (error) {
         console.warn(`Failed to check ${kind} coverage status`, tile, error);
-        setStatusDialogInfo({
-          label,
-          errorText: "Could not check status. See console for details.",
+        Alert.create({
+          title: label,
+          description: `tile ${tile.z}/${tile.x}/${tile.y}`,
+          actionLabel: "Close",
+          cancelLabel: "Dismiss",
+          actionVariant: "destructive",
+          children: (
+            <p className="rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-sm text-rose-300">
+              Could not check status. See console for details.
+            </p>
+          ),
         });
       }
     };
@@ -339,65 +328,6 @@ const TileListItem = memo(
             </button>
           </div>
         </div>
-
-        <dialog
-          ref={statusDialogRef}
-          onClose={() => setStatusDialogInfo(null)}
-          className="fixed top-1/2 left-1/2 m-0 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-jade-border-soft bg-jade-panel/95 p-0 text-jade-text shadow-2xl shadow-[#182a36]/20 backdrop:bg-jade-950/40 backdrop:backdrop-blur-sm"
-        >
-          {statusDialogInfo && (
-            <div className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-semibold text-jade-text">
-                    {statusDialogInfo.label}
-                  </h2>
-                  <p className="mt-0.5 font-[SUSEMono] text-xs text-jade-text-muted">
-                    tile {tile.z}/{tile.x}/{tile.y}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setStatusDialogInfo(null)}
-                  aria-label="Close"
-                  className="cursor-pointer rounded-lg px-1.5 py-0.5 text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="mt-4 space-y-2 text-sm">
-                {statusDialogInfo.errorText ? (
-                  <p className="rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-rose-300">
-                    {statusDialogInfo.errorText}
-                  </p>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
-                      <span className="text-jade-text-muted">Job status</span>
-                      <span className="font-medium text-jade-text">
-                        {statusDialogInfo.statusText}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
-                      <span className="text-jade-text-muted">Data loaded</span>
-                      <span className="font-medium text-jade-text">
-                        {statusDialogInfo.loadedText}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <Button
-                onClick={() => setStatusDialogInfo(null)}
-                variant="primary"
-                className="mt-5 w-full"
-              >
-                Close
-              </Button>
-            </div>
-          )}
-        </dialog>
       </li>
     );
   },
