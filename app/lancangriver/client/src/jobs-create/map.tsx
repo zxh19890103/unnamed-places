@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
-import * as L from "leaflet";
-import type { BBox, LatLng } from "./bbox.js";
-import { tileBounds4326, tileXY as mercatorTileXY } from "../calc/mercator.js";
-import type { TileKey } from "./tiles.js";
+import { useEffect, useRef } from 'react';
+import * as L from 'leaflet';
+import type { BBox, LatLng } from './bbox.js';
+import { tileBounds4326, tileXY as mercatorTileXY } from '../calc/mercator.js';
+import type { TileKey } from './tiles.js';
 
 const LATLNG_FOCUS_ZOOM = 15;
 const COVERAGE_ZOOM = 12;
@@ -36,9 +36,9 @@ export function LeafletBBoxMap({
 
     const map = L.map(mapElementRef.current, { zoomControl: true });
 
-    L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
-      attribution: "&copy; Google Maps",
-      subdomains: ["0", "1", "2", "3"],
+    L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      attribution: '&copy; Google Maps',
+      subdomains: ['0', '1', '2', '3'],
       maxZoom: 20,
       maxNativeZoom: 21,
       detectRetina: true,
@@ -69,7 +69,7 @@ export function LeafletBBoxMap({
           [bbox.south, bbox.west],
           [bbox.north, bbox.east],
         ],
-        { color: "#22d3ee", weight: 2, fillOpacity: 0.08 },
+        { color: '#22d3ee', weight: 2, fillOpacity: 0.08 },
       ).addTo(map);
 
       map.fitBounds([
@@ -80,14 +80,14 @@ export function LeafletBBoxMap({
 
     reportBounds();
 
-    map.on("moveend", reportBounds);
-    map.on("click", handleMapClick);
+    map.on('moveend', reportBounds);
+    map.on('click', handleMapClick);
 
     mapRef.current = map;
 
     return () => {
-      map.off("moveend", reportBounds);
-      map.off("click", handleMapClick);
+      map.off('moveend', reportBounds);
+      map.off('click', handleMapClick);
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -106,7 +106,7 @@ export function LeafletBBoxMap({
       return;
     }
 
-    const [z, x, y] = focusTile.split("/").map(Number);
+    const [z, x, y] = focusTile.split('/').map(Number);
     const [west, south, east, north] = tileBounds4326(z, x, y);
 
     focusRectRef.current = L.rectangle(
@@ -114,7 +114,7 @@ export function LeafletBBoxMap({
         [south, west],
         [north, east],
       ],
-      { color: "#facc15", weight: 2, fillColor: "#facc15", fillOpacity: 0.25 },
+      { color: '#facc15', weight: 2, fillColor: '#facc15', fillOpacity: 0.25 },
     ).addTo(mapRef.current);
 
     mapRef.current.flyTo([south, west], 11);
@@ -137,9 +137,9 @@ export function LeafletBBoxMap({
           [north, east],
         ],
         {
-          color: "#ade01a",
+          color: '#ade01a',
           weight: 2,
-          fillColor: "#ade01a",
+          fillColor: '#ade01a',
           fillOpacity: 0.18,
         },
       ).addTo(mapRef.current!);

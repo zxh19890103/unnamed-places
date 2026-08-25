@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 type Props = {
   geometry: THREE.BufferGeometry | null;
@@ -18,10 +18,7 @@ export default function LoadGeometry({ geometry, name }: Props) {
     const container = mountRef.current;
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(
-      container.clientWidth || 640,
-      container.clientHeight || 420,
-    );
+    renderer.setSize(container.clientWidth || 640, container.clientHeight || 420);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf8fbfd);
@@ -52,7 +49,7 @@ export default function LoadGeometry({ geometry, name }: Props) {
     mesh.rotation.set(-0.5, 0.4, 0);
     scene.add(mesh);
 
-    container.innerHTML = "";
+    container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
     let frameId = 0;
@@ -72,24 +69,22 @@ export default function LoadGeometry({ geometry, name }: Props) {
     };
 
     handleResize();
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
 
     return () => {
       window.cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener('resize', handleResize);
       controls.dispose();
       renderer.dispose();
       previewGeometry.dispose();
-      container.innerHTML = "";
+      container.innerHTML = '';
     };
   }, [geometry, name]);
 
   return (
     <div className="mt-6 rounded-3xl border border-slate-300 bg-slate-50/90 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-600">
-          Preview
-        </h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-600">Preview</h3>
         {name ? <span className="text-sm text-slate-500">{name}</span> : null}
       </div>
       <div

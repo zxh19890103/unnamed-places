@@ -6,6 +6,6 @@ export function getConfig() {
   const isValidPort = Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535;
 
   return {
-    port: isValidPort ? parsedPort : 4050
+    port: isValidPort ? parsedPort : 4050,
   };
 }

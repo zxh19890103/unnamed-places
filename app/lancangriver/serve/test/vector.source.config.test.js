@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getVectorIngestSource,
   VECTOR_INGEST_SOURCE_ENV,
-  VECTOR_INGEST_SOURCES
+  VECTOR_INGEST_SOURCES,
 } from '../src/jobs/vectorSourceConfig.js';
 
 describe('vector source config', () => {
@@ -19,7 +19,7 @@ describe('vector source config', () => {
 
   it('throws for unsupported source values', () => {
     expect(() => getVectorIngestSource({ [VECTOR_INGEST_SOURCE_ENV]: 'foo' })).toThrow(
-      `Invalid ${VECTOR_INGEST_SOURCE_ENV}=foo. Expected one of: ${VECTOR_INGEST_SOURCES.join(', ')}`
+      `Invalid ${VECTOR_INGEST_SOURCE_ENV}=foo. Expected one of: ${VECTOR_INGEST_SOURCES.join(', ')}`,
     );
   });
 });

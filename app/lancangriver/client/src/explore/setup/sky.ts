@@ -1,27 +1,19 @@
-import * as THREE from "three";
-import * as SunCalc from "suncalc";
-import { Sky } from "three/examples/jsm/objects/Sky.js";
+import * as THREE from 'three';
+import * as SunCalc from 'suncalc';
+import { Sky } from 'three/examples/jsm/objects/Sky.js';
 
-import { getLocalBasisAtPoint } from "@/calc/sphere";
-import {
-  START_CENTER_LAT,
-  START_CENTER_LON,
-  EARTH_RADIUS,
-} from "@/calc/constants";
-import { getDateForLocalTimeAtLatLng } from "@/calc/timezone";
-import { LatLng } from "@/calc/types";
-import { latlngToSphere } from "@/_3dtiles";
+import { getLocalBasisAtPoint } from '@/calc/sphere';
+import { START_CENTER_LAT, START_CENTER_LON, EARTH_RADIUS } from '@/calc/constants';
+import { getDateForLocalTimeAtLatLng } from '@/calc/timezone';
+import { LatLng } from '@/calc/types';
+import { latlngToSphere } from '@/_3dtiles';
 
-export const SKY_COLOR = new THREE.Color("#ffffff");
-export const FOG_COLOR = new THREE.Color("#ffffff");
+export const SKY_COLOR = new THREE.Color('#ffffff');
+export const FOG_COLOR = new THREE.Color('#ffffff');
 
 const SKY_SCALE_MULTIPLIER = 8;
 
-function computeSunDirectionForLocation(
-  date: Date,
-  latitude: number,
-  longitude: number,
-) {
+function computeSunDirectionForLocation(date: Date, latitude: number, longitude: number) {
   const observerSurfacePointRaw = latlngToSphere(latitude, longitude);
   const observerSurfacePoint = new THREE.Vector3(
     observerSurfacePointRaw.x,
@@ -105,7 +97,7 @@ export function createSkyRig({
     skyUniforms.sunPosition.value.copy(nextSunDirection);
     skyUniforms.up.value.copy(orbitCenter).normalize();
 
-    const sunLight = new THREE.DirectionalLight("#fff2d6", 0.45);
+    const sunLight = new THREE.DirectionalLight('#fff2d6', 0.45);
     sunLight.position.copy(sunDirection).multiplyScalar(scale * 0.25);
     scene.add(sunLight);
 

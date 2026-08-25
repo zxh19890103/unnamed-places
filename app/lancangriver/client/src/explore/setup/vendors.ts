@@ -1,6 +1,6 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
-import { VendorBundle } from "./_types";
+import { VendorBundle } from './_types';
 
 export function createVendors(): VendorBundle {
   const loadingManager = new THREE.LoadingManager();
@@ -33,7 +33,7 @@ export function createVendors(): VendorBundle {
 
   const textureLoader = new THREE.TextureLoader(loadingManager);
   const imageLoader = new THREE.ImageLoader(loadingManager);
-  const cloudAtlasTexture = textureLoader.load("/clouds_in-one.png");
+  const cloudAtlasTexture = textureLoader.load('/clouds_in-one.png');
   cloudAtlasTexture.wrapS = THREE.ClampToEdgeWrapping;
   cloudAtlasTexture.wrapT = THREE.ClampToEdgeWrapping;
   cloudAtlasTexture.magFilter = THREE.LinearFilter;

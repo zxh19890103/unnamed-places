@@ -1,29 +1,25 @@
-import * as THREE from "three";
-import { ITileNode, SphereTileKey } from "./_types";
-import { tileBounds4326 } from "../calc/mercator";
-import { TileGeometry } from "./geometries/TileGeometry.class";
-import { TileBasicMaterial } from "./materials/TileBasicMaterial.class";
-import { TileDemMaterial } from "./materials/TileDemMaterial.class";
-import { TileDebugMaterial } from "./materials/TileDebugMaterial.class";
-import { TileCleanMaterial } from "./materials/TileCleanMaterial.class";
-import { ShanshuiMaterial } from "./materials/ShanshuiMaterial.class";
-import { latlngToSphere } from "@/_3dtiles";
-import { BASE_URL, ELEVATION_SCALE } from "../calc/constants";
+import * as THREE from 'three';
+import { ITileNode, SphereTileKey } from './_types';
+import { tileBounds4326 } from '../calc/mercator';
+import { TileGeometry } from './geometries/TileGeometry.class';
+import { TileBasicMaterial } from './materials/TileBasicMaterial.class';
+import { TileDemMaterial } from './materials/TileDemMaterial.class';
+import { TileDebugMaterial } from './materials/TileDebugMaterial.class';
+import { TileCleanMaterial } from './materials/TileCleanMaterial.class';
+import { ShanshuiMaterial } from './materials/ShanshuiMaterial.class';
+import { latlngToSphere } from '@/_3dtiles';
+import { BASE_URL, ELEVATION_SCALE } from '../calc/constants';
 
 export enum TileMaterialMode {
-  Basic = "basic",
-  Dem = "dem",
-  Clean = "clean",
-  Debug = "debug",
-  ShanshuiWash = "shanshui-wash",
+  Basic = 'basic',
+  Dem = 'dem',
+  Clean = 'clean',
+  Debug = 'debug',
+  ShanshuiWash = 'shanshui-wash',
 }
 
 type TileSurfaceMaterial =
-  | TileBasicMaterial
-  | TileDemMaterial
-  | TileDebugMaterial
-  | TileCleanMaterial
-  | ShanshuiMaterial;
+  TileBasicMaterial | TileDemMaterial | TileDebugMaterial | TileCleanMaterial | ShanshuiMaterial;
 
 type Parameters = {
   radius?: number;
@@ -48,10 +44,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
   ) {
     const [west, south, east, north] = tileBounds4326(tile.z, tile.x, tile.y);
 
-    const segments = Math.min(
-      96,
-      Math.max(64, Math.round(32 * Math.pow(2, (12 - tile.z) * 0.5))),
-    );
+    const segments = Math.min(96, Math.max(64, Math.round(32 * Math.pow(2, (12 - tile.z) * 0.5))));
 
     const geometry = new TileGeometry({
       southwest: { lat: south, lng: west },
@@ -74,11 +67,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
 
     this.userData.tile = { ...tile };
     this.centerLatlng = { lat: centerLat, lng: centerLng };
-    this.center = new THREE.Vector3(
-      centerPoint.x,
-      centerPoint.y,
-      centerPoint.z,
-    );
+    this.center = new THREE.Vector3(centerPoint.x, centerPoint.y, centerPoint.z);
   }
 
   setMaterialMode(mode: TileMaterialMode): void {
@@ -112,9 +101,7 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     }
   }
 
-  private createModeMaterial(
-    mode: TileMaterialMode,
-  ): TileSurfaceMaterial | null {
+  private createModeMaterial(mode: TileMaterialMode): TileSurfaceMaterial | null {
     switch (mode) {
       case TileMaterialMode.Basic:
         return new TileBasicMaterial(this.textureLoader, {

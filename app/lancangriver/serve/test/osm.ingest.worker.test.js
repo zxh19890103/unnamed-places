@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createOsmHighwayIngestWorker, createOsmIngestWorker } from '../src/jobs/osmIngestWorker.js';
+import {
+  createOsmHighwayIngestWorker,
+  createOsmIngestWorker,
+} from '../src/jobs/osmIngestWorker.js';
 
 describe('osm ingest worker', () => {
   it('transitions queued -> running -> done and upserts features', async () => {
@@ -7,7 +10,7 @@ describe('osm ingest worker', () => {
       claimNextQueued: vi.fn().mockResolvedValue({ z12Key: '12/3456/1523' }),
       markRunning: vi.fn().mockResolvedValue(undefined),
       markDone: vi.fn().mockResolvedValue(undefined),
-      markFailed: vi.fn().mockResolvedValue(undefined)
+      markFailed: vi.fn().mockResolvedValue(undefined),
     };
     const fetchOsmFeatures = vi.fn().mockResolvedValue([
       {
@@ -15,8 +18,14 @@ describe('osm ingest worker', () => {
         feature_id: 'way/1',
         feature_type: 'LineString',
         tags: {},
-        geometry: { type: 'LineString', coordinates: [[100, 20], [100.1, 20.1]] }
-      }
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [100, 20],
+            [100.1, 20.1],
+          ],
+        },
+      },
     ]);
     const upsertVectorFeatures = vi.fn().mockResolvedValue(undefined);
 
@@ -34,7 +43,7 @@ describe('osm ingest worker', () => {
       claimNextQueued: vi.fn().mockResolvedValue({ z12Key: '12/3456/1523' }),
       markRunning: vi.fn().mockResolvedValue(undefined),
       markDone: vi.fn().mockResolvedValue(undefined),
-      markFailed: vi.fn().mockResolvedValue(undefined)
+      markFailed: vi.fn().mockResolvedValue(undefined),
     };
     const fetchOsmFeatures = vi.fn().mockRejectedValue(new Error('boom'));
     const upsertVectorFeatures = vi.fn();
@@ -51,7 +60,7 @@ describe('osm ingest worker', () => {
       claimNextQueued: vi.fn().mockResolvedValue({ z12Key: '12/3456/1523' }),
       markRunning: vi.fn().mockResolvedValue(undefined),
       markDone: vi.fn().mockResolvedValue(undefined),
-      markFailed: vi.fn().mockResolvedValue(undefined)
+      markFailed: vi.fn().mockResolvedValue(undefined),
     };
     const fetchOsmHighwayFeatures = vi.fn().mockResolvedValue([
       {
@@ -59,15 +68,21 @@ describe('osm ingest worker', () => {
         feature_id: 'way/88',
         feature_type: 'LineString',
         tags: { highway: 'primary' },
-        geometry: { type: 'LineString', coordinates: [[100, 20], [100.1, 20.1]] }
-      }
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [100, 20],
+            [100.1, 20.1],
+          ],
+        },
+      },
     ]);
     const upsertVectorFeaturesHighways = vi.fn().mockResolvedValue(undefined);
 
     const worker = createOsmHighwayIngestWorker({
       jobs,
       fetchOsmHighwayFeatures,
-      upsertVectorFeaturesHighways
+      upsertVectorFeaturesHighways,
     });
     await worker.tickOnce();
 

@@ -52,7 +52,7 @@ export function normalizeOvertureFeatures(rawFeatures) {
         feature_id: toFeatureId(rawFeature, index),
         feature_type: featureType,
         tags,
-        geometry
+        geometry,
       };
     })
     .filter((feature) => feature !== null);

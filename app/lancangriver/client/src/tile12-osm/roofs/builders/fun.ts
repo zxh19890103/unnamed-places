@@ -1,6 +1,6 @@
-import * as THREE from "three";
-import { TileProjection } from "../../tile.js";
-import * as helpers from "../_helpers.js";
+import * as THREE from 'three';
+import { TileProjection } from '../../tile.js';
+import * as helpers from '../_helpers.js';
 
 const building_roof_building_factories__fun = (
   _roofprint: number[],
@@ -12,8 +12,8 @@ const building_roof_building_factories__fun = (
 
   const rings = helpers.getFeatureRoofRings(features, heightMeters, projection);
   if (rings.length === 0) {
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute([], 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute([], 2));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute([], 2));
     return geometry;
   }
 
@@ -51,11 +51,7 @@ const building_roof_building_factories__fun = (
   // Top face (fan triangulation from vertex n, reversed winding)
   for (let i = 1; i < n - 1; i++) {
     positions.push(scaledPoints[0][0], scaledPoints[0][1], scaledPoints[0][2]);
-    positions.push(
-      scaledPoints[i + 1][0],
-      scaledPoints[i + 1][1],
-      scaledPoints[i + 1][2],
-    );
+    positions.push(scaledPoints[i + 1][0], scaledPoints[i + 1][1], scaledPoints[i + 1][2]);
     positions.push(scaledPoints[i][0], scaledPoints[i][1], scaledPoints[i][2]);
     uvs.push(0, 0, 0, 0, 0, 0);
   }
@@ -72,38 +68,25 @@ const building_roof_building_factories__fun = (
     uvs.push(helpers.distanceOf(points[i], points[next]) * metersToUvScale, 0);
 
     positions.push(scaledPoints[i][0], scaledPoints[i][1], scaledPoints[i][2]);
-    uvs.push(
-      0,
-      helpers.distanceOf(scaledPoints[i], points[i]) * metersToUvScale,
-    );
+    uvs.push(0, helpers.distanceOf(scaledPoints[i], points[i]) * metersToUvScale);
 
     // Triangle 2: bottom-next, top-next, top-i
     positions.push(points[next][0], points[next][1], points[next][2]);
     uvs.push(helpers.distanceOf(points[i], points[next]) * metersToUvScale, 0);
 
-    positions.push(
-      scaledPoints[next][0],
-      scaledPoints[next][1],
-      scaledPoints[next][2],
-    );
+    positions.push(scaledPoints[next][0], scaledPoints[next][1], scaledPoints[next][2]);
     uvs.push(
       helpers.distanceOf(scaledPoints[i], scaledPoints[next]) * metersToUvScale,
       helpers.distanceOf(points[next], scaledPoints[next]) * metersToUvScale,
     );
 
     positions.push(scaledPoints[i][0], scaledPoints[i][1], scaledPoints[i][2]);
-    uvs.push(
-      0,
-      helpers.distanceOf(points[i], scaledPoints[i]) * metersToUvScale,
-    );
+    uvs.push(0, helpers.distanceOf(points[i], scaledPoints[i]) * metersToUvScale);
   }
 
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
 
   return geometry;
 };

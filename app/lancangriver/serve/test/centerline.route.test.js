@@ -21,11 +21,11 @@ describe('GET /geo/centerline', () => {
               type: 'LineString',
               coordinates: [
                 [100.0, 22.0],
-                [100.1, 22.1]
-              ]
-            }
-          }
-        ]
+                [100.1, 22.1],
+              ],
+            },
+          },
+        ],
       };
 
       await writeFile(centerlinePath, JSON.stringify(featureCollection), 'utf8');
@@ -50,8 +50,8 @@ describe('GET /geo/centerline', () => {
     expect(response.body).toEqual({
       error: {
         code: 'CENTERLINE_NOT_FOUND',
-        reason: 'Centerline GeoJSON file was not found'
-      }
+        reason: 'Centerline GeoJSON file was not found',
+      },
     });
   });
 });
@@ -64,7 +64,7 @@ describe('GET /geo/tiles-manifest', () => {
       const manifestPath = join(tempRoot, 'z11_manifest.json');
       const manifest = [
         { z: 11, x: 1584, y: 852 },
-        { z: 11, x: 1584, y: 853 }
+        { z: 11, x: 1584, y: 853 },
       ];
 
       await writeFile(manifestPath, JSON.stringify(manifest), 'utf8');
@@ -89,8 +89,8 @@ describe('GET /geo/tiles-manifest', () => {
     expect(response.body).toEqual({
       error: {
         code: 'TILES_MANIFEST_NOT_FOUND',
-        reason: 'Tiles manifest file was not found'
-      }
+        reason: 'Tiles manifest file was not found',
+      },
     });
   });
 });

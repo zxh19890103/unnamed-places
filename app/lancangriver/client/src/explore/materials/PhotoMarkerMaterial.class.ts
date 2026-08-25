@@ -1,9 +1,9 @@
-import * as THREE from "three";
-import { PhotoRecord } from "../../photos/types";
-import { WorldExtent } from "../../calc/types";
-import { ELEVATION_SCALE } from "../../calc/constants";
-import vertexShader from "./shaders/photomarker.vert.glsl?raw";
-import fragmentShader from "./shaders/photomarker.frag.glsl?raw";
+import * as THREE from 'three';
+import { PhotoRecord } from '../../photos/types';
+import { WorldExtent } from '../../calc/types';
+import { ELEVATION_SCALE } from '../../calc/constants';
+import vertexShader from './shaders/photomarker.vert.glsl?raw';
+import fragmentShader from './shaders/photomarker.frag.glsl?raw';
 
 type Parameters = {
   color?: THREE.ColorRepresentation;
@@ -15,13 +15,7 @@ type Parameters = {
 
 export class PhotoMarkerMaterial extends THREE.ShaderMaterial {
   constructor(textureLoader: THREE.TextureLoader, params: Parameters) {
-    const {
-      color = "#ffffff",
-      map,
-      rec,
-      worldExtent,
-      worldDemTexture,
-    } = params;
+    const { color = '#ffffff', map, rec, worldExtent, worldDemTexture } = params;
 
     const t = (rec.lat - worldExtent.south) / worldExtent.latSpan;
     const s = (rec.lng - worldExtent.west) / worldExtent.lngSpan;

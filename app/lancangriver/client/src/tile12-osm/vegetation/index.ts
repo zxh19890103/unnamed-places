@@ -1,8 +1,8 @@
-import * as THREE from "three";
-import { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { TileProjection } from "../tile.js";
-import { BASE_URL } from "@/calc/constants";
-import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
+import * as THREE from 'three';
+import { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { TileProjection } from '../tile.js';
+import { BASE_URL } from '@/calc/constants';
+import { shaderGlslSegments, uniformSettings } from '../_cfg.js';
 
 export function createPointsTrees(
   textureLoader: THREE.TextureLoader,
@@ -17,26 +17,18 @@ export function createPointsTrees(
 
   const n = Math.floor(nX * nZ);
 
-  const pointsAttr = new THREE.Float32BufferAttribute(
-    new Array(3 * n).fill(0),
-    3,
-  );
+  const pointsAttr = new THREE.Float32BufferAttribute(new Array(3 * n).fill(0), 3);
 
   const uvAttr = new THREE.Float32BufferAttribute(new Array(2 * n).fill(0), 2);
 
-  const treesMetadataAttr = new THREE.Float32BufferAttribute(
-    new Array(3 * n).fill(0),
-    3,
-  );
+  const treesMetadataAttr = new THREE.Float32BufferAttribute(new Array(3 * n).fill(0), 3);
 
   const vegetationMask = textureLoader.load(
     `${BASE_URL}/raster/satellite/${tile.z}/${tile.x}/${tile.y}/clean.jpeg`,
   );
 
-  const treesAltas = textureLoader.load("/trees_in-one.png");
-  const terrainMap = textureLoader.load(
-    uniformSettings.getTerrariumInfoUrl(tile),
-  );
+  const treesAltas = textureLoader.load('/trees_in-one.png');
+  const terrainMap = textureLoader.load(uniformSettings.getTerrariumInfoUrl(tile));
 
   for (let x = 0; x < nX; x++) {
     for (let z = 0; z < nZ; z++) {
@@ -62,9 +54,9 @@ export function createPointsTrees(
 
   const geometry = new THREE.BufferGeometry();
 
-  geometry.setAttribute("position", pointsAttr);
-  geometry.setAttribute("metadata", treesMetadataAttr);
-  geometry.setAttribute("uv", uvAttr);
+  geometry.setAttribute('position', pointsAttr);
+  geometry.setAttribute('metadata', treesMetadataAttr);
+  geometry.setAttribute('uv', uvAttr);
 
   const points = new THREE.Points(
     geometry,

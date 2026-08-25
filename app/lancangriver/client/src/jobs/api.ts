@@ -1,4 +1,4 @@
-import { BASE_URL } from "../calc/constants";
+import { BASE_URL } from '../calc/constants';
 
 export type LoadedCoverageTile = {
   key: string;
@@ -14,7 +14,7 @@ export type LoadedCoveragePage = {
   total: number;
 };
 
-export type CoverageJobStatus = "queued" | "running" | "done" | "failed";
+export type CoverageJobStatus = 'queued' | 'running' | 'done' | 'failed';
 
 export type CoverageJob = LoadedCoverageTile & {
   status: CoverageJobStatus;
@@ -36,7 +36,7 @@ export type CoverageStatusResponse = {
 
 export type RerunCoverageJobResponse = {
   key: string;
-  status: "queued";
+  status: 'queued';
 };
 
 export type EnqueueCoverageJobResponse = {
@@ -60,40 +60,22 @@ type FetchLoadedCoverageOptions = {
 };
 
 export type CoverageApi = {
-  fetchLoadedCoverage: (
-    options: FetchLoadedCoverageOptions,
-  ) => Promise<LoadedCoveragePage>;
-  fetchCoverageJobs: (
-    options: FetchLoadedCoverageOptions,
-  ) => Promise<CoverageJobsPage>;
-  fetchCoverageStatus: (
-    x: number,
-    y: number,
-  ) => Promise<CoverageStatusResponse>;
-  rerunFailedCoverageJob: (
-    x: number,
-    y: number,
-  ) => Promise<RerunCoverageJobResponse>;
-  enqueueCoverageJob: (
-    x: number,
-    y: number,
-  ) => Promise<EnqueueCoverageJobResponse>;
-  requestCoverageForTile: (
-    x: number,
-    y: number,
-  ) => Promise<RequestCoverageTileResponse>;
+  fetchLoadedCoverage: (options: FetchLoadedCoverageOptions) => Promise<LoadedCoveragePage>;
+  fetchCoverageJobs: (options: FetchLoadedCoverageOptions) => Promise<CoverageJobsPage>;
+  fetchCoverageStatus: (x: number, y: number) => Promise<CoverageStatusResponse>;
+  rerunFailedCoverageJob: (x: number, y: number) => Promise<RerunCoverageJobResponse>;
+  enqueueCoverageJob: (x: number, y: number) => Promise<EnqueueCoverageJobResponse>;
+  requestCoverageForTile: (x: number, y: number) => Promise<RequestCoverageTileResponse>;
 };
 
 function normalizePrefix(prefix: string): string {
   const trimmed = prefix.trim();
   if (!trimmed) {
-    return "/vector";
+    return '/vector';
   }
 
-  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return withLeadingSlash.endsWith("/")
-    ? withLeadingSlash.slice(0, -1)
-    : withLeadingSlash;
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash.slice(0, -1) : withLeadingSlash;
 }
 
 function createCoverageApi(prefix: string): CoverageApi {
@@ -121,9 +103,7 @@ function createCoverageApi(prefix: string): CoverageApi {
         limit: String(limit),
         offset: String(offset),
       });
-      const response = await fetch(
-        `${BASE_URL}${routePrefix}/coverage/jobs?${search.toString()}`,
-      );
+      const response = await fetch(`${BASE_URL}${routePrefix}/coverage/jobs?${search.toString()}`);
 
       if (!response.ok) {
         throw new Error(`Coverage jobs API failed: ${response.status}`);
@@ -133,9 +113,7 @@ function createCoverageApi(prefix: string): CoverageApi {
     },
 
     async fetchCoverageStatus(x: number, y: number) {
-      const response = await fetch(
-        `${BASE_URL}${routePrefix}/coverage/12/${x}/${y}`,
-      );
+      const response = await fetch(`${BASE_URL}${routePrefix}/coverage/12/${x}/${y}`);
 
       if (!response.ok) {
         throw new Error(`Coverage status API failed: ${response.status}`);
@@ -145,10 +123,9 @@ function createCoverageApi(prefix: string): CoverageApi {
     },
 
     async rerunFailedCoverageJob(x: number, y: number) {
-      const response = await fetch(
-        `${BASE_URL}${routePrefix}/coverage/12/${x}/${y}/rerun`,
-        { method: "POST" },
-      );
+      const response = await fetch(`${BASE_URL}${routePrefix}/coverage/12/${x}/${y}/rerun`, {
+        method: 'POST',
+      });
 
       if (!response.ok) {
         throw new Error(`Coverage rerun API failed: ${response.status}`);
@@ -158,10 +135,9 @@ function createCoverageApi(prefix: string): CoverageApi {
     },
 
     async enqueueCoverageJob(x: number, y: number) {
-      const response = await fetch(
-        `${BASE_URL}${routePrefix}/coverage/12/${x}/${y}/enqueue`,
-        { method: "POST" },
-      );
+      const response = await fetch(`${BASE_URL}${routePrefix}/coverage/12/${x}/${y}/enqueue`, {
+        method: 'POST',
+      });
 
       if (!response.ok) {
         throw new Error(`Coverage enqueue API failed: ${response.status}`);
@@ -171,9 +147,7 @@ function createCoverageApi(prefix: string): CoverageApi {
     },
 
     async requestCoverageForTile(x: number, y: number) {
-      const response = await fetch(
-        `${BASE_URL}${routePrefix}/tiles/12/${x}/${y}.pbf`,
-      );
+      const response = await fetch(`${BASE_URL}${routePrefix}/tiles/12/${x}/${y}.pbf`);
 
       if (!response.ok && response.status !== 204) {
         throw new Error(`Coverage tile request failed: ${response.status}`);
@@ -184,8 +158,8 @@ function createCoverageApi(prefix: string): CoverageApi {
   };
 }
 
-export const defaultCoverageApi = createCoverageApi("/vector");
-export const highwaysCoverageApi = createCoverageApi("/vector/highways");
+export const defaultCoverageApi = createCoverageApi('/vector');
+export const highwaysCoverageApi = createCoverageApi('/vector/highways');
 
 export async function fetchLoadedCoverage({
   limit,
@@ -201,10 +175,7 @@ export async function fetchCoverageJobs({
   return defaultCoverageApi.fetchCoverageJobs({ limit, offset });
 }
 
-export async function fetchCoverageStatus(
-  x: number,
-  y: number,
-): Promise<CoverageStatusResponse> {
+export async function fetchCoverageStatus(x: number, y: number): Promise<CoverageStatusResponse> {
   return defaultCoverageApi.fetchCoverageStatus(x, y);
 }
 
@@ -264,10 +235,7 @@ export async function requestCoverageForTileHighways(
   return highwaysCoverageApi.requestCoverageForTile(x, y);
 }
 
-export async function fetchZ12GeoInfo(
-  x: number,
-  y: number,
-): Promise<Z12GeoInfo | null> {
+export async function fetchZ12GeoInfo(x: number, y: number): Promise<Z12GeoInfo | null> {
   const response = await fetch(`${BASE_URL}/z12geoinfo/12/${x}/${y}`);
 
   if (response.status === 404) {
@@ -287,9 +255,9 @@ export async function saveZ12GeoInfo(
   rawData: unknown,
 ): Promise<Z12GeoInfo> {
   const response = await fetch(`${BASE_URL}/z12geoinfo`, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       z12_key: z12Key,
@@ -305,17 +273,12 @@ export async function saveZ12GeoInfo(
   return (await response.json()) as Z12GeoInfo;
 }
 
-export async function fetchGeoReverse(
-  lat: number,
-  lng: number,
-): Promise<unknown> {
+export async function fetchGeoReverse(lat: number, lng: number): Promise<unknown> {
   const search = new URLSearchParams({
     lat: String(lat),
     lng: String(lng),
   });
-  const response = await fetch(
-    `${BASE_URL}/nominatim/geo-reverse?${search.toString()}`,
-  );
+  const response = await fetch(`${BASE_URL}/nominatim/geo-reverse?${search.toString()}`);
 
   if (!response.ok) {
     throw new Error(`Geo reverse API failed: ${response.status}`);

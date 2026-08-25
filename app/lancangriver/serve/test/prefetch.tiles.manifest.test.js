@@ -15,14 +15,7 @@ describe('parseArgs manifest mode', () => {
 
   it('rejects --manifest with --bbox', () => {
     expect(() =>
-      parseArgs([
-        'node',
-        'script',
-        '--manifest',
-        'm.json',
-        '--bbox',
-        '99,21,101,23',
-      ]),
+      parseArgs(['node', 'script', '--manifest', 'm.json', '--bbox', '99,21,101,23']),
     ).toThrow();
   });
 

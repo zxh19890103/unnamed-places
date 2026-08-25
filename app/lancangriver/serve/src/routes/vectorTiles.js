@@ -80,8 +80,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_PAGINATION',
-          reason: 'limit must be between 1 and 1000 and offset must be a non-negative integer'
-        }
+          reason: 'limit must be between 1 and 1000 and offset must be a non-negative integer',
+        },
       });
       return;
     }
@@ -103,8 +103,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_PAGINATION',
-          reason: 'limit must be between 1 and 1000 and offset must be a non-negative integer'
-        }
+          reason: 'limit must be between 1 and 1000 and offset must be a non-negative integer',
+        },
       });
       return;
     }
@@ -126,8 +126,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_TILE_COORDS',
-          reason: 'Tile coordinates must be non-negative integers'
-        }
+          reason: 'Tile coordinates must be non-negative integers',
+        },
       });
       return;
     }
@@ -146,8 +146,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_TILE_COORDS',
-          reason: 'Tile coordinates must be non-negative integers'
-        }
+          reason: 'Tile coordinates must be non-negative integers',
+        },
       });
       return;
     }
@@ -159,8 +159,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(404).json({
         error: {
           code: 'COVERAGE_JOB_NOT_FOUND',
-          reason: 'Coverage job does not exist'
-        }
+          reason: 'Coverage job does not exist',
+        },
       });
       return;
     }
@@ -169,8 +169,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(409).json({
         error: {
           code: 'COVERAGE_JOB_NOT_FAILED',
-          reason: 'Only failed coverage jobs can be rerun'
-        }
+          reason: 'Only failed coverage jobs can be rerun',
+        },
       });
       return;
     }
@@ -186,8 +186,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_TILE_COORDS',
-          reason: 'Tile coordinates must be non-negative integers'
-        }
+          reason: 'Tile coordinates must be non-negative integers',
+        },
       });
       return;
     }
@@ -207,8 +207,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_TILE_COORDS',
-          reason: 'Tile coordinates must be non-negative integers'
-        }
+          reason: 'Tile coordinates must be non-negative integers',
+        },
       });
       return;
     }
@@ -229,8 +229,8 @@ export function createVectorTilesRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_TILE_COORDS',
-          reason: 'Tile coordinates must be non-negative integers'
-        }
+          reason: 'Tile coordinates must be non-negative integers',
+        },
       });
       return;
     }

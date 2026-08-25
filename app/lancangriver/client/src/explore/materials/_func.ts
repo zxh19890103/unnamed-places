@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
 export function createFallbackWhiteTexture() {
   const data = new Uint8Array([255, 255, 255, 255]);

@@ -1,13 +1,13 @@
-import * as THREE from "three";
-import { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
+import * as THREE from 'three';
+import { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { shaderGlslSegments, uniformSettings } from '../_cfg.js';
 
 export function createBuildingRoofMaterial(
   palette: string,
   textureLoader: THREE.TextureLoader,
   tile: TileCoords,
 ): THREE.ShaderMaterial {
-  const roofMap = textureLoader.load("/textures/roofs.jpg");
+  const roofMap = textureLoader.load('/textures/roofs.jpg');
 
   const material = new THREE.ShaderMaterial({
     wireframe: false,
@@ -75,12 +75,10 @@ void main() {
     side: THREE.DoubleSide,
   });
 
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
   return material;
 }

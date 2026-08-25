@@ -14,7 +14,7 @@ export function getCoveringZ12Tiles(z, x, y) {
   const delta = CANONICAL_ZOOM - z;
 
   if (delta < 0) {
-    const scaleDown = 2 ** (-delta);
+    const scaleDown = 2 ** -delta;
     const cx = Math.floor(x / scaleDown);
     const cy = Math.floor(y / scaleDown);
 

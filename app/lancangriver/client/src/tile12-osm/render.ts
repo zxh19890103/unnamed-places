@@ -1,37 +1,22 @@
-import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-import type { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { createTileProjection, type TileProjection } from "./tile.js";
+import type { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { createTileProjection, type TileProjection } from './tile.js';
 
-import * as polygonUtils from "./_polygon.js";
-import { PolygonFeatureToGeometry } from "./_types.js";
-import { BuildingVariantBucket } from "./buildings/_types.js";
-import {
-  buildBuildingPerFeature,
-  buildBuildingPloygonPerFeature,
-} from "./buildings/index.js";
-import { getBuildingTexture } from "./buildings/base.js";
-import { HighwayGeometryEntry } from "./highways/_types.js";
-import {
-  HIGHWAY_WIDTH_METERS_SCALE,
-  isHighwayFeature,
-} from "./highways/base.js";
-import { createHighwayGeometry } from "./highways/index.js";
-import { addWaterFlow, isRiverWaterFeature } from "./waters/index.js";
-import {
-  createWaterMaterial,
-  createWaterRiverMaterial,
-} from "./waters/materials.js";
-import {
-  createHighwayMaterial,
-  createHighwayPolygonMaterial,
-} from "./highways/materials.js";
-import { createBuildingRoofMaterial } from "./roofs/materials.js";
-import {
-  createBuildingFaceMaterial,
-  createBuildingWallMaterial,
-} from "./buildings/materials.js";
+import * as polygonUtils from './_polygon.js';
+import { PolygonFeatureToGeometry } from './_types.js';
+import { BuildingVariantBucket } from './buildings/_types.js';
+import { buildBuildingPerFeature, buildBuildingPloygonPerFeature } from './buildings/index.js';
+import { getBuildingTexture } from './buildings/base.js';
+import { HighwayGeometryEntry } from './highways/_types.js';
+import { HIGHWAY_WIDTH_METERS_SCALE, isHighwayFeature } from './highways/base.js';
+import { createHighwayGeometry } from './highways/index.js';
+import { addWaterFlow, isRiverWaterFeature } from './waters/index.js';
+import { createWaterMaterial, createWaterRiverMaterial } from './waters/materials.js';
+import { createHighwayMaterial, createHighwayPolygonMaterial } from './highways/materials.js';
+import { createBuildingRoofMaterial } from './roofs/materials.js';
+import { createBuildingFaceMaterial, createBuildingWallMaterial } from './buildings/materials.js';
 
 type TileVectorGroup = {
   group: THREE.Group;
@@ -42,21 +27,18 @@ type TileVectorGroup = {
 };
 
 type GeometryKind =
-  | "buildingRoof"
-  | "buildingWall"
-  | "buildingFace"
-  | "water"
-  | "other"
-  | "highway"
-  | "river"
-  | "highway2"
-  | "line"
-  | "point";
+  | 'buildingRoof'
+  | 'buildingWall'
+  | 'buildingFace'
+  | 'water'
+  | 'other'
+  | 'highway'
+  | 'river'
+  | 'highway2'
+  | 'line'
+  | 'point';
 
-type GeometryBuckets = Omit<
-  Record<GeometryKind, THREE.BufferGeometry[]>,
-  "highway"
-> & {
+type GeometryBuckets = Omit<Record<GeometryKind, THREE.BufferGeometry[]>, 'highway'> & {
   highway: HighwayGeometryEntry[];
 };
 
@@ -77,26 +59,24 @@ function addPolygon(
   let extrudedMeters = 0;
   let geometry: THREE.BufferGeometry;
 
-  if (kind === "building") {
+  if (kind === 'building') {
     return buildBuildingPloygonPerFeature(feature, shape, centroid, kind);
   }
 
   geometry = new THREE.ShapeGeometry(shape);
   geometry.rotateX(-Math.PI / 2);
 
-  const positionAttr = geometry.getAttribute("position");
+  const positionAttr = geometry.getAttribute('position');
   if (positionAttr) {
     const gisUv = new Float32Array(positionAttr.count * 2);
     for (let index = 0; index < positionAttr.count; index += 1) {
-      gisUv[index * 2 + 0] =
-        positionAttr.getX(index) / projection.widthMeters + 0.5;
-      gisUv[index * 2 + 1] =
-        -positionAttr.getZ(index) / projection.heightMeters + 0.5;
+      gisUv[index * 2 + 0] = positionAttr.getX(index) / projection.widthMeters + 0.5;
+      gisUv[index * 2 + 1] = -positionAttr.getZ(index) / projection.heightMeters + 0.5;
     }
-    geometry.setAttribute("gisUv", new THREE.BufferAttribute(gisUv, 2));
+    geometry.setAttribute('gisUv', new THREE.BufferAttribute(gisUv, 2));
   }
 
-  geometry.translate(0, kind === "water" ? 0.1 : 0.05, 0);
+  geometry.translate(0, kind === 'water' ? 0.1 : 0.05, 0);
 
   return {
     kind,
@@ -118,10 +98,7 @@ function addLine(
   for (let index = 1; index < coordinates.length; index += 1) {
     const start = projection.project(coordinates[index - 1]);
     const end = projection.project(coordinates[index]);
-    segments.push(
-      new THREE.Vector3(start.x, 0.35, start.z),
-      new THREE.Vector3(end.x, 0.35, end.z),
-    );
+    segments.push(new THREE.Vector3(start.x, 0.35, start.z), new THREE.Vector3(end.x, 0.35, end.z));
   }
 
   return new THREE.BufferGeometry().setFromPoints(segments);
@@ -134,11 +111,7 @@ function addPoint(
 ): THREE.BufferGeometry {
   const projected = projection.project(position);
   const geometry = markerTemplate.clone();
-  geometry.translate(
-    projected.x,
-    markerTemplate.parameters.radius,
-    projected.z,
-  );
+  geometry.translate(projected.x, markerTemplate.parameters.radius, projected.z);
   return geometry;
 }
 
@@ -214,18 +187,18 @@ function addFeature(
   }
 
   switch (geometry.type) {
-    case "Polygon": {
+    case 'Polygon': {
       const polygon = addPolygon(feature, geometry.coordinates, projection);
 
       if (!polygon) {
         return 0;
       }
 
-      if (polygon.kind === "building") {
+      if (polygon.kind === 'building') {
         buildBuildingPerFeature(polygon, feature, buildingBuckets, projection);
-      } else if (polygon.kind === "highway") {
+      } else if (polygon.kind === 'highway') {
         buckets.highway2.push(polygon.geometry);
-      } else if (polygon.kind === "water") {
+      } else if (polygon.kind === 'water') {
         if (isRiverWaterFeature(feature)) {
           addWaterFlow(feature, polygon.geometry);
           buckets.river.push(polygon.geometry);
@@ -239,7 +212,7 @@ function addFeature(
 
       return 1;
     }
-    case "MultiPolygon": {
+    case 'MultiPolygon': {
       return geometry.coordinates.reduce((count, polygon) => {
         const shape = addPolygon(feature, polygon, projection);
 
@@ -247,11 +220,11 @@ function addFeature(
           return count;
         }
 
-        if (shape.kind === "building") {
+        if (shape.kind === 'building') {
           buildBuildingPerFeature(shape, feature, buildingBuckets, projection);
-        } else if (shape.kind === "highway") {
+        } else if (shape.kind === 'highway') {
           buckets.highway2.push(shape.geometry);
-        } else if (shape.kind === "water") {
+        } else if (shape.kind === 'water') {
           if (isRiverWaterFeature(feature)) {
             addWaterFlow(feature, shape.geometry);
             buckets.river.push(shape.geometry);
@@ -266,16 +239,14 @@ function addFeature(
         return count + 1;
       }, 0);
     }
-    case "LineString": {
+    case 'LineString': {
       const line = addLine(geometry.coordinates, projection);
       if (!line) {
         return 0;
       }
 
       if (isHighwayFeature(feature)) {
-        buckets.highway.push(
-          ...createHighwayGeometry(feature, geometry.coordinates, projection),
-        );
+        buckets.highway.push(...createHighwayGeometry(feature, geometry.coordinates, projection));
 
         line.dispose();
       } else {
@@ -284,7 +255,7 @@ function addFeature(
 
       return 1;
     }
-    case "MultiLineString":
+    case 'MultiLineString':
       return geometry.coordinates.reduce((count, line) => {
         const geometry = addLine(line, projection);
         if (!geometry) {
@@ -292,9 +263,7 @@ function addFeature(
         }
 
         if (isHighwayFeature(feature)) {
-          buckets.highway.push(
-            ...createHighwayGeometry(feature, line, projection),
-          );
+          buckets.highway.push(...createHighwayGeometry(feature, line, projection));
           geometry.dispose();
         } else {
           buckets.line.push(geometry);
@@ -302,16 +271,13 @@ function addFeature(
 
         return count + 1;
       }, 0);
-    case "Point":
-      buckets.point.push(
-        addPoint(geometry.coordinates, projection, markerTemplate),
-      );
+    case 'Point':
+      buckets.point.push(addPoint(geometry.coordinates, projection, markerTemplate));
       return 1;
-    case "MultiPoint":
+    case 'MultiPoint':
       return geometry.coordinates.reduce(
         (count, point) =>
-          count +
-          (buckets.point.push(addPoint(point, projection, markerTemplate)), 1),
+          count + (buckets.point.push(addPoint(point, projection, markerTemplate)), 1),
         0,
       );
     default:
@@ -343,12 +309,12 @@ export function buildTileVectorGroup(
     highway2: createHighwayPolygonMaterial(internalTextureLoader, tile),
     highway: createHighwayMaterial(internalTextureLoader, tile),
     other: new THREE.MeshStandardMaterial({
-      color: "#8b9a73",
+      color: '#8b9a73',
       roughness: 0.95,
       side: THREE.DoubleSide,
     }),
-    line: new THREE.LineBasicMaterial({ color: "#f5d28c" }),
-    point: new THREE.MeshStandardMaterial({ color: "#ef4444", roughness: 0.7 }),
+    line: new THREE.LineBasicMaterial({ color: '#f5d28c' }),
+    point: new THREE.MeshStandardMaterial({ color: '#ef4444', roughness: 0.7 }),
   };
 
   disposableMaterials.push(
@@ -380,27 +346,16 @@ export function buildTileVectorGroup(
 
   let objectCount = 0;
   for (const feature of features) {
-    objectCount += addFeature(
-      feature,
-      projection,
-      buckets,
-      buildingBuckets,
-      markerTemplate,
-    );
+    objectCount += addFeature(feature, projection, buckets, buildingBuckets, markerTemplate);
   }
 
   const buildingTexture = getBuildingTexture(internalTextureLoader);
 
-  const roofMaterial = createBuildingRoofMaterial("#fff", textureLoader, tile);
+  const roofMaterial = createBuildingRoofMaterial('#fff', textureLoader, tile);
 
-  const wallMaterial = createBuildingWallMaterial(
-    "#fff",
-    buildingTexture,
-    textureLoader,
-    tile,
-  );
+  const wallMaterial = createBuildingWallMaterial('#fff', buildingTexture, textureLoader, tile);
 
-  const faceMaterial = createBuildingFaceMaterial("#f00", textureLoader, tile);
+  const faceMaterial = createBuildingFaceMaterial('#f00', textureLoader, tile);
 
   disposableMaterials.push(roofMaterial, wallMaterial, faceMaterial);
 
@@ -433,7 +388,7 @@ export function buildTileVectorGroup(
     for (const [styleId, entries] of highwayBuckets.entries()) {
       let material = null;
 
-      if (styleId === "default") {
+      if (styleId === 'default') {
         material = materials.highway;
       } else {
         material = entries[0].category.getMaterial(textureLoader);
@@ -463,7 +418,7 @@ export function buildTileVectorGroup(
     new THREE.Vector3(-halfWidth, 0.2, halfHeight),
   ]);
 
-  const outlineMaterial = new THREE.LineBasicMaterial({ color: "#d1d5db" });
+  const outlineMaterial = new THREE.LineBasicMaterial({ color: '#d1d5db' });
   group.add(new THREE.LineLoop(outlineGeometry, outlineMaterial));
 
   const getHighwayBWMask = (): THREE.CanvasTexture | null => {
@@ -471,20 +426,20 @@ export function buildTileVectorGroup(
       return null;
     }
 
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 1024;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) {
       return null;
     }
 
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#fff";
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+    ctx.strokeStyle = '#fff';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
     const halfWidth = projection.widthMeters * 0.5;
     const halfHeight = projection.heightMeters * 0.5;
@@ -495,19 +450,14 @@ export function buildTileVectorGroup(
         continue;
       }
 
-      ctx.lineWidth = Math.max(
-        4,
-        entry.widthMeters * HIGHWAY_WIDTH_METERS_SCALE * metersToPixels,
-      );
+      ctx.lineWidth = Math.max(4, entry.widthMeters * HIGHWAY_WIDTH_METERS_SCALE * metersToPixels);
 
       ctx.beginPath();
 
       for (let index = 0; index < entry.centerline.length; index += 1) {
         const point = entry.centerline[index];
-        const u =
-          ((point.x + halfWidth) / projection.widthMeters) * canvas.width;
-        const v =
-          ((point.z + halfHeight) / projection.heightMeters) * canvas.height;
+        const u = ((point.x + halfWidth) / projection.widthMeters) * canvas.width;
+        const v = ((point.z + halfHeight) / projection.heightMeters) * canvas.height;
 
         if (index === 0) {
           ctx.moveTo(u, v);

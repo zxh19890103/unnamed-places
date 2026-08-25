@@ -1,7 +1,7 @@
-import * as THREE from "three";
-import { getLocalBasisAtPoint } from "@/calc/sphere";
-import { LatLng } from "@/calc/types";
-import { latlngToSphere } from "@/_3dtiles";
+import * as THREE from 'three';
+import { getLocalBasisAtPoint } from '@/calc/sphere';
+import { LatLng } from '@/calc/types';
+import { latlngToSphere } from '@/_3dtiles';
 
 type Parameters = {
   /**
@@ -34,8 +34,8 @@ export class CloudGeometry extends THREE.BufferGeometry {
     const vertexCount = Math.max(0, Math.floor(count));
 
     if (vertexCount === 0) {
-      this.setAttribute("position", new THREE.Float32BufferAttribute([], 3));
-      this.setAttribute("spriteIndex", new THREE.Float32BufferAttribute([], 1));
+      this.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+      this.setAttribute('spriteIndex', new THREE.Float32BufferAttribute([], 1));
       return;
     }
 
@@ -44,9 +44,7 @@ export class CloudGeometry extends THREE.BufferGeometry {
       new THREE.Vector3(personPosition.x, personPosition.y, personPosition.z),
     );
 
-    const maxAltitudeRad = THREE.MathUtils.degToRad(
-      THREE.MathUtils.clamp(maxAltitudeDeg, 0, 90),
-    );
+    const maxAltitudeRad = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(maxAltitudeDeg, 0, 90));
     const maxSinAltitude = Math.sin(maxAltitudeRad);
     const minRadius = Math.max(0, radius);
     const radialBand = Math.max(0, bandWidth);
@@ -77,11 +75,8 @@ export class CloudGeometry extends THREE.BufferGeometry {
       spriteIndices[i] = Math.floor(Math.random() * 16);
     }
 
-    this.setAttribute("position", new THREE.Float32BufferAttribute(data, 3));
-    this.setAttribute(
-      "spriteIndex",
-      new THREE.Float32BufferAttribute(spriteIndices, 1),
-    );
+    this.setAttribute('position', new THREE.Float32BufferAttribute(data, 3));
+    this.setAttribute('spriteIndex', new THREE.Float32BufferAttribute(spriteIndices, 1));
 
     this.computeBoundingSphere();
   }

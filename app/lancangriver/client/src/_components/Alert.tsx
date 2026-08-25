@@ -1,4 +1,4 @@
-import * as AlertDialog from "@radix-ui/react-alert-dialog";
+import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import {
   CheckCircledIcon,
   Cross2Icon,
@@ -6,13 +6,13 @@ import {
   ExclamationTriangleIcon,
   InfoCircledIcon,
   QuestionMarkCircledIcon,
-} from "@radix-ui/react-icons";
-import clsx from "clsx";
-import React, { useRef } from "react";
-import { Button, IconButton } from "./Button";
-import { ComponentStoryBook } from "./_types";
+} from '@radix-ui/react-icons';
+import clsx from 'clsx';
+import React, { useRef } from 'react';
+import { Button, IconButton } from './Button';
+import { ComponentStoryBook } from './_types';
 
-type ButtonVariant = React.ComponentProps<typeof Button>["variant"];
+type ButtonVariant = React.ComponentProps<typeof Button>['variant'];
 
 type Props = {
   trigger?: React.ReactNode;
@@ -67,10 +67,7 @@ const AlertContext = React.createContext<AlertContextValue | null>(null);
 
 let activeController: AlertController | null = null;
 
-const variantIconMap: Record<
-  ButtonVariant,
-  React.ComponentType<{ className?: string }>
-> = {
+const variantIconMap: Record<ButtonVariant, React.ComponentType<{ className?: string }>> = {
   default: QuestionMarkCircledIcon,
   primary: InfoCircledIcon,
   secondary: QuestionMarkCircledIcon,
@@ -80,21 +77,21 @@ const variantIconMap: Record<
 };
 
 const variantTextClassName: Record<ButtonVariant, string> = {
-  default: "text-jade-text",
-  primary: "text-jade-river",
-  secondary: "text-jade-text",
-  destructive: "text-jade-error",
-  success: "text-jade-success",
-  silt: "text-jade-silt",
+  default: 'text-jade-text',
+  primary: 'text-jade-river',
+  secondary: 'text-jade-text',
+  destructive: 'text-jade-error',
+  success: 'text-jade-success',
+  silt: 'text-jade-silt',
 };
 
 const variantBorderClassName: Record<ButtonVariant, string> = {
-  default: "border-jade-border-soft",
-  primary: "border-jade-river/40",
-  secondary: "border-jade-border-soft",
-  destructive: "border-jade-error/40",
-  success: "border-jade-success/40",
-  silt: "border-jade-silt/40",
+  default: 'border-jade-border-soft',
+  primary: 'border-jade-river/40',
+  secondary: 'border-jade-border-soft',
+  destructive: 'border-jade-error/40',
+  success: 'border-jade-success/40',
+  silt: 'border-jade-silt/40',
 };
 
 export const AlertProvider = ({ children }: React.PropsWithChildren) => {
@@ -103,9 +100,7 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
 
   const destroy = React.useCallback((id: string) => {
     setAlerts((current) =>
-      current.map((alert) =>
-        alert.id === id ? { ...alert, closing: true } : alert,
-      ),
+      current.map((alert) => (alert.id === id ? { ...alert, closing: true } : alert)),
     );
 
     window.setTimeout(() => {
@@ -151,11 +146,11 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
   const confirm = React.useCallback(
     (text: React.ReactNode, title?: string) =>
       create({
-        title: title ?? "Confirm",
+        title: title ?? 'Confirm',
         description: text,
-        actionLabel: "Continue",
-        cancelLabel: "Cancel",
-        actionVariant: "primary",
+        actionLabel: 'Continue',
+        cancelLabel: 'Cancel',
+        actionVariant: 'primary',
         showCloseButton: false,
       }),
     [create],
@@ -164,10 +159,10 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
   const alert = React.useCallback(
     (text: React.ReactNode, title?: string) =>
       create({
-        title: title ?? "Notice",
+        title: title ?? 'Notice',
         description: text,
-        actionLabel: "OK",
-        actionVariant: "primary",
+        actionLabel: 'OK',
+        actionVariant: 'primary',
         showCloseButton: false,
       }),
     [create],
@@ -176,10 +171,10 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
   const info = React.useCallback(
     (text: React.ReactNode, title?: string) =>
       create({
-        title: title ?? "Information",
+        title: title ?? 'Information',
         description: text,
-        actionLabel: "OK",
-        actionVariant: "primary",
+        actionLabel: 'OK',
+        actionVariant: 'primary',
         showCloseButton: false,
       }),
     [create],
@@ -188,10 +183,10 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
   const error = React.useCallback(
     (text: React.ReactNode, title?: string) =>
       create({
-        title: title ?? "Error",
+        title: title ?? 'Error',
         description: text,
-        actionLabel: "OK",
-        actionVariant: "destructive",
+        actionLabel: 'OK',
+        actionVariant: 'destructive',
         showCloseButton: false,
       }),
     [create],
@@ -200,10 +195,10 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
   const warn = React.useCallback(
     (text: React.ReactNode, title?: string) =>
       create({
-        title: title ?? "Warning",
+        title: title ?? 'Warning',
         description: text,
-        actionLabel: "OK",
-        actionVariant: "silt",
+        actionLabel: 'OK',
+        actionVariant: 'silt',
         showCloseButton: false,
       }),
     [create],
@@ -212,10 +207,10 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
   const success = React.useCallback(
     (text: React.ReactNode, title?: string) =>
       create({
-        title: title ?? "Success",
+        title: title ?? 'Success',
         description: text,
-        actionLabel: "OK",
-        actionVariant: "success",
+        actionLabel: 'OK',
+        actionVariant: 'success',
         showCloseButton: false,
       }),
     [create],
@@ -271,7 +266,7 @@ export const AlertProvider = ({ children }: React.PropsWithChildren) => {
 export const useAlert = () => {
   const context = React.useContext(AlertContext);
   if (!context) {
-    throw new Error("useAlert must be used within an AlertProvider");
+    throw new Error('useAlert must be used within an AlertProvider');
   }
   return context;
 };
@@ -281,12 +276,12 @@ const AlertBase = ({
   open,
   defaultOpen,
   onOpenChange,
-  title = "Are you sure?",
-  description = "This action cannot be undone.",
+  title = 'Are you sure?',
+  description = 'This action cannot be undone.',
   children,
-  cancelLabel = "Cancel",
-  actionLabel = "Continue",
-  actionVariant = "primary",
+  cancelLabel = 'Cancel',
+  actionLabel = 'Continue',
+  actionVariant = 'primary',
   className,
   onCancel,
   onAction,
@@ -318,10 +313,9 @@ const AlertBase = ({
     }
   };
 
-  const IconComponent = variantIconMap[actionVariant ?? "primary"];
-  const titleIconClassName = variantTextClassName[actionVariant ?? "primary"];
-  const contentBorderClassName =
-    variantBorderClassName[actionVariant ?? "primary"];
+  const IconComponent = variantIconMap[actionVariant ?? 'primary'];
+  const titleIconClassName = variantTextClassName[actionVariant ?? 'primary'];
+  const contentBorderClassName = variantBorderClassName[actionVariant ?? 'primary'];
 
   return (
     <AlertDialog.Root
@@ -329,31 +323,29 @@ const AlertBase = ({
       defaultOpen={defaultOpen}
       onOpenChange={handleOpenChange}
     >
-      {trigger ? (
-        <AlertDialog.Trigger asChild>{trigger}</AlertDialog.Trigger>
-      ) : null}
+      {trigger ? <AlertDialog.Trigger asChild>{trigger}</AlertDialog.Trigger> : null}
 
       <AlertDialog.Portal container={portalTo}>
         <AlertDialog.Overlay
           className={clsx(
-            "fixed inset-0 bg-jade-950/45 backdrop-blur-[2px] transition-opacity duration-200",
-            isVisible && !closing ? "opacity-100" : "opacity-0",
+            'fixed inset-0 bg-jade-950/45 backdrop-blur-[2px] transition-opacity duration-200',
+            isVisible && !closing ? 'opacity-100' : 'opacity-0',
           )}
           style={{ zIndex }}
         />
         <AlertDialog.Content
           className={clsx(
-            "fixed left-1/2 top-1/2 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-jade-panel-raised p-5 text-jade-text shadow-[0_20px_60px_rgba(24,42,54,0.2)] transition-all duration-200 ease-out",
+            'fixed left-1/2 top-1/2 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-jade-panel-raised p-5 text-jade-text shadow-[0_20px_60px_rgba(24,42,54,0.2)] transition-all duration-200 ease-out',
             contentBorderClassName,
             className,
-            isVisible && !closing ? "opacity-100" : "opacity-0",
+            isVisible && !closing ? 'opacity-100' : 'opacity-0',
           )}
           style={{ zIndex }}
         >
           <div className="flex items-start gap-4">
             <div className="flex-1 min-w-0">
               <AlertDialog.Title className="flex items-center gap-2 text-base font-semibold text-jade-text">
-                <span className={clsx("shrink-0", titleIconClassName)}>
+                <span className={clsx('shrink-0', titleIconClassName)}>
                   <IconComponent className="size-4" />
                 </span>
                 <span>{title}</span>
@@ -366,11 +358,7 @@ const AlertBase = ({
             </div>
             {showCloseButton ? (
               <AlertDialog.Cancel asChild>
-                <IconButton
-                  onClick={onCancel}
-                  size="xs"
-                  aria-label="Close dialog"
-                >
+                <IconButton onClick={onCancel} size="xs" aria-label="Close dialog">
                   <Cross2Icon />
                 </IconButton>
               </AlertDialog.Cancel>
@@ -404,49 +392,45 @@ const AlertBase = ({
 export const Alert = AlertBase as AlertComponent;
 
 Alert.create = async (options: Partial<Props> = {}) => {
-  return (await activeController?.create(options)) ?? "";
+  return (await activeController?.create(options)) ?? '';
 };
 
 Alert.confirm = async (text: React.ReactNode, title?: string) => {
-  return (await activeController?.confirm(text, title)) ?? "";
+  return (await activeController?.confirm(text, title)) ?? '';
 };
 
 Alert.alert = async (text: React.ReactNode, title?: string) => {
-  return (await activeController?.alert(text, title)) ?? "";
+  return (await activeController?.alert(text, title)) ?? '';
 };
 
 Alert.info = async (text: React.ReactNode, title?: string) => {
-  return (await activeController?.info(text, title)) ?? "";
+  return (await activeController?.info(text, title)) ?? '';
 };
 
 Alert.error = async (text: React.ReactNode, title?: string) => {
-  return (await activeController?.error(text, title)) ?? "";
+  return (await activeController?.error(text, title)) ?? '';
 };
 
 Alert.warn = async (text: React.ReactNode, title?: string) => {
-  return (await activeController?.warn(text, title)) ?? "";
+  return (await activeController?.warn(text, title)) ?? '';
 };
 
 Alert.success = async (text: React.ReactNode, title?: string) => {
-  return (await activeController?.success(text, title)) ?? "";
+  return (await activeController?.success(text, title)) ?? '';
 };
 
 Alert.__storybook = (): ComponentStoryBook => {
   return [
     {
-      description:
-        "Launch a tiny demo that opens an error alert when you click the text.",
+      description: 'Launch a tiny demo that opens an error alert when you click the text.',
       run: () => {
         return (
           <AlertProvider>
             <p
               className="cursor-pointer text-sm font-medium text-jade-text"
               onClick={async () => {
-                await Alert.error(
-                  "The toast tried to leave the room.",
-                  "Oops, a tiny bug",
-                );
-                console.log("yes!");
+                await Alert.error('The toast tried to leave the room.', 'Oops, a tiny bug');
+                console.log('yes!');
               }}
             >
               Click me to summon a dramatic error.
@@ -456,96 +440,93 @@ Alert.__storybook = (): ComponentStoryBook => {
       },
     },
     {
-      description: "A calm informational message with a friendly blue accent.",
+      description: 'A calm informational message with a friendly blue accent.',
       props: {
         trigger: (
           <Button variant="primary" size="sm">
             Share view
           </Button>
         ),
-        title: "A friendly little heads-up",
-        description:
-          "Your map is looking sharp today, and the river is behaving.",
-        actionLabel: "Thanks",
+        title: 'A friendly little heads-up',
+        description: 'Your map is looking sharp today, and the river is behaving.',
+        actionLabel: 'Thanks',
       },
     },
     {
-      description: "A warning that wears the orange caution hat.",
+      description: 'A warning that wears the orange caution hat.',
       props: {
         trigger: (
           <Button variant="secondary" size="sm">
             Check status
           </Button>
         ),
-        actionVariant: "silt",
-        title: "The weather is being dramatic",
-        description: "The breeze is strong and the forecast may have opinions.",
-        actionLabel: "Acknowledge",
+        actionVariant: 'silt',
+        title: 'The weather is being dramatic',
+        description: 'The breeze is strong and the forecast may have opinions.',
+        actionLabel: 'Acknowledge',
       },
     },
     {
-      description: "A success toast for victories both large and tiny.",
+      description: 'A success toast for victories both large and tiny.',
       props: {
         trigger: (
           <Button variant="success" size="sm">
             Celebrate
           </Button>
         ),
-        actionVariant: "success",
-        title: "Mission accomplished",
-        description: "The selected river segment now has a victory ribbon.",
-        actionLabel: "Party",
+        actionVariant: 'success',
+        title: 'Mission accomplished',
+        description: 'The selected river segment now has a victory ribbon.',
+        actionLabel: 'Party',
       },
     },
     {
-      description:
-        "A red alert for when the situation becomes a little too spicy.",
+      description: 'A red alert for when the situation becomes a little too spicy.',
       props: {
         trigger: (
           <Button variant="destructive" size="sm">
             Trigger danger
           </Button>
         ),
-        actionVariant: "destructive",
-        title: "The alarm has gone full goblin",
-        description:
-          "Something important exploded, and the UI is not thrilled.",
-        actionLabel: "Accept chaos",
+        actionVariant: 'destructive',
+        title: 'The alarm has gone full goblin',
+        description: 'Something important exploded, and the UI is not thrilled.',
+        actionLabel: 'Accept chaos',
       },
     },
     {
-      description: "A confirmation flow with both continue and cancel choices.",
+      description: 'A confirmation flow with both continue and cancel choices.',
       props: {
         trigger: (
           <Button variant="primary" size="sm">
             Confirm action
           </Button>
         ),
-        actionVariant: "primary",
-        title: "Shall we continue this tiny adventure?",
-        description: "A gentle confirmation with two buttons and zero drama.",
-        actionLabel: "Continue",
-        cancelLabel: "Cancel",
+        actionVariant: 'primary',
+        title: 'Shall we continue this tiny adventure?',
+        description: 'A gentle confirmation with two buttons and zero drama.',
+        actionLabel: 'Continue',
+        cancelLabel: 'Cancel',
       },
     },
     {
-      description: "A confirmation flow with both continue and cancel choices.",
+      description: 'A confirmation flow with both continue and cancel choices.',
       props: {
         trigger: (
           <Button variant="primary" size="sm">
             Ask politely
           </Button>
         ),
-        actionVariant: "primary",
-        title: "Shall we continue this tiny adventure?",
-        description: "A gentle confirmation with two buttons and zero drama.",
-        actionLabel: "Continue",
-        cancelLabel: "Cancel",
+        actionVariant: 'primary',
+        title: 'Shall we continue this tiny adventure?',
+        description: 'A gentle confirmation with two buttons and zero drama.',
+        actionLabel: 'Continue',
+        cancelLabel: 'Cancel',
       },
     },
     {
       description:
-        "A gloriously overdramatic confirmation for when the stakes are suspiciously high.",
+        'A gloriously overdramatic confirmation for when the stakes are suspiciously high.',
       run: () => {
         return (
           <AlertProvider>
@@ -553,10 +534,10 @@ Alert.__storybook = (): ComponentStoryBook => {
               className="cursor-pointer text-sm font-medium text-jade-text"
               onClick={async () => {
                 await Alert.confirm(
-                  "This is the moment where the universe asks whether you are brave or just reckless.",
-                  "A tiny but dramatic choice",
+                  'This is the moment where the universe asks whether you are brave or just reckless.',
+                  'A tiny but dramatic choice',
                 );
-                Alert.info("You survived the suspense. Impressive.");
+                Alert.info('You survived the suspense. Impressive.');
               }}
             >
               Click here to test your courage.

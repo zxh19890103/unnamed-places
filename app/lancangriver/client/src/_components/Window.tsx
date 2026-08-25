@@ -1,8 +1,8 @@
-import { Cross1Icon } from "@radix-ui/react-icons";
-import { IconButton } from "./Button";
-import React, { useEffect, useRef, useState } from "react";
-import clsx from "clsx";
-import { ComponentStoryBook } from "./_types";
+import { Cross1Icon } from '@radix-ui/react-icons';
+import { IconButton } from './Button';
+import React, { useEffect, useRef, useState } from 'react';
+import clsx from 'clsx';
+import { ComponentStoryBook } from './_types';
 
 type Props = {
   winRole?: string;
@@ -17,9 +17,9 @@ type Props = {
 function onOpenStateChangeStub() {}
 
 export const ChildWindow = ({
-  title = "A child window",
-  winRole = "Another Data Presentation",
-  pageUrl = "https://google.com",
+  title = 'A child window',
+  winRole = 'Another Data Presentation',
+  pageUrl = 'https://google.com',
   onOpenStateChange = onOpenStateChangeStub,
   iframeElementRef,
   className,
@@ -37,8 +37,8 @@ export const ChildWindow = ({
       aria-modal="true"
       aria-labelledby="child-win-dialog-title"
       className={clsx(
-        "flex flex-col overflow-hidden rounded-xl bg-jade-panel text-jade-text",
-        className ? className : "h-full w-full ",
+        'flex flex-col overflow-hidden rounded-xl bg-jade-panel text-jade-text',
+        className ? className : 'h-full w-full ',
       )}
     >
       <header className="z-1 shadow-2xl shadow-jade-900/20 flex min-h-14 items-center justify-between gap-3 px-4 py-2.5">
@@ -46,18 +46,11 @@ export const ChildWindow = ({
           <p className="text-[10px] font-semibold tracking-[0.16em] text-jade-river uppercase">
             {winRole}
           </p>
-          <h2
-            id="flat-map-dialog-title"
-            className="truncate text-sm font-semibold"
-          >
+          <h2 id="flat-map-dialog-title" className="truncate text-sm font-semibold">
             {title}
           </h2>
         </div>
-        <IconButton
-          size="sm"
-          onClick={() => onOpenStateChange(false)}
-          aria-label={winRole}
-        >
+        <IconButton size="sm" onClick={() => onOpenStateChange(false)} aria-label={winRole}>
           <Cross1Icon />
         </IconButton>
       </header>
@@ -82,7 +75,7 @@ export const ChildWindow = ({
   );
 };
 
-ChildWindow.Modal = ({
+const ChildWindowModal = ({
   children,
   className,
   size = null,
@@ -102,7 +95,7 @@ ChildWindow.Modal = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         event.preventDefault();
         onClose?.(closeSignal);
       }
@@ -114,10 +107,10 @@ ChildWindow.Modal = ({
     };
 
     // backrdopRef.current?.addEventListener("click", requestClose);
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
       // backrdopRef.current?.removeEventListener("click", requestClose);
     };
   }, [closeSignal, onClose]);
@@ -125,14 +118,10 @@ ChildWindow.Modal = ({
   return (
     <>
       <div className="absolute inset-0 z-1994 grid place-items-center bg-jade-950/45 p-3 backdrop-blur-[2px]">
-        <div
-          ref={backrdopRef}
-          aria-label="backdrop"
-          className=" absolute inset-0"
-        />
+        <div ref={backrdopRef} aria-label="backdrop" className=" absolute inset-0" />
         <div
           className={clsx(
-            "h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl bg-jade-panel",
+            'h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl bg-jade-panel',
             className,
           )}
           style={
@@ -151,8 +140,10 @@ ChildWindow.Modal = ({
   );
 };
 
+ChildWindow.Modal = ChildWindowModal;
+
 ChildWindow.__storybook = (): ComponentStoryBook<Props> => {
   return {
-    pageUrl: "/flat",
+    pageUrl: '/flat',
   };
 };

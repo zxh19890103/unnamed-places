@@ -1,6 +1,6 @@
-import tzLookup from "tz-lookup";
+import tzLookup from 'tz-lookup';
 
-import type { LatLng } from "./types";
+import type { LatLng } from './types';
 
 function parseLocalTime(localTime: string) {
   const match = localTime.match(/^(\d{1,2}):(\d{2})$/);
@@ -20,24 +20,22 @@ function parseLocalTime(localTime: string) {
 }
 
 function getFormatter(timeZone: string) {
-  return new Intl.DateTimeFormat("en-CA", {
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
   });
 }
 
 function getParts(date: Date, timeZone: string) {
   const parts = getFormatter(timeZone).formatToParts(date);
   const lookup = Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
+    parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]),
   );
 
   return {

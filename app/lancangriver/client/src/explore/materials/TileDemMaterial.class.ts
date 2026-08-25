@@ -1,8 +1,8 @@
-import * as THREE from "three";
-import { BASE_URL, ELEVATION_SCALE, MAX_DEM_ZOOM } from "../../calc/constants";
-import { SphereTileKey } from "../_types";
-import vertexShader from "./shaders/tiledem.vert.glsl?raw";
-import fragmentShader from "./shaders/tiledem.basic.frag.glsl?raw";
+import * as THREE from 'three';
+import { BASE_URL, ELEVATION_SCALE, MAX_DEM_ZOOM } from '../../calc/constants';
+import { SphereTileKey } from '../_types';
+import vertexShader from './shaders/tiledem.vert.glsl?raw';
+import fragmentShader from './shaders/tiledem.basic.frag.glsl?raw';
 
 type Parameters = {
   tileKey: SphereTileKey;
@@ -30,10 +30,7 @@ function getDemSource(tileKey: SphereTileKey): {
       relativeX / childTilesPerSourceTile,
       1 - (relativeY + 1) / childTilesPerSourceTile,
     ),
-    uvScale: new THREE.Vector2(
-      1 / childTilesPerSourceTile,
-      1 / childTilesPerSourceTile,
-    ),
+    uvScale: new THREE.Vector2(1 / childTilesPerSourceTile, 1 / childTilesPerSourceTile),
   };
 }
 
@@ -144,14 +141,14 @@ export class TileDemMaterial extends THREE.ShaderMaterial {
     if (this.pendingSatelliteImage) {
       this.pendingSatelliteImage.onload = null;
       this.pendingSatelliteImage.onerror = null;
-      this.pendingSatelliteImage.src = "";
+      this.pendingSatelliteImage.src = '';
       this.pendingSatelliteImage = null;
     }
 
     if (this.pendingDemImage) {
       this.pendingDemImage.onload = null;
       this.pendingDemImage.onerror = null;
-      this.pendingDemImage.src = "";
+      this.pendingDemImage.src = '';
       this.pendingDemImage = null;
     }
 

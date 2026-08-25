@@ -1,26 +1,23 @@
-import { useEffect, useMemo, useRef } from "react";
-import * as L from "leaflet";
+import { useEffect, useMemo, useRef } from 'react';
+import * as L from 'leaflet';
 
-import { getLeafletFeatureStyle } from "./leafletStyle.js";
+import { getLeafletFeatureStyle } from './leafletStyle.js';
 
-import "leaflet/dist/leaflet.css";
+import 'leaflet/dist/leaflet.css';
 
 type LeafletVectorViewerProps = {
   features: GeoJSON.Feature[];
   tileKey: string;
 };
 
-export function LeafletVectorViewer({
-  features,
-  tileKey,
-}: LeafletVectorViewerProps) {
+export function LeafletVectorViewer({ features, tileKey }: LeafletVectorViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
 
   const geojson = useMemo<GeoJSON.FeatureCollection>(
     () => ({
-      type: "FeatureCollection",
+      type: 'FeatureCollection',
       features,
     }),
     [features],
@@ -44,9 +41,9 @@ export function LeafletVectorViewer({
     //   maxZoom: 19,
     // }).addTo(map);
 
-    L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
-      attribution: "&copy; Google Maps",
-      subdomains: ["0", "1", "2", "3"],
+    L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      attribution: '&copy; Google Maps',
+      subdomains: ['0', '1', '2', '3'],
       maxZoom: 20,
       maxNativeZoom: 21,
       detectRetina: true,

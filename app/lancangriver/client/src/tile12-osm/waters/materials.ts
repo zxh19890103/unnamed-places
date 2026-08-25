@@ -1,23 +1,23 @@
-import * as THREE from "three";
-import { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
+import * as THREE from 'three';
+import { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { shaderGlslSegments, uniformSettings } from '../_cfg.js';
 
 export function createWaterMaterial(
   textureLoader: THREE.TextureLoader,
   tile: TileCoords,
 ): THREE.ShaderMaterial {
-  const map = textureLoader.load("/textures/istockphoto-118337676-612x612.jpg");
+  const map = textureLoader.load('/textures/istockphoto-118337676-612x612.jpg');
 
   map.wrapS = THREE.MirroredRepeatWrapping;
   map.wrapT = THREE.MirroredRepeatWrapping;
 
-  const normalsMap = textureLoader.load("/textures/waternormals.jpg");
+  const normalsMap = textureLoader.load('/textures/waternormals.jpg');
   normalsMap.wrapS = THREE.MirroredRepeatWrapping;
   normalsMap.wrapT = THREE.MirroredRepeatWrapping;
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
-      baseColor: { value: new THREE.Color("#2C6F8C") },
+      baseColor: { value: new THREE.Color('#2C6F8C') },
       map: { value: map },
       normalsMap: { value: normalsMap },
       terrianMap: { value: null },
@@ -82,12 +82,10 @@ void main() {
     depthTest: false,
   });
 
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
   return material;
 }
@@ -96,18 +94,18 @@ export function createWaterRiverMaterial(
   textureLoader: THREE.TextureLoader,
   tile: TileCoords,
 ): THREE.ShaderMaterial {
-  const map = textureLoader.load("/textures/istockphoto-118337676-612x612.jpg");
+  const map = textureLoader.load('/textures/istockphoto-118337676-612x612.jpg');
 
   map.wrapS = THREE.MirroredRepeatWrapping;
   map.wrapT = THREE.MirroredRepeatWrapping;
 
-  const normalsMap = textureLoader.load("/textures/waternormals.jpg");
+  const normalsMap = textureLoader.load('/textures/waternormals.jpg');
   normalsMap.wrapS = THREE.MirroredRepeatWrapping;
   normalsMap.wrapT = THREE.MirroredRepeatWrapping;
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
-      baseColor: { value: new THREE.Color("#3B9FC4") },
+      baseColor: { value: new THREE.Color('#3B9FC4') },
       map: { value: map },
       normalsMap: { value: normalsMap },
       terrianMap: { value: null },
@@ -172,12 +170,10 @@ void main() {
     side: THREE.DoubleSide,
   });
 
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
   return material;
 }

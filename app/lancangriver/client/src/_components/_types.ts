@@ -5,7 +5,4 @@ type ComponentStorySpec<P extends {}> = {
 };
 
 export type ComponentStoryBook<P extends {} = {}> =
-  | P[]
-  | P
-  | ComponentStorySpec<P>
-  | ComponentStorySpec<P>[];
+  P[] | P | ComponentStorySpec<P> | ComponentStorySpec<P>[];

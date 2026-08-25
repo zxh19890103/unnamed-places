@@ -1,6 +1,6 @@
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { create3DTilesViewer } from "./3d-tiles.js";
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { create3DTilesViewer } from './3d-tiles.js';
 
 export type ViewMetrics = {
   layerSize: string;
@@ -20,9 +20,7 @@ export type GlobalZoomViewHandle = {
   dispose: () => void;
 };
 
-export function createGlobalZoomView(
-  params: CreateGlobalZoomViewParams,
-): GlobalZoomViewHandle {
+export function createGlobalZoomView(params: CreateGlobalZoomViewParams): GlobalZoomViewHandle {
   const { mountEl, onMetrics } = params;
 
   const scene = new THREE.Scene();
@@ -68,7 +66,7 @@ export function createGlobalZoomView(
     ThreeDTilesViewer.onEyesMove(camera.position);
   };
 
-  window.addEventListener("resize", onResize);
+  window.addEventListener('resize', onResize);
 
   const ThreeDTilesViewer = create3DTilesViewer({
     camera,
@@ -115,14 +113,14 @@ export function createGlobalZoomView(
     ThreeDTilesViewer.onEyesMove(camera.position.clone());
   };
 
-  controls.addEventListener("end", onControlsEnd);
+  controls.addEventListener('end', onControlsEnd);
 
   return {
     dispose: () => {
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener('resize', onResize);
       window.cancelAnimationFrame(animationFrameId);
 
-      controls.removeEventListener("end", onControlsEnd);
+      controls.removeEventListener('end', onControlsEnd);
       ThreeDTilesViewer.onDispose();
 
       controls.dispose();

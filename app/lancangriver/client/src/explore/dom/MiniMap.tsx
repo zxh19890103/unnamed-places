@@ -1,9 +1,9 @@
-import { LatLng } from "@/calc/types";
-import { memo, useEffect, useRef, useState } from "react";
-import { type ControlsManager } from "../ControlsManager.class";
-import { START_CENTER_LAT, START_CENTER_LON } from "@/calc/constants";
-import { GlobeIcon } from "@radix-ui/react-icons";
-import { Button, ChildWindow } from "@/_components";
+import { LatLng } from '@/calc/types';
+import { memo, useEffect, useRef, useState } from 'react';
+import { type ControlsManager } from '../ControlsManager.class';
+import { START_CENTER_LAT, START_CENTER_LON } from '@/calc/constants';
+import { GlobeIcon } from '@radix-ui/react-icons';
+import { Button, ChildWindow } from '@/_components';
 
 type Props = {
   lat: number;
@@ -55,19 +55,19 @@ export const MiniMap = memo(
       // orbitControls.addEventListener("end", handle);
       const customOrbitControls = orbitControls as typeof orbitControls & {
         addEventListener: (
-          type: "click",
+          type: 'click',
           listener: (event: Event & { latlng?: LatLng }) => void,
         ) => void;
         removeEventListener: (
-          type: "click",
+          type: 'click',
           listener: (event: Event & { latlng?: LatLng }) => void,
         ) => void;
       };
-      customOrbitControls.addEventListener("click", handleClick);
+      customOrbitControls.addEventListener('click', handleClick);
 
       return () => {
-        orbitControls.removeEventListener("end", handle);
-        customOrbitControls.removeEventListener("click", handleClick);
+        orbitControls.removeEventListener('end', handle);
+        customOrbitControls.removeEventListener('click', handleClick);
       };
     }, [controls, positionGetter]);
 
@@ -88,28 +88,18 @@ export const MiniMap = memo(
           )}
         </div>
 
-        {isOpen && (
-          <MiniMapLoader
-            onOpenOrClose={setIsOpen}
-            lat={latlng.lat}
-            lng={latlng.lng}
-          />
-        )}
+        {isOpen && <MiniMapLoader onOpenOrClose={setIsOpen} lat={latlng.lat} lng={latlng.lng} />}
       </div>
     );
   },
 );
 
 const MiniMapLoader = memo(
-  ({
-    lat,
-    lng,
-    onOpenOrClose,
-  }: Props & { onOpenOrClose: (open: boolean) => void }) => {
+  ({ lat, lng, onOpenOrClose }: Props & { onOpenOrClose: (open: boolean) => void }) => {
     const iframeElementRef = useRef<HTMLIFrameElement>(null);
 
     useEffect(() => {
-      const setLatlng = iframeElementRef.current.contentWindow["__setLatlng__"];
+      const setLatlng = iframeElementRef.current.contentWindow['__setLatlng__'];
       setLatlng?.(lat, lng);
     }, [lat, lng]);
 

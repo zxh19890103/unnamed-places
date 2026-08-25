@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import clsx from "clsx";
+import { useCallback, useEffect, useState } from 'react';
+import clsx from 'clsx';
 
-import { BASE_URL } from "../../calc/constants";
+import { BASE_URL } from '../../calc/constants';
 
 type TilesBytesResponse = {
   ok: boolean;
@@ -11,7 +11,7 @@ type TilesBytesResponse = {
 
 function formatBytes(bytes: number | null) {
   if (bytes === null) {
-    return "--";
+    return '--';
   }
 
   if (bytes < 1024) {
@@ -47,7 +47,7 @@ export function TilesBytes() {
         ? `${BASE_URL}/stats/tiles/bytes/recompute`
         : `${BASE_URL}/stats/tiles/bytes`;
       const response = await fetch(endpoint, {
-        method: forceRecompute ? "POST" : "GET",
+        method: forceRecompute ? 'POST' : 'GET',
       });
 
       if (!response.ok) {
@@ -58,7 +58,7 @@ export function TilesBytes() {
       setBytes(payload.bytes);
       setUpdatedAt(payload.updatedAt ?? null);
     } catch (_error) {
-      setError("unavailable");
+      setError('unavailable');
     } finally {
       setIsBusy(false);
     }
@@ -76,8 +76,8 @@ export function TilesBytes() {
       <div className="mt-2 flex items-center gap-2">
         <span
           className={clsx(
-            "min-w-0 text-sm font-medium tabular-nums text-jade-text",
-            error && "text-jade-error",
+            'min-w-0 text-sm font-medium tabular-nums text-jade-text',
+            error && 'text-jade-error',
           )}
         >
           {error ? error : formatBytes(bytes)}
@@ -91,13 +91,11 @@ export function TilesBytes() {
           }}
           className="rounded-lg border border-jade-border-soft bg-jade-control px-2.5 py-1 text-[11px] font-medium text-jade-text transition-colors hover:bg-jade-control-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isBusy ? "..." : "Recompute"}
+          {isBusy ? '...' : 'Recompute'}
         </button>
       </div>
       <div className="mt-2 text-[11px] text-jade-text-muted">
-        {updatedAt
-          ? `Updated ${new Date(updatedAt).toLocaleTimeString()}`
-          : "Not loaded"}
+        {updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString()}` : 'Not loaded'}
       </div>
     </div>
   );

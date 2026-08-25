@@ -8,7 +8,7 @@ describe('vector source registry', () => {
     const overtureFetcher = vi.fn();
     const registry = createVectorSourceRegistry({
       fetchOsmFeaturesForZ12Key: osmFetcher,
-      fetchOvertureFeaturesForZ12Key: overtureFetcher
+      fetchOvertureFeaturesForZ12Key: overtureFetcher,
     });
 
     expect(registry.getFetcherForSource('osm')).toBe(osmFetcher);
@@ -19,7 +19,7 @@ describe('vector source registry', () => {
     const overtureFetcher = vi.fn();
     const registry = createVectorSourceRegistry({
       fetchOsmFeaturesForZ12Key: osmFetcher,
-      fetchOvertureFeaturesForZ12Key: overtureFetcher
+      fetchOvertureFeaturesForZ12Key: overtureFetcher,
     });
 
     expect(registry.getFetcherForSource('overture')).toBe(overtureFetcher);
@@ -28,9 +28,11 @@ describe('vector source registry', () => {
   it('throws for unknown source names', () => {
     const registry = createVectorSourceRegistry({
       fetchOsmFeaturesForZ12Key: vi.fn(),
-      fetchOvertureFeaturesForZ12Key: vi.fn()
+      fetchOvertureFeaturesForZ12Key: vi.fn(),
     });
 
-    expect(() => registry.getFetcherForSource('unknown')).toThrow('Unsupported vector ingest source: unknown');
+    expect(() => registry.getFetcherForSource('unknown')).toThrow(
+      'Unsupported vector ingest source: unknown',
+    );
   });
 });

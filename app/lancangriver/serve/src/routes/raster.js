@@ -10,14 +10,15 @@ import { PNG } from 'pngjs';
 
 const DEFAULT_SATELLITE_URL_TEMPLATE = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&scale=4';
 // https://www.mapzen.com/blog/terrain-tile-service/
-const DEFAULT_DEM_PNG_URL_TEMPLATE = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+const DEFAULT_DEM_PNG_URL_TEMPLATE =
+  'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 const MAX_DEM_ZOOM = 15;
 const DEM_TILE_SIZE = 256;
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 const DEFAULT_PYTHON_EXECUTABLE = resolve(REPO_ROOT, '.venv/bin/python');
 const CLASSIFIER_SCRIPT_PATH = resolve(
   REPO_ROOT,
-  'app/lancangriver/pipeline/src/preprocess/cv2_clean_satellite_images.py'
+  'app/lancangriver/pipeline/src/preprocess/cv2_clean_satellite_images.py',
 );
 
 function templateUrl(template, values) {
@@ -120,8 +121,7 @@ export function zxyToBBox(z, x, y) {
   const east = ((x + 1) / tileCount) * 360 - 180;
 
   const north = (180 / Math.PI) * Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / tileCount)));
-  const south =
-    (180 / Math.PI) * Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / tileCount)));
+  const south = (180 / Math.PI) * Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / tileCount)));
 
   return [west, south, east, north];
 }
@@ -133,19 +133,12 @@ export function buildRasterPaths(rasterRoot, z, x, y) {
     tileRoot,
     satellitePath: join(tileRoot, 'satellite.jpeg'),
     demPngPath: join(tileRoot, 'dem.png'),
-    demAltitudePath: join(tileRoot, 'dem.altitude.json')
+    demAltitudePath: join(tileRoot, 'dem.altitude.json'),
   };
 }
 
 function buildDemComposePath(composedRoot, z, x, y, extent, scale = 1) {
-  return resolve(
-    composedRoot,
-    'dem',
-    String(z),
-    String(x),
-    String(y),
-    `e${extent}-s${scale}.png`
-  );
+  return resolve(composedRoot, 'dem', String(z), String(x), String(y), `e${extent}-s${scale}.png`);
 }
 
 function buildScaledDemComposePath(composedRoot, z, x, y, scale = 1) {
@@ -183,7 +176,7 @@ function buildNeighborTiles(z, centerX, centerY, extent) {
         x: wrappedX,
         y: clampedY,
         row,
-        col
+        col,
       });
     }
   }
@@ -197,8 +190,8 @@ async function createTransparentTilePng() {
       width: DEM_TILE_SIZE,
       height: DEM_TILE_SIZE,
       channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    }
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
   })
     .png()
     .toBuffer();
@@ -240,13 +233,13 @@ async function defaultFetchDemPngTile(z, x, y, rasterOptions) {
 
 async function defaultCleanSatelliteTile(inputPath, rasterOptions) {
   const pythonExecutable = rasterOptions.pythonExecutable ?? DEFAULT_PYTHON_EXECUTABLE;
-  const resolvedPythonExecutable = await isExistingPath(pythonExecutable)
+  const resolvedPythonExecutable = (await isExistingPath(pythonExecutable))
     ? pythonExecutable
     : 'python3';
 
   const outputPath = join(
     tmpdir(),
-    `lancangriver-clean-${process.pid}-${Date.now()}-${Math.round(Math.random() * 1e6)}.png`
+    `lancangriver-clean-${process.pid}-${Date.now()}-${Math.round(Math.random() * 1e6)}.png`,
   );
 
   await ensureDirectory(outputPath);
@@ -255,7 +248,7 @@ async function defaultCleanSatelliteTile(inputPath, rasterOptions) {
     const child = spawn(
       resolvedPythonExecutable,
       [CLASSIFIER_SCRIPT_PATH, '--input', inputPath, '--output', outputPath],
-      { stdio: ['ignore', 'pipe', 'pipe'] }
+      { stdio: ['ignore', 'pipe', 'pipe'] },
     );
 
     let stderr = '';
@@ -283,7 +276,7 @@ async function defaultCleanSatelliteTile(inputPath, rasterOptions) {
     const cleanedBuffer = await readFile(outputPath);
     return cleanedBuffer;
   } finally {
-    await unlink(outputPath).catch(() => { });
+    await unlink(outputPath).catch(() => {});
   }
 }
 
@@ -294,7 +287,9 @@ const derivativesInFlight = createInFlightMap();
 
 function createRasterHandlerOptions(options = {}) {
   const rasterOptions = options.raster ?? options;
-  const rasterRoot = rasterOptions.rasterRoot ? resolve(rasterOptions.rasterRoot) : resolve('.tiles');
+  const rasterRoot = rasterOptions.rasterRoot
+    ? resolve(rasterOptions.rasterRoot)
+    : resolve('.tiles');
 
   return {
     rasterRoot,
@@ -307,7 +302,7 @@ function createRasterHandlerOptions(options = {}) {
     fetchDemPngTile: rasterOptions.fetchDemPngTile,
     composeDemNeighborhood: rasterOptions.composeDemNeighborhood,
     cleanSatelliteTile: rasterOptions.cleanSatelliteTile ?? defaultCleanSatelliteTile,
-    pythonExecutable: rasterOptions.pythonExecutable
+    pythonExecutable: rasterOptions.pythonExecutable,
   };
 }
 
@@ -319,8 +314,8 @@ function sendRasterError(res, status, code, reason, runtimeError = null) {
   res.status(status).json({
     error: {
       code,
-      reason
-    }
+      reason,
+    },
   });
 }
 
@@ -354,7 +349,7 @@ async function readDemAltitudeFromPng(pngPath) {
     const r = data[offset];
     const g = data[offset + 1];
     const b = data[offset + 2];
-    const elevation = (r * 256.0 + g + b / 256.0) - 32768.0;
+    const elevation = r * 256.0 + g + b / 256.0 - 32768.0;
 
     if (elevation < min) {
       min = elevation;
@@ -371,7 +366,7 @@ async function readDemAltitudeFromPng(pngPath) {
   return {
     min,
     max,
-    avg: count > 0 ? sum / count : 0
+    avg: count > 0 ? sum / count : 0,
   };
 }
 
@@ -391,7 +386,7 @@ function computeSlopeAspect(demData, width, height) {
         const r = demData[pidx];
         const g = demData[pidx + 1];
         const b = demData[pidx + 2];
-        return (r * 256 + g + b / 256) - 32768;
+        return r * 256 + g + b / 256 - 32768;
       };
 
       // Read 3x3 neighborhood
@@ -416,10 +411,10 @@ function computeSlopeAspect(demData, width, height) {
       if (aspect < 0) aspect += 2 * Math.PI;
 
       // Pack to RGBA
-      output[idx] = Math.round(Math.max(0, Math.min(255, (slope / 90) * 255)));       // R = slope
-      output[idx + 1] = Math.round((Math.sin(aspect) * 0.5 + 0.5) * 255);              // G = sin(aspect)
-      output[idx + 2] = Math.round((Math.cos(aspect) * 0.5 + 0.5) * 255);              // B = cos(aspect)
-      output[idx + 3] = 255;                                                             // A = 255
+      output[idx] = Math.round(Math.max(0, Math.min(255, (slope / 90) * 255))); // R = slope
+      output[idx + 1] = Math.round((Math.sin(aspect) * 0.5 + 0.5) * 255); // G = sin(aspect)
+      output[idx + 2] = Math.round((Math.cos(aspect) * 0.5 + 0.5) * 255); // B = cos(aspect)
+      output[idx + 3] = 255; // A = 255
     }
   }
 
@@ -473,7 +468,8 @@ export function createRasterRouter(options = {}) {
   const router = Router();
 
   const fetchSatelliteTile =
-    rasterOptions.fetchSatelliteTile ?? ((z, x, y) => defaultFetchSatelliteTile(z, x, y, rasterOptions));
+    rasterOptions.fetchSatelliteTile ??
+    ((z, x, y) => defaultFetchSatelliteTile(z, x, y, rasterOptions));
   const fetchDemPngTile =
     rasterOptions.fetchDemPngTile ?? ((z, x, y) => defaultFetchDemPngTile(z, x, y, rasterOptions));
 
@@ -513,13 +509,13 @@ export function createRasterRouter(options = {}) {
           width: size * DEM_TILE_SIZE,
           height: size * DEM_TILE_SIZE,
           channels: 4,
-          background: { r: 0, g: 0, b: 0, alpha: 0 }
-        }
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        },
       })
         .composite(inputs)
         .resize(outputWidth, outputHeight, {
           fit: 'fill',
-          kernel: sharp.kernel.lanczos3
+          kernel: sharp.kernel.lanczos3,
         })
         .png();
 
@@ -595,8 +591,8 @@ export function createRasterRouter(options = {}) {
           width: outputWidth,
           height: outputHeight,
           channels: 4,
-          background: { r: 0, g: 0, b: 0, alpha: 0 }
-        }
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        },
       })
         .composite(inputs)
         .png();
@@ -624,7 +620,7 @@ export function createRasterRouter(options = {}) {
 
       return {
         outputPath: result.outputPath ?? result.path ?? outputPath,
-        cached: result.cached ?? false
+        cached: result.cached ?? false,
       };
     });
   }
@@ -664,7 +660,13 @@ export function createRasterRouter(options = {}) {
       res.set('Cache-Control', 'public, max-age=3600');
       res.send(cleanedTile);
     } catch (_error) {
-      sendRasterError(res, 500, 'SATELLITE_TILE_CLEAN_STREAM_FAILED', 'Internal server error', _error);
+      sendRasterError(
+        res,
+        500,
+        'SATELLITE_TILE_CLEAN_STREAM_FAILED',
+        'Internal server error',
+        _error,
+      );
     }
   });
 
@@ -723,7 +725,7 @@ export function createRasterRouter(options = {}) {
         cached: altitudeResult.cached,
         min: altitudeResult.min,
         max: altitudeResult.max,
-        avg: altitudeResult.avg
+        avg: altitudeResult.avg,
       });
     } catch (_error) {
       sendRasterError(res, 500, 'DEM_ALTITUDE_FAILED', 'Internal server error', _error);
@@ -806,7 +808,7 @@ export function createRasterRouter(options = {}) {
       res.status(200).json({
         ok: true,
         kind: 'satellite',
-        ...result
+        ...result,
       });
     } catch (_error) {
       sendRasterError(res, 500, 'SATELLITE_TILE_FAILED', 'Internal server error');
@@ -835,7 +837,7 @@ export function createRasterRouter(options = {}) {
         ok: true,
         kind: 'dem',
         pngPath: pngResult.pngPath ?? pngResult.path,
-        pngCached: pngResult.pngCached ?? pngResult.cached ?? true
+        pngCached: pngResult.pngCached ?? pngResult.cached ?? true,
       });
     } catch (error) {
       sendRasterError(res, 500, 'DEM_TILE_FAILED', 'Internal server error');
@@ -864,7 +866,7 @@ export function createRasterRouter(options = {}) {
         ok: true,
         kind: 'dem-png',
         path: pngResult.pngPath ?? pngResult.path,
-        cached: pngResult.pngCached ?? pngResult.cached ?? true
+        cached: pngResult.pngCached ?? pngResult.cached ?? true,
       });
     } catch (error) {
       sendRasterError(res, 500, 'DEM_PNG_RENDER_FAILED', 'Internal server error');
@@ -884,7 +886,12 @@ export function createRasterRouter(options = {}) {
     }
 
     if (z > MAX_DEM_ZOOM) {
-      sendRasterError(res, 400, 'DEM_ZOOM_TOO_HIGH', 'Derivatives only support zoom levels up to 15');
+      sendRasterError(
+        res,
+        400,
+        'DEM_ZOOM_TOO_HIGH',
+        'Derivatives only support zoom levels up to 15',
+      );
       return;
     }
 

@@ -1,18 +1,18 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
-import { spawn } from "node:child_process";
-import { readdir } from "node:fs/promises";
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { spawn } from 'node:child_process';
+import { readdir } from 'node:fs/promises';
 
-import path, { extname, join } from "node:path";
-import exifr from "exifr";
+import path, { extname, join } from 'node:path';
+import exifr from 'exifr';
 
-import { __dirname } from "./context.js";
+import { __dirname } from './context.js';
 
-const DEV_CLIENT_URL = process.env.ELECTRON_RENDERER_URL || "http://localhost:5173";
-const SERVICE_PORT = process.env.PORT || "4050";
+const DEV_CLIENT_URL = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173';
+const SERVICE_PORT = process.env.PORT || '4050';
 
 let bundledServiceProcess = null;
 
-const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".heic", ".webp"]);
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.heic', '.webp']);
 
 const scanFolderForGeotaggedPhotos = async (rootPath) => {
   const entries = await readdir(rootPath, { withFileTypes: true });
@@ -26,7 +26,7 @@ const scanFolderForGeotaggedPhotos = async (rootPath) => {
   for (const filePath of files) {
     const gps = await exifr.gps(filePath).catch(() => null);
 
-    if (!gps || typeof gps.latitude !== "number" || typeof gps.longitude !== "number") {
+    if (!gps || typeof gps.latitude !== 'number' || typeof gps.longitude !== 'number') {
       continue;
     }
 
@@ -44,26 +44,26 @@ const scanFolderForGeotaggedPhotos = async (rootPath) => {
 
 const startBundledService = () => {
   if (!app.isPackaged || bundledServiceProcess) {
-    console.log("Skipping bundled service start (not packaged or already running)");
+    console.log('Skipping bundled service start (not packaged or already running)');
     return;
   }
 
-  const serviceRootDir = join(process.resourcesPath, "lancangriver", "serve");
-  const serviceEntry = join(serviceRootDir, "dist", "server.js");
+  const serviceRootDir = join(process.resourcesPath, 'lancangriver', 'serve');
+  const serviceEntry = join(serviceRootDir, 'dist', 'server.js');
   const serviceCwd = serviceRootDir;
 
   bundledServiceProcess = spawn(process.execPath, [serviceEntry], {
     cwd: serviceCwd,
-    stdio: "inherit",
+    stdio: 'inherit',
     env: {
       ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      NODE_ENV: "production",
+      ELECTRON_RUN_AS_NODE: '1',
+      NODE_ENV: 'production',
       PORT: SERVICE_PORT,
     },
   });
 
-  bundledServiceProcess.on("exit", (code, signal) => {
+  bundledServiceProcess.on('exit', (code, signal) => {
     console.log(`Bundled service exited (code=${code}, signal=${signal})`);
     bundledServiceProcess = null;
   });
@@ -71,8 +71,8 @@ const startBundledService = () => {
 
 const stopBundledService = () => {
   if (bundledServiceProcess && !bundledServiceProcess.killed) {
-    console.log("Stopping bundled service...");
-    bundledServiceProcess.kill("SIGTERM");
+    console.log('Stopping bundled service...');
+    bundledServiceProcess.kill('SIGTERM');
   }
 };
 
@@ -81,28 +81,28 @@ const createWindow = async () => {
     width: 1280,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, 'preload.js'),
       sandbox: true,
     },
   });
 
   if (!app.isPackaged) {
-    console.log("Loading development client URL...");
+    console.log('Loading development client URL...');
     await win.loadURL(DEV_CLIENT_URL);
     // win.webContents.openDevTools();
     return;
   }
 
-  await win.loadFile(join(__dirname, "lancangriver", "client", "dist", "index.html"));
+  await win.loadFile(join(__dirname, 'lancangriver', 'client', 'dist', 'index.html'));
 };
 
 app.whenReady().then(() => {
-  ipcMain.handle("photos:pick-and-load", async () => {
+  ipcMain.handle('photos:pick-and-load', async () => {
     const focusedWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
 
     const selection = await dialog.showOpenDialog(focusedWindow, {
-      title: "Select photo folder",
-      properties: ["openDirectory"],
+      title: 'Select photo folder',
+      properties: ['openDirectory'],
     });
 
     if (selection.canceled || selection.filePaths.length === 0) {
@@ -115,16 +115,16 @@ app.whenReady().then(() => {
   startBundledService();
   createWindow();
 
-  app.on("activate", () => {
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
 });
 
-app.on("before-quit", () => {
-  ipcMain.removeHandler("photos:pick-and-load");
+app.on('before-quit', () => {
+  ipcMain.removeHandler('photos:pick-and-load');
   stopBundledService();
 });

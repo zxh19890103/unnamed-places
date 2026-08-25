@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { LatLng } from "@/calc/types";
+import * as THREE from 'three';
+import { LatLng } from '@/calc/types';
 
 export const EARTH_RADIUS = 6_371_008.8;
 export const DEG_TO_RAD = Math.PI / 180;
@@ -24,11 +24,7 @@ export function normalizeLongitude(lng: number): number {
   return wrapped - 180;
 }
 
-function latlngToPerfectSphere(
-  lat: number,
-  lng: number,
-  alt: number = 0,
-): THREE.Vector3Like {
+function latlngToPerfectSphere(lat: number, lng: number, alt: number = 0): THREE.Vector3Like {
   const latRad = lat * DEG_TO_RAD;
   const lngRad = lng * DEG_TO_RAD;
   const cosLat = Math.cos(latRad);
@@ -46,7 +42,7 @@ function perfectSphereToLatlng(x: number, y: number, z: number): LatLng {
   const radius = Math.hypot(x, y, z);
 
   if (radius === 0) {
-    throw new Error("sphereToLatlng requires a non-zero vector");
+    throw new Error('sphereToLatlng requires a non-zero vector');
   }
 
   const lat = Math.asin(y / radius) * RAD_TO_DEG;
@@ -73,7 +69,7 @@ function ellipsoidToLatlng(x: number, y: number, z: number): LatLng {
   const horizontal = Math.hypot(x, z);
 
   if (horizontal === 0 && y === 0) {
-    throw new Error("ellipsoidToLatlng requires a non-zero vector");
+    throw new Error('ellipsoidToLatlng requires a non-zero vector');
   }
 
   if (horizontal === 0) {

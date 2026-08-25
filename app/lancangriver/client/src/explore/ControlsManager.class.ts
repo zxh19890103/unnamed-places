@@ -1,15 +1,11 @@
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { FlyControls } from "three/examples/jsm/controls/FlyControls.js";
-import {
-  FLY_MOVEMENT_SPEED,
-  FLY_ROLL_SPEED,
-  EARTH_RADIUS,
-} from "../calc/constants";
-import { PointerControls } from "./controls/PointerControls.class";
-import { Create3dTilesViewer } from "@/_3dtiles";
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { FlyControls } from 'three/examples/jsm/controls/FlyControls.js';
+import { FLY_MOVEMENT_SPEED, FLY_ROLL_SPEED, EARTH_RADIUS } from '../calc/constants';
+import { PointerControls } from './controls/PointerControls.class';
+import { Create3dTilesViewer } from '@/_3dtiles';
 
-export type ControlMode = "none" | "pointer" | "orbit" | "fly";
+export type ControlMode = 'none' | 'pointer' | 'orbit' | 'fly';
 
 export interface ControlsManagerOptions {
   threeTilesViewer: Create3dTilesViewer;
@@ -28,7 +24,7 @@ export class ControlsManager {
   public readonly pointerControls: PointerControls;
 
   private _enabled: boolean;
-  private _mode: ControlMode = "orbit";
+  private _mode: ControlMode = 'orbit';
   private _tweenInProgress: boolean = false;
 
   onModeChange?: (from: ControlMode, to: ControlMode) => void;
@@ -55,14 +51,9 @@ export class ControlsManager {
     this.flyControls.dragToLook = true;
     this.flyControls.enabled = false;
 
-    this.pointerControls = new PointerControls(
-      threeTilesViewer,
-      camera,
-      domElement,
-      {
-        enabled: false,
-      },
-    );
+    this.pointerControls = new PointerControls(threeTilesViewer, camera, domElement, {
+      enabled: false,
+    });
 
     this.applyEnabledState();
   }
@@ -90,11 +81,11 @@ export class ControlsManager {
       return;
     }
 
-    if (this._mode === "fly") {
+    if (this._mode === 'fly') {
       return;
     }
 
-    this.switchMode("fly");
+    this.switchMode('fly');
   }
 
   /**
@@ -105,11 +96,11 @@ export class ControlsManager {
       return;
     }
 
-    if (this._mode === "fly") {
+    if (this._mode === 'fly') {
       return; // Already in fly mode
     }
 
-    this.switchMode("fly");
+    this.switchMode('fly');
   }
 
   /**
@@ -121,11 +112,11 @@ export class ControlsManager {
       return;
     }
 
-    if (this._mode !== "fly") {
+    if (this._mode !== 'fly') {
       return; // Not in fly mode
     }
 
-    this.switchMode("orbit");
+    this.switchMode('orbit');
   }
 
   /**
@@ -137,15 +128,15 @@ export class ControlsManager {
     }
 
     switch (this._mode) {
-      case "none":
+      case 'none':
         break;
-      case "orbit":
+      case 'orbit':
         this.orbitControls.update(delta);
         break;
-      case "pointer":
+      case 'pointer':
         // Event-driven, no per-frame update
         break;
-      case "fly":
+      case 'fly':
         this.flyControls.update(delta);
         break;
     }
@@ -188,7 +179,7 @@ export class ControlsManager {
   }
 
   private getHandoffTarget(mode: ControlMode): THREE.Vector3 {
-    if (mode === "orbit") {
+    if (mode === 'orbit') {
       return this.orbitControls.target.clone();
     }
 
@@ -196,7 +187,7 @@ export class ControlsManager {
   }
 
   private applyHandoffTarget(mode: ControlMode, target: THREE.Vector3): void {
-    if (mode === "orbit") {
+    if (mode === 'orbit') {
       this.orbitControls.target.set(0, 0, 0);
       this.camera.lookAt(this.orbitControls.target);
       this.camera.updateMatrixWorld(true);
@@ -206,16 +197,16 @@ export class ControlsManager {
   }
 
   private applyEnabledState(): void {
-    if (!this._enabled || this._mode === "none") {
-      this.setControlEnabled("orbit", false);
-      this.setControlEnabled("pointer", false);
-      this.setControlEnabled("fly", false);
+    if (!this._enabled || this._mode === 'none') {
+      this.setControlEnabled('orbit', false);
+      this.setControlEnabled('pointer', false);
+      this.setControlEnabled('fly', false);
       return;
     }
 
-    this.setControlEnabled("orbit", this._mode === "orbit");
-    this.setControlEnabled("pointer", this._mode === "pointer");
-    this.setControlEnabled("fly", this._mode === "fly");
+    this.setControlEnabled('orbit', this._mode === 'orbit');
+    this.setControlEnabled('pointer', this._mode === 'pointer');
+    this.setControlEnabled('fly', this._mode === 'fly');
   }
 
   /**
@@ -223,15 +214,15 @@ export class ControlsManager {
    */
   private setControlEnabled(mode: ControlMode, enabled: boolean): void {
     switch (mode) {
-      case "none":
+      case 'none':
         break;
-      case "orbit":
+      case 'orbit':
         this.orbitControls.enabled = enabled;
         break;
-      case "pointer":
+      case 'pointer':
         this.pointerControls.enabled = enabled;
         break;
-      case "fly":
+      case 'fly':
         this.flyControls.enabled = enabled;
         break;
     }
@@ -261,6 +252,6 @@ export class ControlsManager {
    * Check if fly mode is currently active.
    */
   isFlyMode(): boolean {
-    return this._mode === "fly";
+    return this._mode === 'fly';
   }
 }

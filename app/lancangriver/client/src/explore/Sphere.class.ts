@@ -1,11 +1,11 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
-import { EARTH_RADIUS } from "../calc/constants";
-import { SphereTile } from "./SphereTile.class";
-import { SphereTileKey } from "./_types";
-import { ControlMode, ControlsManager } from "./ControlsManager.class";
-import type { TilesManager } from "./TilesManager.class";
-import { latlngToStandardTileZxy, Create3dTilesViewer } from "@/_3dtiles";
+import { EARTH_RADIUS } from '../calc/constants';
+import { SphereTile } from './SphereTile.class';
+import { SphereTileKey } from './_types';
+import { ControlMode, ControlsManager } from './ControlsManager.class';
+import type { TilesManager } from './TilesManager.class';
+import { latlngToStandardTileZxy, Create3dTilesViewer } from '@/_3dtiles';
 
 export type SphereStatsPayload = {
   cameraDistanceMeters: number;
@@ -21,11 +21,11 @@ export type SphereStatsPayload = {
 };
 
 export type SphereStatsEvent = Event & {
-  type: "stats";
+  type: 'stats';
   payload: SphereStatsPayload;
 };
 
-declare module "three" {
+declare module 'three' {
   interface Object3DEventMap {
     stats: SphereStatsEvent;
   }
@@ -73,8 +73,7 @@ export class Sphere extends THREE.Group {
     this._statsTimer = setInterval(() => {
       const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
 
-      const zoomLevel =
-        this.threeTilesViewer.distanceToZoom(cameraDistanceMeters);
+      const zoomLevel = this.threeTilesViewer.distanceToZoom(cameraDistanceMeters);
       const loadingSnapshot = getLoadingSnapshot();
 
       this.dispatchStats({
@@ -109,10 +108,7 @@ export class Sphere extends THREE.Group {
     }
 
     const sorted = [...this.frameTimesMs].sort((a, b) => a - b);
-    const p95Index = Math.min(
-      sorted.length - 1,
-      Math.floor(sorted.length * 0.95),
-    );
+    const p95Index = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
 
     return sorted[p95Index];
   }
@@ -148,7 +144,7 @@ export class Sphere extends THREE.Group {
 
   dispatchStats(payload: SphereStatsPayload) {
     this.lastStats = payload;
-    this.dispatchEvent({ type: "stats", payload } as SphereStatsEvent);
+    this.dispatchEvent({ type: 'stats', payload } as SphereStatsEvent);
   }
 
   getStatsSnapshot() {
@@ -156,11 +152,11 @@ export class Sphere extends THREE.Group {
   }
 
   addStatsListener(listener: (event: SphereStatsEvent) => void) {
-    this.addEventListener("stats", listener as EventListener);
+    this.addEventListener('stats', listener as EventListener);
   }
 
   removeStatsListener(listener: (event: SphereStatsEvent) => void) {
-    this.removeEventListener("stats", listener as EventListener);
+    this.removeEventListener('stats', listener as EventListener);
   }
 
   dispose() {

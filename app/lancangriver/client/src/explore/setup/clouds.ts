@@ -1,7 +1,7 @@
-import * as THREE from "three";
-import { LatLng } from "../../calc/types";
-import { CloudGeometry } from "../geometries/CloudGeometry.class";
-import { CloudMaterial } from "../materials/CloudMaterial.class";
+import * as THREE from 'three';
+import { LatLng } from '../../calc/types';
+import { CloudGeometry } from '../geometries/CloudGeometry.class';
+import { CloudMaterial } from '../materials/CloudMaterial.class';
 
 export type GroundOrbitCloudsController = {
   syncCloudsAtTarget: (params: {
@@ -23,8 +23,7 @@ export function createGroundOrbitCloudsController(params: {
   const REBUILD_LAT_LNG_THRESHOLD_DEG = 0.2;
   const REBUILD_RADIUS_RATIO_THRESHOLD = 0.35;
 
-  let groundOrbitClouds: THREE.Points<CloudGeometry, CloudMaterial> | null =
-    null;
+  let groundOrbitClouds: THREE.Points<CloudGeometry, CloudMaterial> | null = null;
   let lastLatlng: LatLng | null = null;
   let lastCloudRadius = 0;
 
@@ -40,8 +39,7 @@ export function createGroundOrbitCloudsController(params: {
 
     const latDelta = Math.abs(nextLatlng.lat - lastLatlng.lat);
     const lngDelta = normalizedLngDelta(nextLatlng.lng, lastLatlng.lng);
-    const radiusDeltaRatio =
-      Math.abs(nextRadius - lastCloudRadius) / Math.max(1, lastCloudRadius);
+    const radiusDeltaRatio = Math.abs(nextRadius - lastCloudRadius) / Math.max(1, lastCloudRadius);
 
     return (
       latDelta > REBUILD_LAT_LNG_THRESHOLD_DEG ||
@@ -76,8 +74,7 @@ export function createGroundOrbitCloudsController(params: {
   }) => {
     clear();
 
-    const cloudRadius =
-      CLOUD_RADIUS_MULTIPLIER * Math.max(1, cameraDistanceMeters);
+    const cloudRadius = CLOUD_RADIUS_MULTIPLIER * Math.max(1, cameraDistanceMeters);
     const cloudGeometry = new CloudGeometry({
       latlng,
       radius: cloudRadius,
@@ -87,7 +84,7 @@ export function createGroundOrbitCloudsController(params: {
     });
 
     const cloudMaterial = new CloudMaterial({
-      color: "#ffffff",
+      color: '#ffffff',
       size: 300,
       opacity: 0.55,
       softness: 0.6,
@@ -117,8 +114,7 @@ export function createGroundOrbitCloudsController(params: {
     cameraDistanceMeters: number;
     viewportHeight: number;
   }) => {
-    const nextCloudRadius =
-      CLOUD_RADIUS_MULTIPLIER * Math.max(1, cameraDistanceMeters);
+    const nextCloudRadius = CLOUD_RADIUS_MULTIPLIER * Math.max(1, cameraDistanceMeters);
 
     if (!groundOrbitClouds) {
       replaceCloudsAtTarget({
@@ -141,13 +137,8 @@ export function createGroundOrbitCloudsController(params: {
     }
 
     groundOrbitClouds.position.copy(orbitTarget);
-    groundOrbitClouds.scale.setScalar(
-      nextCloudRadius / Math.max(1, lastCloudRadius),
-    );
-    groundOrbitClouds.material.uniforms.uViewportHeight.value = Math.max(
-      1,
-      viewportHeight,
-    );
+    groundOrbitClouds.scale.setScalar(nextCloudRadius / Math.max(1, lastCloudRadius));
+    groundOrbitClouds.material.uniforms.uViewportHeight.value = Math.max(1, viewportHeight);
     groundOrbitClouds.frustumCulled = false;
   };
 

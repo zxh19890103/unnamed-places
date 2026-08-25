@@ -1,5 +1,5 @@
-import { VectorTile } from "@mapbox/vector-tile";
-import { PbfReader } from "pbf";
+import { VectorTile } from '@mapbox/vector-tile';
+import { PbfReader } from 'pbf';
 
 export type TileCoords = {
   z: number;
@@ -17,13 +17,10 @@ export type TileVector = {
   layers: TileVectorLayer[];
 };
 
-export async function fetchTileVector(
-  url: string,
-  coords: TileCoords,
-): Promise<TileVector> {
+export async function fetchTileVector(url: string, coords: TileCoords): Promise<TileVector> {
   const response = await fetch(url, {
     headers: {
-      Accept: "application/x-protobuf",
+      Accept: 'application/x-protobuf',
     },
   });
 

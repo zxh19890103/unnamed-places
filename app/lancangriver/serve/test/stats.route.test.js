@@ -15,8 +15,8 @@ describe('stats routes', () => {
 
       const app = createApp({
         stats: {
-          tilesRoot
-        }
+          tilesRoot,
+        },
       });
 
       const firstResponse = await request(app).get('/stats/tiles/bytes');
@@ -46,8 +46,8 @@ describe('stats routes', () => {
 
       const app = createApp({
         stats: {
-          tilesRoot
-        }
+          tilesRoot,
+        },
       });
 
       const firstResponse = await request(app).get('/stats/tiles/bytes');

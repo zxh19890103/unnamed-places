@@ -1,4 +1,4 @@
-import { Vector3 } from "three";
+import { Vector3 } from 'three';
 
 export function getLocalBasisAtPoint(target: Vector3) {
   const up = target.clone().normalize();

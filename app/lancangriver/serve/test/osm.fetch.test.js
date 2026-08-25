@@ -15,10 +15,10 @@ describe('toFeatureFromElement', () => {
             { lon: 100, lat: 20 },
             { lon: 101, lat: 20 },
             { lon: 101, lat: 21 },
-            { lon: 100, lat: 20 }
-          ]
-        }
-      ]
+            { lon: 100, lat: 20 },
+          ],
+        },
+      ],
     };
 
     const feature = toFeatureFromElement(relation);
@@ -43,8 +43,8 @@ describe('toFeatureFromElement', () => {
             { lon: 100, lat: 20 },
             { lon: 100.5, lat: 20 },
             { lon: 100.5, lat: 20.5 },
-            { lon: 100, lat: 20 }
-          ]
+            { lon: 100, lat: 20 },
+          ],
         },
         {
           type: 'way',
@@ -53,10 +53,10 @@ describe('toFeatureFromElement', () => {
             { lon: 101, lat: 21 },
             { lon: 101.5, lat: 21 },
             { lon: 101.5, lat: 21.5 },
-            { lon: 101, lat: 21 }
-          ]
-        }
-      ]
+            { lon: 101, lat: 21 },
+          ],
+        },
+      ],
     };
 
     const feature = toFeatureFromElement(relation);
@@ -83,16 +83,16 @@ describe('fetchOsmHighwayFeaturesForZ12Key', () => {
             tags: { highway: 'residential' },
             geometry: [
               { lon: 100, lat: 20 },
-              { lon: 100.1, lat: 20.1 }
-            ]
-          }
-        ]
+              { lon: 100.1, lat: 20.1 },
+            ],
+          },
+        ],
       };
     };
 
     const features = await fetchOsmHighwayFeaturesForZ12Key('12/3456/1523', {
       postFormJson,
-      logger: { info: () => { } }
+      logger: { info: () => {} },
     });
 
     expect(features).toHaveLength(1);

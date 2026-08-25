@@ -1,12 +1,12 @@
-import type { PhotoRecord, RawPhotoRecord } from "./types";
+import type { PhotoRecord, RawPhotoRecord } from './types';
 
 export function normalizePhotoRecords(raw: RawPhotoRecord[]): PhotoRecord[] {
   return raw
-    .filter((item) => typeof item.filePath === "string")
+    .filter((item) => typeof item.filePath === 'string')
     .map((item) => {
       const lat = item.lat ?? item.latitude;
       const lng = item.lng ?? item.longitude;
-      if (typeof lat !== "number" || typeof lng !== "number") {
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
         return null;
       }
 

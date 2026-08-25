@@ -30,7 +30,7 @@ function toPolygonFeature({ id, tags, ring }) {
     feature_id: id,
     feature_type: 'Polygon',
     tags,
-    geometry: { type: 'Polygon', coordinates: [ring] }
+    geometry: { type: 'Polygon', coordinates: [ring] },
   };
 }
 
@@ -77,8 +77,8 @@ function toRelationFeature(element, id, tags) {
       tags,
       geometry: {
         type: 'Polygon',
-        coordinates: [outers[0], ...inners]
-      }
+        coordinates: [outers[0], ...inners],
+      },
     };
   }
 
@@ -94,8 +94,8 @@ function toRelationFeature(element, id, tags) {
     tags,
     geometry: {
       type: 'MultiPolygon',
-      coordinates: polygons
-    }
+      coordinates: polygons,
+    },
   };
 }
 
@@ -109,7 +109,7 @@ export function toFeatureFromElement(element) {
       feature_id: id,
       feature_type: 'Point',
       tags,
-      geometry: { type: 'Point', coordinates: [element.lon, element.lat] }
+      geometry: { type: 'Point', coordinates: [element.lon, element.lat] },
     };
   }
 
@@ -122,7 +122,7 @@ export function toFeatureFromElement(element) {
         feature_id: id,
         feature_type: 'Polygon',
         tags,
-        geometry: { type: 'Polygon', coordinates: [coords] }
+        geometry: { type: 'Polygon', coordinates: [coords] },
       };
     }
 
@@ -131,7 +131,7 @@ export function toFeatureFromElement(element) {
       feature_id: id,
       feature_type: 'LineString',
       tags,
-      geometry: { type: 'LineString', coordinates: coords }
+      geometry: { type: 'LineString', coordinates: coords },
     };
   }
 
@@ -146,7 +146,10 @@ export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
   const startedAt = Date.now();
   const logger = options.logger ?? console;
   const postJson = options.postFormJson ?? postFormJson;
-  const endpoint = options.endpoint ?? process.env.OSM_OVERPASS_ENDPOINT ?? 'https://overpass-api.de/api/interpreter';
+  const endpoint =
+    options.endpoint ??
+    process.env.OSM_OVERPASS_ENDPOINT ??
+    'https://overpass-api.de/api/interpreter';
   const { minLon, minLat, maxLon, maxLat } = getZ12EnvelopeFromKey(z12Key);
 
   const bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
@@ -162,19 +165,17 @@ export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
     `  relation["building"](${bbox});`,
     `  relation["natural"="water"](${bbox});`,
     `);`,
-    'out body geom;'
+    'out body geom;',
   ].join('\n');
 
   const payload = await postJson(endpoint, { data: query }, { logger, label: z12Key });
   const elements = Array.isArray(payload?.elements) ? payload.elements : [];
-  const features = elements
-    .map(toFeatureFromElement)
-    .filter((feature) => feature !== null);
+  const features = elements.map(toFeatureFromElement).filter((feature) => feature !== null);
 
   if (typeof logger?.info === 'function') {
     const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
     logger.info(
-      `[overpass] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`
+      `[overpass] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`,
     );
   }
 
@@ -185,7 +186,10 @@ export async function fetchOsmHighwayFeaturesForZ12Key(z12Key, options = {}) {
   const startedAt = Date.now();
   const logger = options.logger ?? console;
   const postJson = options.postFormJson ?? postFormJson;
-  const endpoint = options.endpoint ?? process.env.OSM_OVERPASS_ENDPOINT ?? 'https://overpass-api.de/api/interpreter';
+  const endpoint =
+    options.endpoint ??
+    process.env.OSM_OVERPASS_ENDPOINT ??
+    'https://overpass-api.de/api/interpreter';
   const { minLon, minLat, maxLon, maxLat } = getZ12EnvelopeFromKey(z12Key);
 
   const bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
@@ -199,19 +203,21 @@ export async function fetchOsmHighwayFeaturesForZ12Key(z12Key, options = {}) {
     `  way["highway"](${bbox});`,
     `  relation["highway"](${bbox});`,
     `);`,
-    'out body geom;'
+    'out body geom;',
   ].join('\n');
 
-  const payload = await postJson(endpoint, { data: query }, { logger, label: `highways:${z12Key}` });
+  const payload = await postJson(
+    endpoint,
+    { data: query },
+    { logger, label: `highways:${z12Key}` },
+  );
   const elements = Array.isArray(payload?.elements) ? payload.elements : [];
-  const features = elements
-    .map(toFeatureFromElement)
-    .filter((feature) => feature !== null);
+  const features = elements.map(toFeatureFromElement).filter((feature) => feature !== null);
 
   if (typeof logger?.info === 'function') {
     const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
     logger.info(
-      `[overpass-highways] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`
+      `[overpass-highways] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`,
     );
   }
 
@@ -265,11 +271,11 @@ function postFormJson(endpoint, formValues, options = {}) {
         method: 'POST',
         timeout: requestTimeoutMs,
         headers: {
-          origin: "https://overpass-api.de",
-          referer: "https://overpass-api.de/query_form.html",
+          origin: 'https://overpass-api.de',
+          referer: 'https://overpass-api.de/query_form.html',
           'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-          'content-length': Buffer.byteLength(body)
-        }
+          'content-length': Buffer.byteLength(body),
+        },
       },
       (response) => {
         let dataSize = 0;
@@ -280,12 +286,18 @@ function postFormJson(endpoint, formValues, options = {}) {
           const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
 
           if (dataSize === 0 && elapsedSeconds > 120) {
-            response.destroy(new Error(`Overpass response timed out: no data received after ${elapsedSeconds}s (label=${label}, endpoint=${target.origin}${target.pathname})`));
+            response.destroy(
+              new Error(
+                `Overpass response timed out: no data received after ${elapsedSeconds}s (label=${label}, endpoint=${target.origin}${target.pathname})`,
+              ),
+            );
             return;
           }
 
           if (typeof logger?.info === 'function') {
-            logger.info(`[overpass] waiting ${label} status=${response.statusCode ?? 'pending'} elapsed=${elapsedSeconds}s data=${dataSize} bytes`);
+            logger.info(
+              `[overpass] waiting ${label} status=${response.statusCode ?? 'pending'} elapsed=${elapsedSeconds}s data=${dataSize} bytes`,
+            );
           }
         }, 15000);
 
@@ -300,7 +312,7 @@ function postFormJson(endpoint, formValues, options = {}) {
 
           if (typeof logger?.info === 'function') {
             logger.info(
-              `[overpass] response ${label} status=${response.statusCode} bytes=${rawBody.length} elapsed=${elapsedSeconds}s`
+              `[overpass] response ${label} status=${response.statusCode} bytes=${rawBody.length} elapsed=${elapsedSeconds}s`,
             );
           }
 
@@ -319,13 +331,15 @@ function postFormJson(endpoint, formValues, options = {}) {
         response.on('error', (err) => {
           settleReject(new Error(`Overpass response error: ${err.message}`));
         });
-      }
+      },
     );
 
     request.on('error', (error) => {
       if (typeof logger?.warn === 'function') {
         const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
-        logger.warn(`[overpass] request error ${label} elapsed=${elapsedSeconds}s reason=${String(error?.message ?? error)}`);
+        logger.warn(
+          `[overpass] request error ${label} elapsed=${elapsedSeconds}s reason=${String(error?.message ?? error)}`,
+        );
       }
 
       settleReject(error);
@@ -334,12 +348,12 @@ function postFormJson(endpoint, formValues, options = {}) {
     request.on('timeout', () => {
       const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
       const timeoutError = new Error(
-        `Overpass request timed out after ${elapsedSeconds}s (label=${label}, endpoint=${target.origin}${target.pathname}, timeoutMs=${requestTimeoutMs})`
+        `Overpass request timed out after ${elapsedSeconds}s (label=${label}, endpoint=${target.origin}${target.pathname}, timeoutMs=${requestTimeoutMs})`,
       );
 
       if (typeof logger?.warn === 'function') {
         logger.warn(
-          `[overpass] request timeout ${label} elapsed=${elapsedSeconds}s timeoutMs=${requestTimeoutMs}`
+          `[overpass] request timeout ${label} elapsed=${elapsedSeconds}s timeoutMs=${requestTimeoutMs}`,
         );
       }
 

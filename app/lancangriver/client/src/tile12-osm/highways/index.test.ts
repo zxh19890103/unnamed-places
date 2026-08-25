@@ -1,13 +1,13 @@
-import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import * as THREE from 'three';
+import { describe, expect, it } from 'vitest';
 
-import { createHighwayGeometry } from "./index.js";
+import { createHighwayGeometry } from './index.js';
 
-describe("createHighwayGeometry", () => {
-  it("builds a flat ribbon mesh from a strongly curved centerline", () => {
+describe('createHighwayGeometry', () => {
+  it('builds a flat ribbon mesh from a strongly curved centerline', () => {
     const feature = {
-      type: "Feature",
-      properties: { highway: "residential" },
+      type: 'Feature',
+      properties: { highway: 'residential' },
     } as unknown as GeoJSON.Feature;
 
     const projection = {

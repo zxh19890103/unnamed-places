@@ -1,4 +1,4 @@
-import { EARTH_RADIUS } from "@/calc/constants";
+import { EARTH_RADIUS } from '@/calc/constants';
 
 export const lodBaseDistanceMeters = 0;
 export const zoomZeroDistanceMeters = 0;

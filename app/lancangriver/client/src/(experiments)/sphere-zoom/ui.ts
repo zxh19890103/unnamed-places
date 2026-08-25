@@ -1,11 +1,6 @@
-import * as THREE from "three";
-import { BASE_URL } from "@/calc/constants.js";
-import {
-  EarthTile,
-  latlngToSphere,
-  normalizeLongitude,
-  RAD_TO_DEG,
-} from "@/_3dtiles";
+import * as THREE from 'three';
+import { BASE_URL } from '@/calc/constants.js';
+import { EarthTile, latlngToSphere, normalizeLongitude, RAD_TO_DEG } from '@/_3dtiles';
 
 class EarthTileImageryMaterial extends THREE.ShaderMaterial {
   private pendingImage: HTMLImageElement | null = null;
@@ -80,7 +75,7 @@ class EarthTileImageryMaterial extends THREE.ShaderMaterial {
     if (this.pendingImage) {
       this.pendingImage.onload = null;
       this.pendingImage.onerror = null;
-      this.pendingImage.src = "";
+      this.pendingImage.src = '';
       this.pendingImage = null;
     }
 
@@ -93,10 +88,7 @@ class EarthTileImageryMaterial extends THREE.ShaderMaterial {
   }
 }
 
-export class TileMesh extends THREE.Mesh<
-  THREE.BufferGeometry,
-  EarthTileImageryMaterial
-> {
+export class TileMesh extends THREE.Mesh<THREE.BufferGeometry, EarthTileImageryMaterial> {
   constructor(
     readonly tile: EarthTile,
     segments = 16,
@@ -122,8 +114,7 @@ export class TileMesh extends THREE.Mesh<
     const northMercatorY = Math.PI * (1 - (2 * tile.y) / n);
     const southMercatorY = Math.PI * (1 - (2 * (tile.y + 1)) / n);
 
-    const lngSpan =
-      eastLng >= westLng ? eastLng - westLng : eastLng + 360 - westLng;
+    const lngSpan = eastLng >= westLng ? eastLng - westLng : eastLng + 360 - westLng;
 
     let vertexIndex = 0;
     for (let y = 0; y <= segments; y++) {
@@ -159,8 +150,8 @@ export class TileMesh extends THREE.Mesh<
       }
     }
 
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
 
@@ -188,10 +179,7 @@ export class TileMesh extends THREE.Mesh<
   }
 }
 
-export class TileOutline extends THREE.LineLoop<
-  THREE.BufferGeometry,
-  THREE.LineBasicMaterial
-> {
+export class TileOutline extends THREE.LineLoop<THREE.BufferGeometry, THREE.LineBasicMaterial> {
   constructor(
     readonly tile: EarthTile,
     segments = 16,
@@ -218,8 +206,7 @@ export class TileOutline extends THREE.LineLoop<
     const n = 2 ** tile.z;
     const northMercatorY = Math.PI * (1 - (2 * tile.y) / n);
     const southMercatorY = Math.PI * (1 - (2 * (tile.y + 1)) / n);
-    const lngSpan =
-      eastLng >= westLng ? eastLng - westLng : eastLng + 360 - westLng;
+    const lngSpan = eastLng >= westLng ? eastLng - westLng : eastLng + 360 - westLng;
 
     const pointAt = (u: number, v: number) => {
       const mercatorY = northMercatorY + (southMercatorY - northMercatorY) * v;

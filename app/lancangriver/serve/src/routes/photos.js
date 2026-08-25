@@ -16,8 +16,8 @@ function createErrorPayload(code, reason) {
   return {
     error: {
       code,
-      reason
-    }
+      reason,
+    },
   };
 }
 
@@ -54,8 +54,8 @@ export function createPhotosRouter(options = {}) {
       res.status(400).json({
         error: {
           code: 'INVALID_ROOT',
-          reason: 'Query param root is required'
-        }
+          reason: 'Query param root is required',
+        },
       });
       return;
     }
@@ -70,8 +70,8 @@ export function createPhotosRouter(options = {}) {
         res.status(400).json({
           error: {
             code: 'ROOT_NOT_FOUND',
-            reason: 'Query param root must point to an existing directory'
-          }
+            reason: 'Query param root must point to an existing directory',
+          },
         });
         return;
       }
@@ -81,8 +81,8 @@ export function createPhotosRouter(options = {}) {
       res.status(500).json({
         error: {
           code: 'PHOTOS_SCAN_FAILED',
-          reason: 'Internal server error'
-        }
+          reason: 'Internal server error',
+        },
       });
     }
   });
@@ -133,7 +133,7 @@ export function createPhotosRouter(options = {}) {
           width: 512,
           height: 512,
           fit: 'inside',
-          withoutEnlargement: true
+          withoutEnlargement: true,
         })
         .webp({ quality: 80 })
         .toBuffer();
@@ -166,9 +166,7 @@ export function createPhotosRouter(options = {}) {
         return;
       }
 
-      res
-        .status(500)
-        .json(createErrorPayload('PHOTO_ORIGINAL_FAILED', 'Internal server error'));
+      res.status(500).json(createErrorPayload('PHOTO_ORIGINAL_FAILED', 'Internal server error'));
       return;
     }
 
@@ -189,9 +187,7 @@ export function createPhotosRouter(options = {}) {
       res.status(200).send(bytes);
     } catch (error) {
       console.error('Error serving original photo:', error);
-      res
-        .status(500)
-        .json(createErrorPayload('PHOTO_ORIGINAL_FAILED', 'Internal server error'));
+      res.status(500).json(createErrorPayload('PHOTO_ORIGINAL_FAILED', 'Internal server error'));
     }
   });
 

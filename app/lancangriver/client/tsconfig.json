@@ -5,12 +5,8 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@": [
-        "src"
-      ],
-      "@/*": [
-        "src/*"
-      ]
+      "@": ["src"],
+      "@/*": ["src/*"]
     },
     "noEmit": true,
     "strict": true,
@@ -19,15 +15,8 @@
     "noImplicitAny": false,
     "jsx": "react-jsx",
     "strictPropertyInitialization": false,
-    "types": [
-      "vitest/globals"
-    ],
-    "lib": [
-      "ES2022",
-      "DOM"
-    ]
+    "types": ["vitest/globals"],
+    "lib": ["ES2022", "DOM"]
   },
-  "include": [
-    "src"
-  ],
+  "include": ["src"]
 }

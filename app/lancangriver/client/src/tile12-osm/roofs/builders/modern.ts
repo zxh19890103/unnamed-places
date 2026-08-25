@@ -1,6 +1,6 @@
-import * as THREE from "three";
-import { TileProjection } from "../../tile.js";
-import * as helpers from "../_helpers.js";
+import * as THREE from 'three';
+import { TileProjection } from '../../tile.js';
+import * as helpers from '../_helpers.js';
 
 const building_roof_building_factories__modern = (
   _roofprint: number[],
@@ -9,18 +9,15 @@ const building_roof_building_factories__modern = (
   projection: TileProjection,
 ): THREE.BufferGeometry => {
   const geometry = new THREE.BufferGeometry();
-  const points =
-    helpers.getFeatureRoofRings(features, heightMeters, projection)[0] ?? [];
+  const points = helpers.getFeatureRoofRings(features, heightMeters, projection)[0] ?? [];
 
   if (points.length < 3) {
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute([], 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute([], 2));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute([], 2));
     return geometry;
   }
 
-  const liftedPoints = points.map(
-    ([x, y, z]) => [x, y + 3, z] as [number, number, number],
-  );
+  const liftedPoints = points.map(([x, y, z]) => [x, y + 3, z] as [number, number, number]);
   const centroid = helpers.calculateCentroid(points);
 
   const positions: number[] = [];
@@ -54,11 +51,8 @@ const building_roof_building_factories__modern = (
     addTriangle(centroid, liftedPoints[next], liftedPoints[i]);
   }
 
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
 
   return geometry;
 };

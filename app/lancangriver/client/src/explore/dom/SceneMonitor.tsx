@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
-import type { Sphere, SphereStatsPayload } from "../Sphere.class";
-import { TilesBytes } from "./TilesBytes";
-import { Panel } from "@/_components";
+import type { Sphere, SphereStatsPayload } from '../Sphere.class';
+import { TilesBytes } from './TilesBytes';
+import { Panel } from '@/_components';
 
 type SceneMonitorProps = {
   sphere: Sphere | null;
@@ -11,7 +11,7 @@ type SceneMonitorProps = {
 
 function formatDistance(distanceMeters: number | null) {
   if (distanceMeters === null) {
-    return "--";
+    return '--';
   }
 
   return `${Math.round(distanceMeters).toLocaleString()} m`;
@@ -19,7 +19,7 @@ function formatDistance(distanceMeters: number | null) {
 
 function formatZoom(zoomLevel: number | null) {
   if (zoomLevel === null) {
-    return "--";
+    return '--';
   }
 
   return `${zoomLevel}`;
@@ -27,17 +27,15 @@ function formatZoom(zoomLevel: number | null) {
 
 function formatTileCount(visibleTilesCount: number | null) {
   if (visibleTilesCount === null) {
-    return "--";
+    return '--';
   }
 
   return `${visibleTilesCount}`;
 }
 
-function formatControlMode(
-  controlMode: SphereStatsPayload["controlMode"] | null,
-) {
+function formatControlMode(controlMode: SphereStatsPayload['controlMode'] | null) {
   if (!controlMode) {
-    return "--";
+    return '--';
   }
 
   return controlMode;
@@ -45,14 +43,14 @@ function formatControlMode(
 
 function formatLoadingProgress(stats: SphereStatsPayload | null) {
   if (!stats) {
-    return "--";
+    return '--';
   }
 
   const pending = stats.loadingTotal - stats.loadingLoaded;
   const errSuffix =
     stats.loadingErrors > 0
-      ? `, ${stats.loadingErrors} error${stats.loadingErrors === 1 ? "" : "s"}`
-      : "";
+      ? `, ${stats.loadingErrors} error${stats.loadingErrors === 1 ? '' : 's'}`
+      : '';
 
   if (pending <= 0) {
     return `idle${errSuffix}`;
@@ -63,7 +61,7 @@ function formatLoadingProgress(stats: SphereStatsPayload | null) {
 
 function formatFrameP95(stats: SphereStatsPayload | null) {
   if (!stats || stats.frameTimeP95Ms <= 0) {
-    return "--";
+    return '--';
   }
 
   return `${stats.frameTimeP95Ms.toFixed(1)} ms`;
@@ -102,8 +100,7 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
     setStats(sphere.getStatsSnapshot());
 
     const handleStats = (event: Event) => {
-      const payload = (event as Event & { payload?: SphereStatsPayload })
-        .payload;
+      const payload = (event as Event & { payload?: SphereStatsPayload }).payload;
       if (payload) {
         setStats(payload);
       }
@@ -121,11 +118,7 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
   const controlMode = stats?.controlMode ?? null;
 
   return (
-    <Panel
-      defaultMinimized
-      title="Live diagnostics"
-      description="Scene monitor"
-    >
+    <Panel defaultMinimized title="Live diagnostics" description="Scene monitor">
       <ThreejsStats threeJsStats={threeJsStats} />
       <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
         <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
@@ -137,9 +130,7 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
           </div>
         </div>
         <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">
-            Zoom level
-          </div>
+          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">Zoom level</div>
           <div className="mt-1 font-medium tabular-nums text-jade-text">
             {formatZoom(zoomLevel)}
           </div>
@@ -169,9 +160,7 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
           </div>
         </div>
         <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">
-            Frame p95
-          </div>
+          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">Frame p95</div>
           <div className="mt-1 font-medium tabular-nums text-jade-text">
             {formatFrameP95(stats)}
           </div>

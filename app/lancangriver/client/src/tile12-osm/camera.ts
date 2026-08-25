@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
 export type CameraFit = {
   target: THREE.Vector3;
@@ -16,9 +16,7 @@ export function fitCameraToObject(
   const target = sphere.center;
   const radius = Math.max(sphere.radius, 1);
   const verticalHalfFov = THREE.MathUtils.degToRad(camera.fov) * 0.5;
-  const horizontalHalfFov = Math.atan(
-    Math.tan(verticalHalfFov) * camera.aspect,
-  );
+  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * camera.aspect);
   const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
   const distance = (radius * padding) / Math.sin(limitingHalfFov);
 
@@ -44,9 +42,7 @@ export function fitCameraToTileCenter(
 ): CameraFit {
   const radius = Math.max(Math.hypot(widthMeters, heightMeters) * 0.5, 1);
   const verticalHalfFov = THREE.MathUtils.degToRad(camera.fov) * 0.5;
-  const horizontalHalfFov = Math.atan(
-    Math.tan(verticalHalfFov) * camera.aspect,
-  );
+  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * camera.aspect);
   const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
   const distance = (radius * padding) / Math.sin(limitingHalfFov);
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   CameraIcon,
   CheckIcon,
@@ -10,49 +10,44 @@ import {
   PlusIcon,
   ReloadIcon,
   TrashIcon,
-} from "@radix-ui/react-icons";
+} from '@radix-ui/react-icons';
 
-import { Tooltip } from "../_components";
+import { Tooltip } from '../_components';
 
-type MaterialMode =
-  | "Satellite"
-  | "Elevation"
-  | "Clean"
-  | "Debug"
-  | "Watercolor";
-type JourneyState = "ready" | "loading" | "empty" | "error";
-type PageView = "dom" | "map";
+type MaterialMode = 'Satellite' | 'Elevation' | 'Clean' | 'Debug' | 'Watercolor';
+type JourneyState = 'ready' | 'loading' | 'empty' | 'error';
+type PageView = 'dom' | 'map';
 
 const panelClass =
-  "rounded-xl border border-[var(--jade-border)] bg-[color:var(--jade-panel)]/95 text-[var(--jade-text)] shadow-xl shadow-[#182a36]/15 backdrop-blur-md";
+  'rounded-xl border border-[var(--jade-border)] bg-[color:var(--jade-panel)]/95 text-[var(--jade-text)] shadow-xl shadow-[#182a36]/15 backdrop-blur-md';
 const controlClass =
-  "min-h-10 rounded-lg border border-jade-border-soft bg-jade-control px-3 py-2 text-sm font-medium text-jade-text transition-colors hover:border-jade-border hover:bg-jade-control-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river disabled:cursor-not-allowed disabled:text-jade-text-muted disabled:opacity-45";
+  'min-h-10 rounded-lg border border-jade-border-soft bg-jade-control px-3 py-2 text-sm font-medium text-jade-text transition-colors hover:border-jade-border hover:bg-jade-control-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river disabled:cursor-not-allowed disabled:text-jade-text-muted disabled:opacity-45';
 const primaryRiverClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-jade-river bg-jade-river px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-jade-sky focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river";
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-jade-river bg-jade-river px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-jade-sky focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river';
 const primarySkyClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-jade-sky bg-jade-sky px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-sky";
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-jade-sky bg-jade-sky px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-sky';
 const iconButtonClass =
-  "grid size-11 shrink-0 place-items-center rounded-lg border border-jade-border-soft bg-jade-control text-jade-text-muted transition-colors hover:border-jade-border hover:bg-jade-control-hover hover:text-jade-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river";
-const labelClass = "text-[10px] font-semibold text-jade-river uppercase";
+  'grid size-11 shrink-0 place-items-center rounded-lg border border-jade-border-soft bg-jade-control text-jade-text-muted transition-colors hover:border-jade-border hover:bg-jade-control-hover hover:text-jade-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river';
+const labelClass = 'text-[10px] font-semibold text-jade-river uppercase';
 
 const journeys = [
   {
-    key: "2026-08-18",
-    label: "18 Aug 2026",
+    key: '2026-08-18',
+    label: '18 Aug 2026',
     count: 14,
-    places: ["Dali", "Nujiang"],
+    places: ['Dali', 'Nujiang'],
   },
   {
-    key: "2026-08-12",
-    label: "12 Aug 2026",
+    key: '2026-08-12',
+    label: '12 Aug 2026',
     count: 8,
-    places: ["Deqin", "Mekong bend"],
+    places: ['Deqin', 'Mekong bend'],
   },
   {
-    key: "2026-07-29",
-    label: "29 Jul 2026",
+    key: '2026-07-29',
+    label: '29 Jul 2026',
     count: 21,
-    places: ["Jinghong", "River market"],
+    places: ['Jinghong', 'River market'],
   },
 ];
 
@@ -67,13 +62,7 @@ const iframeDocument = `<!doctype html>
 .status{position:absolute;left:10px;bottom:10px;padding:7px 9px;border:1px solid #8ea7b7;border-radius:7px;background:#f8fbfddd;letter-spacing:0}
 </style></head><body><div class="map"><div class="river"></div><div class="pin"></div><div class="status">24.8801 N, 100.0891 E</div></div></body></html>`;
 
-function IconTooltip({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function IconTooltip({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Tooltip label={label} side="top" sideOffset={8}>
       {children as React.ReactElement}
@@ -119,21 +108,15 @@ function ButtonSystem() {
 
       <div>
         <p className={labelClass}>Icon toolbar</p>
-        <div
-          className="mt-3 flex gap-2"
-          role="toolbar"
-          aria-label="Map actions"
-        >
-          <IconTooltip label={paused ? "Resume updates" : "Pause updates"}>
+        <div className="mt-3 flex gap-2" role="toolbar" aria-label="Map actions">
+          <IconTooltip label={paused ? 'Resume updates' : 'Pause updates'}>
             <button
               type="button"
-              aria-label={paused ? "Resume updates" : "Pause updates"}
+              aria-label={paused ? 'Resume updates' : 'Pause updates'}
               aria-pressed={paused}
               onClick={() => setPaused((value) => !value)}
               className={`${iconButtonClass} ${
-                paused
-                  ? "border-jade-river bg-jade-river-soft text-jade-text"
-                  : ""
+                paused ? 'border-jade-river bg-jade-river-soft text-jade-text' : ''
               }`}
             >
               {paused ? (
@@ -153,11 +136,7 @@ function ButtonSystem() {
             </button>
           </IconTooltip>
           <IconTooltip label="Close toolbar">
-            <button
-              type="button"
-              aria-label="Close toolbar"
-              className={iconButtonClass}
-            >
+            <button type="button" aria-label="Close toolbar" className={iconButtonClass}>
               <Cross2Icon className="size-5" aria-hidden="true" />
             </button>
           </IconTooltip>
@@ -181,31 +160,18 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section
-      id={id}
-      className="scroll-mt-5 border-t border-[var(--jade-border-soft)] py-8"
-    >
+    <section id={id} className="scroll-mt-5 border-t border-[var(--jade-border-soft)] py-8">
       <header className="mb-5 max-w-3xl">
         <p className={labelClass}>{eyebrow}</p>
-        <h2 className="mt-2 text-xl font-semibold text-[var(--jade-text)]">
-          {title}
-        </h2>
-        <p className="mt-1 text-sm leading-6 text-[var(--jade-text-muted)]">
-          {description}
-        </p>
+        <h2 className="mt-2 text-xl font-semibold text-[var(--jade-text)]">{title}</h2>
+        <p className="mt-1 text-sm leading-6 text-[var(--jade-text-muted)]">{description}</p>
       </header>
       {children}
     </section>
   );
 }
 
-function Stage({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+function Stage({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div
       className={`map-stage relative min-h-150 overflow-hidden rounded-xl border border-[var(--jade-border)] ${className}`}
@@ -228,11 +194,11 @@ function MaterialModes({
   onSelect: (mode: MaterialMode) => void;
 }) {
   const modes: Array<{ name: MaterialMode; symbol: string }> = [
-    { name: "Satellite", symbol: "SAT" },
-    { name: "Elevation", symbol: "DEM" },
-    { name: "Clean", symbol: "CLR" },
-    { name: "Debug", symbol: "DBG" },
-    { name: "Watercolor", symbol: "INK" },
+    { name: 'Satellite', symbol: 'SAT' },
+    { name: 'Elevation', symbol: 'DEM' },
+    { name: 'Clean', symbol: 'CLR' },
+    { name: 'Debug', symbol: 'DBG' },
+    { name: 'Watercolor', symbol: 'INK' },
   ];
 
   return (
@@ -251,8 +217,8 @@ function MaterialModes({
             onClick={() => onSelect(mode.name)}
             className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
               active
-                ? "border-jade-river bg-jade-river-soft text-jade-text"
-                : "border-jade-border-soft bg-jade-panel/95 text-jade-text-muted hover:border-jade-border hover:bg-jade-control-hover"
+                ? 'border-jade-river bg-jade-river-soft text-jade-text'
+                : 'border-jade-border-soft bg-jade-panel/95 text-jade-text-muted hover:border-jade-border hover:bg-jade-control-hover'
             }`}
           >
             <span className="text-[9px] font-bold" aria-hidden="true">
@@ -281,7 +247,7 @@ function OpsPanel() {
           onClick={() => setUpdatesPaused((paused) => !paused)}
           className={`${controlClass} text-left`}
         >
-          {updatesPaused ? "Resume tile updates" : "Pause tile updates"}
+          {updatesPaused ? 'Resume tile updates' : 'Pause tile updates'}
         </button>
         <button type="button" className={`${controlClass} text-left`}>
           Open flat map
@@ -303,12 +269,12 @@ function OpsPanel() {
 function SceneMonitor() {
   const [collapsed, setCollapsed] = useState(false);
   const metrics = [
-    ["Camera distance", "18,420 m"],
-    ["Zoom level", "12.7"],
-    ["Visible tiles", "46"],
-    ["Control mode", "Orbit"],
-    ["Asset loading", "3 pending"],
-    ["Frame p95", "18.2 ms"],
+    ['Camera distance', '18,420 m'],
+    ['Zoom level', '12.7'],
+    ['Visible tiles', '46'],
+    ['Control mode', 'Orbit'],
+    ['Asset loading', '3 pending'],
+    ['Frame p95', '18.2 ms'],
   ];
 
   return (
@@ -324,7 +290,7 @@ function SceneMonitor() {
           aria-expanded={!collapsed}
           className={`${controlClass} px-2 text-xs`}
         >
-          {collapsed ? "Expand" : "Hide"}
+          {collapsed ? 'Expand' : 'Hide'}
         </button>
       </div>
       {!collapsed && (
@@ -337,9 +303,7 @@ function SceneMonitor() {
               <dt className="truncate text-[9px] text-[var(--jade-text-muted)] uppercase">
                 {label}
               </dt>
-              <dd className="mt-1 truncate text-xs font-medium tabular-nums">
-                {value}
-              </dd>
+              <dd className="mt-1 truncate text-xs font-medium tabular-nums">{value}</dd>
             </div>
           ))}
         </dl>
@@ -349,13 +313,11 @@ function SceneMonitor() {
 }
 
 function JourneyPanel() {
-  const [state, setState] = useState<JourneyState>("ready");
+  const [state, setState] = useState<JourneyState>('ready');
   const [selected, setSelected] = useState(journeys[0].key);
 
   return (
-    <aside
-      className={`${panelClass} flex max-h-112 w-[min(320px,calc(100vw-3rem))] flex-col p-3`}
-    >
+    <aside className={`${panelClass} flex max-h-112 w-[min(320px,calc(100vw-3rem))] flex-col p-3`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className={labelClass}>Photo timeline</p>
@@ -374,22 +336,18 @@ function JourneyPanel() {
         </select>
       </div>
       <div className="mt-3 min-h-18 overflow-y-auto" aria-live="polite">
-        {state === "loading" && (
-          <p className="text-xs text-[var(--jade-text-muted)]">
-            Loading photo locations...
-          </p>
+        {state === 'loading' && (
+          <p className="text-xs text-[var(--jade-text-muted)]">Loading photo locations...</p>
         )}
-        {state === "empty" && (
-          <p className="text-xs text-[var(--jade-text-muted)]">
-            No geotagged photos in this area.
-          </p>
+        {state === 'empty' && (
+          <p className="text-xs text-[var(--jade-text-muted)]">No geotagged photos in this area.</p>
         )}
-        {state === "error" && (
+        {state === 'error' && (
           <p className="text-xs text-[var(--jade-error)]">
             Photo locations could not be loaded. Try again.
           </p>
         )}
-        {state === "ready" && (
+        {state === 'ready' && (
           <div className="grid gap-2">
             {journeys.map((day) => {
               const active = day.key === selected;
@@ -401,8 +359,8 @@ function JourneyPanel() {
                   onClick={() => setSelected(day.key)}
                   className={`rounded-lg border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
                     active
-                      ? "border-jade-river bg-jade-river-soft"
-                      : "border-jade-border-soft bg-jade-depth/35 hover:border-jade-border hover:bg-jade-control-hover"
+                      ? 'border-jade-river bg-jade-river-soft'
+                      : 'border-jade-border-soft bg-jade-depth/35 hover:border-jade-border hover:bg-jade-control-hover'
                   }`}
                 >
                   <span className="flex items-center justify-between gap-3">
@@ -432,7 +390,7 @@ function JourneyPanel() {
 }
 
 function MapWorkspace() {
-  const [material, setMaterial] = useState<MaterialMode>("Satellite");
+  const [material, setMaterial] = useState<MaterialMode>('Satellite');
 
   return (
     <Stage className="min-h-190">
@@ -456,23 +414,23 @@ function StatusBadge({
   tone,
   children,
 }: {
-  tone: "ready" | "pending" | "error";
+  tone: 'ready' | 'pending' | 'error';
   children: ReactNode;
 }) {
   const toneClass =
-    tone === "ready"
-      ? "text-[var(--jade-success)]"
-      : tone === "pending"
-        ? "text-[var(--jade-silt)]"
-        : "text-[var(--jade-error)]";
+    tone === 'ready'
+      ? 'text-[var(--jade-success)]'
+      : tone === 'pending'
+        ? 'text-[var(--jade-silt)]'
+        : 'text-[var(--jade-error)]';
   return <span className={`text-xs font-medium ${toneClass}`}>{children}</span>;
 }
 
 function DomPage() {
   const rows = [
-    ["12/3456/1523", "46 features", "ready"],
-    ["12/3457/1523", "Requesting", "pending"],
-    ["12/3458/1523", "Retry available", "error"],
+    ['12/3456/1523', '46 features', 'ready'],
+    ['12/3457/1523', 'Requesting', 'pending'],
+    ['12/3458/1523', 'Retry available', 'error'],
   ] as const;
 
   return (
@@ -492,7 +450,7 @@ function DomPage() {
           <table className="min-w-full border-collapse text-left text-sm">
             <thead className="bg-[var(--jade-panel-raised)] text-[var(--jade-text-muted)]">
               <tr>
-                {["Tile", "Coverage", "Status"].map((head) => (
+                {['Tile', 'Coverage', 'Status'].map((head) => (
                   <th key={head} className="px-4 py-3 font-medium">
                     {head}
                   </th>
@@ -506,16 +464,14 @@ function DomPage() {
                   className="border-t border-[var(--jade-border-soft)] bg-[var(--jade-panel)]"
                 >
                   <td className="px-4 py-3 font-medium tabular-nums">{tile}</td>
-                  <td className="px-4 py-3 text-[var(--jade-text-muted)]">
-                    {coverage}
-                  </td>
+                  <td className="px-4 py-3 text-[var(--jade-text-muted)]">{coverage}</td>
                   <td className="px-4 py-3">
                     <StatusBadge tone={status}>
-                      {status === "ready"
-                        ? "Ready"
-                        : status === "pending"
-                          ? "Pending"
-                          : "Needs attention"}
+                      {status === 'ready'
+                        ? 'Ready'
+                        : status === 'pending'
+                          ? 'Pending'
+                          : 'Needs attention'}
                     </StatusBadge>
                   </td>
                 </tr>
@@ -539,35 +495,22 @@ function LeafletPage() {
         role="toolbar"
       >
         <IconTooltip label="Zoom in">
-          <button
-            type="button"
-            aria-label="Zoom in"
-            className={iconButtonClass}
-          >
+          <button type="button" aria-label="Zoom in" className={iconButtonClass}>
             <PlusIcon className="size-5" aria-hidden="true" />
           </button>
         </IconTooltip>
         <IconTooltip label="Zoom out">
-          <button
-            type="button"
-            aria-label="Zoom out"
-            className={iconButtonClass}
-          >
+          <button type="button" aria-label="Zoom out" className={iconButtonClass}>
             <MinusIcon className="size-5" aria-hidden="true" />
           </button>
         </IconTooltip>
       </div>
-      <div
-        className="map-pin absolute top-[43%] left-[52%]"
-        aria-label="Selected map center"
-      />
+      <div className="map-pin absolute top-[43%] left-[52%]" aria-label="Selected map center" />
       <aside
         className={`${panelClass} absolute right-3 bottom-8 w-[min(280px,calc(100%-1.5rem))] p-3`}
       >
         <p className={labelClass}>Selected center</p>
-        <p className="mt-1 text-sm font-medium tabular-nums">
-          24.88010, 100.08910
-        </p>
+        <p className="mt-1 text-sm font-medium tabular-nums">24.88010, 100.08910</p>
         <button type="button" className={`${primaryRiverClass} mt-3 w-full`}>
           <DrawingPinIcon className="size-4" aria-hidden="true" />
           Use this center
@@ -581,7 +524,7 @@ function LeafletPage() {
 }
 
 function PageSpecimens() {
-  const [view, setView] = useState<PageView>("dom");
+  const [view, setView] = useState<PageView>('dom');
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--jade-border)] bg-[var(--jade-depth)]">
@@ -590,7 +533,7 @@ function PageSpecimens() {
         role="tablist"
         aria-label="Page specimens"
       >
-        {(["dom", "map"] as PageView[]).map((item) => (
+        {(['dom', 'map'] as PageView[]).map((item) => (
           <button
             key={item}
             type="button"
@@ -599,17 +542,15 @@ function PageSpecimens() {
             onClick={() => setView(item)}
             className={`min-h-10 rounded-lg border px-4 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
               view === item
-                ? "border-jade-river bg-jade-river-soft text-jade-text"
-                : "border-transparent text-jade-text-muted hover:border-jade-border-soft hover:bg-jade-control-hover"
+                ? 'border-jade-river bg-jade-river-soft text-jade-text'
+                : 'border-transparent text-jade-text-muted hover:border-jade-border-soft hover:bg-jade-control-hover'
             }`}
           >
-            {item === "dom" ? "DOM page" : "Leaflet map"}
+            {item === 'dom' ? 'DOM page' : 'Leaflet map'}
           </button>
         ))}
       </div>
-      <div role="tabpanel">
-        {view === "dom" ? <DomPage /> : <LeafletPage />}
-      </div>
+      <div role="tabpanel">{view === 'dom' ? <DomPage /> : <LeafletPage />}</div>
     </div>
   );
 }
@@ -626,13 +567,13 @@ function FlatMapDialog() {
 
     closeButtonRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setOpen(false);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
       triggerButtonRef.current?.focus();
     };
   }, [open]);
@@ -660,10 +601,7 @@ function FlatMapDialog() {
             <header className="flex items-center justify-between gap-3 border-b border-[var(--jade-border)] px-4 py-3">
               <div>
                 <p className={labelClass}>Choose location</p>
-                <h3
-                  id="flat-map-title"
-                  className="mt-0.5 text-sm font-semibold"
-                >
+                <h3 id="flat-map-title" className="mt-0.5 text-sm font-semibold">
                   Flat map selector
                 </h3>
               </div>
@@ -689,18 +627,10 @@ function FlatMapDialog() {
                 24.88010, 100.08910
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className={controlClass}
-                >
+                <button type="button" onClick={() => setOpen(false)} className={controlClass}>
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className={primaryRiverClass}
-                >
+                <button type="button" onClick={() => setOpen(false)} className={primaryRiverClass}>
                   <DrawingPinIcon className="size-4" aria-hidden="true" />
                   Use center
                 </button>
@@ -722,11 +652,7 @@ function IframeWindow() {
     <Stage className="min-h-125">
       {!open && (
         <div className="absolute top-3 right-3">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className={controlClass}
-          >
+          <button type="button" onClick={() => setOpen(true)} className={controlClass}>
             Open mini map
           </button>
         </div>
@@ -734,7 +660,7 @@ function IframeWindow() {
       {open && (
         <div
           className={`iframe-window absolute top-3 right-3 z-10 overflow-hidden rounded-xl border border-[var(--jade-border)] bg-[var(--jade-panel)] shadow-2xl shadow-[#182a36]/20 ${
-            minimized ? "h-auto" : "h-[min(390px,calc(100%-1.5rem))]"
+            minimized ? 'h-auto' : 'h-[min(390px,calc(100%-1.5rem))]'
           }`}
         >
           <header className="flex h-12 items-center justify-between gap-3 border-b border-[var(--jade-border)] px-3">
@@ -743,22 +669,15 @@ function IframeWindow() {
               <h3 className="truncate text-xs font-semibold">Mini map</h3>
             </div>
             <div className="flex gap-1">
-              <IconTooltip
-                label={minimized ? "Restore mini map" : "Minimize mini map"}
-              >
+              <IconTooltip label={minimized ? 'Restore mini map' : 'Minimize mini map'}>
                 <button
                   type="button"
                   onClick={() => setMinimized((value) => !value)}
-                  aria-label={
-                    minimized ? "Restore mini map" : "Minimize mini map"
-                  }
+                  aria-label={minimized ? 'Restore mini map' : 'Minimize mini map'}
                   className={iconButtonClass}
                 >
                   {minimized ? (
-                    <EnterFullScreenIcon
-                      className="size-5"
-                      aria-hidden="true"
-                    />
+                    <EnterFullScreenIcon className="size-5" aria-hidden="true" />
                   ) : (
                     <MinusIcon className="size-5" aria-hidden="true" />
                   )}
@@ -802,28 +721,23 @@ function IframeWindow() {
 
 function Tokens() {
   const tokens = [
-    ["Foundation", "#EAF2F7", "var(--jade-foundation)"],
-    ["Panel", "#F8FBFD", "var(--jade-panel)"],
-    ["Control", "#E4EEF5", "var(--jade-control)"],
-    ["River", "#078EA5", "var(--jade-river)"],
-    ["Sky", "#397FCF", "var(--jade-sky)"],
-    ["Lotus", "#D94F83", "var(--jade-lotus)"],
-    ["Leaf", "#2E9B66", "var(--jade-success)"],
-    ["Sun", "#C78313", "var(--jade-silt)"],
+    ['Foundation', '#EAF2F7', 'var(--jade-foundation)'],
+    ['Panel', '#F8FBFD', 'var(--jade-panel)'],
+    ['Control', '#E4EEF5', 'var(--jade-control)'],
+    ['River', '#078EA5', 'var(--jade-river)'],
+    ['Sky', '#397FCF', 'var(--jade-sky)'],
+    ['Lotus', '#D94F83', 'var(--jade-lotus)'],
+    ['Leaf', '#2E9B66', 'var(--jade-success)'],
+    ['Sun', '#C78313', 'var(--jade-silt)'],
   ];
 
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--jade-border)] bg-[var(--jade-border)] sm:grid-cols-4 lg:grid-cols-8">
       {tokens.map(([name, hex, color]) => (
         <div key={name} className="bg-[var(--jade-panel)] p-3">
-          <div
-            className="h-10 rounded-lg border border-white/15"
-            style={{ background: color }}
-          />
+          <div className="h-10 rounded-lg border border-white/15" style={{ background: color }} />
           <p className="mt-2 text-xs font-semibold">{name}</p>
-          <p className="mt-0.5 text-[10px] tabular-nums text-[var(--jade-text-muted)]">
-            {hex}
-          </p>
+          <p className="mt-0.5 text-[10px] tabular-nums text-[var(--jade-text-muted)]">{hex}</p>
         </div>
       ))}
     </div>
@@ -837,12 +751,10 @@ export default function App() {
         <header className="flex flex-col gap-5 py-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <p className={labelClass}>Lancangriver interface system</p>
-            <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
-              River Mist UI Workbench
-            </h1>
+            <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">River Mist UI Workbench</h1>
             <p className="mt-2 text-sm leading-6 text-[var(--jade-text-muted)]">
-              A light blue-gray language with river, sky, lotus, leaf, and sun
-              accents for map controls and operational views.
+              A light blue-gray language with river, sky, lotus, leaf, and sun accents for map
+              controls and operational views.
             </p>
           </div>
           <nav
@@ -850,10 +762,10 @@ export default function App() {
             className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--jade-border-soft)] bg-[var(--jade-panel)] p-1"
           >
             {[
-              ["workspace", "Workspace"],
-              ["pages", "Pages"],
-              ["modal", "Modal"],
-              ["window", "Window"],
+              ['workspace', 'Workspace'],
+              ['pages', 'Pages'],
+              ['modal', 'Modal'],
+              ['window', 'Window'],
             ].map(([href, label]) => (
               <a
                 key={href}

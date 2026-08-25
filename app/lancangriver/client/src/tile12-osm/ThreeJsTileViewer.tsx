@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { GUI } from "lil-gui";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { useEffect, useRef, useState } from 'react';
+import { GUI } from 'lil-gui';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import type { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { fitCameraToTileCenter } from "./camera.js";
-import { buildTileVectorGroup } from "./render.js";
-import { createGroundTileMesh, disposeGroundTile } from "./ground/index.js";
+import type { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { fitCameraToTileCenter } from './camera.js';
+import { buildTileVectorGroup } from './render.js';
+import { createGroundTileMesh, disposeGroundTile } from './ground/index.js';
 
 type ThreeJsTileViewerProps = {
   features: GeoJSON.Feature[];
@@ -38,7 +38,7 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#ffffff");
+    scene.background = new THREE.Color('#ffffff');
 
     const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100_000);
     camera.position.set(4_000, 4_800, 4_000);
@@ -51,8 +51,8 @@ export function ThreeJsTileViewer({ features, tile }: ThreeJsTileViewerProps) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
 
-    scene.add(new THREE.HemisphereLight("#dff5ec", "#14221d", 2.2));
-    const sun = new THREE.DirectionalLight("#fff2d0", 3.2);
+    scene.add(new THREE.HemisphereLight('#dff5ec', '#14221d', 2.2));
+    const sun = new THREE.DirectionalLight('#fff2d0', 3.2);
     sun.position.set(4_000, 7_000, 3_000);
     scene.add(sun);
 

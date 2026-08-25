@@ -5,7 +5,7 @@ export function createOsmHighwayJobsStore({ db }) {
         `INSERT INTO public.osm_ingest_jobs_highways (z12_key, status)
          VALUES ($1, 'queued')
          ON CONFLICT (z12_key) DO NOTHING`,
-        [z12Key]
+        [z12Key],
       );
 
       return { enqueued: result.rowCount > 0 };
@@ -20,7 +20,7 @@ export function createOsmHighwayJobsStore({ db }) {
         `SELECT z12_key, status
          FROM public.osm_ingest_jobs_highways
          WHERE z12_key = ANY($1::text[])`,
-        [keys]
+        [keys],
       );
 
       return Object.fromEntries(result.rows.map((row) => [row.z12_key, row.status]));
@@ -31,7 +31,7 @@ export function createOsmHighwayJobsStore({ db }) {
         `SELECT status
          FROM public.osm_ingest_jobs_highways
          WHERE z12_key = $1`,
-        [z12Key]
+        [z12Key],
       );
 
       return result.rows[0]?.status ?? null;
@@ -44,17 +44,17 @@ export function createOsmHighwayJobsStore({ db }) {
          WHERE status = 'done'
          ORDER BY z12_key ASC
          LIMIT $1 OFFSET $2`,
-        [limit, offset]
+        [limit, offset],
       );
       const countResult = await db.query(
         `SELECT COUNT(*)::integer AS total
          FROM public.osm_ingest_jobs_highways
-         WHERE status = 'done'`
+         WHERE status = 'done'`,
       );
 
       return {
         keys: pageResult.rows.map((row) => row.z12_key),
-        total: countResult.rows[0]?.total ?? 0
+        total: countResult.rows[0]?.total ?? 0,
       };
     },
 
@@ -66,20 +66,20 @@ export function createOsmHighwayJobsStore({ db }) {
            ON geo_info.z12_key = jobs.z12_key
          ORDER BY jobs.queued_at DESC
          LIMIT $1 OFFSET $2`,
-        [limit, offset]
+        [limit, offset],
       );
       const countResult = await db.query(
         `SELECT COUNT(*)::integer AS total
-         FROM public.osm_ingest_jobs_highways`
+         FROM public.osm_ingest_jobs_highways`,
       );
 
       return {
         jobs: pageResult.rows.map((row) => ({
           key: row.z12_key,
           status: row.status,
-          displayName: row.display_name ?? null
+          displayName: row.display_name ?? null,
         })),
-        total: countResult.rows[0]?.total ?? 0
+        total: countResult.rows[0]?.total ?? 0,
       };
     },
 
@@ -95,7 +95,7 @@ export function createOsmHighwayJobsStore({ db }) {
          WHERE z12_key = $1
            AND status = 'failed'
          RETURNING status`,
-        [z12Key]
+        [z12Key],
       );
 
       if (updateResult.rowCount > 0) {
@@ -106,7 +106,7 @@ export function createOsmHighwayJobsStore({ db }) {
         `SELECT status
          FROM public.osm_ingest_jobs_highways
          WHERE z12_key = $1`,
-        [z12Key]
+        [z12Key],
       );
 
       return statusResult.rows.length === 0 ? 'not_found' : 'not_failed';
@@ -118,7 +118,7 @@ export function createOsmHighwayJobsStore({ db }) {
          FROM public.osm_ingest_jobs_highways
          WHERE status = 'queued'
          ORDER BY queued_at ASC
-         LIMIT 1`
+         LIMIT 1`,
       );
 
       if (result.rows.length === 0) {
@@ -136,7 +136,7 @@ export function createOsmHighwayJobsStore({ db }) {
              updated_at = NOW(),
              attempt_count = attempt_count + 1
          WHERE z12_key = $1`,
-        [z12Key]
+        [z12Key],
       );
     },
 
@@ -148,7 +148,7 @@ export function createOsmHighwayJobsStore({ db }) {
              last_error = NULL,
              updated_at = NOW()
          WHERE z12_key = $1`,
-        [z12Key]
+        [z12Key],
       );
     },
 
@@ -160,8 +160,8 @@ export function createOsmHighwayJobsStore({ db }) {
              last_error = $2,
              updated_at = NOW()
          WHERE z12_key = $1`,
-        [z12Key, message]
+        [z12Key, message],
       );
-    }
+    },
   };
 }

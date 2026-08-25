@@ -81,8 +81,8 @@ describe('highways-prefixed vector tile routes', () => {
         listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
         listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
         enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
-        rerunFailed: vi.fn().mockResolvedValue('queued')
-      }
+        rerunFailed: vi.fn().mockResolvedValue('queued'),
+      },
     });
 
     const response = await request(app)
@@ -102,7 +102,7 @@ describe('highways-prefixed vector tile routes', () => {
       listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
       listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
       enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
-      rerunFailed: vi.fn().mockResolvedValue('queued')
+      rerunFailed: vi.fn().mockResolvedValue('queued'),
     };
 
     const app = createApp({
@@ -110,7 +110,7 @@ describe('highways-prefixed vector tile routes', () => {
       getVectorTilePbf: vi.fn(),
       queueMissingCoverageHighways: vi.fn(),
       getVectorTilePbfHighways: vi.fn(),
-      highwayJobsStore
+      highwayJobsStore,
     });
 
     const response = await request(app).get('/vector/highways/coverage/12/2212/1539');
@@ -119,7 +119,7 @@ describe('highways-prefixed vector tile routes', () => {
     expect(response.body).toEqual({
       key: '12/2212/1539',
       status: 'running',
-      loaded: false
+      loaded: false,
     });
     expect(highwayJobsStore.getStatus).toHaveBeenCalledWith('12/2212/1539');
   });
@@ -133,20 +133,20 @@ describe('vector coverage routes', () => {
       listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
       enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: true }),
       rerunFailed: vi.fn().mockResolvedValue('queued'),
-      ...jobsStore
+      ...jobsStore,
     };
 
     return createApp({
       jobsStore: fullJobsStore,
       queueMissingCoverage: vi.fn(),
-      getVectorTilePbf: vi.fn()
+      getVectorTilePbf: vi.fn(),
     });
   }
 
   it('returns loaded state for one completed z12 tile', async () => {
     const jobsStore = {
       getStatus: vi.fn().mockResolvedValue('done'),
-      listLoaded: vi.fn()
+      listLoaded: vi.fn(),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -156,7 +156,7 @@ describe('vector coverage routes', () => {
     expect(response.body).toEqual({
       key: '12/3456/1523',
       status: 'done',
-      loaded: true
+      loaded: true,
     });
     expect(jobsStore.getStatus).toHaveBeenCalledWith('12/3456/1523');
   });
@@ -164,7 +164,7 @@ describe('vector coverage routes', () => {
   it('returns not loaded state for unknown coverage', async () => {
     const jobsStore = {
       getStatus: vi.fn().mockResolvedValue(null),
-      listLoaded: vi.fn()
+      listLoaded: vi.fn(),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -174,14 +174,14 @@ describe('vector coverage routes', () => {
     expect(response.body).toEqual({
       key: '12/3456/1523',
       status: null,
-      loaded: false
+      loaded: false,
     });
   });
 
   it('rejects invalid coverage coordinates', async () => {
     const jobsStore = {
       getStatus: vi.fn(),
-      listLoaded: vi.fn()
+      listLoaded: vi.fn(),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -197,8 +197,8 @@ describe('vector coverage routes', () => {
       getStatus: vi.fn(),
       listLoaded: vi.fn().mockResolvedValue({
         keys: ['12/3456/1523', '12/3457/1523'],
-        total: 2
-      })
+        total: 2,
+      }),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -208,11 +208,11 @@ describe('vector coverage routes', () => {
     expect(response.body).toEqual({
       tiles: [
         { key: '12/3456/1523', z: 12, x: 3456, y: 1523 },
-        { key: '12/3457/1523', z: 12, x: 3457, y: 1523 }
+        { key: '12/3457/1523', z: 12, x: 3457, y: 1523 },
       ],
       limit: 25,
       offset: 50,
-      total: 2
+      total: 2,
     });
     expect(jobsStore.listLoaded).toHaveBeenCalledWith({ limit: 25, offset: 50 });
   });
@@ -220,7 +220,7 @@ describe('vector coverage routes', () => {
   it('rejects invalid coverage pagination', async () => {
     const jobsStore = {
       getStatus: vi.fn(),
-      listLoaded: vi.fn()
+      listLoaded: vi.fn(),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -238,10 +238,10 @@ describe('vector coverage routes', () => {
       listJobs: vi.fn().mockResolvedValue({
         jobs: [
           { key: '12/3456/1523', status: 'done' },
-          { key: '12/3457/1523', status: 'failed' }
+          { key: '12/3457/1523', status: 'failed' },
         ],
-        total: 2
-      })
+        total: 2,
+      }),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -251,18 +251,18 @@ describe('vector coverage routes', () => {
     expect(response.body).toEqual({
       jobs: [
         { key: '12/3456/1523', z: 12, x: 3456, y: 1523, status: 'done' },
-        { key: '12/3457/1523', z: 12, x: 3457, y: 1523, status: 'failed' }
+        { key: '12/3457/1523', z: 12, x: 3457, y: 1523, status: 'failed' },
       ],
       limit: 25,
       offset: 0,
-      total: 2
+      total: 2,
     });
     expect(jobsStore.listJobs).toHaveBeenCalledWith({ limit: 25, offset: 0 });
   });
 
   it('enqueues a coverage job for one canonical z12 tile', async () => {
     const jobsStore = {
-      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: true })
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: true }),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -275,7 +275,7 @@ describe('vector coverage routes', () => {
 
   it('reports an existing coverage job without enqueuing again', async () => {
     const jobsStore = {
-      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false })
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -289,7 +289,7 @@ describe('vector coverage routes', () => {
     const jobsStore = {
       getStatus: vi.fn(),
       listLoaded: vi.fn(),
-      rerunFailed: vi.fn().mockResolvedValue('queued')
+      rerunFailed: vi.fn().mockResolvedValue('queued'),
     };
     const app = createCoverageApp(jobsStore);
 
@@ -302,12 +302,12 @@ describe('vector coverage routes', () => {
 
   it.each([
     ['not_found', 404, 'COVERAGE_JOB_NOT_FOUND'],
-    ['not_failed', 409, 'COVERAGE_JOB_NOT_FAILED']
+    ['not_failed', 409, 'COVERAGE_JOB_NOT_FAILED'],
   ])('maps rerun result %s to HTTP %i', async (result, expectedStatus, expectedCode) => {
     const jobsStore = {
       getStatus: vi.fn(),
       listLoaded: vi.fn(),
-      rerunFailed: vi.fn().mockResolvedValue(result)
+      rerunFailed: vi.fn().mockResolvedValue(result),
     };
     const app = createCoverageApp(jobsStore);
 

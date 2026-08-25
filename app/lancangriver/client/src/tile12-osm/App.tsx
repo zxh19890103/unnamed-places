@@ -1,30 +1,30 @@
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from 'react';
 
-import { Button } from "@/_components";
-import { BASE_URL } from "@/calc/constants.js";
-import { fetchTileVector } from "@/tile12-osm/vector-tiles.js";
-import { LeafletVectorViewer } from "./leaflet.js";
-import { parseTile12Key } from "./tile.js";
-import { ThreeJsTileViewer } from "./ThreeJsTileViewer.js";
+import { Button } from '@/_components';
+import { BASE_URL } from '@/calc/constants.js';
+import { fetchTileVector } from '@/tile12-osm/vector-tiles.js';
+import { LeafletVectorViewer } from './leaflet.js';
+import { parseTile12Key } from './tile.js';
+import { ThreeJsTileViewer } from './ThreeJsTileViewer.js';
 
-const DEFAULT_TILE_KEY = "12/2212/1539";
+const DEFAULT_TILE_KEY = '12/2212/1539';
 
-type RendererMode = "three" | "leaflet";
+type RendererMode = 'three' | 'leaflet';
 
 export default function App() {
   const requestGenerationRef = useRef(0);
   const [tileKey, setTileKey] = useState(resolveQueryString);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<string>("No tile loaded");
-  const [mode, setMode] = useState<RendererMode>("leaflet");
+  const [summary, setSummary] = useState<string>('No tile loaded');
+  const [mode, setMode] = useState<RendererMode>('leaflet');
   const [tile, setTile] = useState<ReturnType<typeof parseTile12Key>>(null);
   const [features, setFeatures] = useState<GeoJSON.Feature[]>([]);
 
   const loadTile = async () => {
     const tile = parseTile12Key(tileKey);
     if (!tile) {
-      setError("Use a zoom-12 key with x/y between 0 and 4095");
+      setError('Use a zoom-12 key with x/y between 0 and 4095');
       return;
     }
 
@@ -37,21 +37,14 @@ export default function App() {
       const key = `${tile.z}/${tile.x}/${tile.y}`;
       const [defaultTileVector, highwaysTileVector] = await Promise.all([
         fetchTileVector(`${BASE_URL}/vector/tiles-existing/${key}.pbf`, tile),
-        fetchTileVector(
-          `${BASE_URL}/vector/highways/tiles-existing/${key}.pbf`,
-          tile,
-        ),
+        fetchTileVector(`${BASE_URL}/vector/highways/tiles-existing/${key}.pbf`, tile),
       ]);
       if (generation !== requestGenerationRef.current) {
         return;
       }
 
-      const defaultFeatures = defaultTileVector.layers.flatMap(
-        (layer) => layer.features,
-      );
-      const highwaysFeatures = highwaysTileVector.layers.flatMap(
-        (layer) => layer.features,
-      );
+      const defaultFeatures = defaultTileVector.layers.flatMap((layer) => layer.features);
+      const highwaysFeatures = highwaysTileVector.layers.flatMap((layer) => layer.features);
       const nextFeatures = [...defaultFeatures, ...highwaysFeatures];
       setTile(tile);
       setFeatures(nextFeatures);
@@ -62,9 +55,9 @@ export default function App() {
       const layerSummary = [
         `default: ${defaultFeatureCount}`,
         `highways: ${highwaysFeatureCount}`,
-      ].join(" · ");
+      ].join(' · ');
       setSummary(
-        `${key} · ${nextFeatures.length} features${layerSummary ? ` · ${layerSummary}` : ""}`,
+        `${key} · ${nextFeatures.length} features${layerSummary ? ` · ${layerSummary}` : ''}`,
       );
     } catch (reason: unknown) {
       if (generation === requestGenerationRef.current) {
@@ -85,7 +78,7 @@ export default function App() {
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation text-jade-text">
       <div className="absolute inset-0">
-        {mode === "three" ? (
+        {mode === 'three' ? (
           <ThreeJsTileViewer features={features} tile={tile} />
         ) : (
           <LeafletVectorViewer features={features} tileKey={tileKey} />
@@ -110,7 +103,7 @@ export default function App() {
             </p>
           </div>
           <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 text-[10px] tabular-nums text-jade-text-muted">
-            {mode === "three" ? "3D" : "2D"}
+            {mode === 'three' ? '3D' : '2D'}
           </span>
         </div>
 
@@ -130,27 +123,22 @@ export default function App() {
             <Button
               type="button"
               size="base"
-              variant={mode === "three" ? "primary" : "default"}
-              onClick={() => setMode("three")}
+              variant={mode === 'three' ? 'primary' : 'default'}
+              onClick={() => setMode('three')}
             >
               3D
             </Button>
             <Button
               type="button"
               size="base"
-              variant={mode === "leaflet" ? "primary" : "default"}
-              onClick={() => setMode("leaflet")}
+              variant={mode === 'leaflet' ? 'primary' : 'default'}
+              onClick={() => setMode('leaflet')}
             >
               2D
             </Button>
           </div>
-          <Button
-            type="submit"
-            size="base"
-            variant="primary"
-            disabled={loading}
-          >
-            {loading ? "Loading..." : "Load"}
+          <Button type="submit" size="base" variant="primary" disabled={loading}>
+            {loading ? 'Loading...' : 'Load'}
           </Button>
         </form>
 
@@ -164,7 +152,7 @@ export default function App() {
 
 const resolveQueryString = () => {
   const queryString = new URLSearchParams(location.search);
-  const tileKey = queryString.get("tilekey");
+  const tileKey = queryString.get('tilekey');
   if (/^12\/\d+\/\d+$/.test(tileKey)) {
     return tileKey;
   } else {

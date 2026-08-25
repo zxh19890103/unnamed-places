@@ -1,45 +1,31 @@
-import * as THREE from "three";
-import * as polygonUtils from "../_polygon.js";
+import * as THREE from 'three';
+import * as polygonUtils from '../_polygon.js';
 
 export function isRiverWaterFeature(feature: GeoJSON.Feature): boolean {
-  const waterway = polygonUtils
-    .readFeatureString(feature, "waterway")
-    ?.toLowerCase()
-    .trim();
-  const water = polygonUtils
-    .readFeatureString(feature, "water")
-    ?.toLowerCase()
-    .trim();
-  const natural = polygonUtils
-    .readFeatureString(feature, "natural")
-    ?.toLowerCase()
-    .trim();
+  const waterway = polygonUtils.readFeatureString(feature, 'waterway')?.toLowerCase().trim();
+  const water = polygonUtils.readFeatureString(feature, 'water')?.toLowerCase().trim();
+  const natural = polygonUtils.readFeatureString(feature, 'natural')?.toLowerCase().trim();
 
   if (waterway) {
-    const normalized = waterway.split(";")[0]?.trim() ?? waterway;
-    if (
-      ["river", "stream", "canal", "drain", "ditch", "riverbank"].includes(
-        normalized,
-      )
-    ) {
+    const normalized = waterway.split(';')[0]?.trim() ?? waterway;
+    if (['river', 'stream', 'canal', 'drain', 'ditch', 'riverbank'].includes(normalized)) {
       return true;
     }
   }
 
   if (water) {
-    const normalized = water.split(";")[0]?.trim() ?? water;
-    if (["river", "stream", "canal"].includes(normalized)) {
+    const normalized = water.split(';')[0]?.trim() ?? water;
+    if (['river', 'stream', 'canal'].includes(normalized)) {
       return true;
     }
   }
 
-  return natural === "water" && Boolean(waterway);
+  return natural === 'water' && Boolean(waterway);
 }
 
 function computePrincipalFlowFrame(
   positionAttr:
-    | THREE.BufferAttribute<THREE.BufferAttributeEventMap>
-    | THREE.InterleavedBufferAttribute,
+    THREE.BufferAttribute<THREE.BufferAttributeEventMap> | THREE.InterleavedBufferAttribute,
 ): {
   centerX: number;
   centerZ: number;
@@ -103,12 +89,9 @@ function computePrincipalFlowFrame(
   };
 }
 
-function buildWaterFlowUv(
-  feature: GeoJSON.Feature,
-  polygon: THREE.BufferGeometry,
-): Float32Array {
+function buildWaterFlowUv(feature: GeoJSON.Feature, polygon: THREE.BufferGeometry): Float32Array {
   const itemSize = 2;
-  const positionAttr = polygon.getAttribute("position");
+  const positionAttr = polygon.getAttribute('position');
 
   if (!positionAttr) {
     return new Float32Array(0);
@@ -170,12 +153,6 @@ function buildWaterFlowUv(
   return waterFlowUv;
 }
 
-export function addWaterFlow(
-  feature: GeoJSON.Feature,
-  polygon: THREE.BufferGeometry,
-): void {
-  polygon.setAttribute(
-    "flowUv",
-    new THREE.BufferAttribute(buildWaterFlowUv(feature, polygon), 2),
-  );
+export function addWaterFlow(feature: GeoJSON.Feature, polygon: THREE.BufferGeometry): void {
+  polygon.setAttribute('flowUv', new THREE.BufferAttribute(buildWaterFlowUv(feature, polygon), 2));
 }

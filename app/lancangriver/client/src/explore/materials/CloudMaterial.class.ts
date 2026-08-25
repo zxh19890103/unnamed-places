@@ -1,7 +1,7 @@
-import * as THREE from "three";
-import { createFallbackWhiteTexture } from "./_func";
-import vertexShader from "./shaders/cloud.vert.glsl?raw";
-import fragmentShader from "./shaders/cloud.frag.glsl?raw";
+import * as THREE from 'three';
+import { createFallbackWhiteTexture } from './_func';
+import vertexShader from './shaders/cloud.vert.glsl?raw';
+import fragmentShader from './shaders/cloud.frag.glsl?raw';
 
 type Parameters = {
   color?: THREE.ColorRepresentation;
@@ -32,8 +32,7 @@ export class CloudMaterial extends THREE.ShaderMaterial {
       atlasGrid = 4,
     } = params;
 
-    const defaultViewportHeight =
-      typeof window !== "undefined" ? window.innerHeight : 1080;
+    const defaultViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
 
     const fallbackAtlasTexture = createFallbackWhiteTexture();
 

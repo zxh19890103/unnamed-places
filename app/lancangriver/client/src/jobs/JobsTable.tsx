@@ -1,18 +1,18 @@
-import { memo, useEffect, useState } from "react";
-import { JobStatus } from "./JobStatus";
-import type { CoverageJob, CoverageJobsPage, CoverageJobStatus } from "./api";
-import { fetchGeoReverse, saveZ12GeoInfo } from "./api";
-import { tileZxyToCenterLatlng } from "@/_3dtiles";
-import { tileExtent } from "@/calc/mercator";
-import { Tile12OsmLink } from "@/_partials";
-import { Button, IconButton } from "@/_components";
-import { DownloadIcon } from "@radix-ui/react-icons";
+import { memo, useEffect, useState } from 'react';
+import { JobStatus } from './JobStatus';
+import type { CoverageJob, CoverageJobsPage, CoverageJobStatus } from './api';
+import { fetchGeoReverse, saveZ12GeoInfo } from './api';
+import { tileZxyToCenterLatlng } from '@/_3dtiles';
+import { tileExtent } from '@/calc/mercator';
+import { Tile12OsmLink } from '@/_partials';
+import { Button, IconButton } from '@/_components';
+import { DownloadIcon } from '@radix-ui/react-icons';
 
 type JobsTableProps = {
   page: CoverageJobsPage | null;
   loading: boolean;
   error: string | null;
-  api: import("./api").CoverageApi;
+  api: import('./api').CoverageApi;
 };
 
 function hasJobs(page: CoverageJobsPage | null): page is CoverageJobsPage {
@@ -65,18 +65,14 @@ export function JobsTable({ page, loading, error, api }: JobsTableProps) {
           <TableColGroup />
           <tbody className="divide-y divide-jade-border-soft/70">
             {hasJobs(page)
-              ? page.jobs.map((job) => (
-                  <JobRow key={job.key} job={job} api={api} />
-                ))
+              ? page.jobs.map((job) => <JobRow key={job.key} job={job} api={api} />)
               : null}
           </tbody>
         </table>
       </div>
 
       {loading ? (
-        <div className="px-4 py-10 text-center text-sm text-jade-text-muted">
-          Loading tiles...
-        </div>
+        <div className="px-4 py-10 text-center text-sm text-jade-text-muted">Loading tiles...</div>
       ) : null}
       {!loading && !error && page?.jobs.length === 0 ? (
         <div className="px-4 py-10 text-center text-sm text-jade-text-muted">
@@ -89,7 +85,7 @@ export function JobsTable({ page, loading, error, api }: JobsTableProps) {
 
 type JobRowProps = {
   job: CoverageJob;
-  api: import("./api").CoverageApi;
+  api: import('./api').CoverageApi;
 };
 
 const JobRow = memo(({ job, api }: JobRowProps) => {
@@ -157,19 +153,15 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
       <td className="px-4 py-2.5">
         <JobStatus label={job.key} status={status} onRefresh={handleRefresh} />
       </td>
-      <td
-        className="px-4 py-2.5"
-        align="right"
-        title={actionError ?? undefined}
-      >
-        {status === "failed" ? (
+      <td className="px-4 py-2.5" align="right" title={actionError ?? undefined}>
+        {status === 'failed' ? (
           <Button
             size="sm"
             disabled={rerunning}
             onClick={() => void handleRerun()}
             variant="destructive"
           >
-            {rerunning ? "Rerunning" : "Rerun"}
+            {rerunning ? 'Rerunning' : 'Rerun'}
           </Button>
         ) : (
           <span className="text-jade-text-muted">-</span>
@@ -201,14 +193,14 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
       const payload = await fetchGeoReverse(latlng.lat, latlng.lng);
       const name = getDisplayName(payload);
       if (!name) {
-        throw new Error("Geo reverse response did not contain display_name");
+        throw new Error('Geo reverse response did not contain display_name');
       }
 
       setDisplayName(name);
       setRawData(payload);
       setHasUnsavedReverseResult(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Geo reverse failed");
+      setError(error instanceof Error ? error.message : 'Geo reverse failed');
     } finally {
       setLoadingReverse(false);
     }
@@ -227,11 +219,7 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
       setRawData(stored.raw_data);
       setHasUnsavedReverseResult(false);
     } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Could not save geo info",
-      );
+      setError(saveError instanceof Error ? saveError.message : 'Could not save geo info');
     } finally {
       setSaving(false);
     }
@@ -240,7 +228,7 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
   return (
     <div className="flex text-xs items-center gap-2">
       {loadingReverse
-        ? "Loading..."
+        ? 'Loading...'
         : (displayName ?? (
             <Button
               size="sm"
@@ -252,13 +240,8 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
             </Button>
           ))}
       {hasUnsavedReverseResult && displayName !== null && rawData !== null ? (
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => void handleSave()}
-          disabled={saving}
-        >
-          {saving ? "Saving..." : "Save"}
+        <Button type="button" size="sm" onClick={() => void handleSave()} disabled={saving}>
+          {saving ? 'Saving...' : 'Save'}
         </Button>
       ) : null}
     </div>
@@ -266,14 +249,12 @@ const LoadGeoInfoReverse = memo(({ tile }: { tile: CoverageJob }) => {
 });
 
 function getDisplayName(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return null;
   }
 
   const displayName = (payload as { display_name?: unknown }).display_name;
-  return typeof displayName === "string" && displayName.trim()
-    ? displayName
-    : null;
+  return typeof displayName === 'string' && displayName.trim() ? displayName : null;
 }
 
 const JobLatlng = memo(({ job }: { job: CoverageJob }) => {
@@ -297,7 +278,7 @@ const JobLatlng = memo(({ job }: { job: CoverageJob }) => {
       className=" text-jade-text-muted hover:underline"
       title="Copy coordinates"
     >
-      {copied ? "Copied" : coordinateText}
+      {copied ? 'Copied' : coordinateText}
     </button>
   );
 });
@@ -325,13 +306,10 @@ const JobTileSize = memo(({ job }: { job: CoverageJob }) => {
 
 function getTileSizeKm(job: CoverageJob) {
   const extent = tileExtent(job.z, job.x, job.y);
-  const centerLatRadians =
-    ((extent.north + extent.south) / 2) * (Math.PI / 180);
+  const centerLatRadians = ((extent.north + extent.south) / 2) * (Math.PI / 180);
   const kilometersPerDegree = 111.32;
   const widthKm =
-    Math.abs(extent.east - extent.west) *
-    kilometersPerDegree *
-    Math.cos(centerLatRadians);
+    Math.abs(extent.east - extent.west) * kilometersPerDegree * Math.cos(centerLatRadians);
   const heightKm = Math.abs(extent.north - extent.south) * kilometersPerDegree;
 
   return { widthKm, heightKm };

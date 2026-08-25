@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import type { MouseEvent, ReactNode } from 'react';
 
 type Tile12OsmLinkProps = {
   tileKey: string;
@@ -6,11 +6,7 @@ type Tile12OsmLinkProps = {
   className?: string;
 };
 
-export function Tile12OsmLink({
-  tileKey,
-  children,
-  className,
-}: Tile12OsmLinkProps) {
+export function Tile12OsmLink({ tileKey, children, className }: Tile12OsmLinkProps) {
   const href = `/tile12-osm?tilekey=${tileKey}`;
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -18,10 +14,7 @@ export function Tile12OsmLink({
 
     if (isInsideIframe) {
       event.preventDefault();
-      window.parent.postMessage(
-        { type: "tile12osm", urlToGo: href },
-        window.location.origin,
-      );
+      window.parent.postMessage({ type: 'tile12osm', urlToGo: href }, window.location.origin);
     }
   };
 

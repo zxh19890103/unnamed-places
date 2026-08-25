@@ -1,1 +1,1 @@
-export { DuckGeometry } from "./DuckGeometry.js";
+export { DuckGeometry } from './DuckGeometry.js';

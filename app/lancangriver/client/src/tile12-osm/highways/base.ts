@@ -1,7 +1,7 @@
-import * as THREE from "three";
-import * as polygonUtils from "../_polygon.js";
-import { HighwayCenterlineSample } from "./_types.js";
-import { highwayCategories } from "./categories/index.js";
+import * as THREE from 'three';
+import * as polygonUtils from '../_polygon.js';
+import { HighwayCenterlineSample } from './_types.js';
+import { highwayCategories } from './categories/index.js';
 
 export const HIGHWAY_WIDTH_METERS_SCALE = 1.2;
 
@@ -9,19 +9,16 @@ const LANE_WIDTH_METERS = 3.5;
 const DEFAULT_HIGHWAY_WIDTH_METERS = 4;
 
 export function getHighwayOffGroundMeters(feature: GeoJSON.Feature) {
-  const layer = polygonUtils.readFeatureNumber(feature, "layer") ?? 0;
+  const layer = polygonUtils.readFeatureNumber(feature, 'layer') ?? 0;
 
-  const isBridge = hasTruthyFeatureFlag(feature, "bridge");
-  const isTunnel = hasTruthyFeatureFlag(feature, "tunnel");
-  const isCovered = hasTruthyFeatureFlag(feature, "covered");
+  const isBridge = hasTruthyFeatureFlag(feature, 'bridge');
+  const isTunnel = hasTruthyFeatureFlag(feature, 'tunnel');
+  const isCovered = hasTruthyFeatureFlag(feature, 'covered');
 
-  const location = polygonUtils
-    .readFeatureString(feature, "location")
-    ?.toLowerCase()
-    .trim();
+  const location = polygonUtils.readFeatureString(feature, 'location')?.toLowerCase().trim();
 
-  const hasBridgeLocation = location === "bridge";
-  const hasTunnelLocation = location === "tunnel";
+  const hasBridgeLocation = location === 'bridge';
+  const hasTunnelLocation = location === 'tunnel';
 
   const classBias = getHighwayClassOffset(feature);
   const layerBias = layer * 1.5;
@@ -36,11 +33,11 @@ export function getHighwayOffGroundMeters(feature: GeoJSON.Feature) {
 
   let offGroundMeters = layerBias + classBias;
 
-  if (polygonUtils.readFeatureString(feature, "embankment")) {
+  if (polygonUtils.readFeatureString(feature, 'embankment')) {
     offGroundMeters += 0.5;
   }
 
-  if (polygonUtils.readFeatureString(feature, "cutting")) {
+  if (polygonUtils.readFeatureString(feature, 'cutting')) {
     offGroundMeters -= 0.5;
   }
 
@@ -55,7 +52,7 @@ function hasTruthyFeatureFlag(feature: GeoJSON.Feature, key: string): boolean {
   const value = polygonUtils.readFeatureString(feature, key);
   if (value !== null) {
     const normalized = value.toLowerCase().trim();
-    return normalized === "yes" || normalized === "true" || normalized === "1";
+    return normalized === 'yes' || normalized === 'true' || normalized === '1';
   }
 
   const numeric = polygonUtils.readFeatureNumber(feature, key);
@@ -64,7 +61,7 @@ function hasTruthyFeatureFlag(feature: GeoJSON.Feature, key: string): boolean {
   }
 
   const properties = feature.properties;
-  if (!properties || typeof properties !== "object") {
+  if (!properties || typeof properties !== 'object') {
     return false;
   }
 
@@ -73,22 +70,19 @@ function hasTruthyFeatureFlag(feature: GeoJSON.Feature, key: string): boolean {
 }
 
 function getHighwayClassOffset(feature: GeoJSON.Feature): number {
-  const type = polygonUtils
-    .readFeatureString(feature, "highway")
-    ?.toLowerCase()
-    .trim();
+  const type = polygonUtils.readFeatureString(feature, 'highway')?.toLowerCase().trim();
 
   if (!type) {
     return 0;
   }
 
-  const normalizedType = type.split(";")[0]?.trim() ?? type;
+  const normalizedType = type.split(';')[0]?.trim() ?? type;
 
   return highwayCategories[normalizedType]?.classOffset ?? 0;
 }
 
 export function isHighwayFeature(feature: GeoJSON.Feature): boolean {
-  const property = polygonUtils.readFeatureString(feature, "highway");
+  const property = polygonUtils.readFeatureString(feature, 'highway');
   return property !== null && property !== undefined;
 }
 
@@ -97,9 +91,7 @@ export function buildHighwayCenterlineSamples(
   distanceMeters: number,
   segmentCount: number = 0,
 ): HighwayCenterlineSample[] {
-  const sampleCount = segmentCount
-    ? segmentCount
-    : Math.max(12, Math.ceil(distanceMeters / 2));
+  const sampleCount = segmentCount ? segmentCount : Math.max(12, Math.ceil(distanceMeters / 2));
 
   const sampledPoints = path.getSpacedPoints(sampleCount);
 
@@ -116,9 +108,7 @@ export function buildHighwayCenterlineSamples(
 
   let cumulativeDistance = 0;
   for (let index = 1; index < sampledPoints.length; index += 1) {
-    cumulativeDistance += sampledPoints[index - 1].distanceTo(
-      sampledPoints[index],
-    );
+    cumulativeDistance += sampledPoints[index - 1].distanceTo(sampledPoints[index]);
     samples.push({
       point: sampledPoints[index].clone(),
       cumulativeDistance,
@@ -154,11 +144,7 @@ export function projectPointToHighwayCenterline(
 
     fromStart.subVectors(point, start.point);
 
-    const alongFactor = THREE.MathUtils.clamp(
-      fromStart.dot(delta) / segmentLengthSq,
-      0,
-      1,
-    );
+    const alongFactor = THREE.MathUtils.clamp(fromStart.dot(delta) / segmentLengthSq, 0, 1);
 
     closest.copy(start.point).addScaledVector(delta, alongFactor);
 
@@ -167,8 +153,7 @@ export function projectPointToHighwayCenterline(
     if (distanceSq < bestDistanceSq) {
       bestDistanceSq = distanceSq;
       bestSMeters = Math.sqrt(distanceSq);
-      bestTMeters =
-        start.cumulativeDistance + Math.sqrt(segmentLengthSq) * alongFactor;
+      bestTMeters = start.cumulativeDistance + Math.sqrt(segmentLengthSq) * alongFactor;
     }
   }
 
@@ -184,44 +169,34 @@ export function projectPointToHighwayCenterline(
 }
 
 function highwayWidthFromType(feature: GeoJSON.Feature): number {
-  const highwayType = polygonUtils
-    .readFeatureString(feature, "highway")
-    ?.toLowerCase()
-    .trim();
+  const highwayType = polygonUtils.readFeatureString(feature, 'highway')?.toLowerCase().trim();
 
   if (!highwayType) {
     return DEFAULT_HIGHWAY_WIDTH_METERS;
   }
 
-  const normalizedType = highwayType.split(";")[0]?.trim() ?? highwayType;
+  const normalizedType = highwayType.split(';')[0]?.trim() ?? highwayType;
 
-  return (
-    highwayCategories[normalizedType]?.widthMeters ??
-    DEFAULT_HIGHWAY_WIDTH_METERS
-  );
+  return highwayCategories[normalizedType]?.widthMeters ?? DEFAULT_HIGHWAY_WIDTH_METERS;
 }
 
 export function getHighwayType(feature: GeoJSON.Feature) {
-  const highwayType = polygonUtils
-    .readFeatureString(feature, "highway")
-    ?.toLowerCase()
-    .trim();
+  const highwayType = polygonUtils.readFeatureString(feature, 'highway')?.toLowerCase().trim();
 
-  if (!highwayType || !Object.hasOwn(highwayCategories, highwayType))
-    return "unclassified";
+  if (!highwayType || !Object.hasOwn(highwayCategories, highwayType)) return 'unclassified';
 
-  const normalizedType = highwayType.split(";")[0]?.trim() ?? highwayType;
+  const normalizedType = highwayType.split(';')[0]?.trim() ?? highwayType;
   return normalizedType;
 }
 
 export function getHighwayWidthMeters(feature: GeoJSON.Feature): number {
-  const explicitWidth = polygonUtils.readFeatureNumber(feature, "width");
+  const explicitWidth = polygonUtils.readFeatureNumber(feature, 'width');
 
   if (explicitWidth !== null && explicitWidth > 0) {
     return explicitWidth;
   }
 
-  const lanes = polygonUtils.readFeatureNumber(feature, "lanes");
+  const lanes = polygonUtils.readFeatureNumber(feature, 'lanes');
   if (lanes !== null && lanes > 0) {
     return Math.max(DEFAULT_HIGHWAY_WIDTH_METERS, lanes * LANE_WIDTH_METERS);
   }

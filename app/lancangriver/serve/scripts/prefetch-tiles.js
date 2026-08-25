@@ -32,7 +32,7 @@ function parseArgs(argv) {
     skipDem: false,
     force: false,
     manifestPath: null,
-    demProvider: 'opentopo'
+    demProvider: 'opentopo',
   };
 
   for (let index = 2; index < argv.length; index += 1) {
@@ -209,7 +209,7 @@ function listTilesForBbox(minLon, minLat, maxLon, maxLat, z) {
 
 function fillTemplate(template, values) {
   return template.replace(/\{([^}]+)\}/g, (_match, key) =>
-    values[key] === undefined ? '' : String(values[key])
+    values[key] === undefined ? '' : String(values[key]),
   );
 }
 
@@ -238,7 +238,7 @@ function tilePaths(root, z, x, y) {
     folder,
     satellite: join(folder, 'satellite.jpeg'),
     demGtiff: join(folder, 'dem.gtiff'),
-    demPng: join(folder, 'dem.png')
+    demPng: join(folder, 'dem.png'),
   };
 }
 
@@ -352,7 +352,7 @@ async function prefetchOneTile(tile, options, stats) {
         south: bbox.south,
         north: bbox.north,
         west: bbox.west,
-        east: bbox.east
+        east: bbox.east,
       });
 
       const gtiffResult = await downloadFile(demUrl, paths.demGtiff, options.force);
@@ -416,7 +416,7 @@ async function loadTiles(options) {
     options.minLat,
     options.maxLon,
     options.maxLat,
-    options.zoom
+    options.zoom,
   );
 }
 
@@ -432,17 +432,19 @@ async function main() {
     demPngDownloaded: 0,
     demPngRendered: 0,
     demPngCached: 0,
-    failures: 0
+    failures: 0,
   };
 
   console.log(`[prefetch] root=${options.root}`);
   console.log(`[prefetch] dem-provider=${options.demProvider}`);
-  console.log(`[prefetch] zoom=${options.zoom} tiles=${tiles.length} concurrency=${options.concurrency}`);
+  console.log(
+    `[prefetch] zoom=${options.zoom} tiles=${tiles.length} concurrency=${options.concurrency}`,
+  );
   if (options.manifestPath) {
     console.log(`[prefetch] manifest=${options.manifestPath}`);
   } else {
     console.log(
-      `[prefetch] bbox=${options.minLon},${options.minLat},${options.maxLon},${options.maxLat}`
+      `[prefetch] bbox=${options.minLon},${options.minLat},${options.maxLon},${options.maxLat}`,
     );
   }
 
@@ -455,20 +457,20 @@ async function main() {
     } catch (error) {
       stats.failures += 1;
       console.error(
-        `[prefetch] failed z=${tile.z} x=${tile.x} y=${tile.y}: ${error && error.message ? error.message : error}`
+        `[prefetch] failed z=${tile.z} x=${tile.x} y=${tile.y}: ${error && error.message ? error.message : error}`,
       );
     }
   });
 
   console.log('\n[prefetch] done');
   console.log(
-    `[prefetch] satellite downloaded=${stats.satelliteDownloaded} cached=${stats.satelliteCached}`
+    `[prefetch] satellite downloaded=${stats.satelliteDownloaded} cached=${stats.satelliteCached}`,
   );
   console.log(
-    `[prefetch] dem.gtiff downloaded=${stats.demGtiffDownloaded} cached=${stats.demGtiffCached}`
+    `[prefetch] dem.gtiff downloaded=${stats.demGtiffDownloaded} cached=${stats.demGtiffCached}`,
   );
   console.log(
-    `[prefetch] dem.png downloaded=${stats.demPngDownloaded} rendered=${stats.demPngRendered} cached=${stats.demPngCached}`
+    `[prefetch] dem.png downloaded=${stats.demPngDownloaded} rendered=${stats.demPngRendered} cached=${stats.demPngCached}`,
   );
   console.log(`[prefetch] failures=${stats.failures}`);
 

@@ -3,7 +3,7 @@ export function createVectorIngestWorker({
   fetchFeaturesForZ12Key,
   upsertVectorFeatures,
   source = 'osm',
-  logger = console
+  logger = console,
 }) {
   return {
     async tickOnce() {
@@ -26,7 +26,9 @@ export function createVectorIngestWorker({
         await jobs.markDone(job.z12Key);
 
         if (typeof logger?.info === 'function') {
-          logger.info(`[vector-jobs source=${source}] done ${job.z12Key} features=${features.length}`);
+          logger.info(
+            `[vector-jobs source=${source}] done ${job.z12Key} features=${features.length}`,
+          );
         }
       } catch (error) {
         const message = String(error?.message ?? error);
@@ -38,17 +40,22 @@ export function createVectorIngestWorker({
       }
 
       return true;
-    }
+    },
   };
 }
 
-export function createOsmIngestWorker({ jobs, fetchOsmFeatures, upsertVectorFeatures, logger = console }) {
+export function createOsmIngestWorker({
+  jobs,
+  fetchOsmFeatures,
+  upsertVectorFeatures,
+  logger = console,
+}) {
   return createVectorIngestWorker({
     jobs,
     fetchFeaturesForZ12Key: fetchOsmFeatures,
     upsertVectorFeatures,
     source: 'osm',
-    logger
+    logger,
   });
 }
 
@@ -56,14 +63,14 @@ export function createOsmHighwayIngestWorker({
   jobs,
   fetchOsmHighwayFeatures,
   upsertVectorFeaturesHighways,
-  logger = console
+  logger = console,
 }) {
   return createVectorIngestWorker({
     jobs,
     fetchFeaturesForZ12Key: fetchOsmHighwayFeatures,
     upsertVectorFeatures: upsertVectorFeaturesHighways,
     source: 'osm-highways',
-    logger
+    logger,
   });
 }
 
@@ -101,7 +108,7 @@ export function createOsmIngestRunner({ worker, intervalMs = 2000 }) {
         clearTimeout(timer);
       }
       timer = null;
-    }
+    },
   };
 }
 

@@ -6,16 +6,19 @@ import { Router } from 'express';
 const routesDir = dirname(fileURLToPath(import.meta.url));
 const defaultCenterlineGeojsonPath = resolve(
   routesDir,
-  '../../../pipeline/output/centerline/lancang_main_stem.geojson'
+  '../../../pipeline/output/centerline/lancang_main_stem.geojson',
 );
-const defaultTilesManifestPath = resolve(routesDir, '../../../pipeline/output/tiles/z11_manifest.json');
+const defaultTilesManifestPath = resolve(
+  routesDir,
+  '../../../pipeline/output/tiles/z11_manifest.json',
+);
 
 function sendCenterlineError(res, status, code, reason) {
   res.status(status).json({
     error: {
       code,
-      reason
-    }
+      reason,
+    },
   });
 }
 
@@ -39,7 +42,12 @@ export function createCenterlineRouter(options = {}) {
       res.status(200).json(parsedGeojson);
     } catch (error) {
       if (error && typeof error === 'object' && error.code === 'ENOENT') {
-        sendCenterlineError(res, 404, 'CENTERLINE_NOT_FOUND', 'Centerline GeoJSON file was not found');
+        sendCenterlineError(
+          res,
+          404,
+          'CENTERLINE_NOT_FOUND',
+          'Centerline GeoJSON file was not found',
+        );
         return;
       }
 
@@ -55,7 +63,12 @@ export function createCenterlineRouter(options = {}) {
       res.status(200).json(parsedManifest);
     } catch (error) {
       if (error && typeof error === 'object' && error.code === 'ENOENT') {
-        sendCenterlineError(res, 404, 'TILES_MANIFEST_NOT_FOUND', 'Tiles manifest file was not found');
+        sendCenterlineError(
+          res,
+          404,
+          'TILES_MANIFEST_NOT_FOUND',
+          'Tiles manifest file was not found',
+        );
         return;
       }
 

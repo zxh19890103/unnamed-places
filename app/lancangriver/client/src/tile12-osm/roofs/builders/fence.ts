@@ -1,6 +1,6 @@
-import * as THREE from "three";
-import { TileProjection } from "../../tile.js";
-import * as helpers from "../_helpers.js";
+import * as THREE from 'three';
+import { TileProjection } from '../../tile.js';
+import * as helpers from '../_helpers.js';
 
 const building_roof_building_factories__fence = (
   _roofprint: number[],
@@ -8,19 +8,15 @@ const building_roof_building_factories__fence = (
   heightMeters: number,
   projection: TileProjection,
 ): THREE.BufferGeometry => {
-  const appendPenthouse = createRandomRoofPenthouseAppender(
-    features,
-    heightMeters,
-    projection,
-  );
+  const appendPenthouse = createRandomRoofPenthouseAppender(features, heightMeters, projection);
 
   const geometry = new THREE.BufferGeometry();
 
   const rings = helpers.getFeatureRoofRings(features, heightMeters, projection);
 
   if (rings.length === 0) {
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute([], 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute([], 2));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute([], 2));
     return geometry;
   }
 
@@ -59,12 +55,7 @@ const building_roof_building_factories__fence = (
     const p1 = flatPoints[next];
 
     if (
-      !helpers.lineNormals2D(
-        contour2d[index],
-        contour2d[next],
-        wallOuterOffset,
-        wallInnerOffset,
-      )
+      !helpers.lineNormals2D(contour2d[index], contour2d[next], wallOuterOffset, wallInnerOffset)
     ) {
       continue;
     }
@@ -77,75 +68,21 @@ const building_roof_building_factories__fence = (
     const outerTop0: [number, number, number] = [p0[0], topY, p0[2]];
     const outerTop1: [number, number, number] = [p1[0], topY, p1[2]];
 
-    const innerBottom0: [number, number, number] = [
-      p0[0] + inwardX,
-      baseY,
-      p0[2] + inwardZ,
-    ];
-    const innerBottom1: [number, number, number] = [
-      p1[0] + inwardX,
-      baseY,
-      p1[2] + inwardZ,
-    ];
-    const innerTop0: [number, number, number] = [
-      p0[0] + inwardX,
-      topY,
-      p0[2] + inwardZ,
-    ];
-    const innerTop1: [number, number, number] = [
-      p1[0] + inwardX,
-      topY,
-      p1[2] + inwardZ,
-    ];
+    const innerBottom0: [number, number, number] = [p0[0] + inwardX, baseY, p0[2] + inwardZ];
+    const innerBottom1: [number, number, number] = [p1[0] + inwardX, baseY, p1[2] + inwardZ];
+    const innerTop0: [number, number, number] = [p0[0] + inwardX, topY, p0[2] + inwardZ];
+    const innerTop1: [number, number, number] = [p1[0] + inwardX, topY, p1[2] + inwardZ];
 
-    helpers.pushQuad(
-      positions,
-      uvs,
-      outerBottom0,
-      outerBottom1,
-      outerTop0,
-      outerTop1,
-    );
-    helpers.pushQuad(
-      positions,
-      uvs,
-      innerBottom1,
-      innerBottom0,
-      innerTop1,
-      innerTop0,
-    );
-    helpers.pushQuad(
-      positions,
-      uvs,
-      outerTop0,
-      outerTop1,
-      innerTop0,
-      innerTop1,
-    );
-    helpers.pushQuad(
-      positions,
-      uvs,
-      outerBottom0,
-      innerBottom0,
-      outerTop0,
-      innerTop0,
-    );
-    helpers.pushQuad(
-      positions,
-      uvs,
-      innerBottom1,
-      outerBottom1,
-      innerTop1,
-      outerTop1,
-    );
+    helpers.pushQuad(positions, uvs, outerBottom0, outerBottom1, outerTop0, outerTop1);
+    helpers.pushQuad(positions, uvs, innerBottom1, innerBottom0, innerTop1, innerTop0);
+    helpers.pushQuad(positions, uvs, outerTop0, outerTop1, innerTop0, innerTop1);
+    helpers.pushQuad(positions, uvs, outerBottom0, innerBottom0, outerTop0, innerTop0);
+    helpers.pushQuad(positions, uvs, innerBottom1, outerBottom1, innerTop1, outerTop1);
   }
 
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
 
   const centroid = new THREE.Vector3(...helpers.calculateCentroid(rings[0]));
   appendPenthouse(geometry, centroid, 11, 12, 16, 30);
@@ -182,20 +119,14 @@ const createRandomRoofPenthouseAppender = (
       new THREE.Vector3(-halfWidth, heightMeters, halfDepth),
     ].map((vertex) => vertex.applyMatrix4(yRotation).add(placement));
 
-    const existingPosition = geometry.getAttribute("position");
-    const existingUv = geometry.getAttribute("uv");
+    const existingPosition = geometry.getAttribute('position');
+    const existingUv = geometry.getAttribute('uv');
     const positions = existingPosition
       ? Array.from(existingPosition.array as ArrayLike<number>)
       : [];
-    const uvs = existingUv
-      ? Array.from(existingUv.array as ArrayLike<number>)
-      : [];
+    const uvs = existingUv ? Array.from(existingUv.array as ArrayLike<number>) : [];
 
-    const pushTriangle = (
-      a: THREE.Vector3,
-      b: THREE.Vector3,
-      c: THREE.Vector3,
-    ) => {
+    const pushTriangle = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
       positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
       uvs.push(0, 0, 0, 0, 0, 0);
     };
@@ -226,11 +157,8 @@ const createRandomRoofPenthouseAppender = (
     pushTriangle(v1, v5, v6);
     pushTriangle(v1, v6, v2);
 
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(positions, 3),
-    );
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   };
 };
 

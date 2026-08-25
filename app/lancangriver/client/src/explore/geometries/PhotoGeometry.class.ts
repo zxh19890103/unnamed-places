@@ -1,8 +1,8 @@
-import * as THREE from "three";
-import { getLocalBasisAtPoint } from "@/calc/sphere";
-import { PhotoRecord } from "@/photos/types";
-import { WorldExtent } from "@/calc/types";
-import { latlngToSphere } from "@/_3dtiles";
+import * as THREE from 'three';
+import { getLocalBasisAtPoint } from '@/calc/sphere';
+import { PhotoRecord } from '@/photos/types';
+import { WorldExtent } from '@/calc/types';
+import { latlngToSphere } from '@/_3dtiles';
 
 type Parameters = {
   worldExtent: WorldExtent;
@@ -20,11 +20,11 @@ export class PhotoGeometry extends THREE.BufferGeometry {
     const { size = 180, ratio = 4 / 3, worldExtent } = params;
 
     if (!Number.isFinite(size) || size <= 0) {
-      throw new Error("PhotoGeometry size must be a finite number > 0");
+      throw new Error('PhotoGeometry size must be a finite number > 0');
     }
 
     if (!Number.isFinite(ratio) || ratio <= 0) {
-      throw new Error("PhotoGeometry ratio must be a finite number > 0");
+      throw new Error('PhotoGeometry ratio must be a finite number > 0');
     }
 
     const anchorLng = worldExtent.west + worldExtent.lngSpan * 0.5;
@@ -74,9 +74,9 @@ export class PhotoGeometry extends THREE.BufferGeometry {
     const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
     const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
 
-    this.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    this.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-    this.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+    this.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    this.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     this.setIndex(new THREE.BufferAttribute(indices, 1));
 
     this.computeBoundingSphere();

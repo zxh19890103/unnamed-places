@@ -1,11 +1,11 @@
-import { ButtonsGroup } from "./ButtonsGroup";
-import { Panel } from "./Panel";
-import { Tooltip } from "./Tooltip";
-import { ChildWindow } from "./Window";
-import { Button, IconButton } from "./Button";
-import { Tab } from "./Tab";
-import { Tag } from "./Tag";
-import { Alert, AlertProvider, useAlert } from "./Alert";
+import { ButtonsGroup } from './ButtonsGroup';
+import { Panel } from './Panel';
+import { Tooltip } from './Tooltip';
+import { ChildWindow } from './Window';
+import { Button, IconButton } from './Button';
+import { Tab } from './Tab';
+import { Tag } from './Tag';
+import { Alert, AlertProvider, useAlert } from './Alert';
 
 const meta = JSON.stringify(import.meta);
 

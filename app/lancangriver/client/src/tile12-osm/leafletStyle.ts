@@ -1,31 +1,31 @@
-import type { PathOptions } from "leaflet";
-import { classifyPolygonFeature } from "./_polygon.js";
+import type { PathOptions } from 'leaflet';
+import { classifyPolygonFeature } from './_polygon.js';
 
 export function getLeafletFeatureStyle(feature: GeoJSON.Feature): PathOptions {
   const kind = classifyPolygonFeature(feature);
 
-  if (kind === "building") {
+  if (kind === 'building') {
     return {
-      color: "#f59e0b",
+      color: '#f59e0b',
       weight: 2,
-      fillColor: "#f59e0b",
+      fillColor: '#f59e0b',
       fillOpacity: 0.32,
     };
   }
 
-  if (kind === "water") {
+  if (kind === 'water') {
     return {
-      color: "#38bdf8",
+      color: '#38bdf8',
       weight: 2,
-      fillColor: "#38bdf8",
+      fillColor: '#38bdf8',
       fillOpacity: 0.3,
     };
   }
 
   return {
-    color: "#000",
+    color: '#000',
     weight: 1.5,
-    fillColor: "#000",
+    fillColor: '#000',
     fillOpacity: 0.16,
   };
 }

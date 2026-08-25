@@ -1,24 +1,24 @@
-import { memo, useEffect, useRef, useState } from "react";
-import * as THREE from "three";
+import { memo, useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
 
-import { createSceneState, SceneState } from "./explore/setup";
-import { SceneMonitor } from "./explore/dom/SceneMonitor";
-import { TileMaterialModeSelect } from "./explore/dom/TileMaterialModeSelect";
-import { OpsPanel } from "./explore/dom/OpsPanel";
-import type { LatLng } from "./calc/types";
-import { SphereTile } from "./explore/SphereTile.class";
-import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from "./flat/protocol";
-import { JourneyPanel } from "./photos/JourneyPanel";
-import { buildJourneyDays } from "./photos/journey";
-import { fetchGeotaggedPhotos } from "./photos/sources";
-import type { JourneyDayNode, PhotoRecord } from "./photos/types";
-import { MiniMap } from "./explore/dom/MiniMap";
-import { ChildWindow } from "./_components";
-import { latlngToSphere } from "./_3dtiles";
-import { EARTH_RADIUS } from "./calc/constants";
+import { createSceneState, SceneState } from './explore/setup';
+import { SceneMonitor } from './explore/dom/SceneMonitor';
+import { TileMaterialModeSelect } from './explore/dom/TileMaterialModeSelect';
+import { OpsPanel } from './explore/dom/OpsPanel';
+import type { LatLng } from './calc/types';
+import { SphereTile } from './explore/SphereTile.class';
+import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from './flat/protocol';
+import { JourneyPanel } from './photos/JourneyPanel';
+import { buildJourneyDays } from './photos/journey';
+import { fetchGeotaggedPhotos } from './photos/sources';
+import type { JourneyDayNode, PhotoRecord } from './photos/types';
+import { MiniMap } from './explore/dom/MiniMap';
+import { ChildWindow } from './_components';
+import { latlngToSphere } from './_3dtiles';
+import { EARTH_RADIUS } from './calc/constants';
 
 type OrbitClickEvent = {
-  type: "click";
+  type: 'click';
   latlng: LatLng;
 };
 
@@ -40,24 +40,20 @@ export default function App() {
   return (
     <div className="relative h-screen w-screen">
       <div ref={hostRef} className="absolute inset-0 overflow-hidden" />
-      {sceneState && (
-        <CreateScene sceneState={sceneState} host={hostRef.current} />
-      )}
+      {sceneState && <CreateScene sceneState={sceneState} host={hostRef.current} />}
     </div>
   );
 }
 
 const CreateScene = memo(
   ({ host, sceneState }: { sceneState: SceneState; host: HTMLDivElement }) => {
-    const [tile12OsmFrameUrl, setTile12OsmFrameUrl] = useState<
-      string | boolean
-    >(null);
+    const [tile12OsmFrameUrl, setTile12OsmFrameUrl] = useState<string | boolean>(null);
     const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
-    const [flatFrameUrl, setFlatFrameUrl] = useState("/flat.html");
+    const [flatFrameUrl, setFlatFrameUrl] = useState('/flat.html');
     const [isJobsManageModalOpen, setIsJobsManageModalOpen] = useState(false);
-    const [jobsManageFrameUrl, setJobsManageFrameUrl] = useState("./jobs");
+    const [jobsManageFrameUrl, setJobsManageFrameUrl] = useState('./jobs');
     const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
-    const [createJobFrameUrl, setCreateJobFrameUrl] = useState("./jobs-create");
+    const [createJobFrameUrl, setCreateJobFrameUrl] = useState('./jobs-create');
     const flatModalTriggerRef = useRef<HTMLElement | null>(null);
     const [journeyRecords, setJourneyRecords] = useState<PhotoRecord[]>([]);
     const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
@@ -65,15 +61,7 @@ const CreateScene = memo(
     const [journeyLoading, setJourneyLoading] = useState(false);
 
     useEffect(() => {
-      const {
-        scene,
-        camera,
-        renderer,
-        controlsManager,
-        stats,
-        resize,
-        onFrame,
-      } = sceneState;
+      const { scene, camera, renderer, controlsManager, stats, resize, onFrame } = sceneState;
 
       const clickRaycaster = new THREE.Raycaster();
       const clickCoordinates = new THREE.Vector2();
@@ -85,43 +73,34 @@ const CreateScene = memo(
       const handleMapClick = (event: MouseEvent) => {
         const rect = renderer.domElement.getBoundingClientRect();
         clickCoordinates.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        clickCoordinates.y =
-          -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        clickCoordinates.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         clickRaycaster.setFromCamera(clickCoordinates, camera);
 
         sceneState.sphere.updateWorldMatrix(true, true);
         sceneState.sphere.getWorldPosition(sphereWorldPosition);
         camera.getWorldPosition(cameraWorldPosition);
 
-        const hit = clickRaycaster
-          .intersectObject(sceneState.sphere, true)
-          .find((intersection) => {
-            if (!(intersection.object instanceof SphereTile)) {
+        const hit = clickRaycaster.intersectObject(sceneState.sphere, true).find((intersection) => {
+          if (!(intersection.object instanceof SphereTile)) {
+            return false;
+          }
+
+          let object: THREE.Object3D | null = intersection.object;
+          while (object) {
+            if (!object.visible) {
               return false;
             }
-
-            let object: THREE.Object3D | null = intersection.object;
-            while (object) {
-              if (!object.visible) {
-                return false;
-              }
-              if (object === sceneState.sphere) {
-                break;
-              }
-              object = object.parent;
+            if (object === sceneState.sphere) {
+              break;
             }
+            object = object.parent;
+          }
 
-            surfaceNormal
-              .copy(intersection.point)
-              .sub(sphereWorldPosition)
-              .normalize();
-            surfaceToCamera
-              .copy(cameraWorldPosition)
-              .sub(intersection.point)
-              .normalize();
+          surfaceNormal.copy(intersection.point).sub(sphereWorldPosition).normalize();
+          surfaceToCamera.copy(cameraWorldPosition).sub(intersection.point).normalize();
 
-            return surfaceNormal.dot(surfaceToCamera) > 0;
-          });
+          return surfaceNormal.dot(surfaceToCamera) > 0;
+        });
         if (!hit) {
           return;
         }
@@ -137,13 +116,13 @@ const CreateScene = memo(
         };
 
         orbitControls.dispatchEvent({
-          type: "click",
+          type: 'click',
           latlng,
         });
       };
 
       const handleResize = () => resize();
-      window.addEventListener("resize", handleResize);
+      window.addEventListener('resize', handleResize);
 
       let frameId = 0;
       let lastTime = performance.now();
@@ -165,13 +144,13 @@ const CreateScene = memo(
       resize();
       animate();
 
-      console.log("why????");
-      renderer.domElement.addEventListener("click", handleMapClick);
+      console.log('why????');
+      renderer.domElement.addEventListener('click', handleMapClick);
 
       return () => {
-        console.log("why?");
-        window.removeEventListener("resize", handleResize);
-        renderer.domElement.removeEventListener("click", handleMapClick);
+        console.log('why?');
+        window.removeEventListener('resize', handleResize);
+        renderer.domElement.removeEventListener('click', handleMapClick);
         window.cancelAnimationFrame(frameId);
       };
     }, [sceneState]);
@@ -189,7 +168,7 @@ const CreateScene = memo(
             void moveCameraTo(center);
             break;
           }
-          case "tile12osm": {
+          case 'tile12osm': {
             const url = event.data.urlToGo;
             setTile12OsmFrameUrl(url);
             break;
@@ -197,34 +176,31 @@ const CreateScene = memo(
         }
       };
 
-      window.addEventListener("message", handleMessage);
-      return () => window.removeEventListener("message", handleMessage);
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
     }, []);
 
     const openFlatModal = async () => {
       const center = sceneState.getCurrentCenterLatLng();
-      flatModalTriggerRef.current =
-        document.activeElement as HTMLElement | null;
+      flatModalTriggerRef.current = document.activeElement as HTMLElement | null;
       setFlatFrameUrl(buildFlatModalUrl(center));
       setIsFlatModalOpen(true);
     };
 
     const openJobsManageModal = () => {
-      setJobsManageFrameUrl("./jobs");
+      setJobsManageFrameUrl('./jobs');
       setIsJobsManageModalOpen(true);
     };
 
     const openCreateJobModal = () => {
       const center = sceneState.getCurrentCenterLatLng();
-      const nextUrl = center
-        ? `./jobs-create?latlng=${center.lat},${center.lng}`
-        : "./jobs-create";
+      const nextUrl = center ? `./jobs-create?latlng=${center.lat},${center.lng}` : './jobs-create';
       setCreateJobFrameUrl(nextUrl);
       setIsCreateJobModalOpen(true);
     };
 
     const handleDirectSwitchTo3dView = async () => {
-      if (sceneState.threeTilesViewer.state.lookat === "origin") {
+      if (sceneState.threeTilesViewer.state.lookat === 'origin') {
         const center = sceneState.getCurrentCenterLatLng();
         focus3dAtCenter(center);
       } else {
@@ -238,11 +214,11 @@ const CreateScene = memo(
       setJourneyLoading(true);
 
       try {
-        const mode = import.meta.env.DEV ? "dev" : "prod";
+        const mode = import.meta.env.DEV ? 'dev' : 'prod';
         const photos =
-          mode === "dev"
-            ? await fetchGeotaggedPhotos({ mode: "dev" })
-            : await fetchGeotaggedPhotos({ mode: "prod" });
+          mode === 'dev'
+            ? await fetchGeotaggedPhotos({ mode: 'dev' })
+            : await fetchGeotaggedPhotos({ mode: 'prod' });
 
         const journey = buildJourneyDays(photos);
 
@@ -250,11 +226,11 @@ const CreateScene = memo(
         setJourneyDays(journey.days);
         setJourneyError(null);
 
-        console.log("Loaded geotagged photos", photos);
-        console.log("Built life journey", journey);
+        console.log('Loaded geotagged photos', photos);
+        console.log('Built life journey', journey);
       } catch (error) {
-        console.warn("Failed to load life journey photos", error);
-        setJourneyError("Could not load photos");
+        console.warn('Failed to load life journey photos', error);
+        setJourneyError('Could not load photos');
       } finally {
         setJourneyLoading(false);
       }
@@ -269,10 +245,10 @@ const CreateScene = memo(
       }
 
       try {
-        throw new Error("not implemented");
+        throw new Error('not implemented');
       } catch (error) {
-        console.warn("Failed to focus journey day", error);
-        setJourneyError("Could not focus that day");
+        console.warn('Failed to focus journey day', error);
+        setJourneyError('Could not focus that day');
       }
     };
 
@@ -300,9 +276,7 @@ const CreateScene = memo(
             controls={sceneState.controlsManager}
             tileManager={sceneState.tileManager}
             getCurrentGroundCenter={sceneState.getCurrentGroundCenterLatLng}
-            setVisibleTilesElevationRange={
-              sceneState.setVisibleTilesElevationRange
-            }
+            setVisibleTilesElevationRange={sceneState.setVisibleTilesElevationRange}
           />
         </div>
 
@@ -333,10 +307,7 @@ const CreateScene = memo(
         </div>
 
         <div className="fixed bottom-3 left-3 z-40">
-          <SceneMonitor
-            sphere={sceneState.sphere}
-            threeJsStats={sceneState.stats}
-          />
+          <SceneMonitor sphere={sceneState.sphere} threeJsStats={sceneState.stats} />
         </div>
 
         {isFlatModalOpen && (
@@ -362,10 +333,7 @@ const CreateScene = memo(
         )}
 
         {isCreateJobModalOpen && (
-          <ChildWindow.Modal
-            closeSignal={false}
-            onClose={setIsCreateJobModalOpen}
-          >
+          <ChildWindow.Modal closeSignal={false} onClose={setIsCreateJobModalOpen}>
             <ChildWindow
               title="Create OSM tile job"
               winRole="create job"
@@ -376,11 +344,7 @@ const CreateScene = memo(
         )}
 
         {tile12OsmFrameUrl && (
-          <ChildWindow.Modal
-            size={96}
-            closeSignal={null}
-            onClose={setTile12OsmFrameUrl}
-          >
+          <ChildWindow.Modal size={96} closeSignal={null} onClose={setTile12OsmFrameUrl}>
             <ChildWindow
               title="Check Tile Osm"
               winRole="tile osm"

@@ -1,28 +1,23 @@
-import * as THREE from "three";
-import { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
+import * as THREE from 'three';
+import { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { shaderGlslSegments, uniformSettings } from '../_cfg.js';
 
-export function createHighwayMaterial(
-  textureLoader: THREE.TextureLoader,
-  tile: TileCoords,
-) {
-  const texture = textureLoader.load("/textures/highway.jpeg");
+export function createHighwayMaterial(textureLoader: THREE.TextureLoader, tile: TileCoords) {
+  const texture = textureLoader.load('/textures/highway.jpeg');
 
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
 
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      data.magFilter = THREE.LinearFilter;
-      data.minFilter = THREE.LinearFilter;
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    data.magFilter = THREE.LinearFilter;
+    data.minFilter = THREE.LinearFilter;
 
-      data.wrapS = THREE.ClampToEdgeWrapping;
-      data.wrapT = THREE.ClampToEdgeWrapping;
+    data.wrapS = THREE.ClampToEdgeWrapping;
+    data.wrapT = THREE.ClampToEdgeWrapping;
 
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -30,7 +25,7 @@ export function createHighwayMaterial(
       offGroundMeters: { value: 0 },
       terrianMap: { value: null },
       terrianMapLoaded: { value: 0 },
-      color: { value: new THREE.Color("#3f444b") },
+      color: { value: new THREE.Color('#3f444b') },
     },
     vertexShader: /*glsl */ `
 attribute vec2 gisUv;
@@ -88,7 +83,7 @@ export function createHighwayPolygonMaterial(
 ): THREE.ShaderMaterial {
   const material = new THREE.ShaderMaterial({
     uniforms: {
-      baseColor: { value: new THREE.Color("#546") },
+      baseColor: { value: new THREE.Color('#546') },
       terrianMap: { value: null },
       terrianMapLoaded: { value: 0.0 },
       lightDirection: {
@@ -145,12 +140,10 @@ void main() {
     side: THREE.DoubleSide,
   });
 
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
   return material;
 }

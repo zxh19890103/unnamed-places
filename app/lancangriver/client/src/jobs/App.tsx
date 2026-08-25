@@ -1,13 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Button } from "../_components";
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '../_components';
 
-import {
-  defaultCoverageApi,
-  highwaysCoverageApi,
-  type CoverageJobsPage,
-} from "./api";
-import { JobsTable } from "./JobsTable";
-import { tileZxyToCenterLatlng } from "@/_3dtiles";
+import { defaultCoverageApi, highwaysCoverageApi, type CoverageJobsPage } from './api';
+import { JobsTable } from './JobsTable';
+import { tileZxyToCenterLatlng } from '@/_3dtiles';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -15,16 +11,16 @@ import {
   StarIcon,
   ZoomInIcon,
   ZoomOutIcon,
-} from "@radix-ui/react-icons";
+} from '@radix-ui/react-icons';
 
 const PAGE_SIZE = 100;
 
-type TabKey = "default" | "highways";
-type MapExtentKey = "world" | "china";
+type TabKey = 'default' | 'highways';
+type MapExtentKey = 'world' | 'china';
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "default", label: "Default (Buildings & Waters)" },
-  { key: "highways", label: "Highways" },
+  { key: 'default', label: 'Default (Buildings & Waters)' },
+  { key: 'highways', label: 'Highways' },
 ];
 
 type ProjectionFn = (lat: number, lng: number) => { u: number; v: number };
@@ -54,12 +50,8 @@ function buildProjection({
     const pixelDeltaY = endPoint.pixel.y - startPoint.pixel.y;
 
     return (lat, lng) => {
-      const pixelX =
-        startPoint.pixel.x +
-        ((lng - startPoint.geo.lng) / geoDeltaLng) * pixelDeltaX;
-      const pixelY =
-        startPoint.pixel.y +
-        ((lat - startPoint.geo.lat) / geoDeltaLat) * pixelDeltaY;
+      const pixelX = startPoint.pixel.x + ((lng - startPoint.geo.lng) / geoDeltaLng) * pixelDeltaX;
+      const pixelY = startPoint.pixel.y + ((lat - startPoint.geo.lat) / geoDeltaLat) * pixelDeltaY;
 
       return {
         u: Math.min(1, Math.max(0, pixelX / imageWidth)),
@@ -89,21 +81,21 @@ const mapExtents: Record<
 > = {
   world: {
     icon: <GlobeIcon />,
-    label: "World",
+    label: 'World',
     extent: [90, 180, -90, -180] as const,
-    src: "https://cdn.britannica.com/37/245037-050-79129D52/world-map-continents-oceans.jpg",
+    src: 'https://cdn.britannica.com/37/245037-050-79129D52/world-map-continents-oceans.jpg',
   },
   china: {
     icon: <StarIcon />,
-    label: "China",
+    label: 'China',
     extent: [54, 130, 17, 72] as const,
-    src: "/China-Physical-Map.jpg",
+    src: '/China-Physical-Map.jpg',
   },
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>("default");
-  const [mapExtentKey, setMapExtentKey] = useState<MapExtentKey>("world");
+  const [activeTab, setActiveTab] = useState<TabKey>('default');
+  const [mapExtentKey, setMapExtentKey] = useState<MapExtentKey>('world');
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState<CoverageJobsPage | null>(null);
@@ -112,8 +104,7 @@ export default function App() {
   const mapRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  const api =
-    activeTab === "highways" ? highwaysCoverageApi : defaultCoverageApi;
+  const api = activeTab === 'highways' ? highwaysCoverageApi : defaultCoverageApi;
 
   useEffect(() => {
     let active = true;
@@ -167,10 +158,10 @@ export default function App() {
       geographicExtent: mapExtent as readonly [number, number, number, number],
       imageSize: [2000, 1670],
       referencePoints:
-        mapExtentKey === "china"
+        mapExtentKey === 'china'
           ? [
               {
-                name: "kunming",
+                name: 'kunming',
                 geo: {
                   lat: 24.85765547616758,
                   lng: 102.85225000259094,
@@ -178,7 +169,7 @@ export default function App() {
                 pixel: { x: 1015, y: 1350 },
               },
               {
-                name: "dalian",
+                name: 'dalian',
                 geo: {
                   lat: 38.90359289501615,
                   lng: 121.61380158553524,
@@ -190,60 +181,57 @@ export default function App() {
     });
 
     const overout = (event: MouseEvent) => {
-      if (event.type === "mouseover") {
+      if (event.type === 'mouseover') {
         const target = event.target as HTMLTableRowElement;
-        const row = target.closest("tr[itemtype=jobrow]");
+        const row = target.closest('tr[itemtype=jobrow]');
 
         if (row) {
-          const id = row.getAttribute("itemid");
+          const id = row.getAttribute('itemid');
           if (lastId === id) return;
 
           lastId = id;
-          const [z, x, y] = id.split("/").map(Number);
+          const [z, x, y] = id.split('/').map(Number);
           const latlng = tileZxyToCenterLatlng(z, x, y);
 
           const [north, east, south, west] = mapExtent;
 
           // Check if coordinates are within extent bounds
           const isWithinExtent =
-            latlng.lat >= south &&
-            latlng.lat <= north &&
-            latlng.lng >= west &&
-            latlng.lng <= east;
+            latlng.lat >= south && latlng.lat <= north && latlng.lng >= west && latlng.lng <= east;
 
           if (isWithinExtent) {
             const { u, v } = projection(latlng.lat, latlng.lng);
-            markerElement.style.display = "block";
+            markerElement.style.display = 'block';
             markerElement.style.top = `${v * 100}%`;
             markerElement.style.left = `${u * 100}%`;
           } else {
-            markerElement.style.display = "none";
+            markerElement.style.display = 'none';
           }
         }
       } else {
         lastId = null;
-        console.log("clear");
-        markerElement.style.display = "none";
+        console.log('clear');
+        markerElement.style.display = 'none';
       }
     };
 
     const tableElement = tableRef.current;
-    tableElement.addEventListener("mouseover", overout);
-    tableElement.addEventListener("mouseout", overout);
+    tableElement.addEventListener('mouseover', overout);
+    tableElement.addEventListener('mouseout', overout);
 
     const mapElement = mapRef.current;
     const markerElement = mapElement.children[1] as HTMLDivElement;
 
     return () => {
-      tableElement.removeEventListener("mouseover", overout);
-      tableElement.removeEventListener("mouseout", overout);
+      tableElement.removeEventListener('mouseover', overout);
+      tableElement.removeEventListener('mouseout', overout);
     };
   }, [mapExtentKey]);
 
   return (
     <main className=" min-h-screen h-screen overflow-hidden bg-jade-panel-raised px-4 py-4 text-jade-text sm:px-6 lg:px-8">
       <div
-        className={` fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? " w-xl" : "w-64"}`}
+        className={` fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? ' w-xl' : 'w-64'}`}
       >
         <div className="absolute right-3 top-3 z-20 rounded-xl p-1">
           <button
@@ -257,21 +245,21 @@ export default function App() {
         {isMapOpen && (
           <div className=" z-20 absolute left-3 top-3 flex gap-1 rounded-lg border border-jade-border-soft bg-jade-control/70 p-1">
             <button
-              onClick={() => setMapExtentKey("china")}
+              onClick={() => setMapExtentKey('china')}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
-                mapExtentKey === "china"
-                  ? "bg-jade-river-soft text-jade-text shadow-sm"
-                  : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
+                mapExtentKey === 'china'
+                  ? 'bg-jade-river-soft text-jade-text shadow-sm'
+                  : 'text-jade-text-muted hover:bg-jade-control hover:text-jade-text'
               }`}
             >
               China
             </button>
             <button
-              onClick={() => setMapExtentKey("world")}
+              onClick={() => setMapExtentKey('world')}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
-                mapExtentKey === "world"
-                  ? "bg-jade-river-soft text-jade-text shadow-sm"
-                  : "text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
+                mapExtentKey === 'world'
+                  ? 'bg-jade-river-soft text-jade-text shadow-sm'
+                  : 'text-jade-text-muted hover:bg-jade-control hover:text-jade-text'
               }`}
             >
               World
@@ -301,12 +289,9 @@ export default function App() {
             >
               Lancangriver Portal
             </a>
-            <h1 className="mt-1 text-xl font-semibold text-jade-text">
-              Vector Ingest Jobs
-            </h1>
+            <h1 className="mt-1 text-xl font-semibold text-jade-text">Vector Ingest Jobs</h1>
             <p className="mt-1 max-w-2xl text-sm leading-5 text-jade-text-muted">
-              Zoom-12 OSM coverage status and failed-job controls for default
-              and highways targets.
+              Zoom-12 OSM coverage status and failed-job controls for default and highways targets.
             </p>
           </div>
 
@@ -320,17 +305,14 @@ export default function App() {
           </div>
         </header>
 
-        <nav
-          className="mb-3 flex flex-wrap items-center gap-3"
-          aria-label="Controls"
-        >
+        <nav className="mb-3 flex flex-wrap items-center gap-3" aria-label="Controls">
           <div className="flex items-center gap-2" aria-label="Ingest target">
             {tabs.map((tab) => {
               const selected = tab.key === activeTab;
               return (
                 <Button
                   key={tab.key}
-                  variant={selected ? "primary" : "default"}
+                  variant={selected ? 'primary' : 'default'}
                   onClick={() => switchTab(tab.key)}
                   aria-pressed={selected}
                 >
@@ -342,9 +324,7 @@ export default function App() {
 
           <div className="flex items-center gap-2" aria-label="Map extent">
             {(
-              Object.entries(mapExtents) as Array<
-                [MapExtentKey, (typeof mapExtents)[MapExtentKey]]
-              >
+              Object.entries(mapExtents) as Array<[MapExtentKey, (typeof mapExtents)[MapExtentKey]]>
             ).map(([key, { icon, label }]) => {
               const selected = key === mapExtentKey;
               return (
@@ -354,8 +334,8 @@ export default function App() {
                   onClick={() => setMapExtentKey(key)}
                   className={`rounded-lg flex gap-1 px-3 py-1 text-xs font-medium ${
                     selected
-                      ? " bg-jade-river-soft text-jade-text"
-                      : " bg-jade-control text-jade-text-muted hover:bg-jade-control-hover"
+                      ? ' bg-jade-river-soft text-jade-text'
+                      : ' bg-jade-control text-jade-text-muted hover:bg-jade-control-hover'
                   }`}
                   aria-pressed={selected}
                 >
@@ -380,16 +360,14 @@ export default function App() {
         <footer className="mt-4 flex items-center justify-between gap-4 px-4">
           <div className="text-xs tabular-nums text-jade-text-muted">
             {total === 0
-              ? "0 results"
+              ? '0 results'
               : `${offset + 1}-${Math.min(offset + PAGE_SIZE, total)} of ${total}`}
           </div>
           <div className="flex gap-2">
             <Button
               type="button"
               disabled={!canGoBack}
-              onClick={() =>
-                setOffset((current) => Math.max(0, current - PAGE_SIZE))
-              }
+              onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
             >
               <ArrowLeftIcon />
             </Button>

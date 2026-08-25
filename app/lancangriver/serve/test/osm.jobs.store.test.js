@@ -4,7 +4,7 @@ import { createOsmJobsStore } from '../src/jobs/osmJobsStore.js';
 describe('osm jobs store', () => {
   it('enqueues once and ignores duplicate key', async () => {
     const db = {
-      query: vi.fn().mockResolvedValueOnce({ rowCount: 1 }).mockResolvedValueOnce({ rowCount: 0 })
+      query: vi.fn().mockResolvedValueOnce({ rowCount: 1 }).mockResolvedValueOnce({ rowCount: 0 }),
     };
 
     const store = createOsmJobsStore({ db });
@@ -18,22 +18,21 @@ describe('osm jobs store', () => {
 
   it('returns a status for one canonical coverage key', async () => {
     const db = {
-      query: vi.fn().mockResolvedValue({ rows: [{ status: 'done' }] })
+      query: vi.fn().mockResolvedValue({ rows: [{ status: 'done' }] }),
     };
     const store = createOsmJobsStore({ db });
 
     const status = await store.getStatus('12/3456/1523');
 
     expect(status).toBe('done');
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE z12_key = $1'),
-      ['12/3456/1523']
-    );
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('WHERE z12_key = $1'), [
+      '12/3456/1523',
+    ]);
   });
 
   it('returns null for unknown coverage', async () => {
     const db = {
-      query: vi.fn().mockResolvedValue({ rows: [] })
+      query: vi.fn().mockResolvedValue({ rows: [] }),
     };
     const store = createOsmJobsStore({ db });
 
@@ -45,9 +44,9 @@ describe('osm jobs store', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ z12_key: '12/3456/1523' }, { z12_key: '12/3457/1523' }]
+          rows: [{ z12_key: '12/3456/1523' }, { z12_key: '12/3457/1523' }],
         })
-        .mockResolvedValueOnce({ rows: [{ total: 2 }] })
+        .mockResolvedValueOnce({ rows: [{ total: 2 }] }),
     };
     const store = createOsmJobsStore({ db });
 
@@ -55,11 +54,11 @@ describe('osm jobs store', () => {
 
     expect(result).toEqual({
       keys: ['12/3456/1523', '12/3457/1523'],
-      total: 2
+      total: 2,
     });
     expect(db.query).toHaveBeenCalledWith(
       expect.stringMatching(/WHERE status = 'done'[\s\S]*ORDER BY z12_key ASC/),
-      [25, 50]
+      [25, 50],
     );
   });
 
@@ -68,7 +67,7 @@ describe('osm jobs store', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ total: 2 }] })
+        .mockResolvedValueOnce({ rows: [{ total: 2 }] }),
     };
     const store = createOsmJobsStore({ db });
 
@@ -84,10 +83,10 @@ describe('osm jobs store', () => {
         .mockResolvedValueOnce({
           rows: [
             { z12_key: '12/3456/1523', status: 'done' },
-            { z12_key: '12/3457/1523', status: 'failed' }
-          ]
+            { z12_key: '12/3457/1523', status: 'failed' },
+          ],
         })
-        .mockResolvedValueOnce({ rows: [{ total: 4 }] })
+        .mockResolvedValueOnce({ rows: [{ total: 4 }] }),
     };
     const store = createOsmJobsStore({ db });
 
@@ -96,20 +95,20 @@ describe('osm jobs store', () => {
     expect(result).toEqual({
       jobs: [
         { key: '12/3456/1523', status: 'done' },
-        { key: '12/3457/1523', status: 'failed' }
+        { key: '12/3457/1523', status: 'failed' },
       ],
-      total: 4
+      total: 4,
     });
     expect(db.query).toHaveBeenNthCalledWith(
       1,
       expect.stringMatching(/SELECT z12_key, status[\s\S]*ORDER BY z12_key ASC/),
-      [2, 2]
+      [2, 2],
     );
   });
 
   it('requeues a failed job atomically', async () => {
     const db = {
-      query: vi.fn().mockResolvedValue({ rowCount: 1, rows: [{ status: 'queued' }] })
+      query: vi.fn().mockResolvedValue({ rowCount: 1, rows: [{ status: 'queued' }] }),
     };
     const store = createOsmJobsStore({ db });
 
@@ -117,8 +116,10 @@ describe('osm jobs store', () => {
 
     expect(result).toBe('queued');
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringMatching(/SET status = 'queued'[\s\S]*WHERE z12_key = \$1[\s\S]*AND status = 'failed'/),
-      ['12/3456/1523']
+      expect.stringMatching(
+        /SET status = 'queued'[\s\S]*WHERE z12_key = \$1[\s\S]*AND status = 'failed'/,
+      ),
+      ['12/3456/1523'],
     );
   });
 
@@ -127,20 +128,20 @@ describe('osm jobs store', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] }),
     };
     const activeDb = {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-        .mockResolvedValueOnce({ rows: [{ status: 'running' }] })
+        .mockResolvedValueOnce({ rows: [{ status: 'running' }] }),
     };
 
-    await expect(
-      createOsmJobsStore({ db: missingDb }).rerunFailed('12/3456/1523')
-    ).resolves.toBe('not_found');
-    await expect(
-      createOsmJobsStore({ db: activeDb }).rerunFailed('12/3456/1523')
-    ).resolves.toBe('not_failed');
+    await expect(createOsmJobsStore({ db: missingDb }).rerunFailed('12/3456/1523')).resolves.toBe(
+      'not_found',
+    );
+    await expect(createOsmJobsStore({ db: activeDb }).rerunFailed('12/3456/1523')).resolves.toBe(
+      'not_failed',
+    );
   });
 });

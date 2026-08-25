@@ -1,28 +1,25 @@
-import * as THREE from "three";
-import { TileProjection } from "./tile.js";
-import { PolygonFeatureKind } from "./_types.js";
+import * as THREE from 'three';
+import { TileProjection } from './tile.js';
+import { PolygonFeatureKind } from './_types.js';
 
 const EARTH_RADIUS_METERS = 6_378_137;
 const DEG_TO_RAD = Math.PI / 180;
 
-export function readFeatureString(
-  feature: GeoJSON.Feature,
-  key: string,
-): string | null {
+export function readFeatureString(feature: GeoJSON.Feature, key: string): string | null {
   const properties = feature.properties;
-  if (!properties || typeof properties !== "object") {
+  if (!properties || typeof properties !== 'object') {
     return null;
   }
 
   const direct = (properties as Record<string, unknown>)[key];
-  if (typeof direct === "string" && direct.trim().length > 0) {
+  if (typeof direct === 'string' && direct.trim().length > 0) {
     return direct;
   }
 
   const tags = (properties as Record<string, unknown>).tags;
-  if (tags && typeof tags === "object") {
+  if (tags && typeof tags === 'object') {
     const fromTags = (tags as Record<string, unknown>)[key];
-    if (typeof fromTags === "string" && fromTags.trim().length > 0) {
+    if (typeof fromTags === 'string' && fromTags.trim().length > 0) {
       return fromTags;
     }
   }
@@ -96,10 +93,7 @@ export function shapeCentroidFromPoints(shape: THREE.Shape): [number, number] {
   return [cx, -cy];
 }
 
-export function ringPoints(
-  ring: GeoJSON.Position[],
-  projection: TileProjection,
-): THREE.Vector2[] {
+export function ringPoints(ring: GeoJSON.Position[], projection: TileProjection): THREE.Vector2[] {
   const end = ring.length > 1 ? ring.length - 1 : ring.length;
   return ring.slice(0, end).map((position) => {
     const { x, z } = projection.project(position);
@@ -119,8 +113,7 @@ export function ringAreaSquareMeters(ring: GeoJSON.Position[]): number {
     return 0;
   }
 
-  const refLat =
-    latitudes.reduce((sum, latitude) => sum + latitude, 0) / latitudes.length;
+  const refLat = latitudes.reduce((sum, latitude) => sum + latitude, 0) / latitudes.length;
   const cosRefLat = Math.cos(refLat * DEG_TO_RAD);
 
   const project = (position: GeoJSON.Position): { x: number; y: number } => {
@@ -148,25 +141,21 @@ export function polygonAreaSquareMeters(rings: GeoJSON.Position[][]): number {
   }
 
   const outer = ringAreaSquareMeters(rings[0]);
-  const holes = rings
-    .slice(1)
-    .reduce((sum, hole) => sum + ringAreaSquareMeters(hole), 0);
+  const holes = rings.slice(1).reduce((sum, hole) => sum + ringAreaSquareMeters(hole), 0);
   return Math.max(outer - holes, 0);
 }
 
-export function featureFootprintAreaSquareMeters(
-  feature: GeoJSON.Feature,
-): number | null {
+export function featureFootprintAreaSquareMeters(feature: GeoJSON.Feature): number | null {
   const geometry = feature.geometry;
   if (!geometry) {
     return null;
   }
 
-  if (geometry.type === "Polygon") {
+  if (geometry.type === 'Polygon') {
     return polygonAreaSquareMeters(geometry.coordinates);
   }
 
-  if (geometry.type === "MultiPolygon") {
+  if (geometry.type === 'MultiPolygon') {
     const area = geometry.coordinates.reduce(
       (sum, polygon) => sum + polygonAreaSquareMeters(polygon),
       0,
@@ -179,7 +168,7 @@ export function featureFootprintAreaSquareMeters(
 
 export function readProperty(feature: GeoJSON.Feature, key: string): unknown {
   const properties = feature.properties;
-  if (!properties || typeof properties !== "object") {
+  if (!properties || typeof properties !== 'object') {
     return undefined;
   }
 
@@ -188,48 +177,43 @@ export function readProperty(feature: GeoJSON.Feature, key: string): unknown {
   }
 
   const tags = properties.tags;
-  if (tags && typeof tags === "object" && key in tags) {
+  if (tags && typeof tags === 'object' && key in tags) {
     return (tags as Record<string, unknown>)[key];
   }
 
   return undefined;
 }
 
-export function classifyPolygonFeature(
-  feature: GeoJSON.Feature,
-): PolygonFeatureKind {
+export function classifyPolygonFeature(feature: GeoJSON.Feature): PolygonFeatureKind {
   if (
-    readProperty(feature, "feature_type") === "building" ||
-    readProperty(feature, "building") !== undefined
+    readProperty(feature, 'feature_type') === 'building' ||
+    readProperty(feature, 'building') !== undefined
   ) {
-    return "building";
+    return 'building';
   }
 
   if (
-    readProperty(feature, "natural") === "water" ||
-    readProperty(feature, "water") !== undefined ||
-    readProperty(feature, "waterway") !== undefined
+    readProperty(feature, 'natural') === 'water' ||
+    readProperty(feature, 'water') !== undefined ||
+    readProperty(feature, 'waterway') !== undefined
   ) {
-    return "water";
+    return 'water';
   }
 
-  if (readProperty(feature, "highway") !== undefined) {
-    return "highway";
+  if (readProperty(feature, 'highway') !== undefined) {
+    return 'highway';
   }
 
-  return "other";
+  return 'other';
 }
 
-export function readFeatureNumber(
-  feature: GeoJSON.Feature,
-  key: string,
-): number | null {
+export function readFeatureNumber(feature: GeoJSON.Feature, key: string): number | null {
   const value = readProperty(feature, key);
-  if (typeof value === "number" && Number.isFinite(value)) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
 
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : null;
   }

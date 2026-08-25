@@ -1,6 +1,6 @@
-import * as THREE from "three";
-import { LatLng } from "@/calc/types";
-import { latlngToSphere } from "@/_3dtiles";
+import * as THREE from 'three';
+import { LatLng } from '@/calc/types';
+import { latlngToSphere } from '@/_3dtiles';
 
 type Parameters = {
   southwest: LatLng;
@@ -26,20 +26,13 @@ export class TileGeometry extends THREE.BufferGeometry {
     const { southwest, northeast } = parameters;
     const skirtDepth = Math.max(0, parameters.skirtDepth ?? 0);
 
-    const latSegments = validateSegments(
-      "latSegments",
-      parameters.latSegments ?? 32,
-    );
+    const latSegments = validateSegments('latSegments', parameters.latSegments ?? 32);
 
-    const lngSegments = validateSegments(
-      "lngSegments",
-      parameters.lngSegments ?? 32,
-    );
+    const lngSegments = validateSegments('lngSegments', parameters.lngSegments ?? 32);
 
     const latDelta = northeast.lat - southwest.lat;
     const westLng = southwest.lng;
-    const eastLng =
-      northeast.lng < westLng ? northeast.lng + 360 : northeast.lng;
+    const eastLng = northeast.lng < westLng ? northeast.lng + 360 : northeast.lng;
     const lngDelta = eastLng - westLng;
 
     const positions: number[] = [];
@@ -72,16 +65,7 @@ export class TileGeometry extends THREE.BufferGeometry {
         const { x, y, z } = latlngToSphere(lat, lng);
 
         const invLength = 1 / Math.hypot(x, y, z);
-        addVertex(
-          x,
-          y,
-          z,
-          x * invLength,
-          y * invLength,
-          z * invLength,
-          lngT,
-          latT,
-        );
+        addVertex(x, y, z, x * invLength, y * invLength, z * invLength, lngT, latT);
       }
     }
 
@@ -169,18 +153,9 @@ export class TileGeometry extends THREE.BufferGeometry {
     const vertexCount = positions.length / 3;
     const indexArrayType = vertexCount > 65_535 ? Uint32Array : Uint16Array;
 
-    this.setAttribute(
-      "position",
-      new THREE.BufferAttribute(new Float32Array(positions), 3),
-    );
-    this.setAttribute(
-      "normal",
-      new THREE.BufferAttribute(new Float32Array(normals), 3),
-    );
-    this.setAttribute(
-      "uv",
-      new THREE.BufferAttribute(new Float32Array(uvs), 2),
-    );
+    this.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    this.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3));
+    this.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2));
     this.setIndex(new THREE.BufferAttribute(new indexArrayType(indices), 1));
     this.computeBoundingSphere();
   }

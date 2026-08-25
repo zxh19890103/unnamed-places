@@ -1,14 +1,7 @@
-import * as THREE from "three";
-import { type TileProjection } from "../tile.js";
+import * as THREE from 'three';
+import { type TileProjection } from '../tile.js';
 
-export type RoofStyle =
-  | "fence"
-  | "modern"
-  | "fun"
-  | "flat"
-  | "skillion"
-  | "gabled"
-  | "hipped";
+export type RoofStyle = 'fence' | 'modern' | 'fun' | 'flat' | 'skillion' | 'gabled' | 'hipped';
 
 export type RoofGeometryFactory = (
   /**

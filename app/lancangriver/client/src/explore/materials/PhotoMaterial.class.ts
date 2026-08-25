@@ -1,8 +1,8 @@
-import * as THREE from "three";
-import { BASE_URL } from "../../calc/constants";
-import { PhotoRecord } from "../../photos/types";
-import vertexShader from "./shaders/photo.vert.glsl?raw";
-import fragmentShader from "./shaders/photo.frag.glsl?raw";
+import * as THREE from 'three';
+import { BASE_URL } from '../../calc/constants';
+import { PhotoRecord } from '../../photos/types';
+import vertexShader from './shaders/photo.vert.glsl?raw';
+import fragmentShader from './shaders/photo.frag.glsl?raw';
 
 type Parameters = {
   color?: THREE.ColorRepresentation;
@@ -11,7 +11,7 @@ type Parameters = {
 
 export class PhotoMaterial extends THREE.ShaderMaterial {
   constructor(textureLoader: THREE.TextureLoader, params: Parameters) {
-    const { color = "#ffffff", rec } = params;
+    const { color = '#ffffff', rec } = params;
 
     const thumbId = encodeURIComponent(rec.filePath);
     const thumbUrl = `${BASE_URL}/photos/thumb/${thumbId}`;

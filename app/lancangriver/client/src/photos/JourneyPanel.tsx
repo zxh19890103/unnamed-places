@@ -1,6 +1,6 @@
-import { Panel } from "@/_components";
-import type { JourneyDayNode } from "./types";
-import { ArrowBottomRightIcon, ArrowTopLeftIcon } from "@radix-ui/react-icons";
+import { Panel } from '@/_components';
+import type { JourneyDayNode } from './types';
+import { ArrowBottomRightIcon, ArrowTopLeftIcon } from '@radix-ui/react-icons';
 
 type JourneyPanelProps = {
   days: JourneyDayNode[];
@@ -38,9 +38,7 @@ export function JourneyPanel({
       )}
 
       {!loading && !error && days.length === 0 && (
-        <p className="text-xs text-jade-text-muted">
-          No geotagged photos found
-        </p>
+        <p className="text-xs text-jade-text-muted">No geotagged photos found</p>
       )}
 
       <div className="mt-2 min-h-0 space-y-2 overflow-y-auto pr-1">
@@ -55,8 +53,8 @@ export function JourneyPanel({
               aria-pressed={isSelected}
               className={`w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
                 isSelected
-                  ? "border-jade-river bg-jade-river-soft"
-                  : "border-jade-border-soft bg-jade-depth/40 hover:border-jade-border hover:bg-jade-control"
+                  ? 'border-jade-river bg-jade-river-soft'
+                  : 'border-jade-border-soft bg-jade-depth/40 hover:border-jade-border hover:bg-jade-control'
               }`}
             >
               <div className="flex items-center justify-between gap-3">

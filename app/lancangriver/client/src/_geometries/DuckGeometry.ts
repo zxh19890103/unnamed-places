@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
 type Parameters = {
   size?: number;
@@ -86,10 +86,7 @@ export class DuckGeometry extends THREE.BufferGeometry {
       indices.push(topA, bottomB, topB);
     }
 
-    this.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(positions, 3),
-    );
+    this.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     this.setIndex(indices);
     this.computeVertexNormals();
   }

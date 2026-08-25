@@ -1,12 +1,8 @@
-import * as THREE from "three";
-import {
-  getHighwayType,
-  getHighwayWidthMeters,
-  HIGHWAY_WIDTH_METERS_SCALE,
-} from "./base.js";
-import { TileProjection } from "../tile.js";
-import { HighwayGeometryEntry } from "./_types.js";
-import { highwayCategories } from "./categories/index.js";
+import * as THREE from 'three';
+import { getHighwayType, getHighwayWidthMeters, HIGHWAY_WIDTH_METERS_SCALE } from './base.js';
+import { TileProjection } from '../tile.js';
+import { HighwayGeometryEntry } from './_types.js';
+import { highwayCategories } from './categories/index.js';
 
 function createRoadRibbonGeometry(
   curve: THREE.Curve<THREE.Vector3>,
@@ -68,24 +64,14 @@ function createRoadRibbonGeometry(
       const nextLeftIndex = (i + 1) * 2;
       const nextRightIndex = (i + 1) * 2 + 1;
 
-      indices.push(
-        leftIndex,
-        rightIndex,
-        nextLeftIndex,
-        rightIndex,
-        nextRightIndex,
-        nextLeftIndex,
-      );
+      indices.push(leftIndex, rightIndex, nextLeftIndex, rightIndex, nextRightIndex, nextLeftIndex);
     }
   }
 
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
-  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
 
@@ -140,7 +126,7 @@ function addHighwaySegment(
     gisUv[i * 2 + 1] = v;
   }
 
-  geometry.setAttribute("gisUv", new THREE.BufferAttribute(gisUv, 2));
+  geometry.setAttribute('gisUv', new THREE.BufferAttribute(gisUv, 2));
   return geometry;
 }
 
@@ -185,8 +171,8 @@ export function createHighwayGeometry(
       centerline: centerline,
       category: highwayCategory,
       styleId:
-        Object.hasOwn(highwayCategory, "getMaterial") &&
-        typeof highwayCategory.getMaterial === "function"
+        Object.hasOwn(highwayCategory, 'getMaterial') &&
+        typeof highwayCategory.getMaterial === 'function'
           ? `style-${highwayCategory.type}-1`
           : `default`,
     });

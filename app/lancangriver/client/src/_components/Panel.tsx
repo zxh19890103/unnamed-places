@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import clsx from "clsx";
-import { ArrowBottomLeftIcon, ArrowTopRightIcon } from "@radix-ui/react-icons";
-import { IconButton } from "./Button";
-import { ComponentStoryBook } from "./_types";
+import React, { useState } from 'react';
+import clsx from 'clsx';
+import { ArrowBottomLeftIcon, ArrowTopRightIcon } from '@radix-ui/react-icons';
+import { IconButton } from './Button';
+import { ComponentStoryBook } from './_types';
 
 type Props = {
   title: React.ReactNode;
@@ -17,8 +17,8 @@ type Props = {
 };
 
 export const Panel = ({
-  title = "Panel",
-  description = "Yes, it is a panel",
+  title = 'Panel',
+  description = 'Yes, it is a panel',
   children,
   className,
   defaultMinimized = false,
@@ -33,8 +33,8 @@ export const Panel = ({
   return (
     <section
       className={clsx(
-        "overflow-hidden rounded-xl bg-jade-panel-raised/95 text-jade-text",
-        isMaximized ? "w-full max-w-none" : "w-[min(360px,100%)]",
+        'overflow-hidden rounded-xl bg-jade-panel-raised/95 text-jade-text',
+        isMaximized ? 'w-full max-w-none' : 'w-[min(360px,100%)]',
         className,
       )}
     >
@@ -48,7 +48,7 @@ export const Panel = ({
         <div className="flex items-center gap-1.5">
           <IconButton
             onClick={() => setIsMinimized((value) => !value)}
-            aria-label={isMinimized ? "Restore panel" : "Minimize panel"}
+            aria-label={isMinimized ? 'Restore panel' : 'Minimize panel'}
             aria-expanded={!isMinimized}
             size="sm"
           >
@@ -66,10 +66,8 @@ export const Panel = ({
       {!isMinimized ? (
         <div
           className={clsx(
-            "px-4 py-3",
-            isMaximized
-              ? "max-h-[70vh] overflow-auto"
-              : "max-h-[min(320px,60vh)] overflow-auto",
+            'px-4 py-3',
+            isMaximized ? 'max-h-[70vh] overflow-auto' : 'max-h-[min(320px,60vh)] overflow-auto',
           )}
         >
           {children ? children : <div className="min-h-36" />}
@@ -81,21 +79,17 @@ export const Panel = ({
 
 Panel.__storybook = (): ComponentStoryBook<Props> => {
   return {
-    title: "River overview",
-    description: "Current selection and nearby context",
+    title: 'River overview',
+    description: 'Current selection and nearby context',
     children: (
       <div className="space-y-3 text-sm text-jade-text">
         <div className="rounded-lg border border-jade-border-soft bg-jade-panel/70 p-3">
           <p className="font-medium text-jade-text">Status</p>
-          <p className="mt-1 text-jade-text-muted">
-            All layers are synchronized.
-          </p>
+          <p className="mt-1 text-jade-text-muted">All layers are synchronized.</p>
         </div>
         <div className="rounded-lg border border-jade-border-soft bg-jade-panel/70 p-3">
           <p className="font-medium text-jade-text">Next action</p>
-          <p className="mt-1 text-jade-text-muted">
-            Review the selected river segment.
-          </p>
+          <p className="mt-1 text-jade-text-muted">Review the selected river segment.</p>
         </div>
       </div>
     ),

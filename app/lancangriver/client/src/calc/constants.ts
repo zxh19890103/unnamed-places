@@ -1,4 +1,4 @@
-export const BASE_URL = "http://localhost:4050";
+export const BASE_URL = 'http://localhost:4050';
 
 export const EARTH_RADIUS = 6_371_008.8;
 

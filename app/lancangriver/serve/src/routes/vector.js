@@ -13,8 +13,8 @@ function sendVectorError(res, status, code, reason, rawBbox) {
     error: {
       code,
       reason,
-      bbox: getRawBbox(rawBbox)
-    }
+      bbox: getRawBbox(rawBbox),
+    },
   });
 }
 
@@ -41,10 +41,8 @@ function parseBbox(rawBbox) {
 
   const [minLon, minLat, maxLon, maxLat] = values;
 
-  const lonInRange =
-    minLon >= -180 && minLon <= 180 && maxLon >= -180 && maxLon <= 180;
-  const latInRange =
-    minLat >= -90 && minLat <= 90 && maxLat >= -90 && maxLat <= 90;
+  const lonInRange = minLon >= -180 && minLon <= 180 && maxLon >= -180 && maxLon <= 180;
+  const latInRange = minLat >= -90 && minLat <= 90 && maxLat >= -90 && maxLat <= 90;
 
   if (!lonInRange || !latInRange) {
     return null;

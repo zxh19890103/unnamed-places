@@ -1,9 +1,9 @@
-import * as THREE from "three";
-import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
-import { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { BASE_URL } from "@/calc/constants.js";
-import { TileProjection } from "../tile.js";
-import { GUI } from "lil-gui";
+import * as THREE from 'three';
+import { shaderGlslSegments, uniformSettings } from '../_cfg.js';
+import { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { BASE_URL } from '@/calc/constants.js';
+import { TileProjection } from '../tile.js';
+import { GUI } from 'lil-gui';
 
 type WaterMaskVars = {
   WATER_LUMINANCE_THRESHOLD: number;
@@ -178,14 +178,12 @@ void main() {
 }
 `;
 
-const GROUND_NOISE_TEXTURE_URL = "/perlin-noise-rgb-256x256.png";
+const GROUND_NOISE_TEXTURE_URL = '/perlin-noise-rgb-256x256.png';
 
 // Shared across tiles; never disposed with an individual tile.
 let groundNoiseTexturePromise: Promise<THREE.Texture> | null = null;
 
-function loadGroundNoiseTexture(
-  textureLoader: THREE.TextureLoader,
-): Promise<THREE.Texture> {
+function loadGroundNoiseTexture(textureLoader: THREE.TextureLoader): Promise<THREE.Texture> {
   if (!groundNoiseTexturePromise) {
     groundNoiseTexturePromise = textureLoader
       .loadAsync(GROUND_NOISE_TEXTURE_URL)
@@ -247,10 +245,10 @@ export function createGroundTileMesh(
       saturation: { value: 0.1 },
       brightness: { value: 0.9 },
       contrast: { value: 1.38 },
-      waterColor: { value: new THREE.Color("#66a7bd") },
-      vegetationColor: { value: new THREE.Color("#9fae0a") },
-      groundColor: { value: new THREE.Color("#cfc8b8") },
-      roadColor: { value: new THREE.Color("#cfc8b8") },
+      waterColor: { value: new THREE.Color('#66a7bd') },
+      vegetationColor: { value: new THREE.Color('#9fae0a') },
+      groundColor: { value: new THREE.Color('#cfc8b8') },
+      roadColor: { value: new THREE.Color('#cfc8b8') },
     },
     vertexShader: GROUND_VERTEX_SHADER,
     fragmentShader: GROUND_FRAGMENT_SHADER,
@@ -276,12 +274,10 @@ export function createGroundTileMesh(
     },
   );
 
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
   loadGroundNoiseTexture(textureLoader)
     .then((noiseTexture) => {
@@ -335,12 +331,7 @@ function createLandClassificationsMask(
   };
 
   const fallbackData = new Uint8Array([0, 0, 0, 255]);
-  const maskTexture = new THREE.DataTexture(
-    fallbackData,
-    1,
-    1,
-    THREE.RGBAFormat,
-  );
+  const maskTexture = new THREE.DataTexture(fallbackData, 1, 1, THREE.RGBAFormat);
   maskTexture.wrapS = THREE.ClampToEdgeWrapping;
   maskTexture.wrapT = THREE.ClampToEdgeWrapping;
   maskTexture.minFilter = THREE.LinearFilter;
@@ -365,8 +356,7 @@ function createLandClassificationsMask(
   const calcWaterMask = (r: number, g: number, b: number): number => {
     const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     const blueDominance = clamp01(
-      (b - Math.max(r, g) + vars.WATER_BLUE_DOMINANCE_OFFSET) /
-        vars.WATER_BLUE_DOMINANCE_SCALE,
+      (b - Math.max(r, g) + vars.WATER_BLUE_DOMINANCE_OFFSET) / vars.WATER_BLUE_DOMINANCE_SCALE,
     );
     const waterPalette = clamp01(
       1 -
@@ -376,14 +366,10 @@ function createLandClassificationsMask(
           vars.WATER_PALETTE_DISTANCE_SCALE,
     );
     const darkWater =
-      clamp01(
-        (vars.WATER_LUMINANCE_THRESHOLD - luminance) /
-          vars.WATER_LUMINANCE_THRESHOLD,
-      ) * blueDominance;
+      clamp01((vars.WATER_LUMINANCE_THRESHOLD - luminance) / vars.WATER_LUMINANCE_THRESHOLD) *
+      blueDominance;
     const brightWater =
-      waterPalette *
-      (vars.WATER_PALETTE_BLEND +
-        vars.WATER_PALETTE_BLUE_WEIGHT * blueDominance);
+      waterPalette * (vars.WATER_PALETTE_BLEND + vars.WATER_PALETTE_BLUE_WEIGHT * blueDominance);
 
     return clamp01(Math.max(darkWater, brightWater));
   };
@@ -423,11 +409,7 @@ function createLandClassificationsMask(
     `${BASE_URL}/raster/satellite/${tile.z}/${tile.x}/${tile.y}.jpeg`,
     () => {
       const image = satelliteTexture.image as
-        | ImageBitmap
-        | HTMLImageElement
-        | HTMLCanvasElement
-        | OffscreenCanvas
-        | undefined;
+        ImageBitmap | HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | undefined;
 
       const width = image?.width ?? 0;
       const height = image?.height ?? 0;
@@ -437,10 +419,10 @@ function createLandClassificationsMask(
         return;
       }
 
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
       if (!ctx) {
         satelliteTexture.dispose();
@@ -466,44 +448,35 @@ function createLandClassificationsMask(
 }
 
 function createWaterMaskGui(mask: LandClassificationsMask): GUI {
-  const gui = new GUI({ title: "Water Mask" });
-  const folder = gui.addFolder("Tuning");
+  const gui = new GUI({ title: 'Water Mask' });
+  const folder = gui.addFolder('Tuning');
 
   folder
-    .add(mask.vars, "WATER_LUMINANCE_THRESHOLD", 0, 1, 0.01)
-    .name("dark gate")
+    .add(mask.vars, 'WATER_LUMINANCE_THRESHOLD', 0, 1, 0.01)
+    .name('dark gate')
     .onChange(mask.refresh);
   folder
-    .add(mask.vars, "WATER_BLUE_DOMINANCE_OFFSET", -0.2, 0.3, 0.01)
-    .name("blue bias")
+    .add(mask.vars, 'WATER_BLUE_DOMINANCE_OFFSET', -0.2, 0.3, 0.01)
+    .name('blue bias')
     .onChange(mask.refresh);
   folder
-    .add(mask.vars, "WATER_BLUE_DOMINANCE_SCALE", 0.05, 1, 0.01)
-    .name("blue scale")
+    .add(mask.vars, 'WATER_BLUE_DOMINANCE_SCALE', 0.05, 1, 0.01)
+    .name('blue scale')
+    .onChange(mask.refresh);
+  folder.add(mask.vars, 'WATER_PALETTE_R', 0, 1, 0.01).name('palette R').onChange(mask.refresh);
+  folder.add(mask.vars, 'WATER_PALETTE_G', 0, 1, 0.01).name('palette G').onChange(mask.refresh);
+  folder.add(mask.vars, 'WATER_PALETTE_B', 0, 1, 0.01).name('palette B').onChange(mask.refresh);
+  folder
+    .add(mask.vars, 'WATER_PALETTE_DISTANCE_SCALE', 0.1, 3, 0.01)
+    .name('palette range')
     .onChange(mask.refresh);
   folder
-    .add(mask.vars, "WATER_PALETTE_R", 0, 1, 0.01)
-    .name("palette R")
+    .add(mask.vars, 'WATER_PALETTE_BLEND', 0, 1, 0.01)
+    .name('palette weight')
     .onChange(mask.refresh);
   folder
-    .add(mask.vars, "WATER_PALETTE_G", 0, 1, 0.01)
-    .name("palette G")
-    .onChange(mask.refresh);
-  folder
-    .add(mask.vars, "WATER_PALETTE_B", 0, 1, 0.01)
-    .name("palette B")
-    .onChange(mask.refresh);
-  folder
-    .add(mask.vars, "WATER_PALETTE_DISTANCE_SCALE", 0.1, 3, 0.01)
-    .name("palette range")
-    .onChange(mask.refresh);
-  folder
-    .add(mask.vars, "WATER_PALETTE_BLEND", 0, 1, 0.01)
-    .name("palette weight")
-    .onChange(mask.refresh);
-  folder
-    .add(mask.vars, "WATER_PALETTE_BLUE_WEIGHT", 0, 1, 0.01)
-    .name("blue weight")
+    .add(mask.vars, 'WATER_PALETTE_BLUE_WEIGHT', 0, 1, 0.01)
+    .name('blue weight')
     .onChange(mask.refresh);
 
   folder.open();

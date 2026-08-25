@@ -1,8 +1,8 @@
-import type { BuildingCategoryDefinition } from "../../_types.js";
+import type { BuildingCategoryDefinition } from '../../_types.js';
 
 const synagogue: BuildingCategoryDefinition = {
-  type: "synagogue",
-  palette: { roof: "#766985", wall: "#d9d2e4", face: "#f00" },
+  type: 'synagogue',
+  palette: { roof: '#766985', wall: '#d9d2e4', face: '#f00' },
   levelHint: 3,
 };
 

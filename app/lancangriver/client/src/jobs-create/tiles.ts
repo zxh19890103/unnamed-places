@@ -1,5 +1,5 @@
-import { tileXY } from "../calc/mercator.js";
-import type { BBox } from "./bbox.js";
+import { tileXY } from '../calc/mercator.js';
+import type { BBox } from './bbox.js';
 
 export type TileKey = { z: number; x: number; y: number; id: string };
 

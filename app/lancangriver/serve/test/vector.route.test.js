@@ -11,9 +11,9 @@ describe('GET /vector', () => {
           type: 'Feature',
           id: 'feature-1',
           geometry: { type: 'Point', coordinates: [100, 20] },
-          properties: { name: 'sample' }
-        }
-      ]
+          properties: { name: 'sample' },
+        },
+      ],
     };
 
     const queryVectorFeatures = vi.fn().mockResolvedValue(featureCollection);
@@ -39,8 +39,8 @@ describe('GET /vector', () => {
       error: {
         code: 'INVALID_BBOX',
         reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
-        bbox: 'bad'
-      }
+        bbox: 'bad',
+      },
     });
     expect(queryVectorFeatures).not.toHaveBeenCalled();
   });
@@ -56,8 +56,8 @@ describe('GET /vector', () => {
       error: {
         code: 'INVALID_BBOX',
         reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
-        bbox: '181,10,182,11'
-      }
+        bbox: '181,10,182,11',
+      },
     });
     expect(queryVectorFeatures).not.toHaveBeenCalled();
   });
@@ -73,8 +73,8 @@ describe('GET /vector', () => {
       error: {
         code: 'INVALID_BBOX',
         reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
-        bbox: '-120,-95,-110,-91'
-      }
+        bbox: '-120,-95,-110,-91',
+      },
     });
     expect(queryVectorFeatures).not.toHaveBeenCalled();
   });
@@ -84,7 +84,7 @@ describe('GET /vector', () => {
       '101oops,19,102,20',
       '99,19x,101,21',
       '99,19,101.0abc,21',
-      '99,19,101,2_1'
+      '99,19,101,2_1',
     ];
 
     for (const bbox of malformedBboxes) {
@@ -98,8 +98,8 @@ describe('GET /vector', () => {
         error: {
           code: 'INVALID_BBOX',
           reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
-          bbox
-        }
+          bbox,
+        },
       });
       expect(queryVectorFeatures).not.toHaveBeenCalled();
     }
@@ -117,8 +117,8 @@ describe('GET /vector', () => {
       error: {
         code: 'VECTOR_QUERY_FAILED',
         reason: 'Internal server error',
-        bbox: '99,19,101,21'
-      }
+        bbox: '99,19,101,21',
+      },
     });
   });
 });

@@ -13,8 +13,8 @@ describe('GET /photos/geotagged', () => {
         filePath: '/tmp/a.jpg',
         lat: 40.746,
         lng: 14.498,
-        takenAt: null
-      }
+        takenAt: null,
+      },
     ]);
 
     const app = createApp({ scanGeotaggedPhotos });
@@ -28,9 +28,9 @@ describe('GET /photos/geotagged', () => {
           filePath: '/tmp/a.jpg',
           lat: 40.746,
           lng: 14.498,
-          takenAt: null
-        }
-      ]
+          takenAt: null,
+        },
+      ],
     });
   });
 
@@ -64,8 +64,8 @@ describe('GET /photos/geotagged', () => {
     expect(response.body).toEqual({
       error: {
         code: 'ROOT_NOT_FOUND',
-        reason: 'Query param root must point to an existing directory'
-      }
+        reason: 'Query param root must point to an existing directory',
+      },
     });
   });
 
@@ -79,14 +79,18 @@ describe('GET /photos/geotagged', () => {
     expect(response.body).toEqual({
       error: {
         code: 'PHOTOS_SCAN_FAILED',
-        reason: 'Internal server error'
-      }
+        reason: 'Internal server error',
+      },
     });
   });
 });
 
 describe('GET /photos/original/:id', () => {
-  const fixtureDir = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'photos-original');
+  const fixtureDir = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures',
+    'photos-original',
+  );
   const imagePath = resolve(fixtureDir, 'sample.jpg');
 
   it('returns original bytes when file exists', async () => {
@@ -115,8 +119,8 @@ describe('GET /photos/original/:id', () => {
     expect(response.body).toEqual({
       error: {
         code: 'PHOTO_FILE_NOT_FOUND',
-        reason: 'Photo file does not exist'
-      }
+        reason: 'Photo file does not exist',
+      },
     });
   });
 });
@@ -133,7 +137,7 @@ describe('GET /photos/thumb/:id', () => {
       // 1x1 transparent png
       const pngBytes = Buffer.from(
         '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000000020001e221bc330000000049454e44ae426082',
-        'hex'
+        'hex',
       );
       await writeFile(imagePath, pngBytes);
 
@@ -161,8 +165,8 @@ describe('GET /photos/thumb/:id', () => {
     expect(response.body).toEqual({
       error: {
         code: 'PHOTO_FILE_NOT_FOUND',
-        reason: 'Photo file does not exist'
-      }
+        reason: 'Photo file does not exist',
+      },
     });
   });
 });

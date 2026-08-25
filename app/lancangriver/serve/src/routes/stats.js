@@ -46,8 +46,8 @@ function createStatsErrorPayload(code, reason) {
   return {
     error: {
       code,
-      reason
-    }
+      reason,
+    },
   };
 }
 
@@ -61,7 +61,7 @@ export function createStatsRouter(options = {}) {
   const cache = {
     initialized: false,
     bytes: 0,
-    updatedAt: null
+    updatedAt: null,
   };
   let inFlight = null;
 
@@ -100,7 +100,7 @@ export function createStatsRouter(options = {}) {
         tilesRoot,
         bytes: cache.bytes,
         cached: wasInitialized,
-        updatedAt: cache.updatedAt
+        updatedAt: cache.updatedAt,
       });
     } catch (_error) {
       res
@@ -119,7 +119,7 @@ export function createStatsRouter(options = {}) {
         bytes: cache.bytes,
         cached: false,
         updatedAt: cache.updatedAt,
-        recomputed: true
+        recomputed: true,
       });
     } catch (_error) {
       res

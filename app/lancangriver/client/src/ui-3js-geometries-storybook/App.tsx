@@ -1,11 +1,9 @@
-import clsx from "clsx";
-import React, { useEffect, useMemo, useState } from "react";
-import * as THREE from "three";
-import LoadGeometry from "./LoadGeometry.js";
+import clsx from 'clsx';
+import React, { useEffect, useMemo, useState } from 'react';
+import * as THREE from 'three';
+import LoadGeometry from './LoadGeometry.js';
 
-type GeometryFactory = (new (
-  params?: Record<string, unknown>,
-) => THREE.BufferGeometry) & {
+type GeometryFactory = (new (params?: Record<string, unknown>) => THREE.BufferGeometry) & {
   __storybook?: () => Record<string, unknown>;
 };
 
@@ -19,20 +17,14 @@ function __defaultStorybook() {
   return {};
 }
 
-export default function App({
-  components = {},
-}: {
-  components?: Record<string, GeometryFactory>;
-}) {
+export default function App({ components = {} }: { components?: Record<string, GeometryFactory> }) {
   const namedGeometries = useMemo<GeometryEntry[]>(() => {
     return Object.entries(components)
       .map(([name, component]) => {
-        if (typeof component !== "function") return null;
+        if (typeof component !== 'function') return null;
 
         const storybook =
-          typeof component.__storybook === "function"
-            ? component.__storybook
-            : __defaultStorybook;
+          typeof component.__storybook === 'function' ? component.__storybook : __defaultStorybook;
 
         return {
           name,
@@ -48,8 +40,7 @@ export default function App({
   useEffect(() => {
     if (
       namedGeometries.length &&
-      (!selected ||
-        !namedGeometries.some((entry) => entry.name === selected.name))
+      (!selected || !namedGeometries.some((entry) => entry.name === selected.name))
     ) {
       setSelected(namedGeometries[0]);
     }
@@ -74,8 +65,7 @@ export default function App({
     } catch (error) {
       return {
         params,
-        error:
-          error instanceof Error ? error.message : "Unknown geometry error",
+        error: error instanceof Error ? error.message : 'Unknown geometry error',
       };
     }
   }, [selected]);
@@ -83,26 +73,20 @@ export default function App({
   return (
     <main className="mx-auto max-w-6xl px-6 py-10 text-slate-900">
       <header className="mb-8">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-700">
-          Lancangriver
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold text-slate-950">
-          Geometries Debug / Show
-        </h1>
+        <p className="text-sm uppercase tracking-[0.2em] text-slate-700">Lancangriver</p>
+        <h1 className="mt-3 text-4xl font-semibold text-slate-950">Geometries Debug / Show</h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-slate-700">
-          Browse geometry builders exported from the client geometry registry
-          and inspect the static storybook params used for debugging.
+          Browse geometry builders exported from the client geometry registry and inspect the static
+          storybook params used for debugging.
         </p>
       </header>
 
       {namedGeometries.length === 0 ? (
         <section className="rounded-3xl border border-slate-300 bg-white/80 p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-900">
-            No geometries registered yet
-          </h2>
+          <h2 className="text-xl font-semibold text-slate-900">No geometries registered yet</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-700">
-            Create a geometry class under the geometry registry and export it
-            from the index module to see it appear here.
+            Create a geometry class under the geometry registry and export it from the index module
+            to see it appear here.
           </p>
         </section>
       ) : (
@@ -116,10 +100,10 @@ export default function App({
                 <button
                   key={entry.name}
                   className={clsx(
-                    "w-full rounded-2xl border px-3 py-2 text-left text-sm transition",
+                    'w-full rounded-2xl border px-3 py-2 text-left text-sm transition',
                     selected?.name === entry.name
-                      ? "border-jade-border bg-jade-depth text-slate-950"
-                      : "border-slate-300 bg-white text-slate-700 hover:border-slate-400",
+                      ? 'border-jade-border bg-jade-depth text-slate-950'
+                      : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400',
                   )}
                   onClick={() => setSelected(entry)}
                 >
@@ -134,12 +118,10 @@ export default function App({
               <>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-2xl font-semibold text-slate-950">
-                      {selected.name}
-                    </h2>
+                    <h2 className="text-2xl font-semibold text-slate-950">{selected.name}</h2>
                     <p className="mt-2 text-sm leading-7 text-slate-700">
-                      This panel shows the storybook params and a quick
-                      structural summary for the selected geometry.
+                      This panel shows the storybook params and a quick structural summary for the
+                      selected geometry.
                     </p>
                   </div>
                 </div>

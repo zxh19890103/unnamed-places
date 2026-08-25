@@ -1,14 +1,14 @@
-import * as THREE from "three";
-import { TileProjection } from "../tile.js";
-import * as polygonUtils from "../_polygon.js";
-import { uniformSettings } from "../_cfg.js";
+import * as THREE from 'three';
+import { TileProjection } from '../tile.js';
+import * as polygonUtils from '../_polygon.js';
+import { uniformSettings } from '../_cfg.js';
 import {
   BuildingCategoryDefinition,
   BuildingPalette,
   BuildingVariant,
   BuildingVariantBucket,
-} from "./_types.js";
-import { buildingCategories } from "./categories/index.js";
+} from './_types.js';
+import { buildingCategories } from './categories/index.js';
 
 const METERS_PER_LEVEL = 3.2;
 const RANDOM_HEIGHT_MIN = 6;
@@ -28,18 +28,16 @@ export const BUILDING_FACE_TEXTURE_GRID = new THREE.Vector2(6, 4);
 const BUILDING_FACE_MIN_HORIZONTAL_LENGTH_METERS = 12;
 
 const DEFAULT_BUILDING_CATEGORY: BuildingCategoryDefinition = {
-  type: "default",
+  type: 'default',
   palette: {
-    roof: "#e7c9a8",
-    face: "#afe01a",
-    wall: "#ffffff",
+    roof: '#e7c9a8',
+    face: '#afe01a',
+    wall: '#ffffff',
   },
   levelHint: 3,
 };
 
-function readBuildingCategory(
-  type: string,
-): BuildingCategoryDefinition | undefined {
+function readBuildingCategory(type: string): BuildingCategoryDefinition | undefined {
   const normalized = type.toLowerCase().trim();
   if (!normalized) {
     return undefined;
@@ -47,28 +45,24 @@ function readBuildingCategory(
 
   return (
     buildingCategories[normalized] ??
-    buildingCategories[normalized.split(";")[0]?.trim() ?? normalized]
+    buildingCategories[normalized.split(';')[0]?.trim() ?? normalized]
   );
 }
 
 let cachedBuildingTexture: THREE.Texture | null | undefined;
 
-export function getBuildingTexture(
-  textureLoader: THREE.TextureLoader,
-): THREE.Texture | null {
+export function getBuildingTexture(textureLoader: THREE.TextureLoader): THREE.Texture | null {
   if (cachedBuildingTexture !== undefined) {
     return cachedBuildingTexture;
   }
 
   // Vitest/node does not provide browser image loading for TextureLoader.
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     cachedBuildingTexture = null;
     return cachedBuildingTexture;
   }
 
-  const texture = textureLoader.load(
-    "/textures/SPR-hide-flaws-with-stipple-texture.jpg",
-  );
+  const texture = textureLoader.load('/textures/SPR-hide-flaws-with-stipple-texture.jpg');
   texture.wrapS = THREE.MirroredRepeatWrapping;
   texture.wrapT = THREE.MirroredRepeatWrapping;
   // texture.colorSpace = THREE.SRGBColorSpace;
@@ -80,12 +74,12 @@ export function applyBuildingRepeatUv(
   geometry: THREE.BufferGeometry,
   repeatMeters = BUILDING_TEXTURE_REPEAT_METERS,
 ): void {
-  const position = geometry.getAttribute("position");
+  const position = geometry.getAttribute('position');
   if (!position) {
     return;
   }
 
-  const normal = geometry.getAttribute("normal");
+  const normal = geometry.getAttribute('normal');
   const uv = new Float32Array(position.count * 2);
 
   for (let index = 0; index < position.count; index += 1) {
@@ -113,13 +107,12 @@ export function applyBuildingRepeatUv(
     uv[index * 2 + 1] = v;
   }
 
-  geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
 }
 
 function createBuildingMetadataAttribute(
   positionAttr:
-    | THREE.BufferAttribute<THREE.BufferAttributeEventMap>
-    | THREE.InterleavedBufferAttribute,
+    THREE.BufferAttribute<THREE.BufferAttributeEventMap> | THREE.InterleavedBufferAttribute,
   projectiton: TileProjection,
   textureGrid: THREE.Vector2,
   centroid: [number, number],
@@ -137,16 +130,8 @@ function createBuildingMetadataAttribute(
     metadata[base] = offsetX;
     metadata[base + 1] = offsetY;
 
-    const rawU = THREE.MathUtils.clamp(
-      centroid[0] / projectiton.widthMeters + 0.5,
-      0,
-      1,
-    );
-    const rawV = THREE.MathUtils.clamp(
-      -centroid[1] / projectiton.heightMeters + 0.5,
-      0,
-      1,
-    );
+    const rawU = THREE.MathUtils.clamp(centroid[0] / projectiton.widthMeters + 0.5, 0, 1);
+    const rawV = THREE.MathUtils.clamp(-centroid[1] / projectiton.heightMeters + 0.5, 0, 1);
     const gridSize = uniformSettings.GROUND_UV_GRID_SIZE;
 
     metadata[base + 2] = Math.round(rawU * gridSize) / gridSize;
@@ -162,24 +147,19 @@ export function ensureMetadataAttribute(
   textureGrid: THREE.Vector2,
   centroid: [number, number],
 ): void {
-  const position = geometry.getAttribute("position");
+  const position = geometry.getAttribute('position');
 
   if (!position) {
     return;
   }
 
   geometry.setAttribute(
-    "metadata",
-    createBuildingMetadataAttribute(
-      position,
-      projection,
-      textureGrid,
-      centroid,
-    ),
+    'metadata',
+    createBuildingMetadataAttribute(position, projection, textureGrid, centroid),
   );
 }
 
-type BuildingFaceType = "roof" | "wall" | "face";
+type BuildingFaceType = 'roof' | 'wall' | 'face';
 
 type BuildingFaceSplitSegments = {
   /**
@@ -209,7 +189,7 @@ const resolveBuildingFaceType = (
   const isRoofTriangle =
     (Math.abs(normal0.x) + Math.abs(normal1.y) + Math.abs(normal2.z)) / 3 > 0.7;
 
-  if (isRoofTriangle) return "roof";
+  if (isRoofTriangle) return 'roof';
 
   const edge01HorizontalLength = Math.hypot(p1.x - p0.x, p1.z - p0.z);
   const edge12HorizontalLength = Math.hypot(p2.x - p1.x, p2.z - p1.z);
@@ -222,20 +202,20 @@ const resolveBuildingFaceType = (
   );
 
   if (horizontalLength >= BUILDING_FACE_MIN_HORIZONTAL_LENGTH_METERS) {
-    return "face";
+    return 'face';
   }
 
-  return "wall";
+  return 'wall';
 };
 
 export function splitBuildingGeometryByFaceType(
   geometry: THREE.BufferGeometry,
-): Omit<BuildingFaceSplitSegments, "roof"> {
+): Omit<BuildingFaceSplitSegments, 'roof'> {
   const source = geometry.index ? geometry.toNonIndexed() : geometry.clone();
 
-  const position = source.getAttribute("position");
-  const normal = source.getAttribute("normal");
-  const uv = source.getAttribute("uv");
+  const position = source.getAttribute('position');
+  const normal = source.getAttribute('normal');
+  const uv = source.getAttribute('uv');
 
   if (!position || !normal) {
     source.dispose();
@@ -275,68 +255,33 @@ export function splitBuildingGeometryByFaceType(
     normal1.set(nx1, ny1, nz1);
     normal2.set(nx2, ny2, nz2);
 
-    p0.set(
-      position.getX(base + 0),
-      position.getY(base + 0),
-      position.getZ(base + 0),
-    );
+    p0.set(position.getX(base + 0), position.getY(base + 0), position.getZ(base + 0));
 
-    p1.set(
-      position.getX(base + 1),
-      position.getY(base + 1),
-      position.getZ(base + 1),
-    );
+    p1.set(position.getX(base + 1), position.getY(base + 1), position.getZ(base + 1));
 
-    p2.set(
-      position.getX(base + 2),
-      position.getY(base + 2),
-      position.getZ(base + 2),
-    );
+    p2.set(position.getX(base + 2), position.getY(base + 2), position.getZ(base + 2));
 
-    const faceType = resolveBuildingFaceType(
-      normal0,
-      normal1,
-      normal2,
-      p0,
-      p1,
-      p2,
-    );
+    const faceType = resolveBuildingFaceType(normal0, normal1, normal2, p0, p1, p2);
 
-    if (faceType === "wall") {
+    if (faceType === 'wall') {
       for (let offset = 0; offset < 3; offset += 1) {
         const index = base + offset;
 
-        wallPositions.push(
-          position.getX(index),
-          position.getY(index),
-          position.getZ(index),
-        );
+        wallPositions.push(position.getX(index), position.getY(index), position.getZ(index));
 
-        wallNormals.push(
-          normal.getX(index),
-          normal.getY(index),
-          normal.getZ(index),
-        );
+        wallNormals.push(normal.getX(index), normal.getY(index), normal.getZ(index));
 
         if (uv) {
           wallUvs.push(uv.getX(index), uv.getY(index));
         }
       }
-    } else if (faceType === "face") {
+    } else if (faceType === 'face') {
       for (let offset = 0; offset < 3; offset += 1) {
         const index = base + offset;
 
-        facePositions.push(
-          position.getX(index),
-          position.getY(index),
-          position.getZ(index),
-        );
+        facePositions.push(position.getX(index), position.getY(index), position.getZ(index));
 
-        faceNormals.push(
-          normal.getX(index),
-          normal.getY(index),
-          normal.getZ(index),
-        );
+        faceNormals.push(normal.getX(index), normal.getY(index), normal.getZ(index));
 
         if (uv) {
           faceUvs.push(uv.getX(index), uv.getY(index));
@@ -352,10 +297,7 @@ export function splitBuildingGeometryByFaceType(
   const defaultGeometryFactory = (positions: number[]) => {
     const geometry = new THREE.BufferGeometry();
 
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(positions, 3),
-    );
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
     return geometry;
   };
@@ -372,16 +314,13 @@ export function splitBuildingGeometryByFaceType(
     const geometry = defaultGeometryFactory(positions);
 
     if (normals.length === positions.length) {
-      geometry.setAttribute(
-        "normal",
-        new THREE.Float32BufferAttribute(normals, 3),
-      );
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     } else {
       geometry.computeVertexNormals();
     }
 
     if (uvs.length > 0) {
-      geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     }
 
     return geometry;
@@ -393,20 +332,13 @@ export function splitBuildingGeometryByFaceType(
   };
 }
 
-function guessedHeightCapFromFootprint(
-  areaSquareMeters: number | null,
-): number {
-  if (
-    areaSquareMeters === null ||
-    !Number.isFinite(areaSquareMeters) ||
-    areaSquareMeters <= 0
-  ) {
+function guessedHeightCapFromFootprint(areaSquareMeters: number | null): number {
+  if (areaSquareMeters === null || !Number.isFinite(areaSquareMeters) || areaSquareMeters <= 0) {
     return MAX_GUESSED_BUILDING_HEIGHT_METERS;
   }
 
   const cap =
-    MIN_GUESSED_BUILDING_HEIGHT_METERS +
-    Math.sqrt(areaSquareMeters) * FOOTPRINT_HEIGHT_SCALE;
+    MIN_GUESSED_BUILDING_HEIGHT_METERS + Math.sqrt(areaSquareMeters) * FOOTPRINT_HEIGHT_SCALE;
   return Math.min(
     MAX_GUESSED_BUILDING_HEIGHT_METERS,
     Math.max(MIN_GUESSED_BUILDING_HEIGHT_METERS, cap),
@@ -414,24 +346,18 @@ function guessedHeightCapFromFootprint(
 }
 
 export function getBuildingHeight(feature: GeoJSON.Feature): number {
-  const height = polygonUtils.readFeatureNumber(feature, "height");
+  const height = polygonUtils.readFeatureNumber(feature, 'height');
   if (height !== null && height > 0) {
     return height;
   }
 
-  const minHeight = Math.max(
-    polygonUtils.readFeatureNumber(feature, "min_height") ?? 0,
-    0,
-  );
-  const levels = polygonUtils.readFeatureNumber(feature, "building:levels");
+  const minHeight = Math.max(polygonUtils.readFeatureNumber(feature, 'min_height') ?? 0, 0);
+  const levels = polygonUtils.readFeatureNumber(feature, 'building:levels');
   if (levels !== null && levels > 0) {
     return minHeight + levels * METERS_PER_LEVEL;
   }
 
-  const roofLevels = Math.max(
-    polygonUtils.readFeatureNumber(feature, "roof:levels") ?? 0,
-    0,
-  );
+  const roofLevels = Math.max(polygonUtils.readFeatureNumber(feature, 'roof:levels') ?? 0, 0);
   const guessedHeightCap = guessedHeightCapFromFootprint(
     polygonUtils.featureFootprintAreaSquareMeters(feature),
   );
@@ -445,11 +371,7 @@ export function getBuildingHeight(feature: GeoJSON.Feature): number {
     return minHeight + Math.min(inferredHeight, guessedHeightCap);
   }
 
-  const fallback = randomHeightForFeature(
-    feature,
-    RANDOM_HEIGHT_MIN,
-    RANDOM_HEIGHT_MAX,
-  );
+  const fallback = randomHeightForFeature(feature, RANDOM_HEIGHT_MIN, RANDOM_HEIGHT_MAX);
 
   const guessedHeight = fallback + roofLevels * METERS_PER_LEVEL;
   return minHeight + Math.min(guessedHeight, guessedHeightCap);
@@ -457,22 +379,20 @@ export function getBuildingHeight(feature: GeoJSON.Feature): number {
 
 function readNormalizedBuildingType(feature: GeoJSON.Feature): string {
   const rawType =
-    polygonUtils.readFeatureString(feature, "building") ??
-    polygonUtils.readFeatureString(feature, "building:use") ??
-    polygonUtils.readFeatureString(feature, "amenity") ??
-    "";
+    polygonUtils.readFeatureString(feature, 'building') ??
+    polygonUtils.readFeatureString(feature, 'building:use') ??
+    polygonUtils.readFeatureString(feature, 'amenity') ??
+    '';
 
   const normalized = rawType.toLowerCase().trim();
   if (!normalized) {
-    return "";
+    return '';
   }
 
-  return normalized.split(";")[0]?.trim() ?? normalized;
+  return normalized.split(';')[0]?.trim() ?? normalized;
 }
 
-export function buildingVariantForFeature(
-  feature: GeoJSON.Feature,
-): BuildingVariant {
+export function buildingVariantForFeature(feature: GeoJSON.Feature): BuildingVariant {
   const type = readNormalizedBuildingType(feature);
   const category = readBuildingCategory(type) ?? DEFAULT_BUILDING_CATEGORY;
   const palette = category.palette;
@@ -503,14 +423,10 @@ export function getOrCreateBuildingBucket(
   return created;
 }
 
-function randomHeightForFeature(
-  feature: GeoJSON.Feature,
-  min: number,
-  max: number,
-): number {
+function randomHeightForFeature(feature: GeoJSON.Feature, min: number, max: number): number {
   const idCandidate =
-    polygonUtils.readFeatureString(feature, "id") ??
-    polygonUtils.readFeatureString(feature, "@id") ??
+    polygonUtils.readFeatureString(feature, 'id') ??
+    polygonUtils.readFeatureString(feature, '@id') ??
     feature.id?.toString();
 
   if (!idCandidate) {

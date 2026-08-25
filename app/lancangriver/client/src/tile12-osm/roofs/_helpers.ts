@@ -1,13 +1,11 @@
-import * as THREE from "three";
-import { TileProjection } from "../tile.js";
+import * as THREE from 'three';
+import { TileProjection } from '../tile.js';
 
 export function distanceOf(p0: number[], p1: number[]) {
   return Math.hypot(p0[0] - p1[0], p0[1] - p1[1], p0[2] - p1[2]);
 }
 
-export function calculateCentroid(
-  points: [number, number, number][],
-): [number, number, number] {
+export function calculateCentroid(points: [number, number, number][]): [number, number, number] {
   if (points.length === 0) {
     return [0, 0, 0];
   }
@@ -111,9 +109,9 @@ export function getFeatureRoofRings(
   }
 
   const rings =
-    geometry.type === "Polygon"
+    geometry.type === 'Polygon'
       ? geometry.coordinates
-      : geometry.type === "MultiPolygon"
+      : geometry.type === 'MultiPolygon'
         ? (geometry.coordinates[0] ?? [])
         : [];
 

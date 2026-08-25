@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
 type SquareRuntime = {
   eyeAngle: number;
@@ -60,9 +60,7 @@ export function create3DTilesViewer({
       return maxAngleZoomBiasLevels;
     }
 
-    const t =
-      (eyeAngle - refineBiasStartAngle) /
-      (maxRefineViewAngle - refineBiasStartAngle);
+    const t = (eyeAngle - refineBiasStartAngle) / (maxRefineViewAngle - refineBiasStartAngle);
 
     return Math.floor(t * maxAngleZoomBiasLevels);
   }
@@ -70,11 +68,7 @@ export function create3DTilesViewer({
   let rootSquares: Square[] = [];
   let renderedLayer: Square[] = [];
 
-  function createSquare(
-    at: THREE.Vector3Like,
-    zoom: number,
-    size: number,
-  ): Square {
+  function createSquare(at: THREE.Vector3Like, zoom: number, size: number): Square {
     const center = new THREE.Vector3().copy(at);
     const halfSize = size / 2;
     const volume = new THREE.Box3(
@@ -106,18 +100,10 @@ export function create3DTilesViewer({
     const childSize = square.size / 2;
     const childZoom = square.zoom + 1;
 
-    const pos0 = square.pos
-      .clone()
-      .add(childCenterOffsets[0].clone().multiplyScalar(childSize));
-    const pos1 = square.pos
-      .clone()
-      .add(childCenterOffsets[1].clone().multiplyScalar(childSize));
-    const pos2 = square.pos
-      .clone()
-      .add(childCenterOffsets[2].clone().multiplyScalar(childSize));
-    const pos3 = square.pos
-      .clone()
-      .add(childCenterOffsets[3].clone().multiplyScalar(childSize));
+    const pos0 = square.pos.clone().add(childCenterOffsets[0].clone().multiplyScalar(childSize));
+    const pos1 = square.pos.clone().add(childCenterOffsets[1].clone().multiplyScalar(childSize));
+    const pos2 = square.pos.clone().add(childCenterOffsets[2].clone().multiplyScalar(childSize));
+    const pos3 = square.pos.clone().add(childCenterOffsets[3].clone().multiplyScalar(childSize));
 
     const child0 = createSquare(pos0, childZoom, childSize);
     const child1 = createSquare(pos1, childZoom, childSize);
@@ -225,10 +211,7 @@ export function create3DTilesViewer({
     let visibleSquares: Square[] = [];
 
     camera.updateMatrixWorld();
-    cameraProjectionMatrix.multiplyMatrices(
-      camera.projectionMatrix,
-      camera.matrixWorldInverse,
-    );
+    cameraProjectionMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     cameraFrustum.setFromProjectionMatrix(cameraProjectionMatrix);
 
     for (const rootSquare of rootSquares) {

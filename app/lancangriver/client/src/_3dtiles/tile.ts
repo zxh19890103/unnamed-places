@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { shortestDistanceToCap } from "./cap.js";
+import * as THREE from 'three';
+import { shortestDistanceToCap } from './cap.js';
 import {
   DEG_TO_RAD,
   EARTH_RADIUS,
@@ -9,7 +9,7 @@ import {
   normalizeLongitude,
   RAD_TO_DEG,
   WEB_MERCATOR_MAX_LAT,
-} from "./core.js";
+} from './core.js';
 
 export class EarthTile {
   readonly latlng: LatLng;
@@ -120,11 +120,7 @@ export class EarthTile {
         continue;
       }
 
-      const cosTheta = THREE.MathUtils.clamp(
-        this.normal.dot(corner) / cornerRadius,
-        -1,
-        1,
-      );
+      const cosTheta = THREE.MathUtils.clamp(this.normal.dot(corner) / cornerRadius, -1, 1);
 
       const theta = Math.acos(cosTheta);
 
@@ -155,11 +151,7 @@ export class EarthTile {
         continue;
       }
 
-      const cosBeta = THREE.MathUtils.clamp(
-        plane.normal.dot(this.normal) / normalLen,
-        -1,
-        1,
-      );
+      const cosBeta = THREE.MathUtils.clamp(plane.normal.dot(this.normal) / normalLen, -1, 1);
       const beta = Math.acos(cosBeta);
       const angularDelta = Math.max(0, beta - this.capHalfAngleRad);
       const capDirectionProjection = normalLen * Math.cos(angularDelta);
@@ -169,8 +161,7 @@ export class EarthTile {
           : EARTH_RADIUS + this.minElevation;
 
       // Pick the terrain-radius endpoint furthest into this plane.
-      const maxSignedDistance =
-        supportRadius * capDirectionProjection + plane.constant;
+      const maxSignedDistance = supportRadius * capDirectionProjection + plane.constant;
 
       if (maxSignedDistance < 0) {
         return false;
@@ -191,30 +182,17 @@ export class EarthTile {
   }
 }
 
-export function latlngToStandardTileZxy(
-  latlng: LatLng,
-  zoom = 0,
-): [number, number, number] {
+export function latlngToStandardTileZxy(latlng: LatLng, zoom = 0): [number, number, number] {
   const n = 2 ** zoom;
 
   const lng = normalizeLongitude(latlng.lng);
-  const lat = THREE.MathUtils.clamp(
-    latlng.lat,
-    -WEB_MERCATOR_MAX_LAT,
-    WEB_MERCATOR_MAX_LAT,
-  );
+  const lat = THREE.MathUtils.clamp(latlng.lat, -WEB_MERCATOR_MAX_LAT, WEB_MERCATOR_MAX_LAT);
   const latRad = lat * DEG_TO_RAD;
 
   const x = Math.floor(((lng + 180) / 360) * n);
-  const y = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
-  );
+  const y = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n);
 
-  return [
-    zoom,
-    THREE.MathUtils.clamp(x, 0, n - 1),
-    THREE.MathUtils.clamp(y, 0, n - 1),
-  ];
+  return [zoom, THREE.MathUtils.clamp(x, 0, n - 1), THREE.MathUtils.clamp(y, 0, n - 1)];
 }
 
 export function tileZxyToCenterLatlng(z: number, x: number, y: number) {
@@ -276,10 +254,7 @@ export class EarthTilesManager {
   }
 
   setElevationRange(minElevation: number, maxElevation: number) {
-    if (
-      minElevation !== this.avgMinElevation ||
-      maxElevation !== this.avgMaxElevation
-    ) {
+    if (minElevation !== this.avgMinElevation || maxElevation !== this.avgMaxElevation) {
       this.tileCache.clear();
     }
 

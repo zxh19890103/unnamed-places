@@ -1,11 +1,8 @@
-import * as THREE from "three";
-import { PolygonFeatureKind, PolygonFeatureToGeometry } from "../_types.js";
-import {
-  createBuildingRoofGeometry,
-  resolveBuildingRoofStyle,
-} from "../roofs/index.js";
-import { TileProjection } from "../tile.js";
-import { BuildingVariantBucket } from "./_types.js";
+import * as THREE from 'three';
+import { PolygonFeatureKind, PolygonFeatureToGeometry } from '../_types.js';
+import { createBuildingRoofGeometry, resolveBuildingRoofStyle } from '../roofs/index.js';
+import { TileProjection } from '../tile.js';
+import { BuildingVariantBucket } from './_types.js';
 import {
   applyBuildingRepeatUv,
   BUILDING_FACE_TEXTURE_GRID,
@@ -15,7 +12,7 @@ import {
   getBuildingHeight,
   getOrCreateBuildingBucket,
   splitBuildingGeometryByFaceType,
-} from "./base.js";
+} from './base.js';
 
 export const buildBuildingPerFeature = (
   polygon: PolygonFeatureToGeometry,
@@ -23,50 +20,27 @@ export const buildBuildingPerFeature = (
   buckets: Map<string, BuildingVariantBucket>,
   projection: TileProjection,
 ) => {
-  const buildingBucket = getOrCreateBuildingBucket(
-    buckets,
-    buildingVariantForFeature(feature),
-  );
+  const buildingBucket = getOrCreateBuildingBucket(buckets, buildingVariantForFeature(feature));
 
   const roofStyle = resolveBuildingRoofStyle(feature, polygon.extrudedMeters);
 
-  const roof = createBuildingRoofGeometry(
-    feature,
-    polygon.extrudedMeters,
-    projection,
-    roofStyle,
-  );
+  const roof = createBuildingRoofGeometry(feature, polygon.extrudedMeters, projection, roofStyle);
 
   const split = splitBuildingGeometryByFaceType(polygon.geometry);
   polygon.geometry.dispose();
 
   if (roof) {
-    ensureMetadataAttribute(
-      roof,
-      projection,
-      BUILDING_TEXTURE_GRID,
-      polygon.centroid,
-    );
+    ensureMetadataAttribute(roof, projection, BUILDING_TEXTURE_GRID, polygon.centroid);
     buildingBucket.roof.push(roof);
   }
 
   if (split.wall) {
-    ensureMetadataAttribute(
-      split.wall,
-      projection,
-      BUILDING_TEXTURE_GRID,
-      polygon.centroid,
-    );
+    ensureMetadataAttribute(split.wall, projection, BUILDING_TEXTURE_GRID, polygon.centroid);
     buildingBucket.wall.push(split.wall);
   }
 
   if (split.face) {
-    ensureMetadataAttribute(
-      split.face,
-      projection,
-      BUILDING_FACE_TEXTURE_GRID,
-      polygon.centroid,
-    );
+    ensureMetadataAttribute(split.face, projection, BUILDING_FACE_TEXTURE_GRID, polygon.centroid);
     buildingBucket.face.push(split.face);
   }
 };

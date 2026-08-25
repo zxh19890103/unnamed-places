@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState } from 'react';
 
-import type { CoverageJobStatus } from "./api";
-import { IconButton, Tag } from "@/_components";
-import { DotsHorizontalIcon, ReloadIcon } from "@radix-ui/react-icons";
+import type { CoverageJobStatus } from './api';
+import { IconButton, Tag } from '@/_components';
+import { DotsHorizontalIcon, ReloadIcon } from '@radix-ui/react-icons';
 
 type JobStatusProps = {
   label: string;
@@ -24,22 +24,17 @@ export function JobStatus({ label, status, onRefresh }: JobStatusProps) {
   };
 
   const tagVariant =
-    status === "done"
-      ? "success"
-      : status === "failed"
-        ? "destructive"
-        : status === "running"
-          ? "primary"
-          : "silt";
+    status === 'done'
+      ? 'success'
+      : status === 'failed'
+        ? 'destructive'
+        : status === 'running'
+          ? 'primary'
+          : 'silt';
 
   return (
     <div className="flex items-center gap-1.5">
-      <Tag
-        size="sm"
-        variant={tagVariant}
-        running={status === "running"}
-        uppercase
-      >
+      <Tag size="sm" variant={tagVariant} running={status === 'running'} uppercase>
         {status}
       </Tag>
       <IconButton

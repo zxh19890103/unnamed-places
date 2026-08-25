@@ -1,9 +1,9 @@
-import { memo, useEffect, useRef, useState } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { create3dTilesViewer, Create3dTilesViewer } from "@/_3dtiles";
-import { EARTH_RADIUS } from "@/calc/constants.js";
-import { TileMesh } from "./ui.js";
+import { memo, useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { create3dTilesViewer, Create3dTilesViewer } from '@/_3dtiles';
+import { EARTH_RADIUS } from '@/calc/constants.js';
+import { TileMesh } from './ui.js';
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -55,7 +55,7 @@ export default function App() {
       renderer.setSize(mountEl.clientWidth, mountEl.clientHeight);
     };
 
-    window.addEventListener("resize", onResize);
+    window.addEventListener('resize', onResize);
 
     const controls = new OrbitControls(camera, renderer.domElement);
 
@@ -98,7 +98,7 @@ export default function App() {
     setIsSetup(true);
 
     return () => {
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener('resize', onResize);
       window.cancelAnimationFrame(animationFrameId);
 
       threeTiles.dispose();
@@ -130,8 +130,8 @@ const Panel = memo(
     controls: OrbitControls;
     threeTiles: Create3dTilesViewer;
   }) => {
-    const [surfaceDistance, setSurfaceDistance] = useState("0");
-    const [surfaceDistanceAU, setSurfaceDistanceAU] = useState("0");
+    const [surfaceDistance, setSurfaceDistance] = useState('0');
+    const [surfaceDistanceAU, setSurfaceDistanceAU] = useState('0');
     const [centerZoom, setCenterZoom] = useState<number | null>(null);
     const [tileCount, setTileCount] = useState(0);
     const [isUpdateEnabled, setIsUpdateEnabled] = useState(true);
@@ -140,7 +140,7 @@ const Panel = memo(
       const onControlsEnd = () => {
         const altitude = camera.position.length() - EARTH_RADIUS;
         const inkms = altitude / 1000;
-        const unit = inkms > 1 ? "km" : "m";
+        const unit = inkms > 1 ? 'km' : 'm';
         const value = inkms > 1 ? inkms : altitude;
 
         setSurfaceDistance(value.toFixed(2) + unit);
@@ -150,12 +150,12 @@ const Panel = memo(
         setTileCount(threeTiles.getTileCount());
       };
 
-      controls.addEventListener("end", onControlsEnd);
+      controls.addEventListener('end', onControlsEnd);
 
       onControlsEnd();
 
       return () => {
-        controls.removeEventListener("end", onControlsEnd);
+        controls.removeEventListener('end', onControlsEnd);
       };
     }, []);
 

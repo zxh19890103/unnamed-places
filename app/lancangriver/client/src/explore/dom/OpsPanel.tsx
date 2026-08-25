@@ -1,14 +1,11 @@
-import { useState } from "react";
-import type { ReactElement } from "react";
+import { useState } from 'react';
+import type { ReactElement } from 'react';
 
-import { IconButton, Tooltip } from "@/_components";
-import {
-  Create3dTilesViewer,
-  useCurrentThreeDTilesViewerState,
-} from "@/_3dtiles";
-import type { LatLng } from "@/calc/types";
-import type { TilesManager } from "../TilesManager.class";
-import type { LatLngBBox } from "../setup/coverageVisibility";
+import { IconButton, Tooltip } from '@/_components';
+import { Create3dTilesViewer, useCurrentThreeDTilesViewerState } from '@/_3dtiles';
+import type { LatLng } from '@/calc/types';
+import type { TilesManager } from '../TilesManager.class';
+import type { LatLngBBox } from '../setup/coverageVisibility';
 
 type OpsPanelProps = {
   openFlatModal: () => Promise<void>;
@@ -30,12 +27,10 @@ export const OpsPanel = ({
   handleLoadGeotaggedPhotos,
   tileManager,
 }: OpsPanelProps) => {
-  const state = useCurrentThreeDTilesViewerState("zoomLevel");
-  console.log("state.zoomls", state);
+  const state = useCurrentThreeDTilesViewerState('zoomLevel');
+  console.log('state.zoomls', state);
 
-  const [viewerUpdateEnabled, setViewerUpdateEnabled] = useState(
-    !tileManager.frozen,
-  );
+  const [viewerUpdateEnabled, setViewerUpdateEnabled] = useState(!tileManager.frozen);
 
   return (
     <div
@@ -45,14 +40,10 @@ export const OpsPanel = ({
       aria-orientation="vertical"
     >
       <SceneControlTooltip
-        label={
-          viewerUpdateEnabled ? "Pause tile updates" : "Resume tile updates"
-        }
+        label={viewerUpdateEnabled ? 'Pause tile updates' : 'Resume tile updates'}
       >
         <IconButton
-          aria-label={
-            viewerUpdateEnabled ? "Pause tile updates" : "Resume tile updates"
-          }
+          aria-label={viewerUpdateEnabled ? 'Pause tile updates' : 'Resume tile updates'}
           aria-pressed={!viewerUpdateEnabled}
           onClick={() => {
             const nextFrozen = !tileManager.frozen;
@@ -61,9 +52,7 @@ export const OpsPanel = ({
             setViewerUpdateEnabled(nextUpdateEnabled);
           }}
           className={`pointer-events-auto ${
-            viewerUpdateEnabled
-              ? ""
-              : "border-jade-river bg-jade-river-soft text-jade-text"
+            viewerUpdateEnabled ? '' : 'border-jade-river bg-jade-river-soft text-jade-text'
           }`}
         >
           {viewerUpdateEnabled ? <PauseTilesIcon /> : <ResumeTilesIcon />}
@@ -123,13 +112,7 @@ export const OpsPanel = ({
   );
 };
 
-function SceneControlTooltip({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactElement;
-}) {
+function SceneControlTooltip({ label, children }: { label: string; children: ReactElement }) {
   return (
     <Tooltip label={label} side="left" align="center" sideOffset={10}>
       {children}
@@ -137,7 +120,7 @@ function SceneControlTooltip({
   );
 }
 
-const iconClass = "size-5.5";
+const iconClass = 'size-5.5';
 
 function PauseTilesIcon() {
   return (
@@ -225,10 +208,7 @@ function PhotoLocationsIcon() {
         <rect x="3" y="5.5" width="14" height="12" rx="2" />
         <path d="m5.5 15 3.5-3 2.5 2 2-1.5 3.5 3M7 5.5l1-2h4l1 2" />
         <circle cx="13" cy="9.5" r="1.4" />
-        <path
-          d="M22 15.5c0 2-3 5-3 5s-3-3-3-5a3 3 0 1 1 6 0Z"
-          fill="var(--jade-panel)"
-        />
+        <path d="M22 15.5c0 2-3 5-3 5s-3-3-3-5a3 3 0 1 1 6 0Z" fill="var(--jade-panel)" />
         <circle cx="19" cy="15.5" r=".8" fill="currentColor" stroke="none" />
       </g>
     </svg>

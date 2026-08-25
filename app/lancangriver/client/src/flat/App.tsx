@@ -1,11 +1,8 @@
-import { LeafletMap } from "./map.js";
-import { MapIntroCard } from "./MapIntroCard.js";
-import {
-  readInitialCenterFromSearch,
-  FLAT_CENTER_CONFIRMED,
-} from "./protocol.js";
-import { useMemo, useState } from "react";
-import type { LatLng } from "../calc/types.js";
+import { LeafletMap } from './map.js';
+import { MapIntroCard } from './MapIntroCard.js';
+import { readInitialCenterFromSearch, FLAT_CENTER_CONFIRMED } from './protocol.js';
+import { useMemo, useState } from 'react';
+import type { LatLng } from '../calc/types.js';
 
 export default function LeafletApp() {
   const initialCenter = useMemo(
@@ -17,9 +14,7 @@ export default function LeafletApp() {
     [],
   );
 
-  const [mapFocusCenter, setMapFocusCenter] = useState<LatLng | null>(
-    initialCenter,
-  );
+  const [mapFocusCenter, setMapFocusCenter] = useState<LatLng | null>(initialCenter);
 
   const confirmCenter = () => {
     window.parent.postMessage(
@@ -41,9 +36,7 @@ export default function LeafletApp() {
       />
       <MapIntroCard />
       <div className="absolute bottom-4 right-4 z-500 rounded-xl bg-slate-950/80 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-sm">
-        <div className="font-semibold tracking-wide text-slate-100">
-          Confirm center
-        </div>
+        <div className="font-semibold tracking-wide text-slate-100">Confirm center</div>
         <div className="mt-1 text-slate-300">
           {mapFocusCenter.lat.toFixed(5)}, {mapFocusCenter.lng.toFixed(5)}
         </div>

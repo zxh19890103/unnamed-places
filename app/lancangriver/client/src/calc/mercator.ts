@@ -1,4 +1,4 @@
-import type { WorldExtent } from "./types";
+import type { WorldExtent } from './types';
 
 const MIN_LAT = -85.05112878;
 const MAX_LAT = 85.05112878;
@@ -13,25 +13,16 @@ function worldPixelSize(zoom: number): number {
   return tileSize * 2 ** zoom;
 }
 
-function lonLatToWorldPixel(
-  lon: number,
-  lat: number,
-  zoom: number,
-): { x: number; y: number } {
+function lonLatToWorldPixel(lon: number, lat: number, zoom: number): { x: number; y: number } {
   const latClamped = clampLat(lat);
   const sinLat = Math.sin((latClamped * Math.PI) / 180);
   const size = worldPixelSize(zoom);
   const x = ((lon + 180) / 360) * size;
-  const y =
-    (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * size;
+  const y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * size;
   return { x, y };
 }
 
-function worldPixelToLonLat(
-  x: number,
-  y: number,
-  zoom: number,
-): { lon: number; lat: number } {
+function worldPixelToLonLat(x: number, y: number, zoom: number): { lon: number; lat: number } {
   const size = worldPixelSize(zoom);
   const lon = (x / size) * 360 - 180;
   const mercator = Math.PI - (2 * Math.PI * y) / size;
@@ -39,11 +30,7 @@ function worldPixelToLonLat(
   return { lon, lat };
 }
 
-export function tileXY(
-  lon: number,
-  lat: number,
-  zoom: number,
-): { x: number; y: number } {
+export function tileXY(lon: number, lat: number, zoom: number): { x: number; y: number } {
   const pixel = lonLatToWorldPixel(lon, lat, zoom);
   const maxIndex = 2 ** zoom - 1;
   return {
@@ -55,27 +42,15 @@ export function tileXY(
 /**
  * west,south,east,north
  */
-export function tileBounds4326(
-  z: number,
-  x: number,
-  y: number,
-): [number, number, number, number] {
+export function tileBounds4326(z: number, x: number, y: number): [number, number, number, number] {
   const northwest = worldPixelToLonLat(x * tileSize, y * tileSize, z);
-  const southeast = worldPixelToLonLat(
-    (x + 1) * tileSize,
-    (y + 1) * tileSize,
-    z,
-  );
+  const southeast = worldPixelToLonLat((x + 1) * tileSize, (y + 1) * tileSize, z);
   return [northwest.lon, southeast.lat, southeast.lon, northwest.lat];
 }
 
 export function tileExtent(z: number, x: number, y: number): WorldExtent {
   const northwest = worldPixelToLonLat(x * tileSize, y * tileSize, z);
-  const southeast = worldPixelToLonLat(
-    (x + 1) * tileSize,
-    (y + 1) * tileSize,
-    z,
-  );
+  const southeast = worldPixelToLonLat((x + 1) * tileSize, (y + 1) * tileSize, z);
 
   return {
     west: northwest.lon,
@@ -89,7 +64,7 @@ export function tileExtent(z: number, x: number, y: number): WorldExtent {
 
 export function mergeTileExtents(...extents: WorldExtent[]): WorldExtent {
   if (extents.length === 0) {
-    throw new Error("mergeTileExtents requires at least one extent");
+    throw new Error('mergeTileExtents requires at least one extent');
   }
 
   const [firstExtent, ...restExtents] = extents;

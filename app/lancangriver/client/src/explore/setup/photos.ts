@@ -1,10 +1,10 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
-import { mergeTileExtents, tileExtent } from "../../calc/mercator";
-import { SphereTileKey } from "../_types";
-import { JourneyDayNode, PhotoRecord } from "../../photos/types";
-import { PhotoMarkerGeometry } from "../geometries/PhotoMarkerGeometry.class";
-import { PhotoMarkerMaterial } from "../materials/PhotoMarkerMaterial.class";
+import { mergeTileExtents, tileExtent } from '../../calc/mercator';
+import { SphereTileKey } from '../_types';
+import { JourneyDayNode, PhotoRecord } from '../../photos/types';
+import { PhotoMarkerGeometry } from '../geometries/PhotoMarkerGeometry.class';
+import { PhotoMarkerMaterial } from '../materials/PhotoMarkerMaterial.class';
 
 export function createPhotoLocationsPresenter(params: {
   scene: THREE.Scene;
@@ -29,7 +29,7 @@ export function createPhotoLocationsPresenter(params: {
       ...tiles.map((tile) => tileExtent(tile.z, tile.x, tile.y)),
     );
 
-    const waterDropTexture = textureLoader.load("/waterdrop.svg");
+    const waterDropTexture = textureLoader.load('/waterdrop.svg');
     const worldDemTexture = textureLoader.load(
       `${baseUrl}/raster/dem/${centerTile.z}/${centerTile.x}/${centerTile.y}/compose.png`,
     );

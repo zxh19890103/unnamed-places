@@ -1,11 +1,11 @@
-import type { BuildingCategoryDefinition } from "../../_types.js";
+import type { BuildingCategoryDefinition } from '../../_types.js';
 
 const defaultBuilding: BuildingCategoryDefinition = {
-  type: "default",
+  type: 'default',
   palette: {
-    roof: "#e7c9a8",
-    face: "#afe01a",
-    wall: "#ffffff",
+    roof: '#e7c9a8',
+    face: '#afe01a',
+    wall: '#ffffff',
   },
   levelHint: 3,
 };

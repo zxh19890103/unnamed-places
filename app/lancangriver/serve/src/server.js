@@ -7,7 +7,7 @@ import {
   getVectorTilePbf,
   getVectorTilePbfHighways,
   upsertVectorFeatures,
-  upsertVectorFeaturesHighways
+  upsertVectorFeaturesHighways,
 } from './db.js';
 import { createCenterlineRouter } from './routes/centerline.js';
 import { createCesiumRouter } from './routes/cesium.js';
@@ -23,7 +23,11 @@ import { getCoveringZ12Tiles } from './jobs/tileCoverage.js';
 import { createOsmJobsStore } from './jobs/osmJobsStore.js';
 import { createOsmHighwayJobsStore } from './jobs/osmHighwayJobsStore.js';
 import { createZ12GeoInfoStore } from './jobs/z12GeoInfoStore.js';
-import { createOsmHighwayIngestWorker, createVectorIngestRunner, createVectorIngestWorker } from './jobs/osmIngestWorker.js';
+import {
+  createOsmHighwayIngestWorker,
+  createVectorIngestRunner,
+  createVectorIngestWorker,
+} from './jobs/osmIngestWorker.js';
 import { fetchOsmHighwayFeaturesForZ12Key } from './jobs/osmFetch.js';
 import { getVectorIngestSource } from './jobs/vectorSourceConfig.js';
 import { createVectorFeatureFetcher } from './jobs/vectorSourceRegistry.js';
@@ -31,24 +35,24 @@ import { createVectorFeatureFetcher } from './jobs/vectorSourceRegistry.js';
 function createDefaultJobsStore() {
   return createOsmJobsStore({
     db: {
-      query: dbQuery
-    }
+      query: dbQuery,
+    },
   });
 }
 
 function createHighwayJobsStore() {
   return createOsmHighwayJobsStore({
     db: {
-      query: dbQuery
-    }
+      query: dbQuery,
+    },
   });
 }
 
 function createDefaultZ12GeoInfoStore() {
   return createZ12GeoInfoStore({
     db: {
-      query: dbQuery
-    }
+      query: dbQuery,
+    },
   });
 }
 
@@ -79,7 +83,7 @@ function createDefaultRunner(jobsStore) {
     jobs: jobsStore,
     fetchFeaturesForZ12Key,
     source,
-    upsertVectorFeatures
+    upsertVectorFeatures,
   });
 
   return createVectorIngestRunner({ worker, intervalMs: 2000 });
@@ -89,7 +93,7 @@ function createHighwayRunner(jobsStore) {
   const worker = createOsmHighwayIngestWorker({
     jobs: jobsStore,
     fetchOsmHighwayFeatures: fetchOsmHighwayFeaturesForZ12Key,
-    upsertVectorFeaturesHighways
+    upsertVectorFeaturesHighways,
   });
 
   return createVectorIngestRunner({ worker, intervalMs: 2000 });
@@ -100,7 +104,8 @@ export function createApp(options = {}) {
   const jobsStore = options.jobsStore ?? createDefaultJobsStore();
   const highwayJobsStore = options.highwayJobsStore ?? createHighwayJobsStore();
   const z12GeoInfoStore = options.z12GeoInfoStore ?? createDefaultZ12GeoInfoStore();
-  const queueMissingCoverage = options.queueMissingCoverage ?? createQueueMissingCoverage(jobsStore);
+  const queueMissingCoverage =
+    options.queueMissingCoverage ?? createQueueMissingCoverage(jobsStore);
   const queueMissingCoverageHighways =
     options.queueMissingCoverageHighways ?? createQueueMissingCoverage(highwayJobsStore);
   const tilePbfGetter = options.getVectorTilePbf ?? getVectorTilePbf;
@@ -115,26 +120,30 @@ export function createApp(options = {}) {
   app.use(createRasterRouter(options));
   app.use(createStatsRouter(options));
   app.use(createVectorRouter(options));
-  app.use(createVectorTilesRouter({
-    routePrefix: '/vector',
-    queueMissingCoverage,
-    enqueueCoverageJob: (key) => jobsStore.enqueueIfMissing(key),
-    getVectorTilePbf: tilePbfGetter,
-    getCoverageStatus: (key) => jobsStore.getStatus(key),
-    listLoadedCoverage: (pagination) => jobsStore.listLoaded(pagination),
-    listCoverageJobs: (pagination) => jobsStore.listJobs(pagination),
-    rerunFailedCoverage: (key) => jobsStore.rerunFailed(key)
-  }));
-  app.use(createVectorTilesRouter({
-    routePrefix: '/vector/highways',
-    queueMissingCoverage: queueMissingCoverageHighways,
-    enqueueCoverageJob: (key) => highwayJobsStore.enqueueIfMissing(key),
-    getVectorTilePbf: highwayTilePbfGetter,
-    getCoverageStatus: (key) => highwayJobsStore.getStatus(key),
-    listLoadedCoverage: (pagination) => highwayJobsStore.listLoaded(pagination),
-    listCoverageJobs: (pagination) => highwayJobsStore.listJobs(pagination),
-    rerunFailedCoverage: (key) => highwayJobsStore.rerunFailed(key)
-  }));
+  app.use(
+    createVectorTilesRouter({
+      routePrefix: '/vector',
+      queueMissingCoverage,
+      enqueueCoverageJob: (key) => jobsStore.enqueueIfMissing(key),
+      getVectorTilePbf: tilePbfGetter,
+      getCoverageStatus: (key) => jobsStore.getStatus(key),
+      listLoadedCoverage: (pagination) => jobsStore.listLoaded(pagination),
+      listCoverageJobs: (pagination) => jobsStore.listJobs(pagination),
+      rerunFailedCoverage: (key) => jobsStore.rerunFailed(key),
+    }),
+  );
+  app.use(
+    createVectorTilesRouter({
+      routePrefix: '/vector/highways',
+      queueMissingCoverage: queueMissingCoverageHighways,
+      enqueueCoverageJob: (key) => highwayJobsStore.enqueueIfMissing(key),
+      getVectorTilePbf: highwayTilePbfGetter,
+      getCoverageStatus: (key) => highwayJobsStore.getStatus(key),
+      listLoadedCoverage: (pagination) => highwayJobsStore.listLoaded(pagination),
+      listCoverageJobs: (pagination) => highwayJobsStore.listJobs(pagination),
+      rerunFailedCoverage: (key) => highwayJobsStore.rerunFailed(key),
+    }),
+  );
   app.use(createPhotosRouter(options));
 
   return app;

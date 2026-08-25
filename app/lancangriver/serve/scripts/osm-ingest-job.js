@@ -23,7 +23,7 @@ function parseArgs(argv) {
   const options = {
     key: null,
     enqueueOnly: false,
-    force: false
+    force: false,
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -77,7 +77,7 @@ async function main() {
          started_at = NULL,
          finished_at = NULL,
          updated_at = NOW()`,
-      [options.key]
+      [options.key],
     );
     console.log(`[vector-job-cli source=${source}] forced queued ${options.key}`);
   } else {
@@ -85,7 +85,7 @@ async function main() {
     console.log(
       enqueueResult.enqueued
         ? `[vector-job-cli source=${source}] queued ${options.key}`
-        : `[vector-job-cli source=${source}] job already exists ${options.key}`
+        : `[vector-job-cli source=${source}] job already exists ${options.key}`,
     );
   }
 
@@ -101,7 +101,9 @@ async function main() {
     const features = await fetchFeaturesForZ12Key(options.key);
     await upsertVectorFeatures(features);
     await jobs.markDone(options.key);
-    console.log(`[vector-job-cli source=${source}] done ${options.key} features=${features.length}`);
+    console.log(
+      `[vector-job-cli source=${source}] done ${options.key} features=${features.length}`,
+    );
   } catch (error) {
     const message = String(error?.message ?? error);
     await jobs.markFailed(options.key, message);

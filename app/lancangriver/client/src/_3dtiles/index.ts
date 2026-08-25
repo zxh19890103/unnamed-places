@@ -1,3 +1,3 @@
-export * from "./core";
-export * from "./viewer";
-export * from "./tile";
+export * from './core';
+export * from './viewer';
+export * from './tile';

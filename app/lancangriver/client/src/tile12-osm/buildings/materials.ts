@@ -1,12 +1,12 @@
-import * as THREE from "three";
-import { TileCoords } from "@/tile12-osm/vector-tiles.js";
-import { shaderGlslSegments, uniformSettings } from "../_cfg.js";
+import * as THREE from 'three';
+import { TileCoords } from '@/tile12-osm/vector-tiles.js';
+import { shaderGlslSegments, uniformSettings } from '../_cfg.js';
 import {
   BUILDING_ATLAS_UV_INSET,
   BUILDING_FACE_TEXTURE_GRID,
   BUILDING_TEXTURE_GRID,
   BUILDING_WALL_TEXTURE_UV_SCALE,
-} from "./base.js";
+} from './base.js';
 
 export function createBuildingWallMaterial(
   color: string,
@@ -14,12 +14,10 @@ export function createBuildingWallMaterial(
   textureLoader: THREE.TextureLoader,
   tile: TileCoords,
 ): THREE.ShaderMaterial {
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -116,19 +114,15 @@ export function createBuildingFaceMaterial(
   textureLoader: THREE.TextureLoader,
   tile: TileCoords,
 ): THREE.ShaderMaterial {
-  textureLoader
-    .loadAsync(uniformSettings.getTerrariumInfoUrl(tile))
-    .then((data) => {
-      material.uniforms.terrianMap.value = data;
-      material.uniforms.terrianMapLoaded.value = 1;
-    });
+  textureLoader.loadAsync(uniformSettings.getTerrariumInfoUrl(tile)).then((data) => {
+    material.uniforms.terrianMap.value = data;
+    material.uniforms.terrianMapLoaded.value = 1;
+  });
 
-  textureLoader
-    .loadAsync(`/textures/building-face-atlas-v2.png`)
-    .then((data) => {
-      material.uniforms.map.value = data;
-      material.uniforms.mapLoaded.value = true;
-    });
+  textureLoader.loadAsync(`/textures/building-face-atlas-v2.png`).then((data) => {
+    material.uniforms.map.value = data;
+    material.uniforms.mapLoaded.value = true;
+  });
 
   const BUILDING_ATLAS_UV_INSET = new THREE.Vector2(0, 0);
   const BUILDING_WALL_TEXTURE_UV_SCALE = 0.4;

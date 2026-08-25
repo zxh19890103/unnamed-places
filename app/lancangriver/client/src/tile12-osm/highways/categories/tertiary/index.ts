@@ -1,7 +1,7 @@
-import type { HighwayCategoryDefinition } from "../../_types.js";
+import type { HighwayCategoryDefinition } from '../../_types.js';
 
 const tertiary: HighwayCategoryDefinition = {
-  type: "tertiary",
+  type: 'tertiary',
   widthMeters: 5,
   classOffset: 0.14,
 };

@@ -20,12 +20,12 @@ const DEFAULT_BBOX: BBox = {
 /** Reads a `bbox=west,south,east,north` query param, falling back to a default. */
 export function readBBoxFromSearch(search: string): BBox {
   const params = new URLSearchParams(search);
-  const raw = params.get("bbox");
+  const raw = params.get('bbox');
   if (!raw) {
     return DEFAULT_BBOX;
   }
 
-  const parts = raw.split(",").map(Number);
+  const parts = raw.split(',').map(Number);
   if (parts.length !== 4 || parts.some((value) => Number.isNaN(value))) {
     return DEFAULT_BBOX;
   }
@@ -37,12 +37,12 @@ export function readBBoxFromSearch(search: string): BBox {
 /** Reads a `latlng=lat,lng` query param, returning null when absent or invalid. */
 export function readLatLngFromSearch(search: string): LatLng | null {
   const params = new URLSearchParams(search);
-  const raw = params.get("latlng");
+  const raw = params.get('latlng');
   if (!raw) {
     return null;
   }
 
-  const parts = raw.split(",").map(Number);
+  const parts = raw.split(',').map(Number);
   if (parts.length !== 2 || parts.some((value) => Number.isNaN(value))) {
     return null;
   }

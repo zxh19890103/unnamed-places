@@ -1,18 +1,15 @@
-import { memo, useState } from "react";
-import type { ReactNode } from "react";
-import clsx from "clsx";
+import { memo, useState } from 'react';
+import type { ReactNode } from 'react';
+import clsx from 'clsx';
 
-import { Button } from "@/_components";
-import {
-  useCurrentThreeDTilesViewerState,
-  latlngToStandardTileZxy,
-} from "@/_3dtiles";
-import { BASE_URL, ELEVATION_SCALE } from "@/calc/constants";
-import type { LatLng } from "@/calc/types";
-import type { TilesManager } from "../TilesManager.class";
-import { ControlsManager } from "../ControlsManager.class";
-import { globalTileMaterialMode, setGlobalTileMaterialMode } from "../setup";
-import { TileMaterialMode } from "../SphereTile.class";
+import { Button } from '@/_components';
+import { useCurrentThreeDTilesViewerState, latlngToStandardTileZxy } from '@/_3dtiles';
+import { BASE_URL, ELEVATION_SCALE } from '@/calc/constants';
+import type { LatLng } from '@/calc/types';
+import type { TilesManager } from '../TilesManager.class';
+import { ControlsManager } from '../ControlsManager.class';
+import { globalTileMaterialMode, setGlobalTileMaterialMode } from '../setup';
+import { TileMaterialMode } from '../SphereTile.class';
 
 type DemAltitudeResponse = {
   ok: boolean;
@@ -125,23 +122,20 @@ export const TileMaterialModeSelect = memo(
     controls: ControlsManager;
     tileManager: TilesManager;
     getCurrentGroundCenter: () => LatLng | null;
-    setVisibleTilesElevationRange: (
-      minMeters: number,
-      maxMeters: number,
-    ) => void;
+    setVisibleTilesElevationRange: (minMeters: number, maxMeters: number) => void;
   }) => {
-    const zoomLevel = useCurrentThreeDTilesViewerState("zoomLevel");
-    console.log("zoml", zoomLevel);
+    const zoomLevel = useCurrentThreeDTilesViewerState('zoomLevel');
+    console.log('zoml', zoomLevel);
 
     const [mode, setMode] = useState(globalTileMaterialMode);
     const [isElevationLoading, setIsElevationLoading] = useState(false);
 
     const modeLabels: Record<TileMaterialMode, string> = {
-      [TileMaterialMode.Basic]: "Satellite",
-      [TileMaterialMode.Dem]: "Elevation",
-      [TileMaterialMode.Clean]: "Clean",
-      [TileMaterialMode.Debug]: "Debug",
-      [TileMaterialMode.ShanshuiWash]: "Watercolor",
+      [TileMaterialMode.Basic]: 'Satellite',
+      [TileMaterialMode.Dem]: 'Elevation',
+      [TileMaterialMode.Clean]: 'Clean',
+      [TileMaterialMode.Debug]: 'Debug',
+      [TileMaterialMode.ShanshuiWash]: 'Watercolor',
     };
 
     const applyMaterialMode = (requested: TileMaterialMode) => {
@@ -168,9 +162,7 @@ export const TileMaterialModeSelect = memo(
       setIsElevationLoading(true);
 
       try {
-        const response = await fetch(
-          `${BASE_URL}/raster/dem/10/${x}/${y}/altitude`,
-        );
+        const response = await fetch(`${BASE_URL}/raster/dem/10/${x}/${y}/altitude`);
 
         if (!response.ok) {
           throw new Error(`Altitude request failed: ${response.status}`);
@@ -183,7 +175,7 @@ export const TileMaterialModeSelect = memo(
           !Number.isFinite(altitude.max) ||
           altitude.max < altitude.min
         ) {
-          throw new Error("Altitude response had an invalid elevation range");
+          throw new Error('Altitude response had an invalid elevation range');
         }
 
         setVisibleTilesElevationRange(
@@ -195,7 +187,7 @@ export const TileMaterialModeSelect = memo(
         setMode(TileMaterialMode.Dem);
         setGlobalTileMaterialMode(TileMaterialMode.Dem);
       } catch (error) {
-        console.warn("Failed to prepare elevation terrain", error);
+        console.warn('Failed to prepare elevation terrain', error);
       } finally {
         setIsElevationLoading(false);
       }
@@ -207,27 +199,21 @@ export const TileMaterialModeSelect = memo(
           const isSelected = mode === materialMode;
           const isElevationMode = materialMode === TileMaterialMode.Dem;
           const isZoomBlocked = isElevationMode && zoomLevel < 11;
-          const isDisabled =
-            isZoomBlocked || (isElevationMode && isElevationLoading);
+          const isDisabled = isZoomBlocked || (isElevationMode && isElevationLoading);
           const title = isElevationLoading
-            ? "Loading elevation data"
+            ? 'Loading elevation data'
             : isZoomBlocked
-              ? "Zoom in past level 11 to use elevation terrain"
+              ? 'Zoom in past level 11 to use elevation terrain'
               : modeLabels[materialMode];
 
           return (
             <Button
               key={materialMode}
-              aria-label={
-                isDisabled ? title : `Use ${modeLabels[materialMode]} terrain`
-              }
+              aria-label={isDisabled ? title : `Use ${modeLabels[materialMode]} terrain`}
               aria-pressed={isSelected}
               disabled={isDisabled}
               title={title}
-              className={clsx(
-                "pointer-events-auto",
-                isSelected ? "relative top-1" : null,
-              )}
+              className={clsx('pointer-events-auto', isSelected ? 'relative top-1' : null)}
               onClick={() => {
                 const requested = materialMode;
 
@@ -243,9 +229,7 @@ export const TileMaterialModeSelect = memo(
               }}
             >
               <MaterialModeIcon mode={materialMode} />
-              <span className="whitespace-nowrap">
-                {modeLabels[materialMode]}
-              </span>
+              <span className="whitespace-nowrap">{modeLabels[materialMode]}</span>
             </Button>
           );
         })}

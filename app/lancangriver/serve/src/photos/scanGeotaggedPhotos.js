@@ -14,10 +14,12 @@ export async function scanGeotaggedPhotos(root) {
   const records = [];
 
   for (const filePath of files) {
-    const exif = await exifr.parse(filePath, {
-      gps: true,
-      exif: true
-    }).catch(() => null);
+    const exif = await exifr
+      .parse(filePath, {
+        gps: true,
+        exif: true,
+      })
+      .catch(() => null);
 
     const takenAt =
       exif?.DateTimeOriginal instanceof Date && !Number.isNaN(exif.DateTimeOriginal.getTime())
@@ -33,7 +35,7 @@ export async function scanGeotaggedPhotos(root) {
       filePath,
       lat: exif.latitude,
       lng: exif.longitude,
-      takenAt
+      takenAt,
     });
   }
 

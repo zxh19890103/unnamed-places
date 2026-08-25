@@ -16,7 +16,7 @@ export function createVectorSourceRegistry(options = {}) {
       }
 
       throw new Error(`Unsupported vector ingest source: ${source}`);
-    }
+    },
   };
 }
 

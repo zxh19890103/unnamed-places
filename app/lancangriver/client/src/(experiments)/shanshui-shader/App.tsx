@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ExperimentalShanshuiMaterial } from "./ShanshuiMaterial.js";
-import { BASE_URL } from "../../calc/constants.js";
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { ExperimentalShanshuiMaterial } from './ShanshuiMaterial.js';
+import { BASE_URL } from '../../calc/constants.js';
 
 const DEM_URL = `${BASE_URL}/raster/dem/13/4285/2894.png`;
 const DERIVATIVES_URL = `${BASE_URL}/raster/dem/13/4285/2894/derivatives.png`;
@@ -10,7 +10,7 @@ const ALTITUDE_URL = `${BASE_URL}/raster/dem/13/4285/2894/altitude`;
 
 type DemAltitudeResponse = {
   ok: true;
-  kind: "dem-altitude";
+  kind: 'dem-altitude';
   min: number;
   max: number;
   avg: number;
@@ -26,9 +26,9 @@ export default function App() {
   const [sunControlsEnabled, setSunControlsEnabled] = useState(false);
   const [showNormals, setShowNormals] = useState(false);
   const [slopeDarkenStrength, setSlopeDarkenStrength] = useState(0.65);
-  const [sunAzimuthDeg, setSunAzimuthDeg] = useState("0.0");
-  const [sunElevationDeg, setSunElevationDeg] = useState("0.0");
-  const [elevationRangeText, setElevationRangeText] = useState("loading...");
+  const [sunAzimuthDeg, setSunAzimuthDeg] = useState('0.0');
+  const [sunElevationDeg, setSunElevationDeg] = useState('0.0');
+  const [elevationRangeText, setElevationRangeText] = useState('loading...');
 
   sunControlsEnabledRef.current = sunControlsEnabled;
 
@@ -77,9 +77,7 @@ export default function App() {
     };
 
     const updateSunReadout = () => {
-      setSunAzimuthDeg(
-        (THREE.MathUtils.radToDeg(sun.azimuth) % 360).toFixed(1),
-      );
+      setSunAzimuthDeg((THREE.MathUtils.radToDeg(sun.azimuth) % 360).toFixed(1));
       setSunElevationDeg(THREE.MathUtils.radToDeg(sun.elevation).toFixed(1));
     };
 
@@ -142,16 +140,14 @@ export default function App() {
 
         if (Number.isFinite(altitude.min) && Number.isFinite(altitude.max)) {
           material.setElevationRange(altitude.min, altitude.max);
-          setElevationRangeText(
-            `${altitude.min.toFixed(0)}m to ${altitude.max.toFixed(0)}m`,
-          );
+          setElevationRangeText(`${altitude.min.toFixed(0)}m to ${altitude.max.toFixed(0)}m`);
         } else {
-          setElevationRangeText("derived from DEM");
+          setElevationRangeText('derived from DEM');
         }
       })
       .catch((error: unknown) => {
-        console.warn("Failed to load shanshui DEM textures", error);
-        setElevationRangeText("unavailable");
+        console.warn('Failed to load shanshui DEM textures', error);
+        setElevationRangeText('unavailable');
       });
 
     const onResize = () => {
@@ -168,16 +164,16 @@ export default function App() {
       const step = event.shiftKey ? 0.12 : 0.05;
       let changed = false;
 
-      if (event.key === "ArrowLeft") {
+      if (event.key === 'ArrowLeft') {
         sun.azimuth -= step;
         changed = true;
-      } else if (event.key === "ArrowRight") {
+      } else if (event.key === 'ArrowRight') {
         sun.azimuth += step;
         changed = true;
-      } else if (event.key === "ArrowUp") {
+      } else if (event.key === 'ArrowUp') {
         sun.elevation += step;
         changed = true;
-      } else if (event.key === "ArrowDown") {
+      } else if (event.key === 'ArrowDown') {
         sun.elevation -= step;
         changed = true;
       }
@@ -193,8 +189,8 @@ export default function App() {
       updateSunReadout();
     };
 
-    window.addEventListener("resize", onResize);
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('keydown', onKeyDown);
 
     let frameId = 0;
     const animate = () => {
@@ -209,8 +205,8 @@ export default function App() {
     return () => {
       disposed = true;
       window.cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKeyDown);
 
       controls.dispose();
       geometry.dispose();
@@ -259,34 +255,33 @@ export default function App() {
   return (
     <div
       style={{
-        position: "relative",
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden",
+        position: 'relative',
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
       }}
     >
-      <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
       <div
         style={{
-          position: "absolute",
+          position: 'absolute',
           top: 12,
           left: 12,
-          padding: "10px 12px",
+          padding: '10px 12px',
           borderRadius: 8,
-          background: "rgba(13, 17, 26, 0.78)",
-          color: "#e5e7eb",
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          background: 'rgba(13, 17, 26, 0.78)',
+          color: '#e5e7eb',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           fontSize: 12,
           lineHeight: 1.4,
         }}
       >
         <label
           style={{
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            alignItems: 'center',
             gap: 6,
-            cursor: "pointer",
+            cursor: 'pointer',
           }}
         >
           <input
@@ -300,16 +295,14 @@ export default function App() {
           <div>azimuth: {sunAzimuthDeg}deg</div>
           <div>elevation: {sunElevationDeg}deg</div>
           <div>tile elevation: {elevationRangeText}</div>
-          <div style={{ marginTop: 4 }}>
-            keys: arrows (hold Shift for faster step)
-          </div>
+          <div style={{ marginTop: 4 }}>keys: arrows (hold Shift for faster step)</div>
         </div>
         <label
           style={{
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            alignItems: 'center',
             gap: 6,
-            cursor: "pointer",
+            cursor: 'pointer',
             marginTop: 8,
           }}
         >
@@ -320,20 +313,16 @@ export default function App() {
           />
           Visualize surface normals
         </label>
-        <label style={{ display: "block", marginTop: 8 }}>
-          <div style={{ marginBottom: 4 }}>
-            Slope darkening: {slopeDarkenStrength.toFixed(2)}
-          </div>
+        <label style={{ display: 'block', marginTop: 8 }}>
+          <div style={{ marginBottom: 4 }}>Slope darkening: {slopeDarkenStrength.toFixed(2)}</div>
           <input
             type="range"
             min="0"
             max="2"
             step="0.01"
             value={slopeDarkenStrength}
-            onChange={(event) =>
-              setSlopeDarkenStrength(Number(event.target.value))
-            }
-            style={{ width: "100%" }}
+            onChange={(event) => setSlopeDarkenStrength(Number(event.target.value))}
+            style={{ width: '100%' }}
           />
         </label>
       </div>

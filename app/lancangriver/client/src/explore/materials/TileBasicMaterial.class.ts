@@ -1,8 +1,8 @@
-import * as THREE from "three";
-import { SphereTileKey } from "../_types";
-import { BASE_URL } from "../../calc/constants";
-import vertexShader from "./shaders/tilebasic.vert.glsl?raw";
-import fragmentShader from "./shaders/tilebasic.frag.glsl?raw";
+import * as THREE from 'three';
+import { SphereTileKey } from '../_types';
+import { BASE_URL } from '../../calc/constants';
+import vertexShader from './shaders/tilebasic.vert.glsl?raw';
+import fragmentShader from './shaders/tilebasic.frag.glsl?raw';
 
 type Parameters = {
   tileKey: SphereTileKey;
@@ -58,7 +58,7 @@ export class TileBasicMaterial extends THREE.ShaderMaterial {
       this.pendingImage.onerror = null;
 
       // Cancel in-flight image fetch when tile churn disposes this material.
-      this.pendingImage.src = "";
+      this.pendingImage.src = '';
       this.pendingImage = null;
     }
 

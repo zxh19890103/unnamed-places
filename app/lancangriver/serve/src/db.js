@@ -1,8 +1,14 @@
 import { readFileSync } from 'node:fs';
 
 const VECTOR_BBOX_SQL = readFileSync(new URL('./sql/vector_bbox.sql', import.meta.url), 'utf8');
-const VECTOR_TILE_MVT_SQL = readFileSync(new URL('./sql/vector_tile_mvt.sql', import.meta.url), 'utf8');
-const VECTOR_TILE_MVT_HIGHWAYS_SQL = readFileSync(new URL('./sql/vector_tile_mvt_highways.sql', import.meta.url), 'utf8');
+const VECTOR_TILE_MVT_SQL = readFileSync(
+  new URL('./sql/vector_tile_mvt.sql', import.meta.url),
+  'utf8',
+);
+const VECTOR_TILE_MVT_HIGHWAYS_SQL = readFileSync(
+  new URL('./sql/vector_tile_mvt_highways.sql', import.meta.url),
+  'utf8',
+);
 let pool;
 let poolPromise;
 
@@ -138,7 +144,7 @@ async function upsertVectorFeaturesIntoTable(features, tableName) {
            tags = EXCLUDED.tags,
            geom = EXCLUDED.geom,
            updated_at = NOW()`,
-        [featureId, source, featureType, JSON.stringify(tags), JSON.stringify(geometry)]
+        [featureId, source, featureType, JSON.stringify(tags), JSON.stringify(geometry)],
       );
     }
 

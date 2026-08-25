@@ -16,11 +16,11 @@ describe('normalizeOvertureFeatures', () => {
               [100, 20],
               [100.1, 20],
               [100.1, 20.1],
-              [100, 20]
-            ]
-          ]
-        }
-      }
+              [100, 20],
+            ],
+          ],
+        },
+      },
     ]);
 
     expect(normalized).toHaveLength(1);
@@ -28,7 +28,7 @@ describe('normalizeOvertureFeatures', () => {
       source: 'overture',
       feature_id: 'overture/abc123',
       feature_type: 'Polygon',
-      tags: { class: 'building' }
+      tags: { class: 'building' },
     });
   });
 
@@ -40,9 +40,9 @@ describe('normalizeOvertureFeatures', () => {
         properties: {},
         geometry: {
           type: 'GeometryCollection',
-          geometries: []
-        }
-      }
+          geometries: [],
+        },
+      },
     ]);
 
     expect(normalized).toHaveLength(0);

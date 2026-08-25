@@ -57,13 +57,13 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
                     [100, 20],
                     [100.1, 20],
                     [100.1, 20.1],
-                    [100, 20]
-                  ]
-                ]
-              }
-            }
-          ]
-        })
+                    [100, 20],
+                  ],
+                ],
+              },
+            },
+          ],
+        }),
       },
       {
         stdout: JSON.stringify({
@@ -80,19 +80,19 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
                     [100.2, 20.2],
                     [100.3, 20.2],
                     [100.3, 20.3],
-                    [100.2, 20.2]
-                  ]
-                ]
-              }
-            }
-          ]
-        })
-      }
+                    [100.2, 20.2],
+                  ],
+                ],
+              },
+            },
+          ],
+        }),
+      },
     ]);
 
     const features = await fetchOvertureFeaturesForZ12Key('12/1024/1024', {
       command: 'overturemaps',
-      spawnImpl
+      spawnImpl,
     });
 
     expect(calls).toHaveLength(2);
@@ -104,21 +104,21 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
     expect(features.map((feature) => feature.source)).toEqual(['overture', 'overture']);
     expect(features.map((feature) => feature.feature_id)).toEqual([
       'overture/building-1',
-      'overture/water-1'
+      'overture/water-1',
     ]);
   });
 
   it('fails when overture command exits non-zero', async () => {
     const { spawnImpl } = createSpawnMock([
       { exitCode: 7, stderr: 'service unavailable' },
-      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) }
+      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) },
     ]);
 
     await expect(
       fetchOvertureFeaturesForZ12Key('12/1024/1024', {
         command: 'overturemaps',
-        spawnImpl
-      })
+        spawnImpl,
+      }),
     ).rejects.toThrow('Overture buildings command failed (exit 7): service unavailable');
   });
 
@@ -139,21 +139,21 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
                     [100, 20],
                     [100.1, 20],
                     [100.1, 20.1],
-                    [100, 20]
-                  ]
-                ]
-              }
-            }
-          ]
-        })
+                    [100, 20],
+                  ],
+                ],
+              },
+            },
+          ],
+        }),
       },
-      { stdout: 'Error reading data source' }
+      { stdout: 'Error reading data source' },
     ]);
 
     const features = await fetchOvertureFeaturesForZ12Key('12/1024/1024', {
       command: 'overturemaps',
       spawnImpl,
-      allowPartial: true
+      allowPartial: true,
     });
 
     expect(features).toHaveLength(1);
@@ -163,29 +163,29 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
   it('throws when water fetch fails and partial mode is disabled', async () => {
     const { spawnImpl } = createSpawnMock([
       { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) },
-      { stdout: 'Error reading data source' }
+      { stdout: 'Error reading data source' },
     ]);
 
     await expect(
       fetchOvertureFeaturesForZ12Key('12/1024/1024', {
         command: 'overturemaps',
         spawnImpl,
-        allowPartial: false
-      })
+        allowPartial: false,
+      }),
     ).rejects.toThrow('Overture water command returned error output: Error reading data source');
   });
 
   it('fails when overture output is malformed json', async () => {
     const { spawnImpl } = createSpawnMock([
       { stdout: '{not-json' },
-      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) }
+      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) },
     ]);
 
     await expect(
       fetchOvertureFeaturesForZ12Key('12/1024/1024', {
         command: 'overturemaps',
-        spawnImpl
-      })
+        spawnImpl,
+      }),
     ).rejects.toThrow('Overture buildings output is not valid JSON');
   });
 
@@ -195,14 +195,14 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
 
     const { spawnImpl } = createSpawnMock([
       { error: missing },
-      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) }
+      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) },
     ]);
 
     await expect(
       fetchOvertureFeaturesForZ12Key('12/1024/1024', {
         command: 'overturemaps',
-        spawnImpl
-      })
+        spawnImpl,
+      }),
     ).rejects.toThrow('Overture command not found: overturemaps');
   });
 
@@ -217,13 +217,28 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
               type: 'Feature',
               id: 'ocean-1',
               properties: { subtype: 'ocean', class: 'ocean' },
-              geometry: { type: 'Polygon', coordinates: [[[100, 20], [100.1, 20], [100, 20]]] }
+              geometry: {
+                type: 'Polygon',
+                coordinates: [
+                  [
+                    [100, 20],
+                    [100.1, 20],
+                    [100, 20],
+                  ],
+                ],
+              },
             },
             {
               type: 'Feature',
               id: 'river-line',
               properties: { subtype: 'river' },
-              geometry: { type: 'LineString', coordinates: [[100, 20], [100.1, 20.1]] }
+              geometry: {
+                type: 'LineString',
+                coordinates: [
+                  [100, 20],
+                  [100.1, 20.1],
+                ],
+              },
             },
             {
               type: 'Feature',
@@ -236,21 +251,21 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
                     [100.2, 20.2],
                     [100.3, 20.2],
                     [100.3, 20.3],
-                    [100.2, 20.2]
-                  ]
-                ]
-              }
-            }
-          ]
-        })
-      }
+                    [100.2, 20.2],
+                  ],
+                ],
+              },
+            },
+          ],
+        }),
+      },
     ]);
 
     const features = await fetchOvertureFeaturesForZ12Key('12/1024/1024', {
       command: 'overturemaps',
       spawnImpl,
       waterInlandOnly: true,
-      waterPolygonsOnly: true
+      waterPolygonsOnly: true,
     });
 
     expect(features).toHaveLength(1);
@@ -261,14 +276,15 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
     const { spawnImpl, calls } = createSpawnMock([
       {
         exitCode: 2,
-        stderr: "Error reading STAC index at https://stac.overturemaps.org/x/collections.parquet: 'aws-s3'"
+        stderr:
+          "Error reading STAC index at https://stac.overturemaps.org/x/collections.parquet: 'aws-s3'",
       },
       {
-        stdout: JSON.stringify({ type: 'FeatureCollection', features: [] })
+        stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }),
       },
       {
-        stdout: JSON.stringify({ type: 'FeatureCollection', features: [] })
-      }
+        stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }),
+      },
     ]);
 
     const features = await fetchOvertureFeaturesForZ12Key('12/1024/1024', {
@@ -276,7 +292,7 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
       spawnImpl,
       stacFallbackToNoStac: true,
       useStac: true,
-      retries: 0
+      retries: 0,
     });
 
     expect(features).toHaveLength(0);
@@ -288,7 +304,7 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
   it('passes timeout and release arguments to overture command', async () => {
     const { spawnImpl, calls } = createSpawnMock([
       { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) },
-      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) }
+      { stdout: JSON.stringify({ type: 'FeatureCollection', features: [] }) },
     ]);
 
     await fetchOvertureFeaturesForZ12Key('12/1024/1024', {
@@ -297,7 +313,7 @@ describe('fetchOvertureFeaturesForZ12Key', () => {
       release: '2026-07-22.0',
       connectTimeoutSeconds: 15,
       requestTimeoutSeconds: 90,
-      useStac: false
+      useStac: false,
     });
 
     expect(calls[0].args).toContain('-r');

@@ -1,10 +1,10 @@
-import type { LatLng } from "../calc/types";
+import type { LatLng } from '../calc/types';
 
-export const FLAT_CENTER_CONFIRMED = "flat:center-confirmed";
+export const FLAT_CENTER_CONFIRMED = 'flat:center-confirmed';
 
 export function buildFlatModalUrl(center: LatLng | null) {
   if (!center) {
-    return "/flat.html";
+    return '/flat.html';
   }
 
   const search = new URLSearchParams({
@@ -17,8 +17,8 @@ export function buildFlatModalUrl(center: LatLng | null) {
 
 export function readInitialCenterFromSearch(search: string): LatLng | null {
   const params = new URLSearchParams(search);
-  const latRaw = params.get("lat");
-  const lngRaw = params.get("lng");
+  const latRaw = params.get('lat');
+  const lngRaw = params.get('lng');
 
   if (latRaw === null || lngRaw === null) {
     return null;

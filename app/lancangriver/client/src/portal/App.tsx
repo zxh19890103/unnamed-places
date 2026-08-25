@@ -1,65 +1,60 @@
-import { ArrowRightIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
+import { ArrowRightIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 
 const pages = [
   {
-    title: "Map",
-    href: "/index.html",
-    description: "The main map page with 3D globe and tiled satellite imagery.",
+    title: 'Map',
+    href: '/index.html',
+    description: 'The main map page with 3D globe and tiled satellite imagery.',
   },
   {
-    title: "Global Zoom",
-    href: "/global-zoom",
-    description: "3D globe and tiled satellite zoom experiment.",
+    title: 'Global Zoom',
+    href: '/global-zoom',
+    description: '3D globe and tiled satellite zoom experiment.',
   },
   {
-    title: "Sphere Zoom",
-    href: "/sphere-zoom",
-    description: "Sphere-based tile loading and close-range LOD experiment.",
+    title: 'Sphere Zoom',
+    href: '/sphere-zoom',
+    description: 'Sphere-based tile loading and close-range LOD experiment.',
   },
   {
-    title: "Shanshui Shader",
-    href: "/shanshui-shader",
-    description:
-      "DEM-driven terrain shading, normals, slope darkening, and noise.",
+    title: 'Shanshui Shader',
+    href: '/shanshui-shader',
+    description: 'DEM-driven terrain shading, normals, slope darkening, and noise.',
   },
   {
-    title: "Loaded Vector Tiles",
-    href: "/jobs",
-    description: "Browse zoom-12 OSM coverage ready for vector tile requests.",
+    title: 'Loaded Vector Tiles',
+    href: '/jobs',
+    description: 'Browse zoom-12 OSM coverage ready for vector tile requests.',
   },
   {
-    title: "Jobs Create",
-    href: "/jobs-create?bbox=120.15,22.47,120.45,22.77",
-    description:
-      "Fit a bbox from the URL on a Leaflet map and list the zoom-12 tiles covering it.",
+    title: 'Jobs Create',
+    href: '/jobs-create?bbox=120.15,22.47,120.45,22.77',
+    description: 'Fit a bbox from the URL on a Leaflet map and list the zoom-12 tiles covering it.',
   },
   {
-    title: "Static Leaflet Map",
-    href: "/static-leaflet-map",
-    description:
-      "Full-screen non-interactive Leaflet map centered by the parent page.",
+    title: 'Static Leaflet Map',
+    href: '/static-leaflet-map',
+    description: 'Full-screen non-interactive Leaflet map centered by the parent page.',
   },
   {
-    title: "UI Design Storybook",
-    href: "/ui-design-storybook",
-    description: "A minimal new page scaffold for the Lancangriver client.",
+    title: 'UI Design Storybook',
+    href: '/ui-design-storybook',
+    description: 'A minimal new page scaffold for the Lancangriver client.',
   },
   {
-    title: "3Js Geometries Debug / Show",
-    href: "/ui-3js-geometries-storybook",
-    description:
-      "Inspect geometry builders and their storybook params in one place.",
+    title: '3Js Geometries Debug / Show',
+    href: '/ui-3js-geometries-storybook',
+    description: 'Inspect geometry builders and their storybook params in one place.',
   },
   {
-    title: "Tile 12 OSM Inspector",
-    href: "/tile12-osm",
-    description: "Inspect one existing vector tile in a local Three.js scene.",
+    title: 'Tile 12 OSM Inspector',
+    href: '/tile12-osm',
+    description: 'Inspect one existing vector tile in a local Three.js scene.',
   },
   {
-    title: "UI Design Implement",
-    href: "/ui-design-implement",
-    description:
-      "Examples of buttons, panels, and tables grouped with reusable section blocks.",
+    title: 'UI Design Implement',
+    href: '/ui-design-implement',
+    description: 'Examples of buttons, panels, and tables grouped with reusable section blocks.',
   },
 ];
 
@@ -78,13 +73,12 @@ export default function App() {
                   Experiments Portal
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-jade-text-muted sm:text-base">
-                  Open the current rendering experiments from one place. Each
-                  entry is a standalone multi-page experience in the client.
+                  Open the current rendering experiments from one place. Each entry is a standalone
+                  multi-page experience in the client.
                 </p>
               </div>
               <div className="rounded-lg border border-jade-border-soft bg-jade-control/70 px-3 py-2 text-sm text-jade-text-muted">
-                <span className="font-medium text-jade-text">11</span> live
-                views
+                <span className="font-medium text-jade-text">11</span> live views
               </div>
             </div>
           </div>
@@ -107,18 +101,14 @@ export default function App() {
                 </div>
 
                 <div className="mt-4">
-                  <h2 className="text-lg font-semibold text-jade-text">
-                    {experiment.title}
-                  </h2>
+                  <h2 className="text-lg font-semibold text-jade-text">{experiment.title}</h2>
                   <p className="mt-2 text-sm leading-6 text-jade-text-muted">
                     {experiment.description}
                   </p>
                 </div>
 
                 <div className="mt-5 flex items-center justify-between gap-3 border-t border-jade-border-soft pt-4 text-sm">
-                  <span className="truncate text-jade-text-muted">
-                    {experiment.href}
-                  </span>
+                  <span className="truncate text-jade-text-muted">{experiment.href}</span>
                   <span className="inline-flex items-center gap-1.5 font-medium text-jade-river transition-colors group-hover:text-jade-sky">
                     Open
                     <ArrowRightIcon className="size-4" aria-hidden="true" />

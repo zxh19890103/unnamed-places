@@ -1,4 +1,4 @@
-import { type Vector3Tuple } from "three";
+import { type Vector3Tuple } from 'three';
 
 // Helper vector functions
 const vec3 = {

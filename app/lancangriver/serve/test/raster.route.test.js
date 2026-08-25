@@ -9,17 +9,12 @@ import { zxyToBBox } from '../src/routes/raster.js';
 
 const ONE_PIXEL_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8wXYAAAAASUVORK5CYII=',
-  'base64'
+  'base64',
 );
 
 describe('zxyToBBox', () => {
   it('returns the EPSG:4326 bbox for a z11 tile', () => {
-    expect(zxyToBBox(11, 1024, 768)).toEqual([
-      0,
-      40.84706035607122,
-      0.17578125,
-      40.97989806962013
-    ]);
+    expect(zxyToBBox(11, 1024, 768)).toEqual([0, 40.84706035607122, 0.17578125, 40.97989806962013]);
   });
 });
 
@@ -27,12 +22,12 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
   it('delegates satellite loading and returns json metadata', async () => {
     const fetchTile = vi.fn().mockResolvedValue({
       created: true,
-      path: '/tmp/.tiles/11/1024/768/satellite.jpeg'
+      path: '/tmp/.tiles/11/1024/768/satellite.jpeg',
     });
     const app = createApp({
       raster: {
-        fetchSatelliteTile: fetchTile
-      }
+        fetchSatelliteTile: fetchTile,
+      },
     });
 
     const response = await request(app).get('/raster/satellite/11/1024/768');
@@ -42,7 +37,7 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
       ok: true,
       kind: 'satellite',
       path: '/tmp/.tiles/11/1024/768/satellite.jpeg',
-      created: true
+      created: true,
     });
     expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
   });
@@ -51,14 +46,14 @@ describe('GET /raster/satellite/:z/:x/:y', () => {
 describe('GET /raster/satellite/:z/:x/:y/clean.jpeg', () => {
   it('downloads the satellite tile and streams the cleaned image payload', async () => {
     const fetchTile = vi.fn().mockResolvedValue({
-      path: '/tmp/.tiles/11/1024/768/satellite.jpeg'
+      path: '/tmp/.tiles/11/1024/768/satellite.jpeg',
     });
     const cleanSatelliteTile = vi.fn().mockResolvedValue(Buffer.from('cleaned-png'));
     const app = createApp({
       raster: {
         fetchSatelliteTile: fetchTile,
-        cleanSatelliteTile
-      }
+        cleanSatelliteTile,
+      },
     });
 
     const response = await request(app).get('/raster/satellite/11/1024/768/clean.jpeg');
@@ -67,7 +62,10 @@ describe('GET /raster/satellite/:z/:x/:y/clean.jpeg', () => {
     expect(response.headers['content-type']).toMatch(/image\/png/);
     expect(response.body).toEqual(Buffer.from('cleaned-png'));
     expect(fetchTile).toHaveBeenCalledWith(11, 1024, 768);
-    expect(cleanSatelliteTile).toHaveBeenCalledWith('/tmp/.tiles/11/1024/768/satellite.jpeg', expect.any(Object));
+    expect(cleanSatelliteTile).toHaveBeenCalledWith(
+      '/tmp/.tiles/11/1024/768/satellite.jpeg',
+      expect.any(Object),
+    );
   });
 });
 
@@ -76,22 +74,19 @@ describe('GET /raster/dem/:z/:x/:y.png', () => {
     const tempRoot = await mkdtemp(join(tmpdir(), 'lancangriver-raster-'));
     const fetchTile = vi.fn().mockResolvedValue({
       path: join(tempRoot, '11', '1024', '768', 'dem.png'),
-      cached: false
+      cached: false,
     });
 
     try {
       const pngPath = join(tempRoot, '11', '1024', '768', 'dem.png');
       await mkdir(join(tempRoot, '11', '1024', '768'), { recursive: true });
-      await writeFile(
-        pngPath,
-        ONE_PIXEL_PNG
-      );
+      await writeFile(pngPath, ONE_PIXEL_PNG);
 
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchDemPngTile: fetchTile
-        }
+          fetchDemPngTile: fetchTile,
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768.png');
@@ -108,8 +103,8 @@ describe('GET /raster/dem/:z/:x/:y.png', () => {
     const app = createApp({
       raster: {
         fetchDemPngTile: vi.fn(),
-        fetchSatelliteTile: vi.fn()
-      }
+        fetchSatelliteTile: vi.fn(),
+      },
     });
 
     const response = await request(app).get('/raster/dem/16/0/0.png');
@@ -118,8 +113,8 @@ describe('GET /raster/dem/:z/:x/:y.png', () => {
     expect(response.body).toEqual({
       error: {
         code: 'DEM_ZOOM_TOO_HIGH',
-        reason: 'DEM tiles only support zoom levels up to 15'
-      }
+        reason: 'DEM tiles only support zoom levels up to 15',
+      },
     });
   });
 });
@@ -136,8 +131,8 @@ describe('GET /raster/dem/:z/:x/:y', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768');
@@ -147,7 +142,7 @@ describe('GET /raster/dem/:z/:x/:y', () => {
         ok: true,
         kind: 'dem',
         pngPath,
-        pngCached: true
+        pngCached: true,
       });
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
@@ -171,17 +166,29 @@ describe('GET /raster/dem/:z/:x/:y/altitude', () => {
           width: 2,
           height: 2,
           channels: 4,
-          background: { r: 0, g: 0, b: 0, alpha: 1 }
-        }
+          background: { r: 0, g: 0, b: 0, alpha: 1 },
+        },
       })
         .raw()
         .toBuffer();
 
       const pixels = Buffer.from(pngBuffer);
-      pixels[0] = 128; pixels[1] = 0; pixels[2] = 0; pixels[3] = 255;
-      pixels[4] = 128; pixels[5] = 0; pixels[6] = 128; pixels[7] = 255;
-      pixels[8] = 129; pixels[9] = 0; pixels[10] = 0; pixels[11] = 255;
-      pixels[12] = 129; pixels[13] = 0; pixels[14] = 128; pixels[15] = 255;
+      pixels[0] = 128;
+      pixels[1] = 0;
+      pixels[2] = 0;
+      pixels[3] = 255;
+      pixels[4] = 128;
+      pixels[5] = 0;
+      pixels[6] = 128;
+      pixels[7] = 255;
+      pixels[8] = 129;
+      pixels[9] = 0;
+      pixels[10] = 0;
+      pixels[11] = 255;
+      pixels[12] = 129;
+      pixels[13] = 0;
+      pixels[14] = 128;
+      pixels[15] = 255;
 
       const demPng = await sharp(pixels, { raw: { width: 2, height: 2, channels: 4 } })
         .png()
@@ -192,8 +199,8 @@ describe('GET /raster/dem/:z/:x/:y/altitude', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768/altitude');
@@ -207,11 +214,13 @@ describe('GET /raster/dem/:z/:x/:y/altitude', () => {
       expect(response.body.max).toBeCloseTo(256.5, 8);
       expect(response.body.avg).toBeCloseTo(128.25, 8);
 
-      const sidecar = JSON.parse(await import('node:fs/promises').then(({ readFile }) => readFile(altitudePath, 'utf8')));
+      const sidecar = JSON.parse(
+        await import('node:fs/promises').then(({ readFile }) => readFile(altitudePath, 'utf8')),
+      );
       expect(sidecar).toEqual({
         min: response.body.min,
         max: response.body.max,
-        avg: response.body.avg
+        avg: response.body.avg,
       });
 
       const cachedResponse = await request(app).get('/raster/dem/11/1024/768/altitude');
@@ -235,8 +244,8 @@ describe('GET /raster/dem/:z/:x/:y/png', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768/png');
@@ -246,7 +255,7 @@ describe('GET /raster/dem/:z/:x/:y/png', () => {
         ok: true,
         kind: 'dem-png',
         path: pngPath,
-        cached: true
+        cached: true,
       });
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
@@ -259,8 +268,8 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
     const app = createApp({
       raster: {
         fetchDemPngTile: vi.fn(),
-        fetchSatelliteTile: vi.fn()
-      }
+        fetchSatelliteTile: vi.fn(),
+      },
     });
 
     const response = await request(app).get('/raster/dem/11/1024/768/compose.png?extent=0');
@@ -269,8 +278,8 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
     expect(response.body).toEqual({
       error: {
         code: 'INVALID_EXTENT',
-        reason: 'extent must be an integer >= 1'
-      }
+        reason: 'extent must be an integer >= 1',
+      },
     });
   });
 
@@ -283,7 +292,7 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
 
       return {
         outputPath,
-        cached: false
+        cached: false,
       };
     });
 
@@ -291,8 +300,8 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          composeDemNeighborhood: composeSpy
-        }
+          composeDemNeighborhood: composeSpy,
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768/compose.png');
@@ -301,7 +310,7 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
       expect(response.headers['content-type']).toMatch(/image\/png/);
       expect(response.headers['content-type']).not.toMatch(/application\/json/);
       expect(response.body.subarray(0, 8)).toEqual(
-        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
       );
       expect(composeSpy).toHaveBeenCalledWith(11, 1024, 768, 1, 1);
     } finally {
@@ -318,7 +327,7 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
 
       return {
         outputPath,
-        cached: false
+        cached: false,
       };
     });
 
@@ -326,8 +335,8 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          composeDemNeighborhood: composeSpy
-        }
+          composeDemNeighborhood: composeSpy,
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768/compose.png?extent=2');
@@ -358,8 +367,8 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
                 width: 256,
                 height: 256,
                 channels: 4,
-                background: { r: x % 255, g: y % 255, b: 120, alpha: 1 }
-              }
+                background: { r: x % 255, g: y % 255, b: 120, alpha: 1 },
+              },
             })
               .png()
               .toBuffer();
@@ -368,13 +377,15 @@ describe('GET /raster/dem/:z/:x/:y/compose.png', () => {
 
             return {
               path: tilePath,
-              cached: false
+              cached: false,
             };
-          })
-        }
+          }),
+        },
       });
 
-      const response = await request(app).get('/raster/dem/11/1024/768/compose.png?extent=1&scale=2');
+      const response = await request(app).get(
+        '/raster/dem/11/1024/768/compose.png?extent=1&scale=2',
+      );
 
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/image\/png/);
@@ -393,8 +404,8 @@ describe('GET /raster/dem/:z/:x/:y/scale/:s.png', () => {
     const app = createApp({
       raster: {
         fetchDemPngTile: vi.fn(),
-        fetchSatelliteTile: vi.fn()
-      }
+        fetchSatelliteTile: vi.fn(),
+      },
     });
 
     const response = await request(app).get('/raster/dem/11/1024/768/scale/0.png');
@@ -403,8 +414,8 @@ describe('GET /raster/dem/:z/:x/:y/scale/:s.png', () => {
     expect(response.body).toEqual({
       error: {
         code: 'INVALID_SCALE',
-        reason: 'scale must be an integer >= 1'
-      }
+        reason: 'scale must be an integer >= 1',
+      },
     });
   });
 
@@ -420,8 +431,8 @@ describe('GET /raster/dem/:z/:x/:y/scale/:s.png', () => {
           width: 256,
           height: 256,
           channels: 4,
-          background: { r: x % 255, g: y % 255, b: 120, alpha: 1 }
-        }
+          background: { r: x % 255, g: y % 255, b: 120, alpha: 1 },
+        },
       })
         .png()
         .toBuffer();
@@ -436,8 +447,8 @@ describe('GET /raster/dem/:z/:x/:y/scale/:s.png', () => {
         raster: {
           rasterRoot,
           fetchDemPngTile,
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const firstResponse = await request(app).get('/raster/dem/11/1024/768/scale/1.png');
@@ -445,7 +456,13 @@ describe('GET /raster/dem/:z/:x/:y/scale/:s.png', () => {
       expect(firstResponse.headers['content-type']).toMatch(/image\/png/);
 
       const scaledPath = join(tempRoot, '.composed', 'scaled', '11', '1024', '768', 'dem@1.png');
-      expect(await import('node:fs/promises').then(({ access }) => access(scaledPath).then(() => true).catch(() => false))).toBe(true);
+      expect(
+        await import('node:fs/promises').then(({ access }) =>
+          access(scaledPath)
+            .then(() => true)
+            .catch(() => false),
+        ),
+      ).toBe(true);
       expect(fetchDemPngTile).toHaveBeenCalledTimes(4);
 
       const secondResponse = await request(app).get('/raster/dem/11/1024/768/scale/1.png');
@@ -473,8 +490,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
           width: 2,
           height: 2,
           channels: 4,
-          background: { r: 128, g: 100, b: 128, alpha: 255 }
-        }
+          background: { r: 128, g: 100, b: 128, alpha: 255 },
+        },
       })
         .png()
         .toBuffer();
@@ -484,8 +501,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
@@ -513,8 +530,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
           width: 2,
           height: 2,
           channels: 4,
-          background: { r: 128, g: 100, b: 128, alpha: 255 }
-        }
+          background: { r: 128, g: 100, b: 128, alpha: 255 },
+        },
       })
         .png()
         .toBuffer();
@@ -524,8 +541,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const response1 = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
@@ -544,8 +561,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
   it('rejects z > 15 with 400 status', async () => {
     const app = createApp({
       raster: {
-        fetchSatelliteTile: vi.fn()
-      }
+        fetchSatelliteTile: vi.fn(),
+      },
     });
 
     const response = await request(app).get('/raster/dem/16/512/512/derivatives.png');
@@ -557,8 +574,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
   it('returns 400 for invalid coordinates', async () => {
     const app = createApp({
       raster: {
-        fetchSatelliteTile: vi.fn()
-      }
+        fetchSatelliteTile: vi.fn(),
+      },
     });
 
     const response = await request(app).get('/raster/dem/10/abc/512/derivatives.png');
@@ -579,8 +596,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
         raster: {
           rasterRoot: tempRoot,
           fetchDemPngTile: vi.fn().mockRejectedValue(new Error('Network error')),
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768/derivatives.png');
@@ -607,8 +624,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
           width: 3,
           height: 3,
           channels: 4,
-          background: { r: 130, g: 100, b: 100, alpha: 255 }
-        }
+          background: { r: 130, g: 100, b: 100, alpha: 255 },
+        },
       })
         .png()
         .toBuffer();
@@ -618,8 +635,8 @@ describe('GET /raster/dem/:z/:x/:y/derivatives.png', () => {
       const app = createApp({
         raster: {
           rasterRoot: tempRoot,
-          fetchSatelliteTile: vi.fn()
-        }
+          fetchSatelliteTile: vi.fn(),
+        },
       });
 
       const response = await request(app).get('/raster/dem/11/1024/768/derivatives.png');

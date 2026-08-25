@@ -1,6 +1,6 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
-import { EARTH_RADIUS, sphereToLatlng } from "@/_3dtiles";
+import { EARTH_RADIUS, sphereToLatlng } from '@/_3dtiles';
 
 type TileKeyLike = {
   z: number;

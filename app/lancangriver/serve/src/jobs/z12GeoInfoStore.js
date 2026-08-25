@@ -9,7 +9,7 @@ export function createZ12GeoInfoStore({ db }) {
            display_name = EXCLUDED.display_name,
            raw_data = EXCLUDED.raw_data
          RETURNING z12_key, display_name, raw_data`,
-        [z12Key, displayName, JSON.stringify(rawData)]
+        [z12Key, displayName, JSON.stringify(rawData)],
       );
 
       return result.rows[0];
@@ -20,10 +20,10 @@ export function createZ12GeoInfoStore({ db }) {
         `SELECT z12_key, display_name, raw_data
          FROM public.z12geoinfo
          WHERE z12_key = $1`,
-        [z12Key]
+        [z12Key],
       );
 
       return result.rows[0] ?? null;
-    }
+    },
   };
 }

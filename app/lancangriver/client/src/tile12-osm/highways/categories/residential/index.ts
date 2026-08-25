@@ -1,7 +1,7 @@
-import type { HighwayCategoryDefinition } from "../../_types.js";
+import type { HighwayCategoryDefinition } from '../../_types.js';
 
 const residential: HighwayCategoryDefinition = {
-  type: "residential",
+  type: 'residential',
   widthMeters: 4,
   classOffset: 0.1,
 };

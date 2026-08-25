@@ -1,5 +1,5 @@
-import { ITileNode, SphereTileKey, TileNodeState } from "./_types";
-import { SphereTile } from "./SphereTile.class";
+import { ITileNode, SphereTileKey, TileNodeState } from './_types';
+import { SphereTile } from './SphereTile.class';
 
 export class TileNode implements ITileNode {
   readonly x: number;
@@ -56,9 +56,7 @@ export class TilesManager {
     for (const [id, currentNode] of currentByKey) {
       if (nextByKey.has(id)) {
         if (currentNode.state >= TileNodeState.toDetach) {
-          currentNode.state = currentNode.tile
-            ? TileNodeState.attached
-            : TileNodeState.toAttach;
+          currentNode.state = currentNode.tile ? TileNodeState.attached : TileNodeState.toAttach;
         }
         reconciled.push(currentNode);
         continue;
@@ -123,6 +121,7 @@ export class TilesManager {
           this.onTileDetach?.(node);
           // TODO: remove node.tile mesh from scene graph here.
           node.state = TileNodeState.detached;
+        // eslint-disable-next-line no-fallthrough
         case TileNodeState.detached:
           node.state = TileNodeState.toDispose;
           break;
@@ -142,9 +141,7 @@ export class TilesManager {
       }
     }
 
-    this.nodes = this.nodes.filter(
-      (node) => node.state !== TileNodeState.disposed,
-    );
+    this.nodes = this.nodes.filter((node) => node.state !== TileNodeState.disposed);
 
     if (didChange) {
       this.scheduleNodeStateTransitionProcessing();
@@ -155,8 +152,7 @@ export class TilesManager {
    * Get the count of currently visible (attached) tiles.
    */
   getVisibleCount(): number {
-    return this.nodes.filter((node) => node.state === TileNodeState.attached)
-      .length;
+    return this.nodes.filter((node) => node.state === TileNodeState.attached).length;
   }
 
   /**

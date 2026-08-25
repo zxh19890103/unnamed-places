@@ -13,6 +13,6 @@ export function getVectorIngestSource(env = process.env) {
   }
 
   throw new Error(
-    `Invalid ${VECTOR_INGEST_SOURCE_ENV}=${raw}. Expected one of: ${VECTOR_INGEST_SOURCES.join(', ')}`
+    `Invalid ${VECTOR_INGEST_SOURCE_ENV}=${raw}. Expected one of: ${VECTOR_INGEST_SOURCES.join(', ')}`,
   );
 }

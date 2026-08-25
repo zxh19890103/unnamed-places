@@ -22,7 +22,7 @@ function parseArgs(argv) {
   const options = {
     key: null,
     enqueueOnly: false,
-    force: false
+    force: false,
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -74,7 +74,7 @@ async function main() {
          started_at = NULL,
          finished_at = NULL,
          updated_at = NOW()`,
-      [options.key]
+      [options.key],
     );
     console.log(`[osm-highways-job-cli] forced queued ${options.key}`);
   } else {
@@ -82,7 +82,7 @@ async function main() {
     console.log(
       enqueueResult.enqueued
         ? `[osm-highways-job-cli] queued ${options.key}`
-        : `[osm-highways-job-cli] job already exists ${options.key}`
+        : `[osm-highways-job-cli] job already exists ${options.key}`,
     );
   }
 

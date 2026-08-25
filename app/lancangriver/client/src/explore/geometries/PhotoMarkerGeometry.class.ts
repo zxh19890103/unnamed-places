@@ -1,8 +1,8 @@
-import * as THREE from "three";
-import { getLocalBasisAtPoint } from "@/calc/sphere";
-import { PhotoRecord } from "@/photos/types";
-import { WorldExtent } from "@/calc/types";
-import { latlngToSphere } from "@/_3dtiles";
+import * as THREE from 'three';
+import { getLocalBasisAtPoint } from '@/calc/sphere';
+import { PhotoRecord } from '@/photos/types';
+import { WorldExtent } from '@/calc/types';
+import { latlngToSphere } from '@/_3dtiles';
 
 type Parameters = {
   worldExtent: WorldExtent;
@@ -20,11 +20,11 @@ export class PhotoMarkerGeometry extends THREE.BufferGeometry {
     const { rec, size = 180, ratio = 4 / 3, worldExtent } = params;
 
     if (!Number.isFinite(size) || size <= 0) {
-      throw new Error("PhotoGeometry size must be a finite number > 0");
+      throw new Error('PhotoGeometry size must be a finite number > 0');
     }
 
     if (!Number.isFinite(ratio) || ratio <= 0) {
-      throw new Error("PhotoGeometry ratio must be a finite number > 0");
+      throw new Error('PhotoGeometry ratio must be a finite number > 0');
     }
 
     const anchor = latlngToSphere(rec.lat, rec.lng);
@@ -34,22 +34,10 @@ export class PhotoMarkerGeometry extends THREE.BufferGeometry {
     const halfX = size * 0.5;
     const sizeZ = size / ratio;
 
-    const v0 = center
-      .clone()
-      .addScaledVector(east, -halfX)
-      .addScaledVector(up, 0);
-    const v1 = center
-      .clone()
-      .addScaledVector(east, halfX)
-      .addScaledVector(up, 0);
-    const v2 = center
-      .clone()
-      .addScaledVector(east, halfX)
-      .addScaledVector(up, sizeZ);
-    const v3 = center
-      .clone()
-      .addScaledVector(east, -halfX)
-      .addScaledVector(up, sizeZ);
+    const v0 = center.clone().addScaledVector(east, -halfX).addScaledVector(up, 0);
+    const v1 = center.clone().addScaledVector(east, halfX).addScaledVector(up, 0);
+    const v2 = center.clone().addScaledVector(east, halfX).addScaledVector(up, sizeZ);
+    const v3 = center.clone().addScaledVector(east, -halfX).addScaledVector(up, sizeZ);
 
     const positions = new Float32Array([
       v0.x,
@@ -85,9 +73,9 @@ export class PhotoMarkerGeometry extends THREE.BufferGeometry {
 
     const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
 
-    this.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    this.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-    this.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+    this.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    this.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
     this.setIndex(new THREE.BufferAttribute(indices, 1));
     this.computeBoundingSphere();

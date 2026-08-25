@@ -1,7 +1,7 @@
-import type { HighwayCategoryDefinition } from "../../_types.js";
+import type { HighwayCategoryDefinition } from '../../_types.js';
 
 const motorway: HighwayCategoryDefinition = {
-  type: "motorway",
+  type: 'motorway',
   widthMeters: 7.5,
   classOffset: 0.22,
 };

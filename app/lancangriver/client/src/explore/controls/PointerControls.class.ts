@@ -1,6 +1,6 @@
-import * as THREE from "three";
-import { EARTH_RADIUS } from "@/calc/constants";
-import { Create3dTilesViewer } from "@/_3dtiles";
+import * as THREE from 'three';
+import { EARTH_RADIUS } from '@/calc/constants';
+import { Create3dTilesViewer } from '@/_3dtiles';
 
 export interface PointerControlsOptions {
   enabled?: boolean;
@@ -49,7 +49,7 @@ export class PointerControls extends EventTarget {
     this._enabled = options?.enabled ?? true;
 
     this.onClickBound = (e) => this.onPointerClick(e as MouseEvent);
-    this.domElement.addEventListener("click", this.onClickBound);
+    this.domElement.addEventListener('click', this.onClickBound);
   }
 
   get enabled(): boolean {
@@ -73,12 +73,9 @@ export class PointerControls extends EventTarget {
     const { lat, lng } = this.cartesianToLatLng(hitPoint);
     const now = Date.now();
     const timeDiff = now - this.lastClickTime;
-    const posDiff = new THREE.Vector2(event.clientX, event.clientY)
-      .sub(this.lastClickPos)
-      .length();
+    const posDiff = new THREE.Vector2(event.clientX, event.clientY).sub(this.lastClickPos).length();
 
-    const isDoubleClick =
-      timeDiff < this.doubleClickThreshold && posDiff < this.doubleClickDist;
+    const isDoubleClick = timeDiff < this.doubleClickThreshold && posDiff < this.doubleClickDist;
 
     if (isDoubleClick) {
       if (this.pendingSingleClickTimer) {
@@ -113,10 +110,7 @@ export class PointerControls extends EventTarget {
     if (this.beforeClick?.(ctx) === false) return;
 
     // Center camera to clicked point
-    const currentAltitude = Math.max(
-      1,
-      this.camera.position.length() - EARTH_RADIUS,
-    );
+    const currentAltitude = Math.max(1, this.camera.position.length() - EARTH_RADIUS);
     const nextRadius = EARTH_RADIUS + currentAltitude;
     this.camera.position.copy(hitPoint).normalize().multiplyScalar(nextRadius);
     this.camera.lookAt(0, 0, 0);
@@ -125,19 +119,12 @@ export class PointerControls extends EventTarget {
     this.onChange?.();
   }
 
-  private handleDoubleClick(
-    hitPoint: THREE.Vector3,
-    lat: number,
-    lng: number,
-  ): void {
+  private handleDoubleClick(hitPoint: THREE.Vector3, lat: number, lng: number): void {
     const ctx = { hitPoint, hitLat: lat, hitLng: lng };
     if (this.beforeDoubleClick?.(ctx) === false) return;
 
     // Double-click only zooms +1 and keeps current view center.
-    const currentAltitude = Math.max(
-      1,
-      this.camera.position.length() - EARTH_RADIUS,
-    );
+    const currentAltitude = Math.max(1, this.camera.position.length() - EARTH_RADIUS);
     const currentZoom = this.threeTilesViewer.distanceToZoom(currentAltitude);
     const nextZoom = Math.min(19, currentZoom + 1);
     const nextAltitude = this.threeTilesViewer.zoomToDistance(nextZoom);
@@ -185,6 +172,6 @@ export class PointerControls extends EventTarget {
       this.pendingSingleClickTimer = null;
     }
     this.pendingSingleClickCtx = null;
-    this.domElement.removeEventListener("click", this.onClickBound);
+    this.domElement.removeEventListener('click', this.onClickBound);
   }
 }

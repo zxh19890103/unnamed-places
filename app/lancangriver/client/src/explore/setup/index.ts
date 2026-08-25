@@ -1,25 +1,18 @@
-import * as THREE from "three";
-import Stats from "three/examples/jsm/libs/stats.module.js";
+import * as THREE from 'three';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 
-import { EARTH_RADIUS, BASE_URL } from "@/calc/constants.js";
-import { Sphere } from "../Sphere.class.js";
-import { TilesManager } from "../TilesManager.class.js";
-import { ControlsManager } from "../ControlsManager.class.js";
-import { TileMaterialMode } from "../SphereTile.class.js";
-import { LatLng } from "@/calc/types.js";
-import { createVendors } from "./vendors.js";
-import { createSkyRig, FOG_COLOR, getDefaultCenterLatlng } from "./sky.js";
-import { createGroundOrbitCloudsController } from "./clouds.js";
-import { createPhotoLocationsPresenter } from "./photos.js";
-import {
-  create3dTilesViewer,
-  latlngToSphere,
-  sphereToLatlng,
-} from "@/_3dtiles";
-import {
-  computeVisibleGroundBBox,
-  type LatLngBBox,
-} from "./coverageVisibility.js";
+import { EARTH_RADIUS, BASE_URL } from '@/calc/constants.js';
+import { Sphere } from '../Sphere.class.js';
+import { TilesManager } from '../TilesManager.class.js';
+import { ControlsManager } from '../ControlsManager.class.js';
+import { TileMaterialMode } from '../SphereTile.class.js';
+import { LatLng } from '@/calc/types.js';
+import { createVendors } from './vendors.js';
+import { createSkyRig, FOG_COLOR, getDefaultCenterLatlng } from './sky.js';
+import { createGroundOrbitCloudsController } from './clouds.js';
+import { createPhotoLocationsPresenter } from './photos.js';
+import { create3dTilesViewer, latlngToSphere, sphereToLatlng } from '@/_3dtiles';
+import { computeVisibleGroundBBox, type LatLngBBox } from './coverageVisibility.js';
 
 export let globalTileMaterialMode: TileMaterialMode = TileMaterialMode.Basic;
 
@@ -32,13 +25,10 @@ const alwaysReturns12Func = () => 12;
 export let getZoomLevel = alwaysReturns12Func;
 
 export function createSceneState(container: HTMLElement) {
-  const { loadingSnapshot, textureLoader, imageLoader, cloudAtlasTexture } =
-    createVendors();
+  const { loadingSnapshot, textureLoader, imageLoader, cloudAtlasTexture } = createVendors();
 
   const scene = new THREE.Scene();
-  scene.background = textureLoader.load(
-    "/Euclid_Deep_Field_South_16x_zoom_pillars.jpg",
-  );
+  scene.background = textureLoader.load('/Euclid_Deep_Field_South_16x_zoom_pillars.jpg');
   scene.background.colorSpace = THREE.SRGBColorSpace;
   scene.fog = new THREE.FogExp2(FOG_COLOR, 0);
 
@@ -119,9 +109,7 @@ export function createSceneState(container: HTMLElement) {
   const refreshVisibleTilesOnCameraChanges = () => {
     if (tilesManager.frozen) return;
 
-    const earthTiles = threeTilesViewer.getVisibleTiles(
-      camera.position.clone(),
-    );
+    const earthTiles = threeTilesViewer.getVisibleTiles(camera.position.clone());
 
     tilesManager.setNodes(earthTiles);
   };
@@ -136,10 +124,7 @@ export function createSceneState(container: HTMLElement) {
     return sphereToLatlng(target.x, target.y, target.z);
   };
 
-  const setVisibleTilesElevationRange = (
-    minMeters: number,
-    maxMeters: number,
-  ) => {
+  const setVisibleTilesElevationRange = (minMeters: number, maxMeters: number) => {
     // camera.position.y += maxMeters;
     // controlsManager.orbitControls.update();
     threeTilesViewer.setElevationRange(minMeters, maxMeters);
@@ -158,10 +143,7 @@ export function createSceneState(container: HTMLElement) {
 
     skyRig.createEarthSurfaceSky(centerLatlng);
 
-    const cameraDistanceMeters = Math.max(
-      1,
-      camera.position.length() - EARTH_RADIUS,
-    );
+    const cameraDistanceMeters = Math.max(1, camera.position.length() - EARTH_RADIUS);
 
     cloudsController.syncCloudsAtTarget({
       latlng: centerLatlng,
@@ -187,11 +169,7 @@ export function createSceneState(container: HTMLElement) {
     }
   };
 
-  camera.position.set(
-    startCameraPosition.x,
-    startCameraPosition.y,
-    startCameraPosition.z,
-  );
+  camera.position.set(startCameraPosition.x, startCameraPosition.y, startCameraPosition.z);
 
   camera.lookAt(0, 0, 0);
 
@@ -201,7 +179,7 @@ export function createSceneState(container: HTMLElement) {
   container.appendChild(renderer.domElement);
 
   const stats = new Stats();
-  stats.dom.style.position = "static";
+  stats.dom.style.position = 'static';
 
   const cloudsController = createGroundOrbitCloudsController({
     scene,
@@ -221,17 +199,12 @@ export function createSceneState(container: HTMLElement) {
     renderer,
   });
 
-  const sphereGlobal = new Sphere(
-    threeTilesViewer,
-    textureLoader,
-    imageLoader,
-    {
-      camera,
-      tilesManager: tilesManager,
-      controlsManager,
-      getLoadingSnapshot: () => loadingSnapshot,
-    },
-  );
+  const sphereGlobal = new Sphere(threeTilesViewer, textureLoader, imageLoader, {
+    camera,
+    tilesManager: tilesManager,
+    controlsManager,
+    getLoadingSnapshot: () => loadingSnapshot,
+  });
 
   scene.add(sphereGlobal);
 
@@ -239,7 +212,7 @@ export function createSceneState(container: HTMLElement) {
     refreshVisibleTilesOnCameraChanges();
   };
 
-  controlsManager.orbitControls.addEventListener("end", () => {
+  controlsManager.orbitControls.addEventListener('end', () => {
     reconcileAttachedNodeMaterials();
     refreshVisibleTilesOnCameraChanges();
   });
@@ -249,7 +222,7 @@ export function createSceneState(container: HTMLElement) {
   refreshVisibleTilesOnCameraChanges();
 
   // @ts-expect-error
-  threeTilesViewer.addEventListener("change:lookAt", (event) => {
+  threeTilesViewer.addEventListener('change:lookAt', (event) => {
     console.log(event);
   });
 

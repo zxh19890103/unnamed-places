@@ -1,1 +1,1 @@
-export { Tile12OsmLink } from "./Tile12OsmLink";
+export { Tile12OsmLink } from './Tile12OsmLink';

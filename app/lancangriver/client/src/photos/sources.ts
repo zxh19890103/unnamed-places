@@ -1,16 +1,16 @@
-import { BASE_URL } from "../calc/constants";
-import { normalizePhotoRecords } from "./normalize";
-import type { PhotoRecord } from "./types";
+import { BASE_URL } from '../calc/constants';
+import { normalizePhotoRecords } from './normalize';
+import type { PhotoRecord } from './types';
 
-type FetchOptions = { mode: "dev"; devRoot?: string } | { mode: "prod" };
+type FetchOptions = { mode: 'dev'; devRoot?: string } | { mode: 'prod' };
 
 type ElectronPhotosBridge = {
   pickAndLoadGeotaggedPhotos: () => Promise<unknown[]>;
 };
 
 function getElectronPhotosBridge(): ElectronPhotosBridge | undefined {
-  return (globalThis as { window?: { electronPhotos?: ElectronPhotosBridge } })
-    .window?.electronPhotos;
+  return (globalThis as { window?: { electronPhotos?: ElectronPhotosBridge } }).window
+    ?.electronPhotos;
 }
 
 export async function getProdPhotosViaElectron(): Promise<PhotoRecord[]> {
@@ -39,17 +39,15 @@ async function getDevPhotosViaService(devRoot: string): Promise<PhotoRecord[]> {
 function getDevPhotosRootFromEnv(): string {
   const configuredRoot = import.meta.env.VITE_PHOTOS_ROOT;
 
-  if (typeof configuredRoot === "string" && configuredRoot.trim().length > 0) {
+  if (typeof configuredRoot === 'string' && configuredRoot.trim().length > 0) {
     return configuredRoot.trim();
   }
 
-  return "/tmp/photos";
+  return '/tmp/photos';
 }
 
-export async function fetchGeotaggedPhotos(
-  options: FetchOptions,
-): Promise<PhotoRecord[]> {
-  if (options.mode === "dev") {
+export async function fetchGeotaggedPhotos(options: FetchOptions): Promise<PhotoRecord[]> {
+  if (options.mode === 'dev') {
     return getDevPhotosViaService(options.devRoot ?? getDevPhotosRootFromEnv());
   }
 

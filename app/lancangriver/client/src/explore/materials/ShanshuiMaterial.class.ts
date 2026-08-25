@@ -1,7 +1,7 @@
-import * as THREE from "three";
-import { ELEVATION_SCALE } from "@/calc/constants.js";
-import vertexShader from "./shaders/shanshui.vert.glsl?raw";
-import fragmentShader from "./shaders/shanshui.frag.glsl?raw";
+import * as THREE from 'three';
+import { ELEVATION_SCALE } from '@/calc/constants.js';
+import vertexShader from './shaders/shanshui.vert.glsl?raw';
+import fragmentShader from './shaders/shanshui.frag.glsl?raw';
 
 export type ElevationRange = {
   minMeters: number;
@@ -41,8 +41,8 @@ export class ShanshuiMaterial extends THREE.ShaderMaterial {
         uSlopeDarkenStrength: { value: 0.1 },
         uElevationMinMeters: { value: 0.0 },
         uElevationMaxMeters: { value: 4000.0 },
-        uBaseTerrainColor: { value: new THREE.Color("#8A7A56") },
-        uSummitColor: { value: new THREE.Color("#E7EAE4") },
+        uBaseTerrainColor: { value: new THREE.Color('#8A7A56') },
+        uSummitColor: { value: new THREE.Color('#E7EAE4') },
       },
       vertexShader,
       fragmentShader,
@@ -98,11 +98,7 @@ export class ShanshuiMaterial extends THREE.ShaderMaterial {
   }
 
   setSlopeDarkenStrength(strength: number): void {
-    this.uniforms.uSlopeDarkenStrength.value = THREE.MathUtils.clamp(
-      strength,
-      0.0,
-      2.0,
-    );
+    this.uniforms.uSlopeDarkenStrength.value = THREE.MathUtils.clamp(strength, 0.0, 2.0);
   }
 
   setElevationRange(minMeters: number, maxMeters: number): void {

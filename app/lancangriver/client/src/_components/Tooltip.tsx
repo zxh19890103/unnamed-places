@@ -1,10 +1,10 @@
-import * as RadixTooltip from "@radix-ui/react-tooltip";
-import clsx from "clsx";
-import React from "react";
-import { ComponentStoryBook } from "./_types";
+import * as RadixTooltip from '@radix-ui/react-tooltip';
+import clsx from 'clsx';
+import React from 'react';
+import { ComponentStoryBook } from './_types';
 
-type TooltipSide = "top" | "right" | "bottom" | "left";
-type TooltipAlign = "start" | "center" | "end";
+type TooltipSide = 'top' | 'right' | 'bottom' | 'left';
+type TooltipAlign = 'start' | 'center' | 'end';
 
 type Props = {
   label: React.ReactNode;
@@ -22,13 +22,13 @@ type Props = {
 };
 
 const baseContentClassName =
-  "z-2000 rounded-lg bg-jade-panel-raised px-3 py-2 text-xs font-medium text-jade-text shadow-[0_12px_30px_rgba(24,42,54,0.18)] select-none";
+  'z-2000 rounded-lg bg-jade-panel-raised px-3 py-2 text-xs font-medium text-jade-text shadow-[0_12px_30px_rgba(24,42,54,0.18)] select-none';
 
 export const Tooltip = ({
   label,
   children,
-  side = "top",
-  align = "center",
+  side = 'top',
+  align = 'center',
   sideOffset = 8,
   delayDuration = 250,
   skipDelayDuration = 100,
@@ -39,15 +39,8 @@ export const Tooltip = ({
   onOpenChange,
 }: Props) => {
   return (
-    <RadixTooltip.Provider
-      delayDuration={delayDuration}
-      skipDelayDuration={skipDelayDuration}
-    >
-      <RadixTooltip.Root
-        open={open}
-        defaultOpen={defaultOpen}
-        onOpenChange={onOpenChange}
-      >
+    <RadixTooltip.Provider delayDuration={delayDuration} skipDelayDuration={skipDelayDuration}>
+      <RadixTooltip.Root open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
         <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
         <RadixTooltip.Portal>
           <RadixTooltip.Content
@@ -57,9 +50,7 @@ export const Tooltip = ({
             className={clsx(baseContentClassName, className)}
           >
             {label}
-            {withArrow ? (
-              <RadixTooltip.Arrow className="fill-jade-panel-raised" />
-            ) : null}
+            {withArrow ? <RadixTooltip.Arrow className="fill-jade-panel-raised" /> : null}
           </RadixTooltip.Content>
         </RadixTooltip.Portal>
       </RadixTooltip.Root>
@@ -70,7 +61,7 @@ export const Tooltip = ({
 Tooltip.__storybook = (): ComponentStoryBook<Props> => {
   return [
     {
-      label: "Open details",
+      label: 'Open details',
       children: (
         <button className="rounded-lg border border-jade-border bg-jade-control px-3 py-2 text-sm text-jade-text">
           Hover me
@@ -78,8 +69,8 @@ Tooltip.__storybook = (): ComponentStoryBook<Props> => {
       ),
     },
     {
-      label: "Running now",
-      side: "right",
+      label: 'Running now',
+      side: 'right',
       children: (
         <button className="rounded-lg border border-jade-border bg-jade-river px-3 py-2 text-sm text-white">
           Action

@@ -1,12 +1,12 @@
-import { useEffect, useRef } from "react";
-import * as L from "leaflet";
-import type { LatLng } from "../calc/types";
+import { useEffect, useRef } from 'react';
+import * as L from 'leaflet';
+import type { LatLng } from '../calc/types';
 
 const INITIAL_ZOOM = 8;
 const FOOTBALL_MARKER_ICON = L.divIcon({
   html: `<img src="/marker.svg" style="width: 100%" />`,
   iconSize: [44, 56],
-  className: "spin-when-moving",
+  className: 'spin-when-moving',
   iconAnchor: [22, 52],
   popupAnchor: [0, -46],
 });
@@ -42,9 +42,9 @@ export function LeafletMap({
       zoomControl: true,
     });
 
-    L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
-      attribution: "&copy; Google Maps",
-      subdomains: ["0", "1", "2", "3"],
+    L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      attribution: '&copy; Google Maps',
+      subdomains: ['0', '1', '2', '3'],
       maxZoom: 20,
       maxNativeZoom: 21,
       // zoomOffset: 0,
@@ -56,7 +56,7 @@ export function LeafletMap({
       icon: FOOTBALL_MARKER_ICON,
     }).addTo(map);
 
-    map.on("click", (event) => {
+    map.on('click', (event) => {
       marker.setLatLng(event.latlng);
       onCenterChange({ lat: event.latlng.lat, lng: event.latlng.lng });
     });
