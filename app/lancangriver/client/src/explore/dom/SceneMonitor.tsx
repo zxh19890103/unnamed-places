@@ -2,70 +2,45 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { Sphere, SphereStatsPayload } from '../Sphere.class';
 import { TilesBytes } from './TilesBytes';
-import { Panel } from '@/_components';
+import { Panel, DataList } from '@/_components';
+import { useCurrentThreeDTilesViewerState } from '@/_3dtiles';
 
 type SceneMonitorProps = {
   sphere: Sphere | null;
   threeJsStats: any;
 };
 
-function formatDistance(distanceMeters: number | null) {
-  if (distanceMeters === null) {
-    return '--';
-  }
+const formatters = {
+  dist: (distanceMeters: number | null) =>
+    distanceMeters === null ? '--' : `${Math.round(distanceMeters).toLocaleString()} m`,
+  zoom: (zoomLevel: number | null) => (zoomLevel === null ? '--' : `${zoomLevel}`),
+  tiles: (visibleTilesCount: number | null) =>
+    visibleTilesCount === null ? '--' : `${visibleTilesCount}`,
+  loading: (stats: SphereStatsPayload | null) => {
+    if (!stats) {
+      return '--';
+    }
 
-  return `${Math.round(distanceMeters).toLocaleString()} m`;
-}
+    const pending = stats.loadingTotal - stats.loadingLoaded;
+    const errSuffix =
+      stats.loadingErrors > 0
+        ? `, ${stats.loadingErrors} error${stats.loadingErrors === 1 ? '' : 's'}`
+        : '';
 
-function formatZoom(zoomLevel: number | null) {
-  if (zoomLevel === null) {
-    return '--';
-  }
+    if (pending <= 0) {
+      return `idle${errSuffix}`;
+    }
 
-  return `${zoomLevel}`;
-}
+    return `${pending}${errSuffix}`;
+  },
+  frame: (stats: SphereStatsPayload | null) => {
+    if (!stats || stats.frameTimeP95Ms <= 0) {
+      return '--';
+    }
 
-function formatTileCount(visibleTilesCount: number | null) {
-  if (visibleTilesCount === null) {
-    return '--';
-  }
-
-  return `${visibleTilesCount}`;
-}
-
-function formatControlMode(controlMode: SphereStatsPayload['controlMode'] | null) {
-  if (!controlMode) {
-    return '--';
-  }
-
-  return controlMode;
-}
-
-function formatLoadingProgress(stats: SphereStatsPayload | null) {
-  if (!stats) {
-    return '--';
-  }
-
-  const pending = stats.loadingTotal - stats.loadingLoaded;
-  const errSuffix =
-    stats.loadingErrors > 0
-      ? `, ${stats.loadingErrors} error${stats.loadingErrors === 1 ? '' : 's'}`
-      : '';
-
-  if (pending <= 0) {
-    return `idle${errSuffix}`;
-  }
-
-  return `${pending}${errSuffix}`;
-}
-
-function formatFrameP95(stats: SphereStatsPayload | null) {
-  if (!stats || stats.frameTimeP95Ms <= 0) {
-    return '--';
-  }
-
-  return `${stats.frameTimeP95Ms.toFixed(1)} ms`;
-}
+    return `${stats.frameTimeP95Ms.toFixed(1)} ms`;
+  },
+};
 
 function ThreejsStats({ threeJsStats }) {
   const threejsStatsDivRef = useRef<HTMLDivElement>(null);
@@ -77,7 +52,7 @@ function ThreejsStats({ threeJsStats }) {
     return () => {
       threejsStatsDiv.removeChild(threeJsStats.dom);
     };
-  }, []);
+  }, [threeJsStats.dom]);
 
   return (
     <div
@@ -88,8 +63,9 @@ function ThreejsStats({ threeJsStats }) {
 }
 
 export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
+  const viewrState = useCurrentThreeDTilesViewerState('any');
+
   const [stats, setStats] = useState<SphereStatsPayload | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!sphere) {
@@ -112,62 +88,24 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
     };
   }, [sphere]);
 
-  const distanceMeters = stats?.cameraDistanceMeters ?? null;
-  const zoomLevel = stats?.zoomLevel ?? null;
-  const visibleTilesCount = stats?.visibleTilesCount ?? null;
-  const controlMode = stats?.controlMode ?? null;
-
   return (
     <Panel defaultMinimized title="Live diagnostics" description="Scene monitor">
       <ThreejsStats threeJsStats={threeJsStats} />
-      <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
-        <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">
-            Camera distance
-          </div>
-          <div className="mt-1 font-medium tabular-nums text-jade-text">
-            {formatDistance(distanceMeters)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">Zoom level</div>
-          <div className="mt-1 font-medium tabular-nums text-jade-text">
-            {formatZoom(zoomLevel)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">
-            Visible tiles
-          </div>
-          <div className="mt-1 font-medium tabular-nums text-jade-text)">
-            {formatTileCount(visibleTilesCount)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">
-            Control mode
-          </div>
-          <div className="mt-1 truncate font-medium text-jade-text">
-            {formatControlMode(controlMode)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">
-            Asset loading
-          </div>
-          <div className="mt-1 font-medium tabular-nums text-jade-text">
-            {formatLoadingProgress(stats)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2.5">
-          <div className="text-[10px] tracking-wide text-jade-text-muted uppercase">Frame p95</div>
-          <div className="mt-1 font-medium tabular-nums text-jade-text">
-            {formatFrameP95(stats)}
-          </div>
-        </div>
-        <div className="col-span-2">
-          <TilesBytes />
-        </div>
+      <DataList
+        size="sm"
+        bordered
+        valueClassName="tabular-nums"
+        items={[
+          { label: 'Alt', value: formatters.dist(viewrState.alt) },
+          { label: 'distance', value: formatters.dist(viewrState.distance) },
+          { label: 'Zoom level', value: formatters.zoom(viewrState.zoom) },
+          { label: 'Visible tiles', value: formatters.tiles(viewrState.tilesCount) },
+          { label: 'Asset loading', value: formatters.loading(stats) },
+          { label: 'Frame p95', value: formatters.frame(stats) },
+        ]}
+      />
+      <div className=" mt-1">
+        <TilesBytes />
       </div>
     </Panel>
   );

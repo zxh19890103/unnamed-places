@@ -37,7 +37,7 @@ export default function App() {
       maxZoom: 20,
       maxNativeZoom: 21,
       // zoomOffset: 0,
-      detectRetina: true,
+      detectRetina: false,
     }).addTo(map);
 
     const marker = L.marker(DEFAULT_CENTER, {
@@ -65,7 +65,7 @@ export default function App() {
       }
 
       latestCenterRef.current = [lat, lng];
-      map.flyTo(latestCenterRef.current);
+      map.setView(latestCenterRef.current);
       marker.setLatLng(latestCenterRef.current);
     };
 

@@ -6,6 +6,7 @@ import { Button, IconButton } from './Button';
 import { Tab } from './Tab';
 import { Tag } from './Tag';
 import { Alert, AlertProvider, useAlert } from './Alert';
+import { DataList } from './DataList';
 
 const meta = JSON.stringify(import.meta);
 
@@ -22,4 +23,5 @@ export {
   Alert,
   AlertProvider,
   useAlert,
+  DataList,
 };

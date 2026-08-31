@@ -6,7 +6,7 @@ const INITIAL_ZOOM = 8;
 const FOOTBALL_MARKER_ICON = L.divIcon({
   html: `<img src="/marker.svg" style="width: 100%" />`,
   iconSize: [44, 56],
-  className: 'spin-when-moving',
+  className: '',
   iconAnchor: [22, 52],
   popupAnchor: [0, -46],
 });
@@ -47,8 +47,7 @@ export function LeafletMap({
       subdomains: ['0', '1', '2', '3'],
       maxZoom: 20,
       maxNativeZoom: 21,
-      // zoomOffset: 0,
-      detectRetina: true,
+      detectRetina: false,
     }).addTo(map);
 
     const marker = L.marker(centerTuple, {
@@ -78,10 +77,9 @@ export function LeafletMap({
     }
 
     const centerTuple: L.LatLngTuple = [focusCenter.lat, focusCenter.lng];
-    const nextZoom = focusZoom ?? mapRef.current.getZoom();
 
     markerRef.current?.setLatLng(centerTuple);
-    mapRef.current.flyTo(centerTuple, nextZoom);
+    mapRef.current.setView(centerTuple);
   }, [focusCenter, focusZoom, onCenterChange]);
 
   return <div ref={mapElementRef} className="h-full w-full" />;

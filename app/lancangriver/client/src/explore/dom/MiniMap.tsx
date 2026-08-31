@@ -1,9 +1,10 @@
 import { LatLng } from '@/calc/types';
 import { memo, useEffect, useRef, useState } from 'react';
-import { type ControlsManager } from '../ControlsManager.class';
 import { START_CENTER_LAT, START_CENTER_LON } from '@/calc/constants';
 import { GlobeIcon } from '@radix-ui/react-icons';
 import { Button, ChildWindow } from '@/_components';
+import { currentThreeDTilesViewer } from '@/_3dtiles';
+import { ExploreControls } from '../controls/ExploreControls.class';
 
 type Props = {
   lat: number;
@@ -16,21 +17,13 @@ const defualtLatlng: LatLng = {
 };
 
 export const MiniMap = memo(
-  ({
-    precision,
-    controls,
-    positionGetter,
-  }: {
-    controls: ControlsManager;
-    positionGetter: () => LatLng;
-    precision: number;
-  }) => {
+  ({ precision, controls }: { controls: ExploreControls; precision: number }) => {
     const [latlng, setLatlng] = useState<LatLng>(defualtLatlng);
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
       const handle = () => {
-        const latlng0 = positionGetter();
+        const latlng0 = currentThreeDTilesViewer.getCameraLatLng();
 
         const lat = Number(latlng0.lat.toFixed(precision));
         const lng = Number(latlng0.lng.toFixed(precision));
@@ -38,7 +31,7 @@ export const MiniMap = memo(
         setLatlng({ lat, lng });
       };
 
-      const handleClick = (event: Event & { latlng?: LatLng }) => {
+      const handleClick = (event: { latlng: LatLng }) => {
         const latlng0 = event.latlng;
         if (!latlng0) {
           return;
@@ -50,26 +43,13 @@ export const MiniMap = memo(
         setLatlng({ lat, lng });
       };
 
-      const orbitControls = controls.orbitControls;
-
-      // orbitControls.addEventListener("end", handle);
-      const customOrbitControls = orbitControls as typeof orbitControls & {
-        addEventListener: (
-          type: 'click',
-          listener: (event: Event & { latlng?: LatLng }) => void,
-        ) => void;
-        removeEventListener: (
-          type: 'click',
-          listener: (event: Event & { latlng?: LatLng }) => void,
-        ) => void;
-      };
-      customOrbitControls.addEventListener('click', handleClick);
+      controls.addEventListener('click', handleClick);
 
       return () => {
-        orbitControls.removeEventListener('end', handle);
-        customOrbitControls.removeEventListener('click', handleClick);
+        controls.removeEventListener('end', handle);
+        controls.removeEventListener('click', handleClick);
       };
-    }, [controls, positionGetter]);
+    }, [controls, precision]);
 
     return (
       <div className="">

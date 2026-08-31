@@ -13,7 +13,7 @@ const pagesCfg = {
   ['ui-3js-geometries-storybook']: `./src/ui-3js-geometries-storybook`,
   ['global-zoom']: `./src/(experiments)/global-zoom`,
   ['shanshui-shader']: `./src/(experiments)/shanshui-shader`,
-  ['sphere-zoom']: `./src/(experiments)/sphere-zoom`,
+  ['explore-controls']: `./src/(experiments)/explore-controls`,
   ['tile12-osm']: `./src/tile12-osm`,
 };
 

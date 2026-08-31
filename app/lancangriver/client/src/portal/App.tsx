@@ -12,14 +12,14 @@ const pages = [
     description: '3D globe and tiled satellite zoom experiment.',
   },
   {
-    title: 'Sphere Zoom',
-    href: '/sphere-zoom',
-    description: 'Sphere-based tile loading and close-range LOD experiment.',
-  },
-  {
     title: 'Shanshui Shader',
     href: '/shanshui-shader',
     description: 'DEM-driven terrain shading, normals, slope darkening, and noise.',
+  },
+  {
+    title: 'Explore Controls',
+    href: '/explore-controls',
+    description: 'Minimal Three.js Earth-scale scene using custom ExploreControls.',
   },
   {
     title: 'Loaded Vector Tiles',

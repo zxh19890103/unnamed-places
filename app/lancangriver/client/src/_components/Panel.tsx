@@ -22,19 +22,17 @@ export const Panel = ({
   children,
   className,
   defaultMinimized = false,
-  defaultMaximized = false,
   minIcon = <ArrowTopRightIcon />,
   maxIcon = <ArrowBottomLeftIcon />,
   onClose,
 }: Props) => {
   const [isMinimized, setIsMinimized] = useState(defaultMinimized);
-  const [isMaximized, setIsMaximized] = useState(defaultMaximized);
 
   return (
     <section
       className={clsx(
         'overflow-hidden rounded-xl bg-jade-panel-raised/95 text-jade-text',
-        isMaximized ? 'w-full max-w-none' : 'w-[min(360px,100%)]',
+        'w-[min(360px,100%)]',
         className,
       )}
     >
@@ -63,16 +61,11 @@ export const Panel = ({
         </div>
       )}
 
-      {!isMinimized ? (
-        <div
-          className={clsx(
-            'px-4 py-3',
-            isMaximized ? 'max-h-[70vh] overflow-auto' : 'max-h-[min(320px,60vh)] overflow-auto',
-          )}
-        >
+      {isMinimized ? null : (
+        <div className={clsx('px-4 py-3', 'max-h-[min(320px,60vh)] overflow-auto')}>
           {children ? children : <div className="min-h-36" />}
         </div>
-      ) : null}
+      )}
     </section>
   );
 };

@@ -1,22 +1,61 @@
 import { Panel } from '@/_components';
-import type { JourneyDayNode } from './types';
+import type { JourneyDayNode, PhotoRecord } from './types';
 import { ArrowBottomRightIcon, ArrowTopLeftIcon } from '@radix-ui/react-icons';
+import { useEffect, useState } from 'react';
+import { fetchGeotaggedPhotos } from './sources';
+import { buildJourneyDays } from './journey';
 
-type JourneyPanelProps = {
-  days: JourneyDayNode[];
-  selectedDayKey: string | null;
-  loading: boolean;
-  error: string | null;
-  onSelectDay: (dayKey: string) => void;
-};
+export function JourneyPanel() {
+  const [journeyRecords, setJourneyRecords] = useState<PhotoRecord[]>([]);
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-export function JourneyPanel({
-  days,
-  selectedDayKey,
-  loading,
-  error,
-  onSelectDay,
-}: JourneyPanelProps) {
+  const [days, setDays] = useState<JourneyDayNode[]>([]);
+
+  useEffect(() => {
+    const handleLoadGeotaggedPhotos = async () => {
+      setLoading(true);
+
+      try {
+        const mode = import.meta.env.DEV ? 'dev' : 'prod';
+        const photos =
+          mode === 'dev'
+            ? await fetchGeotaggedPhotos({ mode: 'dev' })
+            : await fetchGeotaggedPhotos({ mode: 'prod' });
+
+        const journey = buildJourneyDays(photos);
+
+        setJourneyRecords(journey.records);
+        setDays(journey.days);
+        setError(null);
+      } catch (error) {
+        console.warn('Failed to load life journey photos', error);
+        setError('Could not load photos');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    handleLoadGeotaggedPhotos();
+  }, []);
+
+  const onSelectDay = async (dayKey: string) => {
+    setSelectedDayKey(dayKey);
+
+    const selectedDay = days.find((day) => day.dayKey === dayKey);
+    if (!selectedDay) {
+      return;
+    }
+
+    try {
+      throw new Error('not implemented');
+    } catch (error) {
+      console.warn('Failed to focus journey day', error);
+      setError('Could not focus that day');
+    }
+  };
+
   return (
     <Panel
       title="Photo timeline"

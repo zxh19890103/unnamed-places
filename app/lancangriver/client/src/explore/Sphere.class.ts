@@ -3,15 +3,10 @@ import * as THREE from 'three';
 import { EARTH_RADIUS } from '../calc/constants';
 import { SphereTile } from './SphereTile.class';
 import { SphereTileKey } from './_types';
-import { ControlMode, ControlsManager } from './ControlsManager.class';
 import type { TilesManager } from './TilesManager.class';
 import { latlngToStandardTileZxy, Create3dTilesViewer } from '@/_3dtiles';
 
 export type SphereStatsPayload = {
-  cameraDistanceMeters: number;
-  zoomLevel: number;
-  visibleTilesCount: number;
-  controlMode: ControlMode;
   loadingLoaded: number;
   loadingTotal: number;
   loadingActive: boolean;
@@ -35,7 +30,6 @@ type SphereOptions = {
   radius?: number;
   camera: THREE.Camera;
   tilesManager: TilesManager;
-  controlsManager: ControlsManager;
   getLoadingSnapshot: () => {
     loaded: number;
     total: number;
@@ -60,27 +54,14 @@ export class Sphere extends THREE.Group {
     options: SphereOptions,
   ) {
     super();
-    const {
-      radius = EARTH_RADIUS,
-      camera,
-      tilesManager,
-      controlsManager,
-      getLoadingSnapshot,
-    } = options;
+    const { radius = EARTH_RADIUS, getLoadingSnapshot } = options;
 
     this.radius = radius;
 
     this._statsTimer = setInterval(() => {
-      const cameraDistanceMeters = camera.position.length() - EARTH_RADIUS;
-
-      const zoomLevel = this.threeTilesViewer.distanceToZoom(cameraDistanceMeters);
       const loadingSnapshot = getLoadingSnapshot();
 
       this.dispatchStats({
-        cameraDistanceMeters,
-        zoomLevel,
-        visibleTilesCount: tilesManager.getVisibleCount?.() ?? 0,
-        controlMode: controlsManager.mode,
         loadingLoaded: loadingSnapshot.loaded,
         loadingTotal: loadingSnapshot.total,
         loadingActive: loadingSnapshot.active,

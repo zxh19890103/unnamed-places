@@ -32,12 +32,12 @@ export class EarthTile {
    * min
    */
   readonly southWest: LatLng;
-  readonly lb: THREE.Vector3;
+  readonly min: THREE.Vector3;
   /**
    * max
    */
   readonly northEast: LatLng;
-  readonly rt: THREE.Vector3;
+  readonly max: THREE.Vector3;
 
   mesh: THREE.Mesh;
   outline: THREE.LineLoop;
@@ -75,13 +75,13 @@ export class EarthTile {
 
     this.southWest = southWest;
 
-    this.lb = new THREE.Vector3().copy(
+    this.min = new THREE.Vector3().copy(
       latlngToSphere(this.southWest.lat, this.southWest.lng, this.maxElevation),
     );
 
     this.northEast = northEast;
 
-    this.rt = new THREE.Vector3().copy(
+    this.max = new THREE.Vector3().copy(
       latlngToSphere(this.northEast.lat, this.northEast.lng, this.maxElevation),
     );
 
@@ -110,7 +110,7 @@ export class EarthTile {
       latlngToSphere(this.southWest.lat, this.northEast.lng, this.maxElevation),
     );
 
-    const corners = [this.lb, this.rt, northWest, southEast];
+    const corners = [this.min, this.max, northWest, southEast];
 
     let maxCornerAngle = 0;
 

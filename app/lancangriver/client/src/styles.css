@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   color-scheme: light;
@@ -24,11 +24,9 @@
 }
 
 @theme inline {
-  --font-suse-mono:
-    "SUSEMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-suse-mono: 'SUSEMono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-share-tech-mono:
-    "ShareTechMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    monospace;
+    'ShareTechMono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --color-jade-foundation: #eaf2f7;
   --color-jade-depth: #dce8f0;
@@ -160,16 +158,16 @@
 }
 
 @font-face {
-  font-family: "SUSEMono";
-  src: url("/SUSE_Mono/SUSEMono-VariableFont_wght.ttf") format("truetype");
+  font-family: 'SUSEMono';
+  src: url('/SUSE_Mono/SUSEMono-VariableFont_wght.ttf') format('truetype');
   font-style: normal;
   font-weight: 400;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "ShareTechMono";
-  src: url("/Share_Tech_Mono/ShareTechMono-Regular.ttf") format("truetype");
+  font-family: 'ShareTechMono';
+  src: url('/Share_Tech_Mono/ShareTechMono-Regular.ttf') format('truetype');
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -181,11 +179,34 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  font-family: "SUSEMono", sans-serif;
+  font-family: 'SUSEMono', sans-serif;
 }
 
-.spin-when-moving {
-  transition: transform 0.3s ease-in;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--jade-border-soft) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--jade-border-soft);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--jade-border);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @keyframes tag-pulse {
@@ -195,5 +216,32 @@ body {
   }
   50% {
     opacity: 1;
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--jade-border-soft) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--jade-border-soft);
+    border-radius: 9999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--jade-border);
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

@@ -46,7 +46,7 @@ export function LeafletVectorViewer({ features, tileKey }: LeafletVectorViewerPr
       subdomains: ['0', '1', '2', '3'],
       maxZoom: 20,
       maxNativeZoom: 21,
-      detectRetina: true,
+      detectRetina: false,
     }).addTo(map);
 
     mapRef.current = map;

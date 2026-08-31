@@ -1,6 +1,7 @@
 import { Cross1Icon } from '@radix-ui/react-icons';
 import { IconButton } from './Button';
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { ComponentStoryBook } from './_types';
 
@@ -75,6 +76,36 @@ export const ChildWindow = ({
   );
 };
 
+export const useChildWindowMessages = (type: string, callback: (data: any) => void) => {
+  const callbackRef = useRef<(data: any) => void>(callback);
+
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      if (event.data?.type !== type) {
+        return;
+      }
+
+      callbackRef.current(event.data);
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [type]);
+};
+
 const ChildWindowModal = ({
   children,
   className,
@@ -115,28 +146,33 @@ const ChildWindowModal = ({
     };
   }, [closeSignal, onClose]);
 
-  return (
-    <>
-      <div className="absolute inset-0 z-1994 grid place-items-center bg-jade-950/45 p-3 backdrop-blur-[2px]">
-        <div ref={backrdopRef} aria-label="backdrop" className=" absolute inset-0" />
-        <div
-          className={clsx(
-            'h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl bg-jade-panel',
-            className,
-          )}
-          style={
-            size
-              ? {
-                  width: `${size}vw`,
-                  height: `${size}vh`,
-                }
-              : null
-          }
-        >
-          {children}
-        </div>
+  const portalRoot = typeof document !== 'undefined' ? document.body : null;
+
+  if (!portalRoot) {
+    return null;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-1994 grid place-items-center bg-jade-950/45 p-3 backdrop-blur-[2px]">
+      <div ref={backrdopRef} aria-label="backdrop" className="absolute inset-0" />
+      <div
+        className={clsx(
+          'h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl bg-jade-panel',
+          className,
+        )}
+        style={
+          size
+            ? {
+                width: `${size}vw`,
+                height: `${size}vh`,
+              }
+            : null
+        }
+      >
+        {children}
       </div>
-    </>
+    </div>,
+    portalRoot,
   );
 };
 

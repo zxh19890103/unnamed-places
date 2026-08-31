@@ -3,13 +3,16 @@ import type { ReactNode } from 'react';
 import clsx from 'clsx';
 
 import { Button } from '@/_components';
-import { useCurrentThreeDTilesViewerState, latlngToStandardTileZxy } from '@/_3dtiles';
+import {
+  useCurrentThreeDTilesViewerState,
+  latlngToStandardTileZxy,
+  currentThreeDTilesViewer,
+} from '@/_3dtiles';
 import { BASE_URL, ELEVATION_SCALE } from '@/calc/constants';
-import type { LatLng } from '@/calc/types';
 import type { TilesManager } from '../TilesManager.class';
-import { ControlsManager } from '../ControlsManager.class';
-import { globalTileMaterialMode, setGlobalTileMaterialMode } from '../setup';
+import { currentSceneState, globalTileMaterialMode, setGlobalTileMaterialMode } from '../setup';
 import { TileMaterialMode } from '../SphereTile.class';
+import { ExploreControls } from '../controls/ExploreControls.class';
 
 type DemAltitudeResponse = {
   ok: boolean;
@@ -113,19 +116,8 @@ function MaterialModeIcon({ mode }: { mode: TileMaterialMode }) {
 }
 
 export const TileMaterialModeSelect = memo(
-  ({
-    controls,
-    tileManager,
-    getCurrentGroundCenter,
-    setVisibleTilesElevationRange,
-  }: {
-    controls: ControlsManager;
-    tileManager: TilesManager;
-    getCurrentGroundCenter: () => LatLng | null;
-    setVisibleTilesElevationRange: (minMeters: number, maxMeters: number) => void;
-  }) => {
-    const zoomLevel = useCurrentThreeDTilesViewerState('zoomLevel');
-    console.log('zoml', zoomLevel);
+  ({ tileManager }: { controls: ExploreControls; tileManager: TilesManager }) => {
+    const viewerState = useCurrentThreeDTilesViewerState('zoom');
 
     const [mode, setMode] = useState(globalTileMaterialMode);
     const [isElevationLoading, setIsElevationLoading] = useState(false);
@@ -149,11 +141,11 @@ export const TileMaterialModeSelect = memo(
     };
 
     const applyElevationMode = async () => {
-      if (zoomLevel < 11 || isElevationLoading) {
+      if (viewerState.zoom < 11 || isElevationLoading) {
         return;
       }
 
-      const groundCenter = getCurrentGroundCenter();
+      const groundCenter = currentThreeDTilesViewer.getCameraLatLng();
       if (!groundCenter) {
         return;
       }
@@ -178,7 +170,7 @@ export const TileMaterialModeSelect = memo(
           throw new Error('Altitude response had an invalid elevation range');
         }
 
-        setVisibleTilesElevationRange(
+        currentSceneState.setVisibleTilesElevationRange(
           altitude.min * ELEVATION_SCALE,
           altitude.max * ELEVATION_SCALE,
         );
@@ -198,7 +190,7 @@ export const TileMaterialModeSelect = memo(
         {Object.values(TileMaterialMode).map((materialMode) => {
           const isSelected = mode === materialMode;
           const isElevationMode = materialMode === TileMaterialMode.Dem;
-          const isZoomBlocked = isElevationMode && zoomLevel < 11;
+          const isZoomBlocked = isElevationMode && viewerState.zoom < 11;
           const isDisabled = isZoomBlocked || (isElevationMode && isElevationLoading);
           const title = isElevationLoading
             ? 'Loading elevation data'
