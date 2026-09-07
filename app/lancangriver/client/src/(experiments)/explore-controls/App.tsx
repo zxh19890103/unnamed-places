@@ -1,27 +1,27 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import {
-  deriveMetersByZoomingDeltaPixel,
-  deriveSensitivityFromRotationDelta,
   ExploreControls,
   ExploreControlsLiveState,
 } from '@/explore/controls/ExploreControls.class.js';
+import { ZoomFactorCharts } from './FactorStudyCharts.js';
 
 import '@/styles.css';
 import { EARTH_RADIUS } from '@/calc/constants';
-import { Button, Panel } from '@/_components';
+import { Panel } from '@/_components';
+import { latlngToSphere } from '@/_3dtiles/core.js';
+import { getLocalBasisAtPoint } from '@/calc/sphere.js';
+import clsx from 'clsx';
 
-const EARTH_RADIUS_METERS = 6_371_000;
+const EARTH_RADIUS_METERS = EARTH_RADIUS;
 
 export default function App() {
   const [ready, setReady] = useState(false);
 
   const mountRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<ExploreControls | null>(null);
-
-  const [lat, setLat] = useState(0);
-  const [lng, setLng] = useState(0);
-  const [alt, setAlt] = useState(1000);
+  const sceneRef = useRef<THREE.Scene>(null);
+  const rendererDomRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const mountEl = mountRef.current;
@@ -31,6 +31,8 @@ export default function App() {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020817);
+
+    sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(
       45,
@@ -45,7 +47,7 @@ export default function App() {
       EARTH_RADIUS_METERS * 1.8,
     );
 
-    camera.position.setLength(EARTH_RADIUS_METERS * 3.5);
+    camera.position.setLength(EARTH_RADIUS_METERS * 8.5);
 
     camera.lookAt(0, 0, 0);
 
@@ -53,14 +55,16 @@ export default function App() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(mountEl.clientWidth, mountEl.clientHeight, true);
     mountEl.appendChild(renderer.domElement);
+    rendererDomRef.current = renderer.domElement;
+
+    const elevation = {
+      min: 0,
+      max: 0,
+    };
 
     const controls = new ExploreControls(camera, renderer.domElement);
     controlsRef.current = controls;
-    controls.target.set(0, 0, 0);
-    controls.enableDamping = true;
-
-    // controls.minDistance = EARTH_RADIUS_METERS * 1.1;
-    // controls.maxDistance = EARTH_RADIUS_METERS * 10;
+    controls.setEvelation(elevation.min, elevation.max);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
@@ -72,6 +76,37 @@ export default function App() {
       EARTH_RADIUS_METERS * 1.5,
     );
     scene.add(directionalLight);
+
+    const textureLoader = new THREE.TextureLoader();
+
+    // render elevation
+    {
+      // scene.add(
+      //   new THREE.Mesh(
+      //     new THREE.SphereGeometry(EARTH_RADIUS_METERS + elevation.min),
+      //     new THREE.MeshBasicMaterial({
+      //       wireframe: false,
+      //       depthTest: true,
+      //       color: 0xef0a01,
+      //       transparent: true,
+      //       opacity: 0.3,
+      //     }),
+      //   ),
+      // );
+      // scene.add(
+      //   new THREE.Mesh(
+      //     new THREE.SphereGeometry(EARTH_RADIUS_METERS + elevation.max),
+      //     new THREE.MeshBasicMaterial({
+      //       wireframe: false,
+      //       depthTest: true,
+      //       map: textureLoader.load('/dcrbmun-38493001-d0cc-4bd6-9acb-2bf1109b488b.jpg'),
+      //       color: 0xffffff,
+      //       transparent: true,
+      //       opacity: 0.67,
+      //     }),
+      //   ),
+      // );
+    }
 
     const sphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS_METERS, 128, 128).toNonIndexed();
     const faceColors = new Float32Array(sphereGeometry.attributes.position.count * 3);
@@ -91,13 +126,14 @@ export default function App() {
 
     sphereGeometry.setAttribute('color', new THREE.BufferAttribute(faceColors, 3));
 
-    const textureLoader = new THREE.TextureLoader();
     const sphereMaterial = new THREE.ShaderMaterial({
       uniforms: {
         map: {
           value: textureLoader.load('/dcrbmun-38493001-d0cc-4bd6-9acb-2bf1109b488b.jpg'),
         },
       },
+      transparent: false,
+      visible: true,
       vertexShader: `
         attribute vec3 color;
         varying vec3 vColor;
@@ -117,7 +153,7 @@ export default function App() {
 
         void main() {
           vec4 color = texture2D(map, vec2(fract(0.25 + vUv.x), vUv.y));
-          gl_FragColor = vec4(vColor, 1.0);
+          gl_FragColor = vec4(color.rgb * 0.5, 1.0);
         }
       `,
     });
@@ -150,6 +186,7 @@ export default function App() {
       window.removeEventListener('resize', onResize);
 
       controlsRef.current = null;
+      rendererDomRef.current = null;
       controls.dispose();
       sphere.geometry.dispose();
       sphereMaterial.dispose();
@@ -161,82 +198,214 @@ export default function App() {
     };
   }, []);
 
-  const handleSubmit = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-
-    const nextLat = Number(lat);
-    const nextLng = Number(lng);
-    const nextAlt = Number(alt);
-
-    if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng) || !Number.isFinite(nextAlt)) {
-      return;
-    }
-
-    const form = event.target as HTMLButtonElement;
-
-    if (form.value === 'low') {
-      controlsRef.current?.setObjectAtLowAlt({ lat: nextLat, lng: nextLng }, nextAlt);
-    } else {
-      controlsRef.current?.setObjectAt({ lat: nextLat, lng: nextLng }, 50_000000);
-    }
-  };
-
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-950 font-suse-mono text-jade-50">
       <div ref={mountRef} className="h-full w-full" />
-      <header className="absolute left-2 top-2">
-        <Panel defaultMinimized title="Explore Controls" description="">
-          <p className="mt-2 text-[13px]">
-            Sphere radius: {EARTH_RADIUS_METERS.toLocaleString()} m
-          </p>
 
-          <form onSubmit={(e) => e.preventDefault()} className="mt-4 space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.12em]">
-                Lat
-                <NumberInput value={lat} onChange={setLat} />
-              </label>
-              <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.12em]">
-                Lng
-                <NumberInput value={lng} onChange={setLng} />
-              </label>
-              <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.12em]">
-                Alt
-                <NumberInput value={alt} onChange={setAlt} />
-              </label>
-            </div>
+      {ready && <WheelGestureOverlay target={rendererDomRef.current} />}
 
-            <div className=" space-x-1">
-              <Button type="submit" onClick={handleSubmit} value="high">
-                Set view
-              </Button>
-              <Button type="submit" onClick={handleSubmit} value="low">
-                Set view (low)
-              </Button>
-            </div>
-          </form>
-        </Panel>
-      </header>
-
-      {ready && <LivePanel controls={controlsRef.current} />}
+      {ready && <LivePanel scene={sceneRef.current} controls={controlsRef.current} />}
       {ready && <ZoomFactorCharts />}
-      {ready && <RotateFactorCharts />}
+      {ready && <CameraOperationsTest scene={sceneRef.current} controls={controlsRef.current} />}
     </main>
   );
 }
 
-const NumberInput = ({ value, onChange }) => {
+const CameraOperationsTest = memo(
+  ({ controls }: { scene: THREE.Scene; controls: ExploreControls }) => {
+    return (
+      <div className=" p-3  bg-white fixed left-0 top-0 text-black">
+        <h1 className=" text-xl font-semibold">Camera Ops Test</h1>
+        <div className="  space-y-2  ">
+          <CameraOperationsTestAction args="{lat:12,lng:12}" action="flyTo" controls={controls} />
+          <CameraOperationsTestAction
+            args="{lat:12,lng:12}"
+            action="setLatlng"
+            controls={controls}
+          />
+          <CameraOperationsTestAction args="0" action="setZoomLevel" controls={controls} />
+          <CameraOperationsTestAction args="1" action="roll" controls={controls} />
+          <CameraOperationsTestAction args="1" action="yaw" controls={controls} />
+          <CameraOperationsTestAction args="1" action="pitch" controls={controls} />
+        </div>
+      </div>
+    );
+  },
+);
+
+const CameraOperationsTestAction = ({
+  action,
+  controls,
+  args,
+}: {
+  action: string;
+  controls: ExploreControls;
+  args: string;
+}) => {
+  const [phase, setPhase] = useState<0 | 1 | 2>(0);
+  const [args1, setArgs1] = useState(args);
+
+  const parsedArgs = useMemo(() => {
+    try {
+      const args0 = eval(`window.____camera_action_args = ${args1 || 'null'}`);
+      return [args0];
+    } catch (err_) {
+      return undefined;
+    }
+  }, [args1]);
+
+  const Do = async () => {
+    if (phase == 0) {
+      setPhase(1);
+      await controls[action](...parsedArgs);
+      setPhase(2);
+      setTimeout(setPhase, 300, 0);
+    } else if (phase === 2) {
+      //
+    }
+  };
+
   return (
-    <input
-      type="number"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="rounded-lg border border-slate-400/40 bg-slate-800/10 px-2 py-1.5 text-sm text-jade-950 outline-none transition focus:border-jade-600 focus:ring-2 focus:ring-jade-600/30"
-    />
+    <div
+      className={clsx(
+        ' relative flex items-center gap-4',
+        phase === 1 ? ' pointer-events-none' : '',
+      )}
+    >
+      {action}:{' '}
+      <button
+        className=" w-20 text-center hover:bg-jade-300 active:border-jade-600 border px-2 py-1 rounded-lg"
+        onClick={Do}
+      >
+        {phase === 0 ? 'do' : phase === 1 ? 'doing' : 'done'}
+      </button>
+      <div>
+        with: (
+        <input
+          value={args1}
+          onChange={(event) => {
+            setArgs1(event.target.value.trim());
+          }}
+          onKeyUp={(event) => {
+            if (event.key === 'Enter') {
+              if (parsedArgs === undefined) return;
+              Do();
+            }
+          }}
+          className=" underline outline-none rounded-lg py-1 "
+        />
+        )
+      </div>
+      <p className=" text-sm text-jade-error-400 absolute leading-0 bottom-0">
+        {parsedArgs === undefined ? 'args invalid' : null}
+      </p>
+    </div>
   );
 };
 
-const LivePanel = memo(({ controls }: { controls: ExploreControls }) => {
+const WheelGestureOverlay = ({ target }: { target: HTMLElement | null }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pointsRef = useRef<{ x: number; y: number }[]>([]);
+  const cursorRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gestureHueRef = useRef(0);
+
+  useEffect(() => {
+    if (!target) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    canvas.style.opacity = '0.7';
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio, 2);
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    };
+
+    const draw = () => {
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const points = pointsRef.current;
+      if (points.length < 2) {
+        return;
+      }
+
+      ctx.beginPath();
+
+      ctx.strokeStyle = `hsl(${gestureHueRef.current} 100% 50%)`;
+
+      ctx.lineWidth = 20;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(points[0].x * rect.width, points[0].y * rect.height);
+
+      for (let i = 1; i < points.length; i += 1) {
+        ctx.lineTo(points[i].x * rect.width, points[i].y * rect.height);
+      }
+
+      ctx.stroke();
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      if (pointsRef.current.length === 0) {
+        cursorRef.current = { x: 0.5, y: 0.5 };
+        gestureHueRef.current = Math.random() * 40;
+      }
+
+      const sensitivity = 0.002;
+      cursorRef.current = {
+        x: Math.max(0, Math.min(1, cursorRef.current.x + event.deltaX * sensitivity)),
+        y: Math.max(0, Math.min(1, cursorRef.current.y + event.deltaY * sensitivity)),
+      };
+
+      pointsRef.current.push({ ...cursorRef.current });
+      draw();
+
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+
+      idleTimerRef.current = setTimeout(() => {
+        pointsRef.current = [];
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+      }, 250);
+    };
+
+    const resizeObserver = new ResizeObserver(resizeCanvas);
+    resizeObserver.observe(canvas);
+    resizeCanvas();
+
+    target.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      resizeObserver.disconnect();
+      target.removeEventListener('wheel', handleWheel);
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+    };
+  }, [target]);
+
+  return <canvas ref={canvasRef} className="pointer-events-none  absolute right-0 top-0 size-96" />;
+};
+
+const LivePanel = memo(({ scene, controls }: { scene: THREE.Scene; controls: ExploreControls }) => {
   const [state, setState] = useState<ExploreControlsLiveState>(controls.liveState);
 
   useEffect(() => {
@@ -253,291 +422,114 @@ const LivePanel = memo(({ controls }: { controls: ExploreControls }) => {
     <div className=" fixed bottom-2 left-2">
       <Panel title="Live State" description="">
         <div className=" space-y-1">
-          <div>lat: {state.latlng.lat.toFixed(9)}</div>
+          <div>
+            lat:
+            {state.latlng.lat.toFixed(9)}
+          </div>
           <div>lng: {state.latlng.lng.toFixed(9)}</div>
+          <div>
+            far0: {state.originFar.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+          </div>
           <div>far: {state.distance.toLocaleString(undefined, { maximumFractionDigits: 2 })} m</div>
+          <div>
+            height: {state.height.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+          </div>
           <div>alt: {state.alt.toLocaleString(undefined, { maximumFractionDigits: 2 })} m</div>
           <div>mode: {state.mode}</div>
+          <div>zoom: {state.zoom}</div>
+          <OnZoomChange controls={controls} scene={scene} zoom={state.zoom} />
         </div>
       </Panel>
     </div>
   );
 });
 
-const ZoomFactorCharts = memo(() => {
-  const [data] = useState(() => {
-    const ticks = 30;
-    const maxFar = 500_000;
-    const step = maxFar / ticks;
-    return new Array(30).fill(0).map((_, i) => {
-      const far = step * i;
-      return [far, deriveMetersByZoomingDeltaPixel(1, far)] as [number, number];
-    });
-  });
+function getVisibleMetersAtZoom(zoom: number) {
+  return 1000000 / Math.pow(2, zoom);
+}
 
-  const width = 320;
-  const height = 180;
-  const padding = { top: 16, right: 16, bottom: 28, left: 42 };
+const OnZoomChange = memo(
+  ({ zoom, scene, controls }: { controls: ExploreControls; scene: THREE.Scene; zoom: number }) => {
+    const rulerRef = useRef<THREE.Line>(null);
+    const atRef = useRef<THREE.Vector3>(null);
+    const basisRef = useRef<{ north: THREE.Vector3; east: THREE.Vector3 }>(null);
 
-  const xs = data.map(([far]) => far);
-  const ys = data.map(([, value]) => value);
+    useEffect(() => {
+      // create a line
 
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(0, ...ys);
-  const maxY = Math.max(...ys);
+      const latlng = controls.liveState.latlng;
+      const at = new THREE.Vector3(0, 0, 0).copy(latlngToSphere(latlng.lat, latlng.lng));
+      const basis = getLocalBasisAtPoint(at);
+      const zoom = controls.getZoomLevel();
 
-  const innerWidth = width - padding.left - padding.right;
-  const innerHeight = height - padding.top - padding.bottom;
+      const lengthMeters = getVisibleMetersAtZoom(zoom);
 
-  const xToSvg = (x: number) => {
-    if (maxX === minX) {
-      return padding.left + innerWidth / 2;
-    }
-    return padding.left + ((x - minX) / (maxX - minX)) * innerWidth;
-  };
+      atRef.current = at;
+      basisRef.current = basis;
 
-  const yToSvg = (y: number) => {
-    if (maxY === minY) {
-      return height - padding.bottom - innerHeight / 2;
-    }
-    return height - padding.bottom - ((y - minY) / (maxY - minY)) * innerHeight;
-  };
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.east).setLength(lengthMeters).add(at),
 
-  const linePath = data
-    .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${xToSvg(x)} ${yToSvg(y)}`)
-    .join(' ');
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.east).negate().setLength(lengthMeters).add(at),
 
-  const xTicks = [minX, (minX + maxX) / 2, maxX];
-  const yTicks = [minY, (minY + maxY) / 2, maxY];
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.north).setLength(lengthMeters).add(at),
 
-  const formatNumber = (value: number) => {
-    if (Math.abs(value) >= 1_000_000) {
-      return `${(value / 1_000_000).toFixed(1)}M`;
-    }
-    if (Math.abs(value) >= 1_000) {
-      return `${(value / 1_000).toFixed(1)}K`;
-    }
-    return value.toFixed(1);
-  };
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.north).negate().setLength(lengthMeters).add(at),
+      ]);
 
-  return (
-    <div className="fixed right-2 bottom-2 ">
-      <Panel defaultMinimized title="Far - Zoom Sensitivity" description="">
-        <div className="w-75">
-          <svg viewBox={`0 0 ${width} ${height}`} className="block overflow-visible">
-            <rect x="0" y="0" width={width} height={height} fill="transparent" />
-            <line
-              x1={padding.left}
-              y1={height - padding.bottom}
-              x2={width - padding.right}
-              y2={height - padding.bottom}
-              stroke="#000"
-              strokeWidth="1"
-            />
-            <line
-              x1={padding.left}
-              y1={padding.top}
-              x2={padding.left}
-              y2={height - padding.bottom}
-              stroke="#000"
-              strokeWidth="1"
-            />
+      const material = new THREE.LineBasicMaterial({
+        color: '#fa0',
+        depthTest: false,
+      });
 
-            {xTicks.map((tick) => {
-              const x = xToSvg(tick);
-              return (
-                <g key={`x-${tick}`}>
-                  <line
-                    x1={x}
-                    y1={height - padding.bottom}
-                    x2={x}
-                    y2={height - padding.bottom + 5}
-                    stroke="#000"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={x}
-                    y={height - 8}
-                    textAnchor="middle"
-                    fill="#000"
-                    fontSize="9"
-                    fontFamily="ui-monospace, SFMono-Regular, monospace"
-                  >
-                    {formatNumber(tick)}
-                  </text>
-                </g>
-              );
-            })}
+      const ruler = new THREE.LineSegments(geometry, material);
+      ruler.renderOrder = 100;
 
-            {yTicks.map((tick) => {
-              const y = yToSvg(tick);
-              return (
-                <g key={`y-${tick}`}>
-                  <line
-                    x1={padding.left - 5}
-                    y1={y}
-                    x2={padding.left}
-                    y2={y}
-                    stroke="#000"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={padding.left - 10}
-                    y={y + 3}
-                    textAnchor="end"
-                    fill="#000"
-                    fontSize="9"
-                    fontFamily="ui-monospace, SFMono-Regular, monospace"
-                  >
-                    {formatNumber(tick)}
-                  </text>
-                </g>
-              );
-            })}
-            <path d={linePath} fill="none" stroke="#000" strokeWidth="1.2" />
-          </svg>
-        </div>
-      </Panel>
-    </div>
-  );
-});
+      scene.add(ruler);
 
-const RotateFactorCharts = memo(() => {
-  const [data] = useState(() => {
-    const ticks = 30;
-    const maxFar = 500_000;
-    const step = maxFar / ticks;
-    return new Array(30).fill(0).map((_, i) => {
-      const far = step * i;
-      return [far, deriveSensitivityFromRotationDelta(1, 1, far)] as [number, number];
-    });
-  });
+      rulerRef.current = ruler;
 
-  const width = 320;
-  const height = 180;
-  const padding = { top: 16, right: 16, bottom: 28, left: 42 };
+      return () => {
+        // remove
+        scene.remove(ruler);
 
-  const xs = data.map(([far]) => far);
-  const ys = data.map(([, value]) => value);
+        geometry.dispose();
+        material.dispose();
+      };
+    }, [scene, controls]);
 
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(0, ...ys);
-  const maxY = Math.max(...ys);
+    useEffect(() => {
+      if (!rulerRef.current) return;
 
-  const innerWidth = width - padding.left - padding.right;
-  const innerHeight = height - padding.top - padding.bottom;
+      // change size
+      const lengthMeters = getVisibleMetersAtZoom(zoom);
 
-  const xToSvg = (x: number) => {
-    if (maxX === minX) {
-      return padding.left + innerWidth / 2;
-    }
-    return padding.left + ((x - minX) / (maxX - minX)) * innerWidth;
-  };
+      console.log(lengthMeters);
 
-  const yToSvg = (y: number) => {
-    if (maxY === minY) {
-      return height - padding.bottom - innerHeight / 2;
-    }
-    return height - padding.bottom - ((y - minY) / (maxY - minY)) * innerHeight;
-  };
+      const at = atRef.current;
+      const basis = basisRef.current;
 
-  const linePath = data
-    .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${xToSvg(x)} ${yToSvg(y)}`)
-    .join(' ');
+      rulerRef.current.geometry.setFromPoints([
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.east).setLength(lengthMeters).add(at),
 
-  const xTicks = [minX, (minX + maxX) / 2, maxX];
-  const yTicks = [minY, (minY + maxY) / 2, maxY];
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.east).negate().setLength(lengthMeters).add(at),
 
-  const formatNumber = (value: number) => {
-    if (Math.abs(value) >= 1_000_000) {
-      return `${(value / 1_000_000).toFixed(1)}M`;
-    }
-    if (Math.abs(value) >= 1_000) {
-      return `${(value / 1_000).toFixed(1)}K`;
-    }
-    return value.toFixed(1);
-  };
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.north).setLength(lengthMeters).add(at),
 
-  return (
-    <div className="fixed right-2 top-2 ">
-      <Panel defaultMinimized title="Far - Orbit Sensitivity" description="">
-        <div className="w-75">
-          <svg viewBox={`0 0 ${width} ${height}`} className="block overflow-visible">
-            <rect x="0" y="0" width={width} height={height} fill="transparent" />
-            <line
-              x1={padding.left}
-              y1={height - padding.bottom}
-              x2={width - padding.right}
-              y2={height - padding.bottom}
-              stroke="#000"
-              strokeWidth="1"
-            />
-            <line
-              x1={padding.left}
-              y1={padding.top}
-              x2={padding.left}
-              y2={height - padding.bottom}
-              stroke="#000"
-              strokeWidth="1"
-            />
+        new THREE.Vector3(0, 0, 0).copy(at),
+        new THREE.Vector3().copy(basis.north).negate().setLength(lengthMeters).add(at),
+      ]);
 
-            {xTicks.map((tick) => {
-              const x = xToSvg(tick);
-              return (
-                <g key={`x-${tick}`}>
-                  <line
-                    x1={x}
-                    y1={height - padding.bottom}
-                    x2={x}
-                    y2={height - padding.bottom + 5}
-                    stroke="#000"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={x}
-                    y={height - 8}
-                    textAnchor="middle"
-                    fill="#000"
-                    fontSize="9"
-                    fontFamily="ui-monospace, SFMono-Regular, monospace"
-                  >
-                    {formatNumber(tick)}
-                  </text>
-                </g>
-              );
-            })}
+      return () => {};
+    }, [zoom, scene]);
 
-            {yTicks.map((tick) => {
-              const y = yToSvg(tick);
-              return (
-                <g key={`y-${tick}`}>
-                  <line
-                    x1={padding.left - 5}
-                    y1={y}
-                    x2={padding.left}
-                    y2={y}
-                    stroke="#000"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={padding.left - 10}
-                    y={y + 3}
-                    textAnchor="end"
-                    fill="#000"
-                    fontSize="9"
-                    fontFamily="ui-monospace, SFMono-Regular, monospace"
-                  >
-                    {formatNumber(tick)}
-                  </text>
-                </g>
-              );
-            })}
-            <path d={linePath} fill="none" stroke="#000" strokeWidth="1.2" />
-          </svg>
-        </div>
-      </Panel>
-    </div>
-  );
-});
+    return null;
+  },
+);

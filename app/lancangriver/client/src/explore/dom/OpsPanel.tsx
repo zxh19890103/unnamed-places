@@ -1,12 +1,8 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { ChildWindow, IconButton, Tooltip } from '@/_components';
-import {
-  Create3dTilesViewer,
-  currentThreeDTilesViewer,
-  useCurrentThreeDTilesViewerState,
-} from '@/_3dtiles';
+import { Create3dTilesViewer, currentThreeDTilesViewer } from '@/_3dtiles';
 import { buildFlatModalUrl, FLAT_CENTER_CONFIRMED } from '@/flat/protocol';
 import type { TilesManager } from '../TilesManager.class';
 import { SceneState } from '../setup';
@@ -19,8 +15,6 @@ type OpsPanelProps = {
 };
 
 export const OpsPanel = ({ sceneState, tileManager }: OpsPanelProps) => {
-  useCurrentThreeDTilesViewerState('zoom');
-
   return (
     <>
       <div
@@ -31,7 +25,6 @@ export const OpsPanel = ({ sceneState, tileManager }: OpsPanelProps) => {
       >
         <PauseTileUpdatesButton tileManager={tileManager} />
         <OpenFlatMapButton sceneState={sceneState} />
-        <SwitchViewButton sceneState={sceneState} />
         <JobsManagerButton />
         <CreateTileJobButton sceneState={sceneState} />
       </div>
@@ -83,7 +76,7 @@ const OpenFlatMapButton = memo(({ sceneState }: OpenFlatMapProps) => {
   const ifrRef = useRef<HTMLIFrameElement>(null);
 
   const handleOpenFlatModal = () => {
-    const center = currentThreeDTilesViewer.getCameraLatLng();
+    const center = currentThreeDTilesViewer.getLatlng();
     setFlatFrameUrl(buildFlatModalUrl(center));
     setIsFlatModalOpen(true);
   };
@@ -118,31 +111,6 @@ const OpenFlatMapButton = memo(({ sceneState }: OpenFlatMapProps) => {
     </>
   );
 });
-
-const SwitchViewButton = ({ sceneState }: { sceneState: SceneState }) => {
-  const handleDirectSwitchTo3dView = async () => {
-    if (sceneState.threeTilesViewer.state.lookat === 'origin') {
-      const center = currentThreeDTilesViewer.getCameraLatLng();
-      await sceneState.focusGroundOrbitAtLatLng(center);
-    } else {
-      sceneState.threeTilesViewer.lookAtOrigin();
-      sceneState.refreshVisibleTilesOnCameraChanges();
-    }
-  };
-
-  return (
-    <SceneControlTooltip label="Switch top-down / perspective view">
-      <IconButton
-        type="button"
-        aria-label="Switch top-down or perspective view"
-        onClick={handleDirectSwitchTo3dView}
-        className="pointer-events-auto"
-      >
-        <ViewAngleIcon />
-      </IconButton>
-    </SceneControlTooltip>
-  );
-};
 
 const JobsManagerButton = memo(() => {
   const [isJobsManageModalOpen, setIsJobsManageModalOpen] = useState(false);
@@ -184,7 +152,7 @@ const CreateTileJobButton = ({ sceneState }: { sceneState: SceneState }) => {
   const [createJobFrameUrl, setCreateJobFrameUrl] = useState('./jobs-create');
 
   const openCreateJobModal = () => {
-    const center = currentThreeDTilesViewer.getCameraLatLng();
+    const center = currentThreeDTilesViewer.getLatlng();
     const nextUrl = center ? `./jobs-create?latlng=${center.lat},${center.lng}` : './jobs-create';
     setCreateJobFrameUrl(nextUrl);
     setIsCreateJobModalOpen(true);

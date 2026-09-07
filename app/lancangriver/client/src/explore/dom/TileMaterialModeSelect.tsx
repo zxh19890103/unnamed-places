@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
 
@@ -12,7 +12,7 @@ import { BASE_URL, ELEVATION_SCALE } from '@/calc/constants';
 import type { TilesManager } from '../TilesManager.class';
 import { currentSceneState, globalTileMaterialMode, setGlobalTileMaterialMode } from '../setup';
 import { TileMaterialMode } from '../SphereTile.class';
-import { ExploreControls } from '../controls/ExploreControls.class';
+import { ExploreControls, ExploreControlsLiveState } from '../controls/ExploreControls.class';
 
 type DemAltitudeResponse = {
   ok: boolean;
@@ -116,8 +116,20 @@ function MaterialModeIcon({ mode }: { mode: TileMaterialMode }) {
 }
 
 export const TileMaterialModeSelect = memo(
-  ({ tileManager }: { controls: ExploreControls; tileManager: TilesManager }) => {
-    const viewerState = useCurrentThreeDTilesViewerState('zoom');
+  ({ tileManager, controls }: { controls: ExploreControls; tileManager: TilesManager }) => {
+    const [viewerState, setLiveState] = useState<ExploreControlsLiveState>(controls.liveState);
+
+    useEffect(() => {
+      const onstate = ({ data }) => {
+        setLiveState(data);
+      };
+
+      controls.addEventListener('state', onstate);
+
+      return () => {
+        controls.removeEventListener('state', onstate);
+      };
+    }, [controls]);
 
     const [mode, setMode] = useState(globalTileMaterialMode);
     const [isElevationLoading, setIsElevationLoading] = useState(false);
@@ -137,15 +149,21 @@ export const TileMaterialModeSelect = memo(
         }
       }
 
-      return true;
+      setMode(requested);
+      setGlobalTileMaterialMode(requested);
     };
 
-    const applyElevationMode = async () => {
+    const applyNonElevationMode = (requested: TileMaterialMode) => {
+      currentSceneState.setVisibleTilesElevationRange(0, 0);
+      applyMaterialMode(requested);
+    };
+
+    const applyElevationMode = async (requested: TileMaterialMode) => {
       if (viewerState.zoom < 11 || isElevationLoading) {
         return;
       }
 
-      const groundCenter = currentThreeDTilesViewer.getCameraLatLng();
+      const groundCenter = currentThreeDTilesViewer.getLatlng();
       if (!groundCenter) {
         return;
       }
@@ -175,9 +193,7 @@ export const TileMaterialModeSelect = memo(
           altitude.max * ELEVATION_SCALE,
         );
 
-        applyMaterialMode(TileMaterialMode.Dem);
-        setMode(TileMaterialMode.Dem);
-        setGlobalTileMaterialMode(TileMaterialMode.Dem);
+        applyMaterialMode(requested);
       } catch (error) {
         console.warn('Failed to prepare elevation terrain', error);
       } finally {
@@ -189,7 +205,10 @@ export const TileMaterialModeSelect = memo(
       <div className="flex flex-wrap gap-2">
         {Object.values(TileMaterialMode).map((materialMode) => {
           const isSelected = mode === materialMode;
-          const isElevationMode = materialMode === TileMaterialMode.Dem;
+
+          const isElevationMode =
+            materialMode === TileMaterialMode.Dem || materialMode === TileMaterialMode.ShanshuiWash;
+
           const isZoomBlocked = isElevationMode && viewerState.zoom < 11;
           const isDisabled = isZoomBlocked || (isElevationMode && isElevationLoading);
           const title = isElevationLoading
@@ -209,14 +228,10 @@ export const TileMaterialModeSelect = memo(
               onClick={() => {
                 const requested = materialMode;
 
-                if (requested === TileMaterialMode.Dem) {
-                  void applyElevationMode();
-                  return;
-                }
-
-                if (applyMaterialMode(requested)) {
-                  setMode(requested);
-                  setGlobalTileMaterialMode(requested);
+                if (requested === TileMaterialMode.Dem || TileMaterialMode.ShanshuiWash) {
+                  applyElevationMode(requested);
+                } else {
+                  applyNonElevationMode(requested);
                 }
               }}
             >

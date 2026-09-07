@@ -10,12 +10,6 @@ export const minOrbitZoomSpeed = 0.000001;
 export const maxOrbitRotateSpeed = 1;
 export const minOrbitRotateSpeed = 0.000001;
 
-export const nearPlaneAltitudeRatio = 0.1;
-export const minNearPlaneMeters = 10;
-export const maxNearPlaneMeters = EARTH_RADIUS * 0.1;
-export const horizonFarPlaneMargin = 1.1;
-export const minFarPlaneGapMeters = 1_000;
-
 export const minOrbitAltitudeMeters = EARTH_RADIUS + 150;
 export const maxOrbitDistanceMeters = EARTH_RADIUS * 2;
 

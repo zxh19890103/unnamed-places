@@ -5,7 +5,6 @@ import { EARTH_RADIUS, BASE_URL } from '@/calc/constants.js';
 import { Sphere } from '../Sphere.class.js';
 import { TilesManager } from '../TilesManager.class.js';
 import { TileMaterialMode } from '../SphereTile.class.js';
-import { LatLng } from '@/calc/types.js';
 import { createVendors } from './vendors.js';
 import { createSkyRig, FOG_COLOR, getDefaultCenterLatlng } from './sky.js';
 import { createGroundOrbitCloudsController } from './clouds.js';
@@ -100,23 +99,8 @@ function createSceneState(container: HTMLElement) {
   };
 
   const setVisibleTilesElevationRange = (minMeters: number, maxMeters: number) => {
-    threeTilesViewer.setElevationRange(minMeters, maxMeters);
-    refreshVisibleTilesOnCameraChanges();
-  };
-
-  const focusGroundOrbitAtLatLng = async (centerLatlng: LatLng) => {
-    threeTilesViewer.lookAtLatlng(centerLatlng, 5_000);
-
-    skyRig.createEarthSurfaceSky(centerLatlng);
-
-    const cameraDistanceMeters = Math.max(1, camera.position.length() - EARTH_RADIUS);
-
-    cloudsController.syncCloudsAtTarget({
-      latlng: centerLatlng,
-      orbitTarget: exploreControls.target.clone(),
-      cameraDistanceMeters: cameraDistanceMeters,
-      viewportHeight: container.clientHeight,
-    });
+    threeTilesViewer.setElevation(minMeters, maxMeters);
+    exploreControls.setEvelation(minMeters, maxMeters);
 
     refreshVisibleTilesOnCameraChanges();
   };
@@ -147,7 +131,7 @@ function createSceneState(container: HTMLElement) {
 
   camera.lookAt(0, 0, 0);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(container.clientWidth, container.clientHeight, true);
   container.appendChild(renderer.domElement);
@@ -181,13 +165,7 @@ function createSceneState(container: HTMLElement) {
 
   scene.add(sphereGlobal);
 
-  threeTilesViewer.useControls(exploreControls);
-
   refreshVisibleTilesOnCameraChanges();
-
-  threeTilesViewer.addEventListener('change:lookat', (event) => {
-    console.log(event);
-  });
 
   return {
     scene,
@@ -201,7 +179,6 @@ function createSceneState(container: HTMLElement) {
     reconcileAttachedNodeMaterials,
     refreshVisibleTilesOnCameraChanges,
     setVisibleTilesElevationRange,
-    focusGroundOrbitAtLatLng,
     threeTilesViewer,
     onFrame: (frameTimeMs: number) => {
       sphereGlobal.recordFrameTime(frameTimeMs);

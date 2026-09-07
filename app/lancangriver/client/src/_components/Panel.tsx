@@ -32,7 +32,7 @@ export const Panel = ({
     <section
       className={clsx(
         'overflow-hidden rounded-xl bg-jade-panel-raised/95 text-jade-text',
-        'w-[min(360px,100%)]',
+        className ? ' w-fit' : 'w-[min(360px,100%)]',
         className,
       )}
     >
@@ -62,7 +62,7 @@ export const Panel = ({
       )}
 
       {isMinimized ? null : (
-        <div className={clsx('px-4 py-3', 'max-h-[min(320px,60vh)] overflow-auto')}>
+        <div className={clsx('px-4 py-3', ' overflow-auto')}>
           {children ? children : <div className="min-h-36" />}
         </div>
       )}

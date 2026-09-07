@@ -23,7 +23,7 @@ export const MiniMap = memo(
 
     useEffect(() => {
       const handle = () => {
-        const latlng0 = currentThreeDTilesViewer.getCameraLatLng();
+        const latlng0 = currentThreeDTilesViewer.getLatlng();
 
         const lat = Number(latlng0.lat.toFixed(precision));
         const lng = Number(latlng0.lng.toFixed(precision));

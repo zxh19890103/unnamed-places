@@ -3,8 +3,8 @@
   "editor.fontSize": 14,
   "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
-  "editor.fontWeight": "300",
-  "window.zoomLevel": 0.5,
+  "editor.fontWeight": "400",
+  "window.zoomLevel": 1,
   "editor.letterSpacing": 2,
   "files.exclude": {
     "**/.git": true,

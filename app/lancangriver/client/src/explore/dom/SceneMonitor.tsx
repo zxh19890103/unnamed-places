@@ -4,18 +4,17 @@ import type { Sphere, SphereStatsPayload } from '../Sphere.class';
 import { TilesBytes } from './TilesBytes';
 import { Panel, DataList } from '@/_components';
 import { useCurrentThreeDTilesViewerState } from '@/_3dtiles';
+import { ExploreControls, ExploreControlsLiveState } from '../controls/ExploreControls.class';
 
 type SceneMonitorProps = {
   sphere: Sphere | null;
+  controls: ExploreControls;
   threeJsStats: any;
 };
 
 const formatters = {
-  dist: (distanceMeters: number | null) =>
+  meters: (distanceMeters: number | null) =>
     distanceMeters === null ? '--' : `${Math.round(distanceMeters).toLocaleString()} m`,
-  zoom: (zoomLevel: number | null) => (zoomLevel === null ? '--' : `${zoomLevel}`),
-  tiles: (visibleTilesCount: number | null) =>
-    visibleTilesCount === null ? '--' : `${visibleTilesCount}`,
   loading: (stats: SphereStatsPayload | null) => {
     if (!stats) {
       return '--';
@@ -62,8 +61,24 @@ function ThreejsStats({ threeJsStats }) {
   );
 }
 
-export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
+export function SceneMonitor({ sphere, threeJsStats, controls }: SceneMonitorProps) {
   const viewrState = useCurrentThreeDTilesViewerState('any');
+
+  const [controlsState, setControlsLiveState] = useState<ExploreControlsLiveState>(
+    controls.liveState,
+  );
+
+  useEffect(() => {
+    const onstate = ({ data }) => {
+      setControlsLiveState(data);
+    };
+
+    controls.addEventListener('state', onstate);
+
+    return () => {
+      controls.removeEventListener('state', onstate);
+    };
+  }, [controls]);
 
   const [stats, setStats] = useState<SphereStatsPayload | null>(null);
 
@@ -96,10 +111,16 @@ export function SceneMonitor({ sphere, threeJsStats }: SceneMonitorProps) {
         bordered
         valueClassName="tabular-nums"
         items={[
-          { label: 'Alt', value: formatters.dist(viewrState.alt) },
-          { label: 'distance', value: formatters.dist(viewrState.distance) },
-          { label: 'Zoom level', value: formatters.zoom(viewrState.zoom) },
-          { label: 'Visible tiles', value: formatters.tiles(viewrState.tilesCount) },
+          { label: 'zoom', value: controlsState.zoom },
+          { label: 'lat', value: controlsState.latlng.lat.toFixed(6) },
+          { label: 'lng', value: controlsState.latlng.lng.toFixed(6) },
+          { label: 'alt', value: formatters.meters(controlsState.alt) },
+          { label: 'height', value: formatters.meters(controlsState.height) },
+          { label: 'distance', value: formatters.meters(controlsState.distance) },
+          { label: 'elevation(min)', value: formatters.meters(controlsState.elevationMin) },
+          { label: 'elevation(max)', value: formatters.meters(controlsState.elevationMax) },
+          { label: 'mode', value: controlsState.mode },
+          { label: 'tiles', value: viewrState.tilesCount },
           { label: 'Asset loading', value: formatters.loading(stats) },
           { label: 'Frame p95', value: formatters.frame(stats) },
         ]}

@@ -138,11 +138,7 @@ const CreateScene = memo(({ sceneState }: { sceneState: SceneState; host: HTMLDi
       switch (eventType) {
         case FLAT_CENTER_CONFIRMED: {
           const center = event.data.payload as LatLng;
-          sceneState.tileManager.frozen = true;
-          sceneState.threeTilesViewer.flyTo(center).then(() => {
-            sceneState.tileManager.frozen = false;
-            sceneState.refreshVisibleTilesOnCameraChanges();
-          });
+          sceneState.controls.setLatlng(center);
           break;
         }
         case 'tile12osm': {
@@ -180,7 +176,11 @@ const CreateScene = memo(({ sceneState }: { sceneState: SceneState; host: HTMLDi
       </div>
 
       <div className="fixed bottom-3 left-3 z-40">
-        <SceneMonitor sphere={sceneState.sphere} threeJsStats={sceneState.stats} />
+        <SceneMonitor
+          controls={sceneState.controls}
+          sphere={sceneState.sphere}
+          threeJsStats={sceneState.stats}
+        />
       </div>
 
       {tile12OsmFrameUrl && (

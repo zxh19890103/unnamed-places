@@ -95,18 +95,37 @@ function ellipsoidToLatlng(x: number, y: number, z: number): LatLng {
   };
 }
 
-function getLocalBasisAtPoint(target: THREE.Vector3) {
-  const up = target.clone().normalize();
-  const worldNorth = new THREE.Vector3(0, 1, 0);
-  let east = worldNorth.clone().cross(up);
+export function distanceToZoomLevel(
+  dist: number,
+  minZoom: number = 0,
+  maxZoom: number = 21,
+  referenceAltitude = 32_000_000.0,
+) {
+  if (!Number.isFinite(dist)) return minZoom;
+  if (dist <= 0) return maxZoom;
 
-  if (east.lengthSq() < 1e-10) {
-    east = new THREE.Vector3(1, 0, 0).cross(up);
+  const zoomLevel = Math.floor(Math.log2(referenceAltitude / dist));
+
+  if (!Number.isFinite(zoomLevel)) {
+    return minZoom;
   }
 
-  east.normalize();
-  const north = up.clone().cross(east).normalize();
-  return { up, east, north };
+  return THREE.MathUtils.clamp(zoomLevel, minZoom, maxZoom);
+}
+
+/**
+ * Inverse of {@link distanceToZoomLevel}: returns the lower-bound ground
+ * distance that maps back to the requested zoom level.
+ */
+export function zoomLevelToDistance(
+  zoom: number,
+  minZoom: number = 0,
+  maxZoom: number = 21,
+  referenceAltitude = 32_000_000.0,
+) {
+  if (!Number.isFinite(zoom)) return referenceAltitude;
+  const clampedZoom = THREE.MathUtils.clamp(zoom, minZoom, maxZoom);
+  return referenceAltitude / Math.pow(2, clampedZoom + 0.5);
 }
 
 const latlngToSphere = latlngToPerfectSphere;

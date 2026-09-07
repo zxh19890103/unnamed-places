@@ -75,7 +75,12 @@ export const DataList = ({
                 >
                   {item.label}
                 </dt>
-                <dd className={clsx('min-w-0 flex-1 font-medium text-jade-text', valueClassName)}>
+                <dd
+                  className={clsx(
+                    'min-w-0 text-right flex-1 font-medium text-jade-text',
+                    valueClassName,
+                  )}
+                >
                   {item.value}
                 </dd>
                 {item.actions ? (
