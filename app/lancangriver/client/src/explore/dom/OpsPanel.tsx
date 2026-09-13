@@ -60,9 +60,7 @@ function PauseTileUpdatesButton({ tileManager }) {
         aria-label={viewerUpdateEnabled ? 'Pause tile updates' : 'Resume tile updates'}
         aria-pressed={!viewerUpdateEnabled}
         onClick={onToggle}
-        className={`pointer-events-auto ${
-          viewerUpdateEnabled ? '' : 'border-jade-river bg-jade-river-soft text-jade-text'
-        }`}
+        className="pointer-events-auto"
       >
         {viewerUpdateEnabled ? <PauseTilesIcon /> : <ResumeTilesIcon />}
       </IconButton>

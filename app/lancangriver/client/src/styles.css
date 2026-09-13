@@ -179,7 +179,9 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  font-family: 'SUSEMono', sans-serif;
+  background: var(--jade-foundation);
+  color: var(--jade-text);
+  font-family: 'SUSEMono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 * {

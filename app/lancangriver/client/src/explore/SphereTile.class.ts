@@ -13,7 +13,6 @@ import { BASE_URL, ELEVATION_SCALE } from '../calc/constants';
 export enum TileMaterialMode {
   Basic = 'basic',
   Dem = 'dem',
-  Clean = 'clean',
   Debug = 'debug',
   ShanshuiWash = 'shanshui-wash',
 }
@@ -113,10 +112,6 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
           tileKey: this.tile,
         });
 
-      case TileMaterialMode.Clean:
-        return new TileCleanMaterial(this.textureLoader, {
-          tileKey: this.tile,
-        });
       case TileMaterialMode.Debug:
         return new TileDebugMaterial({
           tileKey: this.tile,
@@ -146,9 +141,6 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
 
       case TileMaterialMode.Debug:
         return this.material instanceof TileDebugMaterial;
-
-      case TileMaterialMode.Clean:
-        return this.material instanceof TileCleanMaterial;
 
       case TileMaterialMode.ShanshuiWash:
         return this.material instanceof ShanshuiMaterial;

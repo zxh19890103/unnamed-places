@@ -29,46 +29,51 @@ export default function App({ components }) {
   const [selectedComponentEntry, setSelectedComponentEntry] = useState(componentEntries[0]);
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-8">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-900">Lancangriver</p>
-        <h1 className="mt-3 text-4xl font-semibold text-slate-900">Page A</h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-slate-800">
-          A simple page scaffold for the Lancangriver client. Use this page as a starting point for
-          feature-specific UI and navigation.
-        </p>
-      </header>
+    <main className="min-h-screen bg-jade-foundation px-4 py-8 text-jade-text sm:px-6">
+      <div className="mx-auto max-w-5xl">
+        <header className="mb-8">
+          <p className="text-xs font-semibold uppercase text-jade-river">Lancangriver</p>
+          <h1 className="mt-2 text-2xl font-semibold text-jade-text">Component workbench</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-jade-text-muted">
+            Inspect shared client components and their supported states.
+          </p>
+        </header>
 
-      <section className=" space-y-4 rounded-3xl p-8 shadow-lg shadow-slate-950/20">
-        <h2 className="text-2xl font-semibold text-slate-900">Components</h2>
-        <div className=" flex gap-4">
-          <div className=" space-y-2">
-            {componentEntries.map((entry) => {
-              return (
-                <div key={entry.name}>
-                  <button
-                    className={clsx(
-                      ' hover:border-slate-500 active:bg-amber-200 active:border-amber-700 rounded-xl border px-2 py-1',
-                      entry === selectedComponentEntry ? ' border-jade-border bg-jade-depth' : null,
-                    )}
-                    onClick={() => setSelectedComponentEntry(entry)}
-                  >
-                    {entry.name}
-                  </button>
-                </div>
-              );
-            })}
+        <section className="space-y-4 rounded-xl border border-jade-border bg-jade-panel/95 p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-jade-text">Components</h2>
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <nav
+              className="flex gap-2 overflow-x-auto sm:block sm:space-y-2"
+              aria-label="Components"
+            >
+              {componentEntries.map((entry) => {
+                return (
+                  <div key={entry.name}>
+                    <button
+                      className={clsx(
+                        'min-h-9 whitespace-nowrap rounded-lg border px-3 py-1 text-sm transition-colors hover:border-jade-border hover:bg-jade-control-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river',
+                        entry === selectedComponentEntry
+                          ? 'border-jade-river bg-jade-river-soft text-jade-text'
+                          : 'border-jade-border-soft bg-jade-control text-jade-text-muted',
+                      )}
+                      onClick={() => setSelectedComponentEntry(entry)}
+                    >
+                      {entry.name}
+                    </button>
+                  </div>
+                );
+              })}
+            </nav>
+            <div className="min-w-0 flex-1 border-t border-jade-border-soft pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
+              {selectedComponentEntry ? (
+                <LoadFc componentEntry={selectedComponentEntry} />
+              ) : (
+                <div>no component selected.</div>
+              )}
+            </div>
           </div>
-          <div className=" h-10 w-0 border-r border-jade-300 " />
-          <div className=" flex-1 min-w-0">
-            {selectedComponentEntry ? (
-              <LoadFc componentEntry={selectedComponentEntry} />
-            ) : (
-              <div>no component selected.</div>
-            )}
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
@@ -138,10 +143,10 @@ const LoadFc = ({ componentEntry }) => {
           return (
             <section
               key={entry.key}
-              className="min-w-60 min-h-36 flex-1 rounded-2xl bg-white p-4 shadow-sm"
+              className="min-h-36 min-w-60 flex-1 rounded-xl border border-jade-border-soft bg-jade-panel-raised/90 p-4"
             >
               {entry.description ? (
-                <p className="mb-3 text-sm font-medium text-slate-700">{entry.description}</p>
+                <p className="mb-3 text-sm font-medium text-jade-text-muted">{entry.description}</p>
               ) : null}
               <div className="">{content}</div>
             </section>

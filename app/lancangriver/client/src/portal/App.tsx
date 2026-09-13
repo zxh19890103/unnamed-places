@@ -62,13 +62,11 @@ export default function App() {
   return (
     <main className="min-h-screen bg-jade-foundation px-4 py-6 text-jade-text font-[SUSEMono] sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <section className="overflow-hidden rounded-2xl border border-jade-border bg-jade-panel/95 shadow-2xl shadow-[#182a36]/15 backdrop-blur-md">
+        <section className="overflow-hidden rounded-xl border border-jade-border bg-jade-panel/95 shadow-[0_10px_30px_rgba(24,42,54,0.12)]">
           <div className="border-b border-jade-border-soft px-6 py-6 sm:px-7">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river">
-                  Lancangriver
-                </p>
+                <p className="text-[10px] font-semibold uppercase text-jade-river">Lancangriver</p>
                 <h1 className="mt-2 text-3xl font-semibold text-jade-text sm:text-4xl">
                   Experiments Portal
                 </h1>
@@ -88,10 +86,10 @@ export default function App() {
               <a
                 key={experiment.href}
                 href={experiment.href}
-                className="group flex h-full flex-col rounded-xl border border-jade-border-soft bg-jade-panel/80 p-5 shadow-lg shadow-[#182a36]/10 transition-all duration-150 hover:-translate-y-0.5 hover:border-jade-river hover:bg-jade-panel-raised"
+                className="group flex h-full flex-col rounded-xl border border-jade-border-soft bg-jade-panel/80 p-5 transition-colors duration-150 hover:border-jade-river hover:bg-jade-panel-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="rounded-full border border-jade-river/25 bg-jade-river-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-jade-river">
+                  <span className="rounded-md border border-jade-river/40 bg-jade-river-soft px-2.5 py-1 text-[10px] font-semibold uppercase text-jade-river">
                     View
                   </span>
                   <ExternalLinkIcon

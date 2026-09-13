@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '../_components';
+import { Button, IconButton, Tooltip } from '../_components';
 
 import { defaultCoverageApi, highwaysCoverageApi, type CoverageJobsPage } from './api';
 import { JobsTable } from './JobsTable';
@@ -229,38 +229,44 @@ export default function App() {
   }, [mapExtentKey]);
 
   return (
-    <main className=" min-h-screen h-screen overflow-hidden bg-jade-panel-raised px-4 py-4 text-jade-text sm:px-6 lg:px-8">
+    <main className="h-screen min-h-screen overflow-hidden bg-jade-foundation px-4 py-4 text-jade-text sm:px-6 lg:px-8">
       <div
-        className={` fixed top-0 z-10 right-0 flex items-center transition-all duration-300 ${isMapOpen ? ' w-xl' : 'w-64'}`}
+        className={`fixed top-0 right-0 z-10 flex max-w-[calc(100vw-0.5rem)] items-center transition-[width] duration-300 ${isMapOpen ? 'w-xl' : 'w-64'}`}
       >
-        <div className="absolute right-3 top-3 z-20 rounded-xl p-1">
-          <button
-            onClick={() => setIsMapOpen(!isMapOpen)}
-            className="rounded-full p-2 font-semibold text-jade-text shadow-sm transition-colors hover:bg-jade-control-hover focus:outline-none focus:ring-2 focus:ring-jade-river"
-          >
-            {isMapOpen ? <ZoomOutIcon /> : <ZoomInIcon />}
-          </button>
+        <div className="absolute top-3 right-3 z-20">
+          <Tooltip label={isMapOpen ? 'Collapse map preview' : 'Expand map preview'} side="left">
+            <IconButton
+              onClick={() => setIsMapOpen(!isMapOpen)}
+              size="sm"
+              aria-label={isMapOpen ? 'Collapse map preview' : 'Expand map preview'}
+              aria-expanded={isMapOpen}
+            >
+              {isMapOpen ? <ZoomOutIcon /> : <ZoomInIcon />}
+            </IconButton>
+          </Tooltip>
         </div>
 
         {isMapOpen && (
           <div className=" z-20 absolute left-3 top-3 flex gap-1 rounded-lg border border-jade-border-soft bg-jade-control/70 p-1">
             <button
               onClick={() => setMapExtentKey('china')}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
+              className={`rounded-md border px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
                 mapExtentKey === 'china'
-                  ? 'bg-jade-river-soft text-jade-text shadow-sm'
-                  : 'text-jade-text-muted hover:bg-jade-control hover:text-jade-text'
+                  ? 'border-jade-river bg-jade-river-soft text-jade-text'
+                  : 'border-transparent text-jade-text-muted hover:border-jade-border-soft hover:bg-jade-control hover:text-jade-text'
               }`}
+              aria-pressed={mapExtentKey === 'china'}
             >
               China
             </button>
             <button
               onClick={() => setMapExtentKey('world')}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-jade-river focus:ring-offset-1 ${
+              className={`rounded-md border px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
                 mapExtentKey === 'world'
-                  ? 'bg-jade-river-soft text-jade-text shadow-sm'
-                  : 'text-jade-text-muted hover:bg-jade-control hover:text-jade-text'
+                  ? 'border-jade-river bg-jade-river-soft text-jade-text'
+                  : 'border-transparent text-jade-text-muted hover:border-jade-border-soft hover:bg-jade-control hover:text-jade-text'
               }`}
+              aria-pressed={mapExtentKey === 'world'}
             >
               World
             </button>
@@ -269,7 +275,7 @@ export default function App() {
 
         <div
           ref={mapRef}
-          className="relative overflow-hidden rounded-2xl border border-jade-border-soft bg-jade-panel/80 shadow-2xl shadow-[#182a36]/20"
+          className="relative overflow-hidden rounded-xl border border-jade-border bg-jade-panel/80 shadow-[0_8px_24px_rgba(24,42,54,0.12)]"
         >
           <img
             className=" w-full"
@@ -280,12 +286,12 @@ export default function App() {
         </div>
       </div>
       <div className="mx-auto h-full flex flex-col">
-        <header className="mb-4 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-4">
+        <header className="mb-4 flex flex-wrap items-end justify-between gap-4 border-b border-jade-border-soft pb-4">
           <div>
             <a
               href="/portal.html"
               target="_blank"
-              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river hover:text-jade-river/80"
+              className="text-[10px] font-semibold uppercase text-jade-river hover:text-jade-river/80"
             >
               Lancangriver Portal
             </a>
@@ -296,7 +302,7 @@ export default function App() {
           </div>
 
           <div className="text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-jade-text-muted">
+            <div className="text-[10px] font-semibold uppercase text-jade-text-muted">
               Jobs total
             </div>
             <div className="text-2xl font-semibold tabular-nums text-jade-text">
@@ -328,20 +334,16 @@ export default function App() {
             ).map(([key, { icon, label }]) => {
               const selected = key === mapExtentKey;
               return (
-                <button
+                <Button
                   key={key}
                   type="button"
+                  size="xs"
                   onClick={() => setMapExtentKey(key)}
-                  className={`rounded-lg flex gap-1 px-3 py-1 text-xs font-medium ${
-                    selected
-                      ? ' bg-jade-river-soft text-jade-text'
-                      : ' bg-jade-control text-jade-text-muted hover:bg-jade-control-hover'
-                  }`}
                   aria-pressed={selected}
                 >
                   {icon}
                   {label}
-                </button>
+                </Button>
               );
             })}
           </div>

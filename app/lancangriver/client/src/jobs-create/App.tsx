@@ -61,11 +61,11 @@ export default function App() {
           />
         </main>
 
-        <aside className="flex z-999 h-[43vh] w-full shrink-0 flex-col bg-jade-panel/95 shadow-2xl shadow-jade-800 backdrop-blur-md lg:h-full lg:w-96">
-          <header className=" px-4 py-4 shadow-2xl shadow-jade-400">
+        <aside className="z-999 flex h-[43vh] w-full shrink-0 flex-col border-t border-jade-border bg-jade-panel/95 backdrop-blur-md lg:h-full lg:w-96 lg:border-t-0 lg:border-l">
+          <header className="border-b border-jade-border-soft px-4 py-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river">
+                <p className="text-[10px] font-semibold uppercase text-jade-river">
                   Coverage workspace
                 </p>
                 <h1 className="mt-1 text-sm font-semibold tracking-wide text-jade-text">
@@ -227,7 +227,7 @@ const TileListItem = memo(
           cancelLabel: 'Dismiss',
           actionVariant: 'destructive',
           children: (
-            <p className="rounded-lg border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-sm text-rose-300">
+            <p className="rounded-lg border border-jade-error/40 bg-jade-error/10 px-3 py-2 text-sm text-jade-error">
               Could not check status. See console for details.
             </p>
           ),
@@ -239,7 +239,7 @@ const TileListItem = memo(
       <li
         key={`${tile.z}/${tile.x}/${tile.y}`}
         className={
-          'rounded-xl border bg-jade-panel/90 p-3 text-xs shadow-lg shadow-[#182a36]/10 transition-colors hover:bg-jade-control' +
+          'rounded-xl border bg-jade-panel/90 p-3 text-xs transition-colors hover:bg-jade-control' +
           (focused ? ' border-jade-river ring-1 ring-jade-river/30' : ' border-jade-border-soft')
         }
       >
@@ -252,7 +252,7 @@ const TileListItem = memo(
               {tile.z}/{tile.x}/{tile.y}
             </Tile12OsmLink>
             {isManualTile ? (
-              <span className="rounded-full border border-jade-sky/25 bg-jade-sky-soft px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-jade-sky">
+              <span className="rounded-md border border-jade-sky/40 bg-jade-sky-soft px-2 py-0.5 text-[10px] uppercase text-jade-sky">
                 manual
               </span>
             ) : null}

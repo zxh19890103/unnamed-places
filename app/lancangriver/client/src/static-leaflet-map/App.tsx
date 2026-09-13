@@ -43,7 +43,7 @@ export default function App() {
     const marker = L.marker(DEFAULT_CENTER, {
       icon: L.divIcon({
         className: 'static-map-marker',
-        html: `<svg aria-hidden="true" viewBox="0 0 32 40" width="32" height="40" xmlns="http://www.w3.org/2000/svg"><path d="M16 1C8.3 1 2 7.3 2 15c0 10.2 14 23 14 23s14-12.8 14-23C30 7.3 23.7 1 16 1Z" fill="#0ea5e9" stroke="#fff" stroke-width="2"/><circle cx="16" cy="15" r="5" fill="#082f49" stroke="#fff" stroke-width="2"/></svg>`,
+        html: `<svg aria-hidden="true" viewBox="0 0 32 40" width="32" height="40" xmlns="http://www.w3.org/2000/svg"><path d="M16 1C8.3 1 2 7.3 2 15c0 10.2 14 23 14 23s14-12.8 14-23C30 7.3 23.7 1 16 1Z" fill="#397fcf" stroke="#f8fbfd" stroke-width="2"/><circle cx="16" cy="15" r="5" fill="#182a36" stroke="#f8fbfd" stroke-width="2"/></svg>`,
         iconSize: [32, 40],
         iconAnchor: [16, 38],
       }),

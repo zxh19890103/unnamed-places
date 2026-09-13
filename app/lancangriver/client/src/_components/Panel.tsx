@@ -31,8 +31,8 @@ export const Panel = ({
   return (
     <section
       className={clsx(
-        'overflow-hidden rounded-xl bg-jade-panel-raised/95 text-jade-text',
-        className ? ' w-fit' : 'w-[min(360px,100%)]',
+        'overflow-hidden pointer-events-auto rounded-xl border border-jade-border bg-jade-panel/95 text-jade-text shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md',
+        className ? 'w-fit max-w-[calc(100vw-1.5rem)]' : 'w-[min(360px,calc(100vw-1.5rem))]',
         className,
       )}
     >
@@ -56,13 +56,13 @@ export const Panel = ({
       </div>
 
       {isMinimized ? null : (
-        <div className=" mx-2">
+        <div className="mx-2">
           <hr className="border-t border-jade-border-soft" />
         </div>
       )}
 
       {isMinimized ? null : (
-        <div className={clsx('px-4 py-3', ' overflow-auto')}>
+        <div className="max-h-[min(70vh,640px)] overflow-auto px-4 py-3">
           {children ? children : <div className="min-h-36" />}
         </div>
       )}

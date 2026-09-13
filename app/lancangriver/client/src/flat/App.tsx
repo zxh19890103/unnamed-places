@@ -3,6 +3,7 @@ import { MapIntroCard } from './MapIntroCard.js';
 import { readInitialCenterFromSearch, FLAT_CENTER_CONFIRMED } from './protocol.js';
 import { useMemo, useState } from 'react';
 import type { LatLng } from '../calc/types.js';
+import { Button } from '../_components/Button.js';
 
 export default function LeafletApp() {
   const initialCenter = useMemo(
@@ -27,7 +28,7 @@ export default function LeafletApp() {
   };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-slate-950">
+    <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation text-jade-text">
       <LeafletMap
         initialCenter={initialCenter}
         onCenterChange={setMapFocusCenter}
@@ -35,21 +36,17 @@ export default function LeafletApp() {
         focusZoom={12}
       />
       <MapIntroCard />
-      <div className="absolute bottom-4 right-4 z-500 rounded-xl bg-slate-950/80 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-sm">
-        <div className="font-semibold tracking-wide text-slate-100">Confirm center</div>
-        <div className="mt-1 text-slate-300">
+      <section className="absolute right-3 bottom-8 z-500 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-jade-border bg-jade-panel/95 p-3 text-sm shadow-[0_8px_24px_rgba(24,42,54,0.14)] backdrop-blur-md sm:right-4">
+        <h2 className="font-semibold">Confirm center</h2>
+        <div className="mt-1 tabular-nums text-jade-text-muted">
           {mapFocusCenter.lat.toFixed(5)}, {mapFocusCenter.lng.toFixed(5)}
         </div>
-        <div className=" flex-col flex gap-2">
-          <button
-            type="button"
-            onClick={confirmCenter}
-            className="rounded-lg bg-jade-800 px-3 py-2 font-medium text-jade-text-100 transition-colors hover:bg-jade-600"
-          >
+        <div className="mt-3 flex">
+          <Button type="button" variant="primary" size="sm" onClick={confirmCenter}>
             Use this center
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

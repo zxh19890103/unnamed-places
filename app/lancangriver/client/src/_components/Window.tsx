@@ -1,6 +1,6 @@
 import { Cross1Icon } from '@radix-ui/react-icons';
 import { IconButton } from './Button';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { ComponentStoryBook } from './_types';
@@ -27,6 +27,7 @@ export const ChildWindow = ({
   size = null,
 }: Props) => {
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const titleId = useId();
 
   useEffect(() => {
     setIsPageLoading(true);
@@ -36,18 +37,16 @@ export const ChildWindow = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="child-win-dialog-title"
+      aria-labelledby={titleId}
       className={clsx(
-        'flex flex-col overflow-hidden rounded-xl bg-jade-panel text-jade-text',
+        'flex max-h-[calc(100vh-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border border-jade-border bg-jade-panel/95 text-jade-text shadow-[0_12px_36px_rgba(24,42,54,0.16)] backdrop-blur-md',
         className ? className : 'h-full w-full ',
       )}
     >
-      <header className="z-1 shadow-2xl shadow-jade-900/20 flex min-h-14 items-center justify-between gap-3 px-4 py-2.5">
+      <header className="z-1 flex min-h-14 items-center justify-between gap-3 border-b border-jade-border-soft px-4 py-2.5">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-jade-river uppercase">
-            {winRole}
-          </p>
-          <h2 id="flat-map-dialog-title" className="truncate text-sm font-semibold">
+          <p className="text-[10px] font-semibold text-jade-river uppercase">{winRole}</p>
+          <h2 id={titleId} className="truncate text-sm font-semibold">
             {title}
           </h2>
         </div>
@@ -157,7 +156,7 @@ const ChildWindowModal = ({
       <div ref={backrdopRef} aria-label="backdrop" className="absolute inset-0" />
       <div
         className={clsx(
-          'h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl bg-jade-panel',
+          'h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl border border-jade-border bg-jade-panel shadow-[0_20px_60px_rgba(24,42,54,0.18)]',
           className,
         )}
         style={

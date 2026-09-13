@@ -1,8 +1,10 @@
 export function MapIntroCard() {
   return (
-    <div className="pointer-events-none absolute left-4 bottom-4 z-500 rounded-xl bg-slate-950/75 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-sm">
-      <div className="font-semibold tracking-wide text-slate-100">Flat Map Standalone</div>
-      <div className="mt-1 text-slate-300">Minimal parallel app under /index-leaflet.html</div>
-    </div>
+    <section className="pointer-events-none absolute top-3 right-3 left-14 z-500 max-w-80 rounded-xl border border-jade-border bg-jade-panel/92 px-4 py-3 text-sm text-jade-text shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md sm:top-4 sm:right-auto sm:left-16">
+      <h1 className="font-semibold">Choose a map center</h1>
+      <p className="mt-1 text-xs leading-5 text-jade-text-muted">
+        Select a point on the map, then confirm the coordinates.
+      </p>
+    </section>
   );
 }

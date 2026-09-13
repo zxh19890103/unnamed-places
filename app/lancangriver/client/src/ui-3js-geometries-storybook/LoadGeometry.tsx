@@ -82,14 +82,14 @@ export default function LoadGeometry({ geometry, name }: Props) {
   }, [geometry, name]);
 
   return (
-    <div className="mt-6 rounded-3xl border border-slate-300 bg-slate-50/90 p-4 shadow-sm">
+    <div className="mt-6 rounded-xl border border-jade-border-soft bg-jade-panel-raised/80 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-600">Preview</h3>
-        {name ? <span className="text-sm text-slate-500">{name}</span> : null}
+        <h3 className="text-xs font-semibold uppercase text-jade-text-muted">Preview</h3>
+        {name ? <span className="text-sm text-jade-text-muted">{name}</span> : null}
       </div>
       <div
         ref={mountRef}
-        className="h-105 w-full overflow-hidden rounded-2xl border border-slate-300 bg-[radial-gradient(circle_at_top,#ffffff,#e7f1f7_70%)]"
+        className="h-105 w-full overflow-hidden rounded-lg border border-jade-border bg-jade-depth"
       />
     </div>
   );

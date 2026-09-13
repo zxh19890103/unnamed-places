@@ -53,8 +53,8 @@ function TableHead() {
 
 export function JobsTable({ page, loading, error, api }: JobsTableProps) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl bg-jade-panel/90 shadow-2xl shadow-[#182a36]/15">
-      <div className=" w-full shadow-2xl shadow-jade-800/40">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-jade-border bg-jade-panel/90 shadow-[0_8px_24px_rgba(24,42,54,0.1)]">
+      <div className="w-full border-b border-jade-border-soft">
         <table className=" table-fixed w-full min-w-190 border-collapse text-left text-sm">
           <TableColGroup />
           <TableHead />

@@ -1,26 +1,3 @@
-:root {
-  color-scheme: light;
-  --jade-foundation: #eaf2f7;
-  --jade-depth: #dce8f0;
-  --jade-panel: #f8fbfd;
-  --jade-panel-raised: #ffffff;
-  --jade-control: #e4eef5;
-  --jade-control-hover: #d3e3ed;
-  --jade-border: #8ea7b7;
-  --jade-border-soft: #c2d2dc;
-  --jade-text: #182a36;
-  --jade-text-muted: #5f7482;
-  --jade-river: #078ea5;
-  --jade-river-soft: #cdeef3;
-  --jade-success: #2e9b66;
-  --jade-silt: #c78313;
-  --jade-error: #d94b5b;
-  --jade-sky: #397fcf;
-  --jade-sky-soft: #dceafa;
-  --jade-lotus: #d94f83;
-  --jade-lotus-soft: #f9dce7;
-}
-
 html {
   scroll-behavior: smooth;
   background: var(--jade-foundation);
@@ -30,8 +7,7 @@ body {
   min-width: 320px;
   background:
     linear-gradient(rgba(57, 127, 207, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(57, 127, 207, 0.06) 1px, transparent 1px),
-    var(--jade-foundation);
+    linear-gradient(90deg, rgba(57, 127, 207, 0.06) 1px, transparent 1px), var(--jade-foundation);
   background-size: 32px 32px;
   color: var(--jade-text);
 }
@@ -51,7 +27,7 @@ body {
     linear-gradient(rgba(24, 42, 54, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(24, 42, 54, 0.08) 1px, transparent 1px);
   background-size: 48px 48px;
-  content: "";
+  content: '';
 }
 
 .map-contours {

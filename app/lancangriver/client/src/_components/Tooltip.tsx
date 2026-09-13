@@ -22,7 +22,7 @@ type Props = {
 };
 
 const baseContentClassName =
-  'z-2000 rounded-lg bg-jade-panel-raised px-3 py-2 text-xs font-medium text-jade-text shadow-[0_12px_30px_rgba(24,42,54,0.18)] select-none';
+  'z-2000 select-none rounded-lg bg-jade-panel-raised px-3 py-2 text-xs font-medium text-jade-text shadow-[0_8px_20px_rgba(24,42,54,0.14)]';
 
 export const Tooltip = ({
   label,

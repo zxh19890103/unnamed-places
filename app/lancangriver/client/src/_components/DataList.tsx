@@ -52,7 +52,7 @@ export const DataList = ({
     <div
       className={clsx(
         'w-full rounded-xl text-jade-text',
-        bordered && 'border border-jade-border-soft bg-jade-panel-raised/95',
+        bordered && 'border border-jade-border bg-jade-panel-raised/90',
         className,
       )}
     >

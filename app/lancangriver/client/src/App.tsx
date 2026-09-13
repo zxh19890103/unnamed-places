@@ -156,18 +156,18 @@ const CreateScene = memo(({ sceneState }: { sceneState: SceneState; host: HTMLDi
 
   return (
     <>
-      <div className=" p-2 pointer-events-none fixed inset-x-3 top-3 z-40 flex flex-nowrap justify-center overflow-x-auto">
+      <div className="pointer-events-none fixed inset-x-2 lg:top-2 z-40 flex justify-start overflow-x-auto sm:inset-x-3 sm:top-3 sm:justify-center">
         <TileMaterialModeSelect
           controls={sceneState.controls}
           tileManager={sceneState.tileManager}
         />
       </div>
 
-      <div className="fixed left-3 top-3 z-40">
+      <div className="pointer-events-none fixed lg:left-2 lg:top-2 z-40 sm:left-3 sm:top-20">
         <JourneyPanel />
       </div>
 
-      <div className=" pointer-events-none fixed top-1/2 right-3 z-40 -translate-y-1/2">
+      <div className="pointer-events-none fixed lg:right-2 top-1/2 z-40 -translate-y-1/2 sm:right-3">
         <OpsPanel
           sceneState={sceneState}
           tileManager={sceneState.tileManager}
@@ -175,7 +175,7 @@ const CreateScene = memo(({ sceneState }: { sceneState: SceneState; host: HTMLDi
         />
       </div>
 
-      <div className="fixed bottom-3 left-3 z-40">
+      <div className="pointer-events-none fixed bottom-2 lg:left-2 z-40 sm:bottom-3 sm:left-3">
         <SceneMonitor
           controls={sceneState.controls}
           sphere={sceneState.sphere}
@@ -194,7 +194,7 @@ const CreateScene = memo(({ sceneState }: { sceneState: SceneState; host: HTMLDi
         </ChildWindow.Modal>
       )}
 
-      <div className="fixed top-3 right-2 z-50">
+      <div className="pointer-events-none fixed right-2 lg:top-2 z-50 sm:top-20">
         <MiniMap controls={sceneState.controls} precision={9} />
       </div>
     </>

@@ -162,9 +162,14 @@ export const ZoomFactorCharts = memo(() => {
 
   return (
     <div className="fixed right-2 bottom-2 ">
-      <Panel className="1" defaultMinimized={true} title="Far - Zoom Sensitivity" description="">
-        <div className=" w-3xl">
-          <div className=" border p-2 rounded-2xl space-y-1">
+      <Panel
+        className="w-[min(48rem,calc(100vw-1rem))]"
+        defaultMinimized={true}
+        title="Far - Zoom Sensitivity"
+        description=""
+      >
+        <div className="w-full">
+          <div className="space-y-1 rounded-lg border border-jade-border-soft bg-jade-panel-raised/70 p-2">
             <label>maxfar: {vars.referenceAltitudeMeters}</label>
             <input
               placeholder="maxFar"
@@ -255,9 +260,14 @@ export const OrbitFactorCharts = memo(() => {
 
   return (
     <div className="fixed right-2 top-2 ">
-      <Panel className="1" defaultMinimized={true} title="Far - Rotate Sensitivity" description="">
-        <div className=" w-3xl">
-          <div className=" border p-2 rounded-2xl space-y-1">
+      <Panel
+        className="w-[min(48rem,calc(100vw-1rem))]"
+        defaultMinimized={true}
+        title="Far - Rotate Sensitivity"
+        description=""
+      >
+        <div className="w-full">
+          <div className="space-y-1 rounded-lg border border-jade-border-soft bg-jade-panel-raised/70 p-2">
             <label>fov: {vars.fov}</label>
             <input
               placeholder="fov"

@@ -85,13 +85,13 @@ export default function App() {
         )}
       </div>
 
-      <section className="absolute left-3 right-3 top-3 z-1009 w-[min(28rem,calc(100%-1.5rem))] rounded-2xl border border-jade-border-soft bg-jade-panel/95 p-4 shadow-2xl shadow-[#182a36]/15 backdrop-blur-md">
+      <section className="absolute top-3 right-3 left-3 z-1009 w-[min(28rem,calc(100%-1.5rem))] rounded-xl border border-jade-border bg-jade-panel/95 p-4 shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md">
         <div className="flex items-start justify-between gap-3">
           <div>
             <a
               href="/portal.html"
               target="_blank"
-              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-jade-river hover:text-jade-sky"
+              className="text-[10px] font-semibold uppercase text-jade-river hover:text-jade-sky"
             >
               Lancangriver Portal
             </a>

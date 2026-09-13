@@ -221,7 +221,7 @@ export default function App() {
   }, []);
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-slate-950 font-suse-mono text-jade-50">
+    <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation font-suse-mono text-jade-text">
       <div ref={mountRef} className="h-full w-full" />
 
       {ready && <WheelGestureOverlay target={rendererDomRef.current} />}
@@ -236,9 +236,9 @@ export default function App() {
 const CameraOperationsTest = memo(
   ({ controls }: { scene: THREE.Scene; controls: ExploreControls }) => {
     return (
-      <div className=" p-3 rounded-xl bg-white fixed left-0 top-0 text-black">
-        <h1 className=" text-xl font-semibold">Camera Ops Test</h1>
-        <div className="  space-y-2  ">
+      <section className="fixed top-2 left-2 w-[min(30rem,calc(100vw-1rem))] rounded-xl border border-jade-border bg-jade-panel/95 p-3 text-jade-text shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md">
+        <h1 className="text-sm font-semibold">Camera operations</h1>
+        <div className="mt-3 space-y-2">
           <CameraOperationsTestAction args="[ 0, 0 ]" action="setElevation" controls={controls} />
           <CameraOperationsTestAction args="12" action="setZoomLevel" controls={controls} />
           {/* <CameraOperationsTestAction args="{lat:12,lng:12}" action="flyTo" controls={controls} /> */}
@@ -252,7 +252,7 @@ const CameraOperationsTest = memo(
           <CameraOperationsTestAction args="1" action="yaw" controls={controls} />
           <CameraOperationsTestAction args="1" action="pitch" controls={controls} /> */}
         </div>
-      </div>
+      </section>
     );
   },
 );
@@ -297,13 +297,13 @@ const CameraOperationsTestAction = ({
   return (
     <div
       className={clsx(
-        ' relative flex items-center gap-4',
-        phase === 1 ? ' pointer-events-none' : '',
+        'relative flex flex-wrap items-center gap-2 text-xs',
+        phase === 1 ? 'pointer-events-none opacity-60' : '',
       )}
     >
       {action}:{' '}
       <button
-        className=" w-20 text-center hover:bg-jade-300 active:border-jade-600 border px-2 py-1 rounded-lg"
+        className="min-h-8 w-20 rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 text-center font-medium hover:border-jade-border hover:bg-jade-control-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river"
         onClick={Do}
       >
         {phase === 0 ? 'do' : phase === 1 ? 'doing' : 'done'}
@@ -321,11 +321,11 @@ const CameraOperationsTestAction = ({
               Do();
             }
           }}
-          className=" underline outline-none rounded-lg py-1 "
+          className="min-h-8 min-w-0 rounded-lg border border-jade-border-soft bg-jade-panel-raised px-2 py-1 text-jade-text outline-none focus:border-jade-river"
         />
         )
       </div>
-      <p className=" text-sm text-jade-error-400 absolute leading-0 bottom-0">
+      <p className="w-full text-xs text-jade-error">
         {parsedArgs === undefined ? 'args invalid' : null}
       </p>
     </div>

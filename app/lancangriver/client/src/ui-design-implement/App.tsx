@@ -19,7 +19,7 @@ type JourneyState = 'ready' | 'loading' | 'empty' | 'error';
 type PageView = 'dom' | 'map';
 
 const panelClass =
-  'rounded-xl border border-[var(--jade-border)] bg-[color:var(--jade-panel)]/95 text-[var(--jade-text)] shadow-xl shadow-[#182a36]/15 backdrop-blur-md';
+  'rounded-xl border border-jade-border bg-jade-panel/95 text-jade-text shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md';
 const controlClass =
   'min-h-10 rounded-lg border border-jade-border-soft bg-jade-control px-3 py-2 text-sm font-medium text-jade-text transition-colors hover:border-jade-border hover:bg-jade-control-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river disabled:cursor-not-allowed disabled:text-jade-text-muted disabled:opacity-45';
 const primaryRiverClass =
@@ -160,11 +160,11 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-5 border-t border-[var(--jade-border-soft)] py-8">
+    <section id={id} className="scroll-mt-5 border-t border-jade-border-soft py-8">
       <header className="mb-5 max-w-3xl">
         <p className={labelClass}>{eyebrow}</p>
-        <h2 className="mt-2 text-xl font-semibold text-[var(--jade-text)]">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-[var(--jade-text-muted)]">{description}</p>
+        <h2 className="mt-2 text-xl font-semibold text-jade-text">{title}</h2>
+        <p className="mt-1 text-sm leading-6 text-jade-text-muted">{description}</p>
       </header>
       {children}
     </section>
@@ -174,7 +174,7 @@ function Section({
 function Stage({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`map-stage relative min-h-150 overflow-hidden rounded-xl border border-[var(--jade-border)] ${className}`}
+      className={`map-stage relative min-h-150 overflow-hidden rounded-xl border border-jade-border ${className}`}
     >
       <div className="map-river" aria-hidden="true" />
       <div className="map-contours" aria-hidden="true" />
@@ -236,7 +236,7 @@ function OpsPanel() {
   const [updatesPaused, setUpdatesPaused] = useState(false);
   return (
     <aside className={`${panelClass} w-[min(280px,calc(100vw-3rem))] p-3`}>
-      <div className="mb-2 border-b border-[var(--jade-border-soft)] pb-2">
+      <div className="mb-2 border-b border-jade-border-soft pb-2">
         <p className={labelClass}>Map workspace</p>
         <h3 className="mt-0.5 text-sm font-semibold">Scene controls</h3>
       </div>
@@ -298,11 +298,9 @@ function SceneMonitor() {
           {metrics.map(([label, value]) => (
             <div
               key={label}
-              className="min-w-0 rounded-lg border border-[var(--jade-border-soft)] bg-[var(--jade-depth)]/45 p-2"
+              className="min-w-0 rounded-lg border border-jade-border-soft bg-jade-depth/45 p-2"
             >
-              <dt className="truncate text-[9px] text-[var(--jade-text-muted)] uppercase">
-                {label}
-              </dt>
+              <dt className="truncate text-[9px] text-jade-text-muted uppercase">{label}</dt>
               <dd className="mt-1 truncate text-xs font-medium tabular-nums">{value}</dd>
             </div>
           ))}
@@ -327,7 +325,7 @@ function JourneyPanel() {
           aria-label="Journey panel state"
           value={state}
           onChange={(event) => setState(event.target.value as JourneyState)}
-          className="min-h-9 rounded-lg border border-[var(--jade-border-soft)] bg-[var(--jade-control)] px-2 text-xs text-[var(--jade-text)]"
+          className="min-h-9 rounded-lg border border-jade-border-soft bg-jade-control px-2 text-xs text-jade-text"
         >
           <option value="ready">Ready</option>
           <option value="loading">Loading</option>
@@ -337,15 +335,13 @@ function JourneyPanel() {
       </div>
       <div className="mt-3 min-h-18 overflow-y-auto" aria-live="polite">
         {state === 'loading' && (
-          <p className="text-xs text-[var(--jade-text-muted)]">Loading photo locations...</p>
+          <p className="text-xs text-jade-text-muted">Loading photo locations...</p>
         )}
         {state === 'empty' && (
-          <p className="text-xs text-[var(--jade-text-muted)]">No geotagged photos in this area.</p>
+          <p className="text-xs text-jade-text-muted">No geotagged photos in this area.</p>
         )}
         {state === 'error' && (
-          <p className="text-xs text-[var(--jade-error)]">
-            Photo locations could not be loaded. Try again.
-          </p>
+          <p className="text-xs text-jade-error">Photo locations could not be loaded. Try again.</p>
         )}
         {state === 'ready' && (
           <div className="grid gap-2">
@@ -365,7 +361,7 @@ function JourneyPanel() {
                 >
                   <span className="flex items-center justify-between gap-3">
                     <span className="text-sm font-medium">{day.label}</span>
-                    <span className="shrink-0 text-xs tabular-nums text-[var(--jade-text-muted)]">
+                    <span className="shrink-0 text-xs tabular-nums text-jade-text-muted">
                       {day.count} photos
                     </span>
                   </span>
@@ -373,7 +369,7 @@ function JourneyPanel() {
                     {day.places.map((place) => (
                       <span
                         key={place}
-                        className="rounded-md bg-[var(--jade-lotus-soft)] px-2 py-0.5 text-[10px] text-[var(--jade-lotus)]"
+                        className="rounded-md bg-jade-lotus-soft px-2 py-0.5 text-[10px] text-jade-lotus"
                       >
                         {place}
                       </span>
@@ -419,10 +415,10 @@ function StatusBadge({
 }) {
   const toneClass =
     tone === 'ready'
-      ? 'text-[var(--jade-success)]'
+      ? 'text-jade-success'
       : tone === 'pending'
-        ? 'text-[var(--jade-silt)]'
-        : 'text-[var(--jade-error)]';
+        ? 'text-jade-silt'
+        : 'text-jade-error';
   return <span className={`text-xs font-medium ${toneClass}`}>{children}</span>;
 }
 
@@ -434,9 +430,9 @@ function DomPage() {
   ] as const;
 
   return (
-    <div className="min-h-120 bg-[var(--jade-depth)] p-4 sm:p-6">
+    <div className="min-h-120 bg-jade-depth p-4 sm:p-6">
       <div className="mx-auto max-w-3xl">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--jade-border-soft)] pb-4">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-jade-border-soft pb-4">
           <div>
             <p className={labelClass}>Vector coverage</p>
             <h3 className="mt-1 text-lg font-semibold">Loaded map tiles</h3>
@@ -446,9 +442,9 @@ function DomPage() {
             Create tile job
           </button>
         </div>
-        <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--jade-border)]">
+        <div className="mt-4 overflow-x-auto rounded-xl border border-jade-border">
           <table className="min-w-full border-collapse text-left text-sm">
-            <thead className="bg-[var(--jade-panel-raised)] text-[var(--jade-text-muted)]">
+            <thead className="bg-jade-panel-raised text-jade-text-muted">
               <tr>
                 {['Tile', 'Coverage', 'Status'].map((head) => (
                   <th key={head} className="px-4 py-3 font-medium">
@@ -459,12 +455,9 @@ function DomPage() {
             </thead>
             <tbody>
               {rows.map(([tile, coverage, status]) => (
-                <tr
-                  key={tile}
-                  className="border-t border-[var(--jade-border-soft)] bg-[var(--jade-panel)]"
-                >
+                <tr key={tile} className="border-t border-jade-border-soft bg-jade-panel">
                   <td className="px-4 py-3 font-medium tabular-nums">{tile}</td>
-                  <td className="px-4 py-3 text-[var(--jade-text-muted)]">{coverage}</td>
+                  <td className="px-4 py-3 text-jade-text-muted">{coverage}</td>
                   <td className="px-4 py-3">
                     <StatusBadge tone={status}>
                       {status === 'ready'
@@ -527,9 +520,9 @@ function PageSpecimens() {
   const [view, setView] = useState<PageView>('dom');
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--jade-border)] bg-[var(--jade-depth)]">
+    <div className="overflow-hidden rounded-xl border border-jade-border bg-jade-depth">
       <div
-        className="flex gap-1 border-b border-[var(--jade-border)] bg-[var(--jade-panel)] p-2"
+        className="flex gap-1 border-b border-jade-border bg-jade-panel p-2"
         role="tablist"
         aria-label="Page specimens"
       >
@@ -598,7 +591,7 @@ function FlatMapDialog() {
             aria-labelledby="flat-map-title"
             className={`${panelClass} flex h-[min(480px,calc(100%-1rem))] w-[min(760px,calc(100%-1rem))] flex-col overflow-hidden`}
           >
-            <header className="flex items-center justify-between gap-3 border-b border-[var(--jade-border)] px-4 py-3">
+            <header className="flex items-center justify-between gap-3 border-b border-jade-border px-4 py-3">
               <div>
                 <p className={labelClass}>Choose location</p>
                 <h3 id="flat-map-title" className="mt-0.5 text-sm font-semibold">
@@ -622,10 +615,8 @@ function FlatMapDialog() {
               <div className="map-contours" />
               <div className="map-pin absolute top-[42%] left-1/2" />
             </div>
-            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--jade-border)] bg-[var(--jade-panel-raised)] px-4 py-3">
-              <p className="text-xs tabular-nums text-[var(--jade-text-muted)]">
-                24.88010, 100.08910
-              </p>
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-jade-border bg-jade-panel-raised px-4 py-3">
+              <p className="text-xs tabular-nums text-jade-text-muted">24.88010, 100.08910</p>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setOpen(false)} className={controlClass}>
                   Cancel
@@ -659,11 +650,11 @@ function IframeWindow() {
       )}
       {open && (
         <div
-          className={`iframe-window absolute top-3 right-3 z-10 overflow-hidden rounded-xl border border-[var(--jade-border)] bg-[var(--jade-panel)] shadow-2xl shadow-[#182a36]/20 ${
+          className={`iframe-window absolute top-3 right-3 z-10 overflow-hidden rounded-xl border border-jade-border bg-jade-panel shadow-[0_12px_36px_rgba(24,42,54,0.16)] ${
             minimized ? 'h-auto' : 'h-[min(390px,calc(100%-1.5rem))]'
           }`}
         >
-          <header className="flex h-12 items-center justify-between gap-3 border-b border-[var(--jade-border)] px-3">
+          <header className="flex h-12 items-center justify-between gap-3 border-b border-jade-border px-3">
             <div className="min-w-0">
               <p className={labelClass}>Following camera</p>
               <h3 className="truncate text-xs font-semibold">Mini map</h3>
@@ -701,11 +692,11 @@ function IframeWindow() {
                 title="Offline mini map specimen"
                 srcDoc={iframeDocument}
                 onLoad={() => setLoading(false)}
-                className="h-full w-full border-0 bg-[var(--jade-depth)]"
+                className="h-full w-full border-0 bg-jade-depth"
               />
               {loading && (
                 <div
-                  className="absolute inset-0 grid place-items-center bg-[var(--jade-depth)] text-xs text-[var(--jade-text-muted)]"
+                  className="absolute inset-0 grid place-items-center bg-jade-depth text-xs text-jade-text-muted"
                   role="status"
                 >
                   Loading mini map...
@@ -732,12 +723,12 @@ function Tokens() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--jade-border)] bg-[var(--jade-border)] sm:grid-cols-4 lg:grid-cols-8">
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-jade-border bg-jade-border sm:grid-cols-4 lg:grid-cols-8">
       {tokens.map(([name, hex, color]) => (
-        <div key={name} className="bg-[var(--jade-panel)] p-3">
+        <div key={name} className="bg-jade-panel p-3">
           <div className="h-10 rounded-lg border border-white/15" style={{ background: color }} />
           <p className="mt-2 text-xs font-semibold">{name}</p>
-          <p className="mt-0.5 text-[10px] tabular-nums text-[var(--jade-text-muted)]">{hex}</p>
+          <p className="mt-0.5 text-[10px] tabular-nums text-jade-text-muted">{hex}</p>
         </div>
       ))}
     </div>
@@ -746,20 +737,20 @@ function Tokens() {
 
 export default function App() {
   return (
-    <main className="min-h-screen px-4 py-6 text-[var(--jade-text)] sm:px-6 lg:px-8">
+    <main className="min-h-screen px-4 py-6 text-jade-text sm:px-6 lg:px-8">
       <div className="mx-auto max-w-310">
         <header className="flex flex-col gap-5 py-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <p className={labelClass}>Lancangriver interface system</p>
             <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">River Mist UI Workbench</h1>
-            <p className="mt-2 text-sm leading-6 text-[var(--jade-text-muted)]">
+            <p className="mt-2 text-sm leading-6 text-jade-text-muted">
               A light blue-gray language with river, sky, lotus, leaf, and sun accents for map
               controls and operational views.
             </p>
           </div>
           <nav
             aria-label="Specimen sections"
-            className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--jade-border-soft)] bg-[var(--jade-panel)] p-1"
+            className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-jade-border-soft bg-jade-panel p-1"
           >
             {[
               ['workspace', 'Workspace'],
@@ -770,7 +761,7 @@ export default function App() {
               <a
                 key={href}
                 href={`#${href}`}
-                className="min-h-10 shrink-0 rounded-lg px-3 py-2.5 text-xs font-medium text-[var(--jade-text-muted)] hover:bg-[var(--jade-control)] hover:text-[var(--jade-text)]"
+                className="min-h-10 shrink-0 rounded-lg px-3 py-2.5 text-xs font-medium text-jade-text-muted hover:bg-jade-control hover:text-jade-text"
               >
                 {label}
               </a>

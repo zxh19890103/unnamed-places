@@ -52,21 +52,19 @@ export const MiniMap = memo(
     }, [controls, precision]);
 
     return (
-      <div className="">
-        <div className=" absolute right-1 top-2">
-          {isOpen ? null : (
-            <Button
-              size="sm"
-              className=" whitespace-nowrap"
-              onClick={() => setIsOpen(true)}
-              aria-expanded={isOpen}
-              aria-controls="explorer-mini-map"
-            >
-              <GlobeIcon />
-              Mini map
-            </Button>
-          )}
-        </div>
+      <div className="pointer-events-auto">
+        {isOpen ? null : (
+          <Button
+            size="sm"
+            className="whitespace-nowrap"
+            onClick={() => setIsOpen(true)}
+            aria-expanded={isOpen}
+            aria-controls="explorer-mini-map"
+          >
+            <GlobeIcon />
+            Mini map
+          </Button>
+        )}
 
         {isOpen && <MiniMapLoader onOpenOrClose={setIsOpen} lat={latlng.lat} lng={latlng.lng} />}
       </div>
@@ -85,7 +83,7 @@ const MiniMapLoader = memo(
 
     return (
       <ChildWindow
-        className=" size-108"
+        className="h-[min(27rem,calc(100vh-9rem))] w-[min(27rem,calc(100vw-1rem))]"
         winRole="Following camera"
         title={`${lat.toFixed(5)}, ${lng.toFixed(5)}`}
         pageUrl="static-leaflet-map"

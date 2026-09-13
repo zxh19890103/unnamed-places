@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ExperimentalShanshuiMaterial } from './ShanshuiMaterial.js';
 import { BASE_URL } from '../../calc/constants.js';
+import '@/styles.css';
 
 const DEM_URL = `${BASE_URL}/raster/dem/13/4285/2894.png`;
 const DERIVATIVES_URL = `${BASE_URL}/raster/dem/13/4285/2894/derivatives.png`;
@@ -253,68 +254,36 @@ export default function App() {
   }, [sunControlsEnabled]);
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-      }}
-    >
-      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
-      <div
-        style={{
-          position: 'absolute',
-          top: 12,
-          left: 12,
-          padding: '10px 12px',
-          borderRadius: 8,
-          background: 'rgba(13, 17, 26, 0.78)',
-          color: '#e5e7eb',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontSize: 12,
-          lineHeight: 1.4,
-        }}
-      >
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            cursor: 'pointer',
-          }}
-        >
+    <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation text-jade-text">
+      <div ref={mountRef} className="h-full w-full" />
+      <section className="absolute top-3 left-3 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-jade-border bg-jade-panel/95 p-3 text-xs leading-5 shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md">
+        <label className="flex cursor-pointer items-center gap-2 font-medium">
           <input
             type="checkbox"
             checked={sunControlsEnabled}
             onChange={(event) => setSunControlsEnabled(event.target.checked)}
+            className="size-4 accent-jade-river"
           />
           Sun controls
         </label>
-        <div style={{ marginTop: 6, opacity: sunControlsEnabled ? 1 : 0.6 }}>
+        <div className={sunControlsEnabled ? 'mt-2 tabular-nums' : 'mt-2 tabular-nums opacity-60'}>
           <div>azimuth: {sunAzimuthDeg}deg</div>
           <div>elevation: {sunElevationDeg}deg</div>
           <div>tile elevation: {elevationRangeText}</div>
-          <div style={{ marginTop: 4 }}>keys: arrows (hold Shift for faster step)</div>
         </div>
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            cursor: 'pointer',
-            marginTop: 8,
-          }}
-        >
+        <label className="mt-3 flex cursor-pointer items-center gap-2 font-medium">
           <input
             type="checkbox"
             checked={showNormals}
             onChange={(event) => setShowNormals(event.target.checked)}
+            className="size-4 accent-jade-river"
           />
           Visualize surface normals
         </label>
-        <label style={{ display: 'block', marginTop: 8 }}>
-          <div style={{ marginBottom: 4 }}>Slope darkening: {slopeDarkenStrength.toFixed(2)}</div>
+        <label className="mt-3 block">
+          <div className="mb-1 font-medium tabular-nums">
+            Slope darkening: {slopeDarkenStrength.toFixed(2)}
+          </div>
           <input
             type="range"
             min="0"
@@ -322,10 +291,10 @@ export default function App() {
             step="0.01"
             value={slopeDarkenStrength}
             onChange={(event) => setSlopeDarkenStrength(Number(event.target.value))}
-            style={{ width: '100%' }}
+            className="w-full accent-jade-river"
           />
         </label>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

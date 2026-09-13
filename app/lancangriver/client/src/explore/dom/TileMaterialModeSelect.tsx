@@ -38,18 +38,6 @@ const materialModeIcons: Record<TileMaterialMode, () => ReactNode> = {
     </svg>
   ),
   [TileMaterialMode.Dem]: () => <MaterialModeElevationIcon />,
-  [TileMaterialMode.Clean]: () => (
-    <svg aria-hidden="true" className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
-      <path
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-        d="M12 3 14 9l6 2-6 2-2 8-2-8-6-2 6-2 2-6Z"
-      />
-    </svg>
-  ),
   [TileMaterialMode.Debug]: () => (
     <svg aria-hidden="true" className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
       <path
@@ -128,12 +116,10 @@ export const TileMaterialModeSelect = memo(
     }, [controls]);
 
     const [mode, setMode] = useState(globalTileMaterialMode);
-    const [isElevationLoading, setIsElevationLoading] = useState(false);
 
     const modeLabels: Record<TileMaterialMode, string> = {
       [TileMaterialMode.Basic]: 'Satellite',
       [TileMaterialMode.Dem]: 'Elevation',
-      [TileMaterialMode.Clean]: 'Clean',
       [TileMaterialMode.Debug]: 'Debug',
       [TileMaterialMode.ShanshuiWash]: 'Watercolor',
     };
@@ -149,90 +135,35 @@ export const TileMaterialModeSelect = memo(
       setGlobalTileMaterialMode(requested);
     };
 
-    const applyNonElevationMode = (requested: TileMaterialMode) => {
+    const applyNonElevationMode = (event: React.MouseEvent<HTMLButtonElement>) => {
+      const button = event.currentTarget;
+      const requested = button.getAttribute('itemtype') as TileMaterialMode;
       currentSceneState.setVisibleTilesElevationRange(0, 0);
       applyMaterialMode(requested);
     };
 
-    const applyElevationMode = async (requested: TileMaterialMode) => {
-      if (viewerState.zoom < 11 || isElevationLoading) {
-        return;
-      }
-
-      const groundCenter = currentThreeDTilesViewer.getLatlng();
-      if (!groundCenter) {
-        return;
-      }
-
-      const [, x, y] = latlngToStandardTileZxy(groundCenter, 10);
-      setIsElevationLoading(true);
-
-      try {
-        const response = await fetch(`${BASE_URL}/raster/dem/10/${x}/${y}/altitude`);
-
-        if (!response.ok) {
-          throw new Error(`Altitude request failed: ${response.status}`);
-        }
-
-        const altitude = (await response.json()) as DemAltitudeResponse;
-        if (
-          !altitude.ok ||
-          !Number.isFinite(altitude.min) ||
-          !Number.isFinite(altitude.max) ||
-          altitude.max < altitude.min
-        ) {
-          throw new Error('Altitude response had an invalid elevation range');
-        }
-
-        currentSceneState.setVisibleTilesElevationRange(
-          altitude.min * ELEVATION_SCALE,
-          altitude.max * ELEVATION_SCALE,
-        );
-
-        applyMaterialMode(requested);
-      } catch (error) {
-        console.warn('Failed to prepare elevation terrain', error);
-      } finally {
-        setIsElevationLoading(false);
-      }
-    };
-
     return (
-      <div className="flex flex-wrap gap-2">
+      <div
+        className="pointer-events-auto flex max-w-full flex-nowrap gap-1 overflow-x-auto rounded-xl p-1 shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md"
+        role="group"
+        aria-label="Terrain material"
+      >
         {Object.values(TileMaterialMode).map((materialMode) => {
           const isSelected = mode === materialMode;
-
-          const isElevationMode =
-            materialMode === TileMaterialMode.Dem || materialMode === TileMaterialMode.ShanshuiWash;
-
-          const isZoomBlocked = isElevationMode && viewerState.zoom < 11;
-          const isDisabled = isZoomBlocked || (isElevationMode && isElevationLoading);
-          const title = isElevationLoading
-            ? 'Loading elevation data'
-            : isZoomBlocked
-              ? 'Zoom in past level 11 to use elevation terrain'
-              : modeLabels[materialMode];
 
           return (
             <Button
               key={materialMode}
-              aria-label={isDisabled ? title : `Use ${modeLabels[materialMode]} terrain`}
               aria-pressed={isSelected}
-              disabled={isDisabled}
-              title={title}
-              className={clsx('pointer-events-auto', isSelected ? 'relative top-1' : null)}
-              onClick={() => {
-                const requested = materialMode;
-
-                if (requested === TileMaterialMode.Dem || TileMaterialMode.ShanshuiWash) {
-                  applyElevationMode(requested);
-                } else {
-                  applyNonElevationMode(requested);
-                }
-              }}
+              itemType={materialMode}
+              className={clsx(
+                'shrink-0',
+                isSelected && 'font-semibold ring ring-offset-2 ring-red-200',
+              )}
+              onClick={applyNonElevationMode}
             >
               <MaterialModeIcon mode={materialMode} />
-              <span className="whitespace-nowrap">{modeLabels[materialMode]}</span>
+              {/* <span className="whitespace-nowrap">{modeLabels[materialMode]}</span> */}
             </Button>
           );
         })}

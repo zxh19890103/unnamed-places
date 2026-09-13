@@ -335,7 +335,7 @@ const AlertBase = ({
         />
         <AlertDialog.Content
           className={clsx(
-            'fixed left-1/2 top-1/2 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-jade-panel-raised p-5 text-jade-text shadow-[0_20px_60px_rgba(24,42,54,0.2)] transition-all duration-200 ease-out',
+            'fixed left-1/2 top-1/2 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-jade-panel-raised p-5 text-jade-text shadow-[0_16px_48px_rgba(24,42,54,0.16)] transition-all duration-200 ease-out',
             contentBorderClassName,
             className,
             isVisible && !closing ? 'opacity-100' : 'opacity-0',

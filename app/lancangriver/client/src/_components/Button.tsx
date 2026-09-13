@@ -14,19 +14,24 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const baseButtonClassName =
-  'inline-flex select-none items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river active:translate-y-px active:scale-[0.98] active:ring-2 active:ring-offset-1 active:ring-offset-jade-foundation disabled:cursor-not-allowed disabled:opacity-60 disabled:translate-y-0 disabled:scale-100 disabled:shadow-none disabled:ring-0 disabled:transition-none disabled:active:translate-y-0 disabled:active:scale-100 disabled:active:shadow-none disabled:active:ring-0';
+  'inline-flex select-none items-center justify-center gap-2 rounded-lg border font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river active:ring-2 active:ring-offset-1 active:ring-offset-jade-foundation disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-jade-control disabled:text-jade-text-muted disabled:opacity-55 disabled:shadow-none disabled:ring-0 disabled:transition-none disabled:active:shadow-none disabled:active:ring-0';
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  default: 'bg-jade-control text-jade-text hover:bg-jade-control-hover active:bg-jade-depth',
-  primary: 'bg-jade-river text-white hover:bg-jade-river/90 active:bg-jade-river/80',
-  secondary: 'bg-jade-panel text-jade-text hover:bg-jade-control active:bg-jade-depth',
-  destructive: 'bg-jade-error text-white hover:bg-jade-error/90 active:bg-jade-error/80',
-  success: 'bg-jade-success text-white hover:bg-jade-success/90 active:bg-jade-success/80',
-  silt: 'bg-jade-silt text-white hover:bg-jade-silt/90 active:bg-jade-silt/80',
+  default:
+    'border-jade-border-soft bg-jade-control text-jade-text hover:border-jade-border hover:bg-jade-control-hover active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
+  primary:
+    'border-jade-river bg-jade-river text-white hover:border-jade-river-600 hover:bg-jade-river-600 active:bg-jade-river-700',
+  secondary:
+    'border-jade-border-soft bg-jade-panel text-jade-text hover:border-jade-border hover:bg-jade-control active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
+  destructive:
+    'border-jade-error bg-jade-error text-white hover:border-jade-error-600 hover:bg-jade-error-600 active:bg-jade-error-700',
+  success:
+    'border-jade-success bg-jade-success text-white hover:border-jade-success-600 hover:bg-jade-success-600 active:bg-jade-success-700',
+  silt: 'border-jade-silt bg-jade-silt text-white hover:border-jade-silt-600 hover:bg-jade-silt-600 active:bg-jade-silt-700',
 };
 
 const baseIconButtonClassName =
-  'inline-flex select-none items-center justify-center rounded-full transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river active:translate-y-px active:scale-[0.97] active:ring-2 active:ring-offset-1 active:ring-offset-jade-foundation disabled:cursor-not-allowed disabled:opacity-60 disabled:translate-y-0 disabled:scale-100 disabled:shadow-none disabled:ring-0 disabled:transition-none disabled:active:translate-y-0 disabled:active:scale-100 disabled:active:shadow-none disabled:active:ring-0';
+  'inline-flex select-none items-center justify-center rounded-full border transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river active:ring-2 active:ring-offset-1 active:ring-offset-jade-foundation disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-jade-control disabled:text-jade-text-muted disabled:opacity-55 disabled:shadow-none disabled:ring-0 disabled:transition-none disabled:active:shadow-none disabled:active:ring-0';
 
 const buttonSizes: Record<ButtonSize, string> = {
   xs: 'min-h-7 px-2 py-1 text-[11px]',
@@ -43,12 +48,17 @@ const iconButtonSizes: Record<ButtonSize, string> = {
 };
 
 const iconButtonVariants: Record<ButtonVariant, string> = {
-  default: 'bg-jade-control text-jade-text hover:bg-jade-control-hover active:bg-jade-depth',
-  primary: 'bg-jade-river text-white hover:bg-jade-river/90 active:bg-jade-river/80',
-  secondary: 'bg-jade-panel text-jade-text hover:bg-jade-control active:bg-jade-depth',
-  destructive: 'bg-jade-error text-white hover:bg-jade-error/90 active:bg-jade-error/80',
-  success: 'bg-jade-success text-white hover:bg-jade-success/90 active:bg-jade-success/80',
-  silt: 'bg-jade-silt text-white hover:bg-jade-silt/90 active:bg-jade-silt/80',
+  default:
+    'border-jade-border-soft bg-jade-control text-jade-text hover:border-jade-border hover:bg-jade-control-hover active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
+  primary:
+    'border-jade-river bg-jade-river text-white hover:border-jade-river-600 hover:bg-jade-river-600 active:bg-jade-river-700',
+  secondary:
+    'border-jade-border-soft bg-jade-panel text-jade-text hover:border-jade-border hover:bg-jade-control active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
+  destructive:
+    'border-jade-error bg-jade-error text-white hover:border-jade-error-600 hover:bg-jade-error-600 active:bg-jade-error-700',
+  success:
+    'border-jade-success bg-jade-success text-white hover:border-jade-success-600 hover:bg-jade-success-600 active:bg-jade-success-700',
+  silt: 'border-jade-silt bg-jade-silt text-white hover:border-jade-silt-600 hover:bg-jade-silt-600 active:bg-jade-silt-700',
 };
 
 const buttonPressVariants: Record<ButtonVariant, string> = {

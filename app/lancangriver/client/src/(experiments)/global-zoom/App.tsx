@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createGlobalZoomView } from './viewer.js';
+import { Button } from '@/_components';
+import '@/styles.css';
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -44,53 +46,27 @@ export default function App() {
   }, []);
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-      }}
-    >
-      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
-      <div
-        style={{
-          position: 'absolute',
-          top: 12,
-          left: 12,
-          padding: '8px 10px',
-          borderRadius: 8,
-          background: 'rgba(15, 23, 42, 0.75)',
-          color: '#e2e8f0',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontSize: 13,
-          lineHeight: 1.35,
-        }}
-      >
-        <div>camera-origin: {cameraDistance}</div>
-        <div>size pixels per unit: {planeSizePixels}</div>
-        <div>viewport: {viewport}</div>
-        <div>zoom-scale: {zoomScale}</div>
-        <div>zoom-level: {zoomLevel}</div>
-        <div>tiles: {layerSize}</div>
-        <button
-          type="button"
-          onClick={handleLogMetrics}
-          style={{
-            marginTop: 8,
-            padding: '4px 8px',
-            borderRadius: 6,
-            border: '1px solid rgba(148, 163, 184, 0.7)',
-            background: 'rgba(30, 41, 59, 0.85)',
-            color: '#e2e8f0',
-            fontFamily: 'inherit',
-            fontSize: 12,
-            cursor: 'pointer',
-          }}
-        >
-          log metrics
-        </button>
-      </div>
-    </div>
+    <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation text-jade-text">
+      <div ref={mountRef} className="h-full w-full" />
+      <section className="absolute top-3 left-3 w-[min(18rem,calc(100vw-1.5rem))] rounded-xl border border-jade-border bg-jade-panel/95 p-3 text-xs leading-5 shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md">
+        <dl className="grid grid-cols-[1fr_auto] gap-x-3 tabular-nums">
+          <dt className="text-jade-text-muted">Camera origin</dt>
+          <dd>{cameraDistance}</dd>
+          <dt className="text-jade-text-muted">Pixels per unit</dt>
+          <dd>{planeSizePixels}</dd>
+          <dt className="text-jade-text-muted">Viewport</dt>
+          <dd>{viewport}</dd>
+          <dt className="text-jade-text-muted">Zoom scale</dt>
+          <dd>{zoomScale}</dd>
+          <dt className="text-jade-text-muted">Zoom level</dt>
+          <dd>{zoomLevel}</dd>
+          <dt className="text-jade-text-muted">Tiles</dt>
+          <dd>{layerSize}</dd>
+        </dl>
+        <Button type="button" size="xs" className="mt-3" onClick={handleLogMetrics}>
+          Log metrics
+        </Button>
+      </section>
+    </main>
   );
 }
