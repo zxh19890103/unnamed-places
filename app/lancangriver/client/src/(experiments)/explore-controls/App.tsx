@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import {
   ExploreControls,
   ExploreControlsLiveState,
-} from '@/explore/controls/ExploreControls.class.js';
-import { ZoomFactorCharts } from './FactorStudyCharts.js';
+} from '@/explore/controls/ExploreControls.class';
+import { OrbitFactorCharts } from './FactorStudyCharts.js';
 
 import '@/styles.css';
 import { EARTH_RADIUS } from '@/calc/constants';
@@ -62,9 +62,43 @@ export default function App() {
       max: 0,
     };
 
-    const controls = new ExploreControls(camera, renderer.domElement);
+    const controls = new ExploreControls(camera, renderer.domElement, {});
     controlsRef.current = controls;
-    controls.setEvelation(elevation.min, elevation.max);
+
+    const setElevationMethod = controls.setElevation;
+
+    const elevationGhostMaterial = new THREE.MeshBasicMaterial({
+      wireframe: true,
+      depthTest: true,
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.67,
+    });
+
+    const textureLoader = new THREE.TextureLoader();
+
+    const elevationGhost = new THREE.Mesh(
+      new THREE.SphereGeometry(EARTH_RADIUS_METERS),
+      elevationGhostMaterial,
+    );
+
+    scene.add(elevationGhost);
+
+    let elevationScale = 1;
+
+    controls.setElevation = (min: number, max: number) => {
+      console.log('controls.setElevation', min, max);
+
+      elevation.min = min;
+      elevation.max = max;
+
+      elevationScale = 1 + max / EARTH_RADIUS_METERS;
+
+      elevationGhost.scale.set(elevationScale, elevationScale, elevationScale);
+      sphereMaterial.uniforms.displaceScale.value = max;
+
+      setElevationMethod.call(controls, min, max);
+    };
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
@@ -75,38 +109,8 @@ export default function App() {
       EARTH_RADIUS_METERS * 3,
       EARTH_RADIUS_METERS * 1.5,
     );
+
     scene.add(directionalLight);
-
-    const textureLoader = new THREE.TextureLoader();
-
-    // render elevation
-    {
-      // scene.add(
-      //   new THREE.Mesh(
-      //     new THREE.SphereGeometry(EARTH_RADIUS_METERS + elevation.min),
-      //     new THREE.MeshBasicMaterial({
-      //       wireframe: false,
-      //       depthTest: true,
-      //       color: 0xef0a01,
-      //       transparent: true,
-      //       opacity: 0.3,
-      //     }),
-      //   ),
-      // );
-      // scene.add(
-      //   new THREE.Mesh(
-      //     new THREE.SphereGeometry(EARTH_RADIUS_METERS + elevation.max),
-      //     new THREE.MeshBasicMaterial({
-      //       wireframe: false,
-      //       depthTest: true,
-      //       map: textureLoader.load('/dcrbmun-38493001-d0cc-4bd6-9acb-2bf1109b488b.jpg'),
-      //       color: 0xffffff,
-      //       transparent: true,
-      //       opacity: 0.67,
-      //     }),
-      //   ),
-      // );
-    }
 
     const sphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS_METERS, 128, 128).toNonIndexed();
     const faceColors = new Float32Array(sphereGeometry.attributes.position.count * 3);
@@ -129,21 +133,39 @@ export default function App() {
     const sphereMaterial = new THREE.ShaderMaterial({
       uniforms: {
         map: {
-          value: textureLoader.load('/dcrbmun-38493001-d0cc-4bd6-9acb-2bf1109b488b.jpg'),
+          value: textureLoader.load('/tp050630_01.jpg'),
+        },
+        displaceMap: {
+          value: textureLoader.load('/perlin-noise-rgb-256x256.png'),
+        },
+        displaceScale: {
+          value: 0,
         },
       },
       transparent: false,
       visible: true,
+      wireframe: false,
       vertexShader: `
+        uniform sampler2D displaceMap;
+        uniform float displaceScale;
+
         attribute vec3 color;
+
         varying vec3 vColor;
+
 
         varying vec2 vUv;
 
         void main() {
           vColor = color;
           vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec3 pos = position;
+          
+          // float h = displaceScale * min(1.0, length(texture2D(displaceMap, uv).rgb));
+          // float scale = 1.0 + h / 6371008.0;
+          // pos *= scale;
+
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
       `,
       fragmentShader: `
@@ -153,7 +175,7 @@ export default function App() {
 
         void main() {
           vec4 color = texture2D(map, vec2(fract(0.25 + vUv.x), vUv.y));
-          gl_FragColor = vec4(color.rgb * 0.5, 1.0);
+          gl_FragColor = vec4(color.rgb, 1.0);
         }
       `,
     });
@@ -205,7 +227,7 @@ export default function App() {
       {ready && <WheelGestureOverlay target={rendererDomRef.current} />}
 
       {ready && <LivePanel scene={sceneRef.current} controls={controlsRef.current} />}
-      {ready && <ZoomFactorCharts />}
+      {ready && <OrbitFactorCharts />}
       {ready && <CameraOperationsTest scene={sceneRef.current} controls={controlsRef.current} />}
     </main>
   );
@@ -214,19 +236,21 @@ export default function App() {
 const CameraOperationsTest = memo(
   ({ controls }: { scene: THREE.Scene; controls: ExploreControls }) => {
     return (
-      <div className=" p-3  bg-white fixed left-0 top-0 text-black">
+      <div className=" p-3 rounded-xl bg-white fixed left-0 top-0 text-black">
         <h1 className=" text-xl font-semibold">Camera Ops Test</h1>
         <div className="  space-y-2  ">
-          <CameraOperationsTestAction args="{lat:12,lng:12}" action="flyTo" controls={controls} />
+          <CameraOperationsTestAction args="[ 0, 0 ]" action="setElevation" controls={controls} />
+          <CameraOperationsTestAction args="12" action="setZoomLevel" controls={controls} />
+          {/* <CameraOperationsTestAction args="{lat:12,lng:12}" action="flyTo" controls={controls} /> */}
           <CameraOperationsTestAction
             args="{lat:12,lng:12}"
             action="setLatlng"
             controls={controls}
           />
-          <CameraOperationsTestAction args="0" action="setZoomLevel" controls={controls} />
+          {/* <CameraOperationsTestAction args="0" action="setZoomLevel" controls={controls} />
           <CameraOperationsTestAction args="1" action="roll" controls={controls} />
           <CameraOperationsTestAction args="1" action="yaw" controls={controls} />
-          <CameraOperationsTestAction args="1" action="pitch" controls={controls} />
+          <CameraOperationsTestAction args="1" action="pitch" controls={controls} /> */}
         </div>
       </div>
     );
@@ -248,6 +272,11 @@ const CameraOperationsTestAction = ({
   const parsedArgs = useMemo(() => {
     try {
       const args0 = eval(`window.____camera_action_args = ${args1 || 'null'}`);
+
+      if (Array.isArray(args0)) {
+        return args0;
+      }
+
       return [args0];
     } catch (err_) {
       return undefined;
@@ -423,14 +452,17 @@ const LivePanel = memo(({ scene, controls }: { scene: THREE.Scene; controls: Exp
       <Panel title="Live State" description="">
         <div className=" space-y-1">
           <div>
+            elevation:
+            {state.elevation.toFixed(3)}
+          </div>
+          <div>
             lat:
             {state.latlng.lat.toFixed(9)}
           </div>
           <div>lng: {state.latlng.lng.toFixed(9)}</div>
           <div>
-            far0: {state.originFar.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+            distance: {state.distance.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
           </div>
-          <div>far: {state.distance.toLocaleString(undefined, { maximumFractionDigits: 2 })} m</div>
           <div>
             height: {state.height.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
           </div>

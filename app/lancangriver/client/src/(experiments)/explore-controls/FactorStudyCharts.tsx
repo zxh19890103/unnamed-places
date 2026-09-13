@@ -1,11 +1,12 @@
 import { memo, useMemo, useState } from 'react';
 import { Panel } from '@/_components';
 import {
-  createAltitudeScaledOrbitSensitivity,
-  CreateAltitudeScaledOrbitSensitivityOptions,
   createAltitudeScaledWheelZoom,
   CreateAltitudeScaledWheelZoomOptions,
-} from '@/explore/controls/ExploreControls.class.js';
+  createViewScaledSensitivity,
+} from '@/explore/controls/ExploreControls.class.legacy.js';
+import { EARTH_RADIUS } from '@/calc/constants';
+import * as THREE from 'three';
 
 export type XyDataPoint = [number, number];
 
@@ -224,10 +225,12 @@ export const ZoomFactorCharts = memo(() => {
 });
 
 export const OrbitFactorCharts = memo(() => {
-  const [vars, setVars] = useState<CreateAltitudeScaledOrbitSensitivityOptions>({
-    referenceAltitudeMeters: 100,
-    min: 0,
-    scale: 1,
+  const [vars, setVars] = useState({
+    referenceAltitudeMeters: 46_188_000,
+    feel: 1,
+    fov: 45,
+    sphereRadius: EARTH_RADIUS,
+    viewportPx: 800,
   });
 
   const data = useMemo(() => {
@@ -235,56 +238,59 @@ export const OrbitFactorCharts = memo(() => {
     const maxFar = vars.referenceAltitudeMeters;
     const step = maxFar / ticks;
 
-    const emit = createAltitudeScaledOrbitSensitivity({
-      referenceAltitudeMeters: maxFar,
-      ...vars,
+    const camera = new THREE.PerspectiveCamera(vars.fov, 1);
+
+    const scales = createViewScaledSensitivity({
+      camera,
+      feel: vars.feel,
+      getRadius: () => vars.sphereRadius,
+      getViewportPx: () => vars.viewportPx,
     });
 
     return new Array(ticks).fill(0).map((_, index) => {
       const far = step * index;
-      return [far, emit(far)] as XyDataPoint;
+      return [far, scales.orbitSensitivity(far)] as XyDataPoint;
     });
   }, [vars]);
 
   return (
     <div className="fixed right-2 top-2 ">
-      <Panel className="1" defaultMinimized={true} title="Far - Zoom Sensitivity" description="">
+      <Panel className="1" defaultMinimized={true} title="Far - Rotate Sensitivity" description="">
         <div className=" w-3xl">
           <div className=" border p-2 rounded-2xl space-y-1">
-            <label>maxfar: {vars.referenceAltitudeMeters}</label>
+            <label>fov: {vars.fov}</label>
             <input
-              placeholder="maxFar"
+              placeholder="fov"
               type="range"
-              min={100}
-              max={10000}
-              value={vars.referenceAltitudeMeters}
-              onChange={(event) =>
-                setVars({ ...vars, referenceAltitudeMeters: event.target.valueAsNumber })
-              }
+              step={1}
+              min={10}
+              max={120}
+              value={vars.fov}
+              onChange={(event) => setVars({ ...vars, fov: event.target.valueAsNumber })}
               className=" w-full px-2 text-jade-800 border rounded-lg"
             />
 
-            <label>min: {vars.min}</label>
+            <label>feel: {vars.feel}</label>
             <input
-              placeholder="min"
+              placeholder="feel"
               type="range"
-              step={0.01}
-              min={0.1}
-              max={1}
-              value={vars.min}
-              onChange={(event) => setVars({ ...vars, min: event.target.valueAsNumber })}
+              step={0.05}
+              min={0.05}
+              max={2}
+              value={vars.feel}
+              onChange={(event) => setVars({ ...vars, feel: event.target.valueAsNumber })}
               className=" w-full px-2 text-jade-800 border rounded-lg"
             />
 
-            <label>scale: {vars.scale}</label>
+            <label>viewportPx: {vars.viewportPx}</label>
             <input
-              placeholder="mag"
+              placeholder="viewportPx"
               type="range"
-              step={100}
-              min={100}
-              max={1000000}
-              value={vars.scale}
-              onChange={(event) => setVars({ ...vars, scale: event.target.valueAsNumber })}
+              step={50}
+              min={200}
+              max={2000}
+              value={vars.viewportPx}
+              onChange={(event) => setVars({ ...vars, viewportPx: event.target.valueAsNumber })}
               className=" w-full px-2 text-jade-800 border rounded-lg"
             />
           </div>

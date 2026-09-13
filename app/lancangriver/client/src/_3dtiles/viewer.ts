@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { EarthTile, EarthTilesManager } from './tile.js';
-import { ExploreControls } from '@/explore/controls/ExploreControls.class.js';
-import { EARTH_RADIUS, LatLng, sphereToLatlng } from './core.js';
+import { sphereToLatlng } from './core.js';
 import { useEffect, useReducer } from 'react';
 
 type Create3dTilesViewerInputs = {
@@ -15,12 +14,14 @@ type Create3dTilesViewerInputs = {
    * @default 21
    */
   maxZoom?: number;
+  minDistance?: number;
 };
 
 function create3dTilesViewer({
   camera,
   baseDistance = 46188_000,
   maxZoom = 21,
+  minDistance = 500,
 }: Create3dTilesViewerInputs) {
   const minZoom = 0;
 
@@ -52,7 +53,7 @@ function create3dTilesViewer({
       return;
     }
 
-    const closestDist = tile.distanceTo(eyes);
+    const closestDist = Math.max(minDistance, tile.distanceTo(eyes));
     const targetZoom = distToZoom(closestDist);
     const zoomDelta = targetZoom - tile.zoom;
 

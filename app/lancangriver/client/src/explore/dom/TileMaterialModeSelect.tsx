@@ -3,11 +3,7 @@ import type { ReactNode } from 'react';
 import clsx from 'clsx';
 
 import { Button } from '@/_components';
-import {
-  useCurrentThreeDTilesViewerState,
-  latlngToStandardTileZxy,
-  currentThreeDTilesViewer,
-} from '@/_3dtiles';
+import { latlngToStandardTileZxy, currentThreeDTilesViewer } from '@/_3dtiles';
 import { BASE_URL, ELEVATION_SCALE } from '@/calc/constants';
 import type { TilesManager } from '../TilesManager.class';
 import { currentSceneState, globalTileMaterialMode, setGlobalTileMaterialMode } from '../setup';

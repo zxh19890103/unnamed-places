@@ -10,7 +10,7 @@ import { createSkyRig, FOG_COLOR, getDefaultCenterLatlng } from './sky.js';
 import { createGroundOrbitCloudsController } from './clouds.js';
 import { createPhotoLocationsPresenter } from './photos.js';
 import { initialize3DTilesViewer, latlngToSphere } from '@/_3dtiles';
-import { ExploreControls } from '../controls/ExploreControls.class.js';
+import { ExploreControls } from '../controls/ExploreControls.class';
 
 export let globalTileMaterialMode: TileMaterialMode = TileMaterialMode.Basic;
 
@@ -40,8 +40,9 @@ function createSceneState(container: HTMLElement) {
 
   const threeTilesViewer = initialize3DTilesViewer({
     camera,
-    baseDistance: 32_000_000,
-    maxZoom: 20,
+    baseDistance: 46_188_000,
+    maxZoom: 21,
+    minDistance: 300,
   });
 
   const tilesManager = new TilesManager();
@@ -100,7 +101,7 @@ function createSceneState(container: HTMLElement) {
 
   const setVisibleTilesElevationRange = (minMeters: number, maxMeters: number) => {
     threeTilesViewer.setElevation(minMeters, maxMeters);
-    exploreControls.setEvelation(minMeters, maxMeters);
+    exploreControls.setElevation(minMeters, maxMeters);
 
     refreshVisibleTilesOnCameraChanges();
   };
@@ -150,7 +151,11 @@ function createSceneState(container: HTMLElement) {
     baseUrl: BASE_URL,
   });
 
-  const exploreControls = new ExploreControls(camera, renderer.domElement);
+  const exploreControls = new ExploreControls(camera, renderer.domElement, {
+    baseDistance: 46_188_000,
+    maxZoom: 21,
+    minDistance: 300,
+  });
 
   exploreControls.addEventListener('end', () => {
     reconcileAttachedNodeMaterials();

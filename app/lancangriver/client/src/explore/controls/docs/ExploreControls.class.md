@@ -159,10 +159,10 @@ It's time to consider elevation.
 
 ## Comming Features
 
-1. [ ] goto latlng
-2. [ ] restore evevation range!
-3. [ ] flyto, remain the orientation of camera.
-4. [ ] camera can look around
+1. [x] goto latlng
+2. [x] restore evevation range!
+3. [x] flyto, remain the orientation of camera.
+4. [x] **camera can look around**
 
 ## Issues
 
