@@ -20,8 +20,12 @@ export class TileNode implements ITileNode {
   }
 }
 
+export type TilesManagerMode = 'dynamic' | 'static';
+
 export class TilesManager {
   frozen = false;
+  mode: TilesManagerMode = 'dynamic';
+  readonly staticZoom = 6;
 
   private nodes: TileNode[];
   private updateTimer: ReturnType<typeof setTimeout> | null;

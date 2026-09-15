@@ -44,7 +44,7 @@ function create3dTilesViewer({
   }
 
   function traverseVisibleTiles(tile: EarthTile, eyes: THREE.Vector3, results: EarthTile[]) {
-    if (tile.zoom > 3 && !tile.isInFrustum(cameraFrustum)) {
+    if (!tile.isInFrustum(cameraFrustum)) {
       return;
     }
 
@@ -147,6 +147,7 @@ function create3dTilesViewer({
       });
     },
     getVisibleTiles,
+    getAllTiles: getGlobalTilesAtZoom,
     /**
      * According to given zoom value `Z`,
      * get the min distance where the zoom reaches `Z`.

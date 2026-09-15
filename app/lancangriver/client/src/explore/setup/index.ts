@@ -3,13 +3,13 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 import { EARTH_RADIUS, BASE_URL } from '@/calc/constants.js';
 import { Sphere } from '../Sphere.class.js';
-import { TilesManager } from '../TilesManager.class.js';
+import { TilesManager, TilesManagerMode } from '../TilesManager.class.js';
 import { TileMaterialMode } from '../SphereTile.class.js';
 import { createVendors } from './vendors.js';
 import { createSkyRig, FOG_COLOR, getDefaultCenterLatlng } from './sky.js';
 import { createGroundOrbitCloudsController } from './clouds.js';
 import { createPhotoLocationsPresenter } from './photos.js';
-import { initialize3DTilesViewer, latlngToSphere } from '@/_3dtiles';
+import { EarthTile, initialize3DTilesViewer, latlngToSphere } from '@/_3dtiles';
 import { ExploreControls } from '../controls/ExploreControls.class';
 
 export let globalTileMaterialMode: TileMaterialMode = TileMaterialMode.Basic;
@@ -26,8 +26,27 @@ function createSceneState(container: HTMLElement) {
   scene.background.colorSpace = THREE.SRGBColorSpace;
   scene.fog = new THREE.FogExp2(FOG_COLOR, 0);
 
+  const earthFallback = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_RADIUS * 0.5, 120),
+    new THREE.MeshBasicMaterial({
+      map: textureLoader.load(`/dcrbmun-38493001-d0cc-4bd6-9acb-2bf1109b488b.jpg`),
+      wireframe: false,
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: true,
+      side: THREE.FrontSide,
+    }),
+  );
+
+  earthFallback.visible = false;
+  earthFallback.renderOrder = 2;
+  earthFallback.frustumCulled = false;
+
+  scene.add(earthFallback);
+
   const camera = new THREE.PerspectiveCamera(
-    120,
+    75,
     container.clientWidth / container.clientHeight,
     100,
     EARTH_RADIUS * 2,
@@ -94,9 +113,22 @@ function createSceneState(container: HTMLElement) {
   const refreshVisibleTilesOnCameraChanges = () => {
     if (tilesManager.frozen) return;
 
-    const earthTiles = threeTilesViewer.getVisibleTiles(camera.position.clone());
+    const viewPosition = camera.position.clone();
+
+    let earthTiles: EarthTile[];
+
+    if (tilesManager.mode === 'dynamic') {
+      earthTiles = threeTilesViewer.getVisibleTiles(viewPosition);
+    } else {
+      earthTiles = threeTilesViewer.getAllTiles(tilesManager.staticZoom);
+    }
 
     tilesManager.setNodes(earthTiles);
+  };
+
+  const setTilesMgrMode = (mode: TilesManagerMode) => {
+    tilesManager.mode = mode;
+    refreshVisibleTilesOnCameraChanges();
   };
 
   const setVisibleTilesElevationRange = (minMeters: number, maxMeters: number) => {
@@ -180,11 +212,12 @@ function createSceneState(container: HTMLElement) {
     sphere: sphereGlobal,
     stats,
     tileManager: tilesManager,
+    threeTilesViewer,
     resize,
     reconcileAttachedNodeMaterials,
     refreshVisibleTilesOnCameraChanges,
     setVisibleTilesElevationRange,
-    threeTilesViewer,
+    setTilesMgrMode,
     onFrame: (frameTimeMs: number) => {
       sphereGlobal.recordFrameTime(frameTimeMs);
     },

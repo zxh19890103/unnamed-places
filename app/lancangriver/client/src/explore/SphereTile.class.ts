@@ -5,7 +5,6 @@ import { TileGeometry } from './geometries/TileGeometry.class';
 import { TileBasicMaterial } from './materials/TileBasicMaterial.class';
 import { TileDemMaterial } from './materials/TileDemMaterial.class';
 import { TileDebugMaterial } from './materials/TileDebugMaterial.class';
-import { TileCleanMaterial } from './materials/TileCleanMaterial.class';
 import { ShanshuiMaterial } from './materials/ShanshuiMaterial.class';
 import { latlngToSphere } from '@/_3dtiles';
 import { BASE_URL, ELEVATION_SCALE } from '../calc/constants';
@@ -18,7 +17,7 @@ export enum TileMaterialMode {
 }
 
 type TileSurfaceMaterial =
-  TileBasicMaterial | TileDemMaterial | TileDebugMaterial | TileCleanMaterial | ShanshuiMaterial;
+  TileBasicMaterial | TileDemMaterial | TileDebugMaterial | ShanshuiMaterial;
 
 type Parameters = {
   radius?: number;
@@ -67,6 +66,8 @@ export class SphereTile extends THREE.Mesh<TileGeometry, TileSurfaceMaterial> {
     this.userData.tile = { ...tile };
     this.centerLatlng = { lat: centerLat, lng: centerLng };
     this.center = new THREE.Vector3(centerPoint.x, centerPoint.y, centerPoint.z);
+
+    this.renderOrder = 1;
   }
 
   setMaterialMode(mode: TileMaterialMode): void {

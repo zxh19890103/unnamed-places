@@ -25,6 +25,7 @@ export class EarthTile {
 
   readonly minElevation: number = 0;
   readonly maxElevation: number = 0;
+  readonly avgElevation: number = 0;
 
   private capHalfAngleRad: number;
 
@@ -57,6 +58,7 @@ export class EarthTile {
     zxy?: [number, number, number],
     minElevation?: number,
     maxElevation?: number,
+    avgElevation?: number,
   ) {
     const [z, x, y] = zxy ?? latlngToStandardTileZxy(latlng, zoom);
 
@@ -71,6 +73,8 @@ export class EarthTile {
 
     this.minElevation = minElevation;
     this.maxElevation = maxElevation;
+    this.avgElevation = avgElevation;
+
     this.latlng = centerLatlng;
 
     this.southWest = southWest;
@@ -248,6 +252,7 @@ export class EarthTilesManager {
 
   avgMinElevation: number = 0;
   avgMaxElevation: number = 0;
+  avgElevation: number = 0;
 
   setAvgMaxElevation(value: number) {
     this.setElevationRange(this.avgMinElevation, value);
@@ -260,6 +265,7 @@ export class EarthTilesManager {
 
     this.avgMinElevation = minElevation;
     this.avgMaxElevation = maxElevation;
+    this.avgElevation = (minElevation + maxElevation) / 2;
   }
 
   create(latlng: LatLng, zoom: number): EarthTile {
@@ -312,6 +318,7 @@ export class EarthTilesManager {
       [z, x, y],
       this.avgMinElevation,
       this.avgMaxElevation,
+      this.avgElevation,
     );
     this.tileCache.set(key, tile);
     return tile;

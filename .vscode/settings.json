@@ -1,10 +1,10 @@
 {
-  "editor.fontFamily": "Ubuntu Mono",
+  "editor.fontFamily": "Baloo Da 2",
   "editor.fontSize": 14,
   "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
   "editor.fontWeight": "300",
-  "window.zoomLevel": 1.1,
+  "window.zoomLevel": 2.1,
   "editor.letterSpacing": 2,
   "files.exclude": {
     "**/.git": true,

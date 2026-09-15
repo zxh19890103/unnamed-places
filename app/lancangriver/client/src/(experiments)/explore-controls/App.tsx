@@ -82,6 +82,8 @@ export default function App() {
       elevationGhostMaterial,
     );
 
+    elevationGhost.visible = false;
+
     scene.add(elevationGhost);
 
     let elevationScale = 1;
@@ -181,6 +183,7 @@ export default function App() {
     });
 
     const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphere.frustumCulled = false;
     scene.add(sphere);
     scene.add(new THREE.AxesHelper(EARTH_RADIUS * 1.5));
 
@@ -241,7 +244,12 @@ const CameraOperationsTest = memo(
         <div className="mt-3 space-y-2">
           <CameraOperationsTestAction args="[ 0, 0 ]" action="setElevation" controls={controls} />
           <CameraOperationsTestAction args="12" action="setZoomLevel" controls={controls} />
-          {/* <CameraOperationsTestAction args="{lat:12,lng:12}" action="flyTo" controls={controls} /> */}
+          <CameraOperationsTestAction args="600" action="descendTo" controls={controls} />
+          <CameraOperationsTestAction
+            args="{lat:12,lng:12,alt:12000000}"
+            action="flyTo"
+            controls={controls}
+          />
           <CameraOperationsTestAction
             args="{lat:12,lng:12}"
             action="setLatlng"

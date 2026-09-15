@@ -24,9 +24,11 @@ export const OpsPanel = ({ sceneState, tileManager }: OpsPanelProps) => {
         aria-orientation="vertical"
       >
         <PauseTileUpdatesButton tileManager={tileManager} />
-        <OpenFlatMapButton sceneState={sceneState} />
+        <DescendToAltitudeButton sceneState={sceneState} />
+        <LoadElevationButton sceneState={sceneState} />
+        <OpenFlatMapButton />
         <JobsManagerButton />
-        <CreateTileJobButton sceneState={sceneState} />
+        <CreateTileJobButton />
       </div>
     </>
   );
@@ -39,10 +41,6 @@ function SceneControlTooltip({ label, children }: { label: string; children: Rea
     </Tooltip>
   );
 }
-
-type OpenFlatMapProps = {
-  sceneState: SceneState;
-};
 
 function PauseTileUpdatesButton({ tileManager }) {
   const [viewerUpdateEnabled, setViewerUpdateEnabled] = useState(!tileManager.frozen);
@@ -68,7 +66,92 @@ function PauseTileUpdatesButton({ tileManager }) {
   );
 }
 
-const OpenFlatMapButton = memo(({ sceneState }: OpenFlatMapProps) => {
+function DescendToAltitudeButton({ sceneState }: { sceneState: SceneState }) {
+  const [isDescending, setIsDescending] = useState(false);
+  const label = isDescending ? 'Descending to 500 m' : 'Descend to 500 m';
+
+  const handleDescend = async () => {
+    setIsDescending(true);
+
+    try {
+      sceneState.setTilesMgrMode('static');
+      await sceneState.controls.descendTo(500, { speed: 1 });
+    } finally {
+      setIsDescending(false);
+      sceneState.setTilesMgrMode('dynamic');
+    }
+  };
+
+  return (
+    <SceneControlTooltip label={label}>
+      <IconButton
+        type="button"
+        aria-label={label}
+        aria-busy={isDescending}
+        disabled={isDescending}
+        onClick={() => void handleDescend()}
+        className="pointer-events-auto"
+      >
+        <DescendIcon />
+      </IconButton>
+    </SceneControlTooltip>
+  );
+}
+
+function LoadElevationButton({ sceneState }: { sceneState: SceneState }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [rangeLabel, setRangeLabel] = useState('');
+  const label =
+    status === 'loading'
+      ? 'Loading elevation min/max'
+      : status === 'loaded'
+        ? `Remove elevation adjustment (${rangeLabel})`
+        : status === 'error'
+          ? 'Elevation load failed. Retry'
+          : 'Load elevation min/max';
+
+  const handleLoadElevation = async () => {
+    if (sceneState.controls.liveState.mode === 'orbit') {
+      alert('noops');
+      return null;
+    }
+
+    if (status === 'loaded') {
+      sceneState.controls.setElevation(0, 0);
+      setRangeLabel('');
+      setStatus('idle');
+      return;
+    }
+
+    setStatus('loading');
+
+    try {
+      const range = await sceneState.controls.loadElevation();
+      setRangeLabel(`${Math.round(range.min)} to ${Math.round(range.max)} m`);
+      setStatus('loaded');
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  return (
+    <SceneControlTooltip label={label}>
+      <IconButton
+        type="button"
+        aria-label={label}
+        aria-busy={status === 'loading'}
+        aria-pressed={status === 'loaded'}
+        disabled={status === 'loading'}
+        onClick={() => void handleLoadElevation()}
+        className="pointer-events-auto"
+      >
+        <LoadElevationIcon />
+      </IconButton>
+    </SceneControlTooltip>
+  );
+}
+
+const OpenFlatMapButton = memo(() => {
   const [isFlatModalOpen, setIsFlatModalOpen] = useState(false);
   const [flatFrameUrl, setFlatFrameUrl] = useState('/flat.html');
   const ifrRef = useRef<HTMLIFrameElement>(null);
@@ -145,7 +228,7 @@ const JobsManagerButton = memo(() => {
   );
 });
 
-const CreateTileJobButton = ({ sceneState }: { sceneState: SceneState }) => {
+const CreateTileJobButton = () => {
   const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
   const [createJobFrameUrl, setCreateJobFrameUrl] = useState('./jobs-create');
 
@@ -240,7 +323,7 @@ function FlatMapIcon() {
   );
 }
 
-function ViewAngleIcon() {
+function DescendIcon() {
   return (
     <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
       <g
@@ -248,11 +331,30 @@ function ViewAngleIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.75"
+        strokeWidth="1.8"
       >
-        <path d="m3 16 9-4 9 4-9 4-9-4Z" />
-        <path d="M12 3v7M9.5 5.5 12 3l2.5 2.5" />
-        <path d="M5 12.5 8.5 9M5 9v3.5h3.5" opacity=".8" />
+        <path d="M12 3v11" />
+        <path d="m8 10 4 4 4-4" />
+        <path d="M4 18c2.5-1.5 5-1.5 8 0s5.5 1.5 8 0" opacity=".7" />
+        <path d="M5 21c2-1 4-1 7 0s5 1 7 0" opacity=".45" />
+      </g>
+    </svg>
+  );
+}
+
+function LoadElevationIcon() {
+  return (
+    <svg aria-hidden="true" className={iconClass} viewBox="0 0 24 24">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      >
+        <path d="m3 18 5-7 3 3 4-7 6 11H3Z" />
+        <path d="M12 3v6" />
+        <path d="m9.5 6.5 2.5 2.5 2.5-2.5" />
       </g>
     </svg>
   );

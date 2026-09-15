@@ -138,7 +138,6 @@ export const TileMaterialModeSelect = memo(
     const applyNonElevationMode = (event: React.MouseEvent<HTMLButtonElement>) => {
       const button = event.currentTarget;
       const requested = button.getAttribute('itemtype') as TileMaterialMode;
-      currentSceneState.setVisibleTilesElevationRange(0, 0);
       applyMaterialMode(requested);
     };
 

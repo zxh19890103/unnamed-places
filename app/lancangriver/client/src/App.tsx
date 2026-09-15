@@ -138,7 +138,14 @@ const CreateScene = memo(({ sceneState }: { sceneState: SceneState; host: HTMLDi
       switch (eventType) {
         case FLAT_CENTER_CONFIRMED: {
           const center = event.data.payload as LatLng;
-          sceneState.controls.setLatlng(center);
+          sceneState.setTilesMgrMode('static');
+          sceneState.controls
+            .flyTo(center, {
+              speed: 1,
+            })
+            .finally(() => {
+              sceneState.setTilesMgrMode('dynamic');
+            });
           break;
         }
         case 'tile12osm': {

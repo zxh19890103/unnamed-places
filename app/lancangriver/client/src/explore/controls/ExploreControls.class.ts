@@ -1,11 +1,12 @@
 import {
   distanceToZoomLevel,
   LatLng,
+  latlngToStandardTileZxy,
   latlngToSphere,
   sphereToLatlng,
   zoomLevelToDistance,
 } from '@/_3dtiles';
-import { EARTH_RADIUS } from '@/calc/constants';
+import { BASE_URL, EARTH_RADIUS } from '@/calc/constants';
 import { getLocalBasisAtPoint } from '@/calc/sphere';
 import * as THREE from 'three';
 
@@ -13,6 +14,21 @@ type ExploreControlsOptions = {
   maxZoom?: number;
   baseDistance?: number;
   minDistance?: number;
+};
+
+type AnimationToOptions = {
+  speed?: number;
+};
+
+type FlyToTarget = {
+  latlng: LatLng;
+  zoom?: number;
+  speed?: number;
+};
+
+type ElevationRange = {
+  min: number;
+  max: number;
 };
 
 export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
@@ -53,19 +69,60 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
     this.connect(domElement);
   }
 
-  public setElevation(min: number, max: number) {}
+  public setElevation(_min: number, _max: number) {}
   public getZoomLevel() {
     return 0;
   }
-  public setZoomLevel(zoom: number) {}
-  public setLatlng(center: LatLng) {}
+  public flyTo(_target: LatLng | FlyToTarget, _options?: AnimationToOptions): Promise<boolean> {
+    return Promise.resolve(false);
+  }
+  public setZoomLevel(_zoom: number) {}
+  public setLatlng(_center: LatLng) {}
+  public descendTo(_altitudeMeters: number, _options?: AnimationToOptions): Promise<boolean> {
+    return Promise.resolve(false);
+  }
+  public loadElevation(): Promise<ElevationRange> {
+    return Promise.reject(new Error('ExploreControls is not connected'));
+  }
 
-  update(delta?: number): void {}
+  update(_delta?: number): void {}
 
   connect(element: HTMLElement | SVGElement): void {
     const domElement = element as HTMLCanvasElement;
 
-    const __noops__ = (...args: any[]) => {};
+    const __noops__ = (..._args: any[]) => {};
+
+    let cameraAnimationFrame: number | null = null;
+    let resolveCameraAnimation: ((completed: boolean) => void) | null = null;
+
+    const cancelCameraAnimation = () => {
+      const wasAnimating = cameraAnimationFrame !== null;
+
+      if (cameraAnimationFrame !== null) {
+        cancelAnimationFrame(cameraAnimationFrame);
+        cameraAnimationFrame = null;
+      }
+
+      resolveCameraAnimation?.(false);
+      resolveCameraAnimation = null;
+
+      if (wasAnimating) {
+        const height = _position.length() - _sphere_radius - _elevationMeters;
+
+        if (height < MODE_SWAP_LOWER_Height) {
+          _mode = 'map';
+          _pan_or_orbit = pan;
+          _target.copy(_position).setLength(_sphere_radius + _elevationMeters);
+        } else {
+          _mode = 'orbit';
+          _pan_or_orbit = orbit;
+          _target.set(0, 0, 0);
+        }
+
+        render();
+        syncDerivedState(false);
+      }
+    };
 
     let _disableWheel = __noops__;
     const enableWheel = () => {
@@ -86,6 +143,7 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
 
       const wheel = (event: WheelEvent) => {
         event.preventDefault();
+        cancelCameraAnimation();
         wheelInertialDetector.processEvent(event);
 
         scheduleWheelEnd();
@@ -146,6 +204,7 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
         };
 
         pointerdown = (event: PointerEvent) => {
+          cancelCameraAnimation();
           moved = false;
           down = true;
 
@@ -207,6 +266,7 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
     };
 
     this._disconnect = () => {
+      cancelCameraAnimation();
       _disableWheel?.();
       _disableYawPitch?.();
 
@@ -245,10 +305,10 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
     let _latlng: LatLng = null;
     let _viewDistance: number = -1;
     let _elevationMeters = 0;
+    let _sphere_radius = EARTH_RADIUS;
     /**
      * always be Earth raius
      */
-    const _sphere_radius = EARTH_RADIUS;
     let _zoom = -1;
 
     let endEventScheduler: any = null;
@@ -319,6 +379,7 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
         if (height > MODE_SWAP_UPPER_Height) {
           _mode = 'orbit';
           _pan_or_orbit = orbit;
+          _sphere_radius = EARTH_RADIUS;
           console.log('mode map -> orbit');
           return new THREE.Vector3(0, 0, 0);
         }
@@ -329,6 +390,7 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
         if (height < MODE_SWAP_LOWER_Height) {
           _mode = 'map';
           _pan_or_orbit = pan;
+          _sphere_radius = EARTH_RADIUS + _elevationMeters;
           console.log('mode orbit -> map');
           return nextPosition.clone().setLength(_sphere_radius);
         }
@@ -388,10 +450,6 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
       if (_mode === 'map') {
         return new THREE.Vector3().subVectors(position, target);
       } else {
-        if (target.length() > 0) {
-          throw new Error("noops! target isn't at the (0,0,0)");
-        }
-
         const distance = new THREE.Vector3().subVectors(position, target);
         const distanceScalar = distance.length() - _sphere_radius;
 
@@ -543,6 +601,8 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
 
     //#region complex interactions implementations
     this.setZoomLevel = (zoom: number) => {
+      cancelCameraAnimation();
+
       let dist = zoomLevelToDistance(zoom, minZoom, maxZoom, referenceAltitudeMeters);
       dist = Math.min(maxDistance, Math.max(dist, minDistance));
 
@@ -559,6 +619,8 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
     };
 
     this.setLatlng = (center: LatLng) => {
+      cancelCameraAnimation();
+
       if (_mode === 'map') {
         const nextTarget = new THREE.Vector3().copy(latlngToSphere(center.lat, center.lng));
         _panTo(nextTarget);
@@ -573,9 +635,290 @@ export class ExploreControls extends THREE.Controls<ExploreControlsEventMap> {
       }
     };
 
+    const applyElevation = () => {
+      _sphere_radius = EARTH_RADIUS + _elevationMeters;
+
+      const nextTarget = _target.clone().setLength(_sphere_radius);
+      _target.copy(nextTarget);
+
+      const nextPosition = _unit_target_to_position
+        .clone()
+        .setLength(_viewDistance)
+        .add(nextTarget);
+      _position.copy(nextPosition);
+
+      render();
+      syncDerivedState();
+    };
+
+    const unapplyElevation = () => {
+      _sphere_radius = EARTH_RADIUS;
+    };
+
     this.setElevation = (min: number, max: number) => {
-      const avg = (min + max) / 2;
-      _elevationMeters = avg;
+      cancelCameraAnimation();
+
+      _elevationMeters = min;
+
+      if (_mode === 'map') {
+        applyElevation();
+      } else {
+        unapplyElevation();
+      }
+    };
+
+    this.loadElevation = async () => {
+      const centerPoint = _mode === 'map' && _target.lengthSq() > 0 ? _target : _position;
+      const center = sphereToLatlng(centerPoint.x, centerPoint.y, centerPoint.z);
+      const [z, x, y] = latlngToStandardTileZxy(center, 13);
+      const response = await fetch(`${BASE_URL}/raster/dem/${z}/${x}/${y}/altitude`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load elevation (${response.status})`);
+      }
+
+      const data = (await response.json()) as Partial<ElevationRange> & { ok?: boolean };
+
+      if (data.ok !== true || !Number.isFinite(data.min) || !Number.isFinite(data.max)) {
+        throw new Error('Invalid elevation response');
+      }
+
+      const range = { min: data.min as number, max: data.max as number };
+      this.setElevation(range.min, range.max);
+
+      return range;
+    };
+
+    this.descendTo = (altitudeMeters, options = {}) => {
+      cancelCameraAnimation();
+
+      const safeAltitudeMeters = Number.isFinite(altitudeMeters) ? Math.max(0, altitudeMeters) : 0;
+      const speed =
+        options.speed && Number.isFinite(options.speed) ? Math.max(0.1, options.speed) : 1;
+      const startPosition = _position.clone();
+      const startTarget = _target.clone();
+      const destinationTarget =
+        _mode === 'map'
+          ? _target.clone().setLength(_sphere_radius)
+          : _position.clone().setLength(_sphere_radius);
+      const destinationRadius = Math.max(
+        _sphere_radius + minDistance,
+        _sphere_radius + _elevationMeters + safeAltitudeMeters,
+      );
+      const destinationPosition = destinationTarget.clone().setLength(destinationRadius);
+      const startAltitudeMeters = Math.max(
+        0,
+        startPosition.length() - _sphere_radius - _elevationMeters,
+      );
+      const targetAltitudeMeters = Math.max(
+        0,
+        destinationRadius - _sphere_radius - _elevationMeters,
+      );
+      const deltaAltitudeMeters = Math.abs(targetAltitudeMeters - startAltitudeMeters);
+      const baseDuration = THREE.MathUtils.clamp(
+        1_500 + 1_200 * Math.log2(1 + deltaAltitudeMeters / 1_000),
+        2_000,
+        10_000,
+      );
+      const duration = baseDuration / speed;
+      const reduceMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      _mode = 'map';
+      _pan_or_orbit = pan;
+
+      const interpolateAltitudeLog2 = (
+        currentAltitudeMeters: number,
+        destinationAltitudeMeters: number,
+        progress: number,
+      ) => {
+        if (progress <= 0) return currentAltitudeMeters;
+        if (progress >= 1) return destinationAltitudeMeters;
+
+        const minimumLogAltitudeMeters = 1;
+        const currentLog2 = Math.log2(Math.max(minimumLogAltitudeMeters, currentAltitudeMeters));
+        const destinationLog2 = Math.log2(
+          Math.max(minimumLogAltitudeMeters, destinationAltitudeMeters),
+        );
+
+        return 2 ** THREE.MathUtils.lerp(currentLog2, destinationLog2, progress);
+      };
+
+      const applyProgress = (progress: number) => {
+        const eased = progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+        const altitudeMeters = interpolateAltitudeLog2(
+          startAltitudeMeters,
+          targetAltitudeMeters,
+          eased,
+        );
+        const altitudeRangeMeters = targetAltitudeMeters - startAltitudeMeters;
+        const spatialProgress =
+          Math.abs(altitudeRangeMeters) < Number.EPSILON
+            ? eased
+            : THREE.MathUtils.clamp(
+                (altitudeMeters - startAltitudeMeters) / altitudeRangeMeters,
+                0,
+                1,
+              );
+
+        _position.lerpVectors(startPosition, destinationPosition, spatialProgress);
+        _target.lerpVectors(startTarget, destinationTarget, spatialProgress);
+        render();
+        syncDerivedState(false);
+      };
+
+      const complete = () => {
+        cameraAnimationFrame = null;
+        resolveCameraAnimation = null;
+        _position.copy(destinationPosition);
+        _target.copy(destinationTarget);
+
+        const nextTarget = checkMode(_position, _target);
+        if (nextTarget) _target.copy(nextTarget);
+
+        render();
+        syncDerivedState(false);
+        setTimeout(() => {
+          this.dispatchEvent({ type: 'end', latlng: _latlng });
+        }, 500);
+      };
+
+      if (reduceMotion || duration === 0) {
+        complete();
+        return Promise.resolve(true);
+      }
+
+      const startTime = performance.now();
+
+      return new Promise<boolean>((resolve) => {
+        resolveCameraAnimation = resolve;
+
+        const animate = (now: number) => {
+          const progress = Math.min(1, (now - startTime) / duration);
+          applyProgress(progress);
+
+          if (progress < 1) {
+            cameraAnimationFrame = requestAnimationFrame(animate);
+            return;
+          }
+
+          complete();
+          resolve(true);
+        };
+
+        cameraAnimationFrame = requestAnimationFrame(animate);
+      });
+    };
+
+    this.flyTo = (target, options = {}) => {
+      cancelCameraAnimation();
+
+      const targetLatlng = 'latlng' in target ? target.latlng : target;
+      const targetZoom = 'latlng' in target ? target.zoom : undefined;
+      const rawSpeed = 'latlng' in target ? target.speed : options.speed;
+      const speed = rawSpeed && Number.isFinite(rawSpeed) ? Math.max(0.1, rawSpeed) : 1;
+      const safeZoom = Number.isFinite(targetZoom)
+        ? THREE.MathUtils.clamp(targetZoom, minZoom, maxZoom)
+        : null;
+      const startPosition = _position.clone();
+      const targetHeight =
+        safeZoom === null
+          ? Math.max(targetLatlng.alt ?? 500, minDistance)
+          : THREE.MathUtils.clamp(
+              zoomLevelToDistance(safeZoom, minZoom, maxZoom, referenceAltitudeMeters),
+              minDistance,
+              maxDistance,
+            );
+      const targetPoint = new THREE.Vector3().copy(
+        latlngToSphere(targetLatlng.lat, targetLatlng.lng, _elevationMeters),
+      );
+      const destinationPosition = new THREE.Vector3().copy(
+        latlngToSphere(targetLatlng.lat, targetLatlng.lng, _elevationMeters + targetHeight),
+      );
+      const startNormal = startPosition.clone().normalize();
+      const destinationNormal = targetPoint.clone().normalize();
+      const orbitRotation = new THREE.Quaternion().setFromUnitVectors(
+        startNormal,
+        destinationNormal,
+      );
+      const startRadius = startPosition.length();
+      const groundRadius = targetPoint.length();
+      const startHeight = Math.max(0, startRadius - groundRadius);
+      const peakHeight = 1_000_000;
+      const angle = startNormal.angleTo(destinationNormal);
+      const normalizedAngle = angle / Math.PI;
+      const baseDuration = THREE.MathUtils.clamp(
+        4_000 + 14_000 * Math.pow(normalizedAngle, 0.6),
+        4_000,
+        18_000,
+      );
+      const duration = baseDuration / speed;
+      const reduceMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      _mode = 'orbit';
+      _pan_or_orbit = orbit;
+      _sphere_radius = EARTH_RADIUS;
+      _target.set(0, 0, 0);
+      syncDerivedState(false);
+
+      const complete = () => {
+        cameraAnimationFrame = null;
+        resolveCameraAnimation = null;
+
+        _position.copy(destinationPosition);
+        _target.copy({ x: 0, y: 0, z: 0 });
+
+        const nextTarget = checkMode(_position, _target);
+        if (nextTarget) _target.copy(nextTarget);
+
+        render();
+        syncDerivedState(false);
+        setTimeout(() => {
+          this.dispatchEvent({ type: 'end', latlng: _latlng });
+        }, 500);
+      };
+
+      if (reduceMotion || duration === 0) {
+        complete();
+        return Promise.resolve(true);
+      }
+
+      const startTime = performance.now();
+
+      return new Promise<boolean>((resolve) => {
+        resolveCameraAnimation = resolve;
+
+        const animate = (now: number) => {
+          const progress = Math.min(1, (now - startTime) / duration);
+          const eased = 0.5 - 0.5 * Math.cos(progress * Math.PI);
+          const currentRotation = new THREE.Quaternion().identity().slerp(orbitRotation, eased);
+          const normal = startNormal.clone().applyQuaternion(currentRotation).normalize();
+          const altitudeProgress = progress < 0.5 ? progress * 2 : (progress - 0.5) * 2;
+          const easedAltitudeProgress = 0.5 - 0.5 * Math.cos(altitudeProgress * Math.PI);
+          const height =
+            progress < 0.5
+              ? THREE.MathUtils.lerp(startHeight, peakHeight, easedAltitudeProgress)
+              : THREE.MathUtils.lerp(peakHeight, targetHeight, easedAltitudeProgress);
+
+          _position.copy(normal).multiplyScalar(groundRadius + height);
+          _target.set(0, 0, 0);
+
+          if (progress < 1) {
+            render();
+            syncDerivedState(false);
+            cameraAnimationFrame = requestAnimationFrame(animate);
+            return;
+          }
+
+          complete();
+          resolve(true);
+        };
+
+        cameraAnimationFrame = requestAnimationFrame(animate);
+      });
     };
     //#endregion
   }

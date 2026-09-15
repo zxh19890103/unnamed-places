@@ -2,7 +2,7 @@ export const BASE_URL = 'http://localhost:4050';
 
 export const EARTH_RADIUS = 6_371_008.8;
 
-export const ELEVATION_SCALE = 1.6;
+export const ELEVATION_SCALE = 1;
 export const FLY_MOVEMENT_SPEED = 10;
 export const FLY_ROLL_SPEED = 0.1;
 
