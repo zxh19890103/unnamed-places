@@ -1,4 +1,10 @@
-import type { JourneyBuildResult, JourneyDayNode, PhotoRecord } from './types';
+import type {
+  JourneyBuildResult,
+  JourneyChipNode,
+  JourneyDayNode,
+  JourneyGeoNode,
+  PhotoRecord,
+} from './types';
 
 function toDayKey(takenAt: string | null): string {
   if (!takenAt) {
@@ -26,6 +32,7 @@ function toPlaceChip(lat: number, lng: number): string {
 
 export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
   const buckets = new Map<string, PhotoRecord[]>();
+  const geoBuckets = new Map<string, PhotoRecord[]>();
   let skippedInvalidCoordinateCount = 0;
 
   for (const record of records) {
@@ -35,9 +42,14 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
     }
 
     const dayKey = toDayKey(record.takenAt);
-    const bucket = buckets.get(dayKey) ?? [];
-    bucket.push(record);
-    buckets.set(dayKey, bucket);
+    const dayBucket = buckets.get(dayKey) ?? [];
+    dayBucket.push(record);
+    buckets.set(dayKey, dayBucket);
+
+    const chipKey = toPlaceChip(record.lat, record.lng);
+    const geoBucket = geoBuckets.get(chipKey) ?? [];
+    geoBucket.push(record);
+    geoBuckets.set(chipKey, geoBucket);
   }
 
   const days: JourneyDayNode[] = [...buckets.entries()].map(([dayKey, bucket]) => {
@@ -54,6 +66,7 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
       representativeLng,
       placeChips,
       photoIds: bucket.map((item) => item.id),
+      photos: bucket,
     };
   });
 
@@ -68,10 +81,47 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
     return right.dayKey.localeCompare(left.dayKey);
   });
 
+  const geoNodes: JourneyGeoNode[] = [...geoBuckets.entries()]
+    .map(([chipKey, bucket]) => {
+      const photoCount = bucket.length;
+      const representativeLat = bucket.reduce((sum, item) => sum + item.lat, 0) / photoCount;
+      const representativeLng = bucket.reduce((sum, item) => sum + item.lng, 0) / photoCount;
+
+      return {
+        chipKey,
+        displayLabel: chipKey,
+        photoCount,
+        representativeLat,
+        representativeLng,
+        photoIds: bucket.map((item) => item.id),
+        photos: bucket,
+      };
+    })
+    .sort((left, right) => right.photoCount - left.photoCount);
+
+  const chipNodes: JourneyChipNode[] = days.flatMap((day) => {
+    const chipBuckets = new Map<string, PhotoRecord[]>();
+
+    for (const photo of day.photos) {
+      const chipKey = toPlaceChip(photo.lat, photo.lng);
+      const bucket = chipBuckets.get(chipKey) ?? [];
+      bucket.push(photo);
+      chipBuckets.set(chipKey, bucket);
+    }
+
+    return [...chipBuckets.entries()].map(([chipKey, bucket]) => ({
+      chipKey,
+      photos: bucket,
+    }));
+  });
+
   return {
     days,
+    geoNodes,
+    chipNodes,
     records,
     buckets,
+    geoBuckets,
     skippedInvalidCoordinateCount,
   };
 }

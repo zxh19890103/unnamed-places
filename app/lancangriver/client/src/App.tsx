@@ -171,7 +171,9 @@ const CreateScene = memo(({ sceneState }: { sceneState: SceneState; host: HTMLDi
       </div>
 
       <div className="pointer-events-none fixed lg:left-2 lg:top-2 z-40 sm:left-3 sm:top-20">
-        <JourneyPanel />
+        <JourneyPanel
+          capacities={{ scene: sceneState.scene, onDaySelect: () => {}, onGeoSelect: () => {} }}
+        />
       </div>
 
       <div className="pointer-events-none fixed lg:right-2 top-1/2 z-40 -translate-y-1/2 sm:right-3">

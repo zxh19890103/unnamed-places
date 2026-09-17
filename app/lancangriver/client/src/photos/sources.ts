@@ -36,19 +36,42 @@ async function getDevPhotosViaService(devRoot: string): Promise<PhotoRecord[]> {
   return normalizePhotoRecords(Array.isArray(body.photos) ? body.photos : []);
 }
 
-function getDevPhotosRootFromEnv(): string {
+function getDevPhotosRootsFromEnv(): string[] {
   const configuredRoot = import.meta.env.VITE_PHOTOS_ROOT;
 
   if (typeof configuredRoot === 'string' && configuredRoot.trim().length > 0) {
-    return configuredRoot.trim();
+    return configuredRoot
+      .split(',')
+      .map((root) => root.trim())
+      .filter((root) => root.length > 0);
   }
 
-  return '/tmp/photos';
+  return ['/tmp/photos'];
 }
 
 export async function fetchGeotaggedPhotos(options: FetchOptions): Promise<PhotoRecord[]> {
   if (options.mode === 'dev') {
-    return getDevPhotosViaService(options.devRoot ?? getDevPhotosRootFromEnv());
+    const roots = options.devRoot
+      ? options.devRoot.split(',').map((root) => root.trim())
+      : getDevPhotosRootsFromEnv();
+
+    const results = await Promise.all(
+      roots.map((root) =>
+        getDevPhotosViaService(root).catch((error) => {
+          console.warn(`Failed to load dev photos from ${root}`, error);
+          return [] as PhotoRecord[];
+        }),
+      ),
+    );
+
+    const seen = new Set<string>();
+    return results.flat().filter((photo) => {
+      if (seen.has(photo.id)) {
+        return false;
+      }
+      seen.add(photo.id);
+      return true;
+    });
   }
 
   return getProdPhotosViaElectron();

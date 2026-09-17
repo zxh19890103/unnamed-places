@@ -130,8 +130,8 @@ export function createPhotosRouter(options = {}) {
       const thumbBuffer = await sharp(filePath)
         .rotate()
         .resize({
-          width: 512,
-          height: 512,
+          width: 128,
+          height: 128,
           fit: 'inside',
           withoutEnlargement: true,
         })

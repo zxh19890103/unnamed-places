@@ -22,6 +22,11 @@ const pages = [
     description: 'Minimal Three.js Earth-scale scene using custom ExploreControls.',
   },
   {
+    title: 'Journey Panel',
+    href: '/journey-panel',
+    description: 'Minimal Three.js scene with a fixed top-left journey panel overlay.',
+  },
+  {
     title: 'Loaded Vector Tiles',
     href: '/jobs',
     description: 'Browse zoom-12 OSM coverage ready for vector tile requests.',

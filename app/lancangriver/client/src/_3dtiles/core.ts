@@ -24,12 +24,17 @@ export function normalizeLongitude(lng: number): number {
   return wrapped - 180;
 }
 
-function latlngToPerfectSphere(lat: number, lng: number, alt: number = 0): THREE.Vector3Like {
+function latlngToPerfectSphere(
+  lat: number,
+  lng: number,
+  alt: number = 0,
+  r0 = EARTH_RADIUS,
+): THREE.Vector3Like {
   const latRad = lat * DEG_TO_RAD;
   const lngRad = lng * DEG_TO_RAD;
   const cosLat = Math.cos(latRad);
 
-  const r = EARTH_RADIUS + alt;
+  const r = r0 + alt;
 
   return {
     x: r * cosLat * Math.sin(lngRad),

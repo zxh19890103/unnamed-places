@@ -14,6 +14,7 @@ const pagesCfg = {
   ['global-zoom']: `./src/(experiments)/global-zoom`,
   ['shanshui-shader']: `./src/(experiments)/shanshui-shader`,
   ['explore-controls']: `./src/(experiments)/explore-controls`,
+  ['journey-panel']: `./src/(experiments)/journey-panel`,
   ['tile12-osm']: `./src/tile12-osm`,
 };
 
