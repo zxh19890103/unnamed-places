@@ -58,6 +58,10 @@ export type JourneyBuildResult = {
 
 export interface JourneyPhotosCapacities {
   scene: Scene;
-  onDaySelect: (day: JourneyDayNode, buckets: JourneyBuildResultBucket) => void;
-  onGeoSelect: (geoNode: JourneyGeoNode, buckets: JourneyBuildResultBucket) => void;
+  onDaySelect: (day: JourneyDayNode) => void;
+  onGeoOpen: (geoNode: JourneyGeoNode) => void;
+  onGeoClose: (geoNode: JourneyGeoNode) => void;
+  onPhotoSelect: (photo: PhotoRecord, geoNode: JourneyGeoNode) => void;
+  onLoaded: (journey: JourneyBuildResult) => void;
+  onMotionsToggle?: (visible: boolean, journey: JourneyBuildResult) => void;
 }

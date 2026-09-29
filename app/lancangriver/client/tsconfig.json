@@ -31,6 +31,7 @@
     "src"
   ],
   "exclude": [
-    "node_modules/@types/three/src/nodes/**/*.d.ts"
+    "node_modules/@types/three/src/nodes/**/*.d.ts",
+    "node_modules/@types/three/tsl"
   ],
 }

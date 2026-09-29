@@ -22,11 +22,6 @@ const pages = [
     description: 'Minimal Three.js Earth-scale scene using custom ExploreControls.',
   },
   {
-    title: 'Journey Panel',
-    href: '/journey-panel',
-    description: 'Minimal Three.js scene with a fixed top-left journey panel overlay.',
-  },
-  {
     title: 'Loaded Vector Tiles',
     href: '/jobs',
     description: 'Browse zoom-12 OSM coverage ready for vector tile requests.',
@@ -61,6 +56,16 @@ const pages = [
     href: '/ui-design-implement',
     description: 'Examples of buttons, panels, and tables grouped with reusable section blocks.',
   },
+  {
+    title: 'Photo View in 3D',
+    href: '/photoview-in-3d',
+    description: 'Experimental Three.js scene with an orange plane and orbit controls.',
+  },
+  {
+    title: 'Photos on Map',
+    href: '/photos-on-map',
+    description: 'Leaflet map that listens for a photos-loaded message and plots photo markers.',
+  },
 ];
 
 export default function App() {
@@ -81,7 +86,7 @@ export default function App() {
                 </p>
               </div>
               <div className="rounded-lg border border-jade-border-soft bg-jade-control/70 px-3 py-2 text-sm text-jade-text-muted">
-                <span className="font-medium text-jade-text">11</span> live views
+                <span className="font-medium text-jade-text">12</span> live views
               </div>
             </div>
           </div>

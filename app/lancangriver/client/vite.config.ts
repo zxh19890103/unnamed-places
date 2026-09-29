@@ -14,8 +14,9 @@ const pagesCfg = {
   ['global-zoom']: `./src/(experiments)/global-zoom`,
   ['shanshui-shader']: `./src/(experiments)/shanshui-shader`,
   ['explore-controls']: `./src/(experiments)/explore-controls`,
-  ['journey-panel']: `./src/(experiments)/journey-panel`,
   ['tile12-osm']: `./src/tile12-osm`,
+  ['photoview-in-3d']: `./src/(experiments)/photoview-in-3d`,
+  ['photos-on-map']: `./src/photos-on-map`,
 };
 
 const pages = new Map(

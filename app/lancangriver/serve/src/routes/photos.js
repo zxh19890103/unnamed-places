@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { createReadStream } from 'node:fs';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import exifr from 'exifr';
 import { scanGeotaggedPhotos as defaultScanGeotaggedPhotos } from '../photos/scanGeotaggedPhotos.js';
 
 function getDefaultPhotosRoot() {
@@ -188,6 +189,91 @@ export function createPhotosRouter(options = {}) {
     } catch (error) {
       console.error('Error serving original photo:', error);
       res.status(500).json(createErrorPayload('PHOTO_ORIGINAL_FAILED', 'Internal server error'));
+    }
+  });
+
+  router.get('/photos/exif/:id', async (req, res) => {
+    const filePath = idToFilePath(req.params.id);
+
+    if (!filePath) {
+      res.status(400).json(createErrorPayload('INVALID_ID', 'Path param id is required'));
+      return;
+    }
+
+    try {
+      await access(filePath);
+    } catch (error) {
+      if (error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
+        res
+          .status(404)
+          .json(createErrorPayload('PHOTO_FILE_NOT_FOUND', 'Photo file does not exist'));
+        return;
+      }
+
+      res.status(500).json(createErrorPayload('PHOTO_EXIF_FAILED', 'Internal server error'));
+      return;
+    }
+
+    try {
+      const [data, stats] = await Promise.all([
+        exifr.parse(filePath, {
+          exif: true,
+          gps: true,
+          iptc: true,
+          icc: false,
+          xmp: true,
+          ifd0: true,
+          ifd1: false,
+          makerNote: false,
+          userComment: true,
+          translateKeys: true,
+          translateValues: true,
+          reviveValues: true,
+        }),
+        stat(filePath),
+      ]);
+
+      const imageWidth = data?.ExifImageWidth ?? data?.ImageWidth ?? null;
+      const imageHeight = data?.ExifImageHeight ?? data?.ImageHeight ?? null;
+      const focalLength = data?.FocalLength ?? null;
+      const focalLength35mm = data?.FocalLengthIn35mmFormat ?? null;
+
+      const exif = {
+        filePath,
+        fileName: filePath.split('/').pop() ?? '',
+        sizeBytes: stats.size,
+        make: data?.Make ?? null,
+        model: data?.Model ?? null,
+        lensMake: data?.LensMake ?? null,
+        lensModel: data?.LensModel ?? null,
+        imageWidth,
+        imageHeight,
+        orientation: data?.Orientation ?? null,
+        focalLength,
+        focalLengthIn35mmFormat: focalLength35mm,
+        fNumber: data?.FNumber ?? null,
+        exposureTime: data?.ExposureTime ?? null,
+        iso: data?.ISO ?? null,
+        exposureProgram: data?.ExposureProgram ?? null,
+        meteringMode: data?.MeteringMode ?? null,
+        flash: data?.Flash ?? null,
+        whiteBalance: data?.WhiteBalance ?? null,
+        dateTimeOriginal: data?.DateTimeOriginal ?? null,
+        createDate: data?.CreateDate ?? null,
+        offsetTime: data?.OffsetTime ?? null,
+        latitude: data?.latitude ?? null,
+        longitude: data?.longitude ?? null,
+        altitude: data?.altitude ?? data?.GPSAltitude ?? null,
+        gpsImgDirection: data?.GPSImgDirection ?? null,
+        gpsImgDirectionRef: data?.GPSImgDirectionRef ?? null,
+        software: data?.Software ?? null,
+        hasMotionPhoto: data?.MotionPhoto === 1,
+      };
+
+      res.status(200).json({ exif });
+    } catch (error) {
+      console.error('Error parsing photo EXIF:', error);
+      res.status(500).json(createErrorPayload('PHOTO_EXIF_FAILED', 'Internal server error'));
     }
   });
 
