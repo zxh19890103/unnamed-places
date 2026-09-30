@@ -10,6 +10,7 @@ import {
 } from './_fns';
 import { DEG_TO_RAD } from '@/_3dtiles';
 import { BASE_URL } from '@/calc/constants';
+import { __glsl_funcs__ } from './_glsl';
 
 function computeVerticalFov(
   focalLength35mm: number | null,
@@ -223,6 +224,9 @@ class PhotoView {
         demTexture: { value: chip.elevationTexture },
         demTileUv: { value: new THREE.Vector2(demTileUv.u, demTileUv.v) },
         demMin: { value: chip.elevation },
+        saturation: { value: 2.6 },
+        contrast: { value: 1 },
+        brightness: { value: 1.2 },
         borderColor: { value: new THREE.Color('#ffffff') },
       },
       vertexShader: thumbVertexShader,
@@ -449,7 +453,11 @@ class ChipView {
   }
 }
 
-export class PhotosManager {
+type PhotosManagerEventMap = {
+  update: {};
+};
+
+export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> {
   private animations: Animation[] = [];
 
   selected: PhotoView;
@@ -466,7 +474,9 @@ export class PhotosManager {
   constructor(
     readonly scene: THREE.Scene,
     readonly camera: THREE.PerspectiveCamera,
-  ) {}
+  ) {
+    super();
+  }
 
   select(rec: PhotoRecord) {
     // remove the last selected
@@ -511,6 +521,7 @@ export class PhotosManager {
     if (!pv) return;
 
     this.selected = pv;
+    this.dispatchEvent({ type: 'update' });
 
     pv.buildOriginal().then(() => {
       if (pv.original) {
@@ -670,6 +681,8 @@ export class PhotosManager {
     this.destorySelected();
     this.destoryChip();
     this.loadChip(geoNode);
+
+    this.dispatchEvent({ type: 'update' });
   }
 
   closeChip() {
@@ -704,7 +717,13 @@ const thumbVertexShader = /*glsl */ `
 const thumbFragmentShader = /*glsl */ `
       uniform sampler2D thumbTexture;
       uniform vec3 borderColor;
+      uniform float brightness;
+      uniform float saturation;
+      uniform float contrast;
+
       varying vec2 vUv;
+
+      ${__glsl_funcs__}
 
       void main() {
         vec4 color = texture2D(thumbTexture, vUv);
@@ -713,7 +732,12 @@ const thumbFragmentShader = /*glsl */ `
         fill += step(abs(vUv.y - 0.5), 0.44);
         fill = 1.0 - step(fill, 1.0);
 
-        vec3 finalColor = mix(borderColor, color.rgb, fill);
+        vec3 finalColor = applySaturation( color.rgb,  saturation);
+        finalColor = applyContrast( finalColor,  contrast);
+        finalColor = applyBrightness( finalColor,  brightness);
+
+        finalColor = mix(borderColor, finalColor.rgb, fill);
+
         gl_FragColor = vec4(finalColor, 1.0);
       }
     `;

@@ -27,7 +27,7 @@ function toDisplayLabel(dayKey: string): string {
 }
 
 function toPlaceChip(lat: number, lng: number): string {
-  return `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+  return `${lat.toFixed(1)}, ${lng.toFixed(1)}`;
 }
 
 export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
@@ -84,8 +84,25 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
   const geoNodes: JourneyGeoNode[] = [...geoBuckets.entries()]
     .map(([chipKey, bucket]) => {
       const photoCount = bucket.length;
+
       const representativeLat = bucket.reduce((sum, item) => sum + item.lat, 0) / photoCount;
       const representativeLng = bucket.reduce((sum, item) => sum + item.lng, 0) / photoCount;
+
+      const byDateMap = new Map<string, PhotoRecord[]>();
+      for (const photo of bucket) {
+        const dayKey = toDayKey(photo.takenAt);
+        const existing = byDateMap.get(dayKey) ?? [];
+        existing.push(photo);
+        byDateMap.set(dayKey, existing);
+      }
+
+      const bydate = [...byDateMap.entries()]
+        .map(([key, photos]) => ({
+          key,
+          date: photos[0]?.takenAt ? new Date(photos[0].takenAt) : new Date(0),
+          photos,
+        }))
+        .sort((left, right) => right.date.getTime() - left.date.getTime());
 
       return {
         chipKey,
@@ -95,6 +112,7 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
         representativeLng,
         photoIds: bucket.map((item) => item.id),
         photos: bucket,
+        bydate,
       };
     })
     .sort((left, right) => right.photoCount - left.photoCount);

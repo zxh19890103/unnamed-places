@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 
 import 'leaflet/dist/leaflet.css';
 
-import type { JourneyBuildResult, PhotoRecord } from '@/photos/types';
+import type { JourneyBuildResult } from '@/photos/types';
 import { BASE_URL } from '@/calc/constants';
 
 type PhotosLoadMessage = {
@@ -18,7 +18,6 @@ export default function App() {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
-  const [photoCount, setPhotoCount] = useState(0);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -31,6 +30,7 @@ export default function App() {
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
+      detectRetina: true,
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 
@@ -48,7 +48,6 @@ export default function App() {
       const photos = msg.data.geoNodes;
 
       if (!photos.length) {
-        setPhotoCount(0);
         markers.clearLayers();
         return;
       }
@@ -102,8 +101,6 @@ export default function App() {
       if (validCount > 0 && bounds.isValid()) {
         map.fitBounds(bounds.pad(0.3), { maxZoom: 16 });
       }
-
-      setPhotoCount(validCount);
     };
 
     window.addEventListener('message', handleMessage);

@@ -1,7 +1,6 @@
 import { Panel } from '@/_components';
 import type {
   JourneyBuildResult,
-  JourneyChipNode,
   JourneyDayNode,
   JourneyGeoNode,
   JourneyPhotosCapacities,
@@ -13,7 +12,7 @@ import {
   CaretDownIcon,
   CaretRightIcon,
 } from '@radix-ui/react-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fetchGeotaggedPhotos } from './sources';
 import { buildJourneyDays } from './journey';
 import { BASE_URL } from '../calc/constants';
@@ -42,6 +41,9 @@ export function JourneyPanel({
   const [geoNodes, setGeoNodes] = useState<JourneyGeoNode[]>([]);
   const [motionLinesVisible, setMotionLinesVisible] = useState(false);
 
+  const capacitiesRef = useRef<JourneyPhotosCapacities>(null);
+  capacitiesRef.current = capacities;
+
   useEffect(() => {
     const handleLoadGeotaggedPhotos = async () => {
       setLoading(true);
@@ -59,7 +61,7 @@ export function JourneyPanel({
         setDays(journey.days);
         setGeoNodes(journey.geoNodes);
 
-        capacities.onLoaded(journey);
+        capacitiesRef.current?.onLoaded(journey);
 
         setError(null);
       } catch (error) {
@@ -88,7 +90,7 @@ export function JourneyPanel({
     }
 
     try {
-      capacities.onDaySelect(selectedDay);
+      capacitiesRef.current?.onDaySelect(selectedDay);
     } catch (error) {
       console.warn('Failed to focus journey day', error);
       setError('Could not focus that day');
@@ -105,7 +107,7 @@ export function JourneyPanel({
       setSelectedPhotoId(null);
       setOpenGeoKey(null);
       try {
-        capacities.onGeoClose(targetGeo);
+        capacitiesRef.current?.onGeoClose(targetGeo);
       } catch (error) {
         console.warn('Failed to close geolocation', error);
         setError('Could not close that location');
@@ -118,7 +120,7 @@ export function JourneyPanel({
     setOpenGeoKey(chipKey);
 
     try {
-      capacities.onGeoOpen(targetGeo);
+      capacitiesRef.current?.onGeoOpen(targetGeo);
     } catch (error) {
       console.warn('Failed to open geolocation', error);
       setError('Could not open that location');
@@ -127,9 +129,8 @@ export function JourneyPanel({
 
   const onPhotoClick = (photo: PhotoRecord, geoNode: JourneyGeoNode) => {
     setSelectedPhotoId(photo.id);
-
     try {
-      capacities.onPhotoSelect(photo, geoNode);
+      capacitiesRef.current?.onPhotoSelect(photo, geoNode);
     } catch (error) {
       console.warn('Failed to select photo', error);
       setError('Could not select that photo');
@@ -144,12 +145,15 @@ export function JourneyPanel({
     }
 
     try {
-      capacities.onMotionsToggle?.(!motionLinesVisible, journeyData);
+      capacitiesRef.current?.onMotionsToggle?.(!motionLinesVisible, journeyData);
     } catch (error) {
       console.warn('Failed to toggle motion lines', error);
       setError('Could not toggle motion lines');
     }
   };
+
+  const finalSelectedGeoNodeKey = capacities.geoNode?.chipKey ?? openGeoKey;
+  const finalSelectedPhotoID = capacities.photo?.id ?? selectedPhotoId;
 
   return (
     <Panel
@@ -245,15 +249,13 @@ export function JourneyPanel({
             </h3>
             <div className="space-y-2">
               {geoNodes.map((geoNode) => {
-                const isOpen = openGeoKey === geoNode.chipKey;
+                const isOpen = finalSelectedGeoNodeKey === geoNode.chipKey;
 
                 return (
                   <div
                     key={geoNode.chipKey}
-                    className={`rounded-lg border p-3 transition-colors ${
-                      isOpen
-                        ? 'border-jade-river bg-jade-river-soft'
-                        : 'border-jade-border-soft bg-jade-depth/40'
+                    className={`rounded-lg border p-3 transition-colors  bg-jade-depth/40 ${
+                      isOpen ? 'border-jade-river' : 'border-jade-border-soft'
                     }`}
                   >
                     <button
@@ -278,27 +280,38 @@ export function JourneyPanel({
                     </button>
 
                     {isOpen && (
-                      <div className="mt-2 flex flex-wrap gap-1 border-t border-jade-border-soft pt-2">
-                        {geoNode.photos.map((photo) => {
-                          const isSelected = selectedPhotoId === photo.id;
-
+                      <div className="flex flex-col gap-2">
+                        {geoNode.bydate.map((g) => {
                           return (
-                            <button
-                              key={photo.id}
-                              type="button"
-                              onClick={() => onPhotoClick(photo, geoNode)}
-                              aria-pressed={isSelected}
-                              className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
-                                isSelected ? 'border-jade-river' : 'border-jade-border-soft'
-                              }`}
-                            >
-                              <img
-                                src={getThumbUrl(photo.filePath)}
-                                alt=""
-                                loading="lazy"
-                                className="h-full w-full object-cover"
-                              />
-                            </button>
+                            <div key={g.key} className="">
+                              <div className=" ">
+                                <h3 className=" text-lg font-semibold">{g.key}</h3>
+                              </div>
+                              <div className=" flex flex-wrap gap-1 ">
+                                {g.photos.map((photo) => {
+                                  const isSelected = finalSelectedPhotoID === photo.id;
+
+                                  return (
+                                    <button
+                                      key={photo.id}
+                                      type="button"
+                                      onClick={() => onPhotoClick(photo, geoNode)}
+                                      aria-pressed={isSelected}
+                                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
+                                        isSelected ? 'border-jade-river' : 'border-jade-border-soft'
+                                      }`}
+                                    >
+                                      <img
+                                        src={getThumbUrl(photo.filePath)}
+                                        alt=""
+                                        loading="lazy"
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           );
                         })}
                       </div>

@@ -12,6 +12,7 @@ import {
   fetchTileAltitude,
   latLngToMetersOffset,
 } from './_fns';
+import { __glsl_funcs__ } from './_glsl';
 
 type TileEvents = THREE.Object3DEventMap & {
   terrianReady: {};
@@ -71,9 +72,12 @@ export class Tile extends THREE.Group<TileEvents> {
   expand: number;
   loadedWorldSizeMeters: number;
   loadedWorldSizeMeters0: number;
+  chip: LatLng;
 
   constructor({ chip, zoom = 14, expand = 3 }: TileOptions) {
     super();
+
+    this.chip = chip;
 
     const tileXY = latLngToTileXY(chip.lat, chip.lng, zoom);
     const centerX = Math.floor(tileXY.x);
@@ -129,6 +133,7 @@ export class Tile extends THREE.Group<TileEvents> {
             demMin: { value: 0 },
             saturation: { value: 1 },
             contrast: { value: 1 },
+            brightness: { value: 1 },
           },
           vertexShader: tileVertexShader,
           fragmentShader: tileFragmentShader,
@@ -282,32 +287,6 @@ export function disposeTile(tile: THREE.Group | null) {
   tile.parent?.remove(tile);
 }
 
-const glsl_funcs = `
-
-// 1. BRIGHTNESS
-// u_brightness: 0.0 = black, 1.0 = normal, >1.0 = brighter
-vec3 applyBrightness(vec3 color, float u_brightness) {
-    return color * u_brightness;
-}
-
-// 2. SATURATION
-// u_saturation: 0.0 = grayscale, 1.0 = normal, >1.0 = vibrant
-vec3 applySaturation(vec3 color, float u_saturation) {
-    // Rec. 709 luminance weights for human vision perception
-    const vec3 luminanceWeights = vec3(0.2126, 0.7152, 0.0722);
-    float luminance = dot(color, luminanceWeights);
-    return mix(vec3(luminance), color, u_saturation);
-}
-
-// 3. CONTRAST
-// u_contrast: 0.0 = flat gray, 1.0 = normal, >1.0 = high contrast
-vec3 applyContrast(vec3 color, float u_contrast) {
-    const vec3 midGray = vec3(0.5);
-    return mix(midGray, color, u_contrast);
-}
-
-`;
-
 const tileVertexShader = `
   uniform sampler2D demTexture;
   uniform float demMin;
@@ -338,7 +317,7 @@ const tileFragmentShader = `
 
   varying vec2 vUv;
 
-${glsl_funcs}
+${__glsl_funcs__}
 
   void main() {
     vec4 color = texture2D(satelliteTexture, vUv);

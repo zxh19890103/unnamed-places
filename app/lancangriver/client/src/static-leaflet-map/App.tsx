@@ -36,8 +36,7 @@ export default function App() {
       subdomains: ['0', '1', '2', '3'],
       maxZoom: 20,
       maxNativeZoom: 21,
-      // zoomOffset: 0,
-      detectRetina: false,
+      detectRetina: true,
     }).addTo(map);
 
     const marker = L.marker(DEFAULT_CENTER, {

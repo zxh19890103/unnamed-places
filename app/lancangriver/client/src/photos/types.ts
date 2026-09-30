@@ -42,6 +42,7 @@ export type JourneyGeoNode = {
   representativeLng: number;
   photoIds: string[];
   photos: PhotoRecord[];
+  bydate: Array<{ key: string; date: Date; photos: PhotoRecord[] }>;
 };
 
 type JourneyBuildResultBucket = Map<string, PhotoRecord[]>;
@@ -58,6 +59,8 @@ export type JourneyBuildResult = {
 
 export interface JourneyPhotosCapacities {
   scene: Scene;
+  geoNode?: JourneyGeoNode;
+  photo?: PhotoRecord;
   onDaySelect: (day: JourneyDayNode) => void;
   onGeoOpen: (geoNode: JourneyGeoNode) => void;
   onGeoClose: (geoNode: JourneyGeoNode) => void;

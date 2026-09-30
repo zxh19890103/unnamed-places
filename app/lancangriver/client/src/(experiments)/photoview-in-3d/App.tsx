@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls as MapControls } from 'three/addons/controls/OrbitControls.js';
+import {
+  OrbitControls as MapControls,
+  OrbitControls,
+} from 'three/addons/controls/OrbitControls.js';
 import { Sky } from './Sky.js';
 import { Panel } from '@/_components/Panel.js';
 
@@ -9,6 +12,7 @@ import type {
   JourneyBuildResult,
   JourneyDayNode,
   JourneyGeoNode,
+  JourneyPhotosCapacities,
   PhotoRecord,
 } from '@/photos/types';
 import '@/styles.css';
@@ -16,7 +20,7 @@ import { DEG_TO_RAD } from '@/_3dtiles';
 
 import { disposeTile, LatLng, Tile } from './_tile.js';
 import { PhotosManager } from './_photo.js';
-import { LoadFlatMap } from './_map.js';
+import { LoadFlatMap, LoadLatlngSyncMap } from './_map.js';
 
 type ExifData = {
   filePath: string;
@@ -50,17 +54,6 @@ type ExifData = {
   hasMotionPhoto: boolean;
 };
 
-function computeVerticalFov(
-  focalLength35mm: number | null,
-  focalLength: number | null,
-  fallback = 45,
-): number {
-  const fl = focalLength35mm ?? focalLength;
-  if (!fl) return fallback;
-  const rad = 2 * Math.atan(12 / fl);
-  return (rad * 180) / Math.PI;
-}
-
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
 const DAYTIME = '15:30';
@@ -69,12 +62,19 @@ export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const animationRef = useRef<number>(0);
-  const tileRef = useRef<THREE.Group | null>(null);
+  const tileRef = useRef<Tile | null>(null);
+  const controlsRef = useRef<OrbitControls>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+  const latlngReaderRef = useRef<(mouse: THREE.Vector2) => LatLng>(null);
+
   const photosManagerRef = useRef<PhotosManager>(null);
 
-  const [exif, setExif] = useState<ExifData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [currentGeoNode, setCurrentGeoNode] = useState<JourneyGeoNode>(null);
+  const [currentPhoto, setCurrentPhoto] = useState<PhotoRecord>(null);
+
   const [result, setResult] = useState<JourneyBuildResult>(null);
+
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const mountEl = mountRef.current;
@@ -102,6 +102,7 @@ export default function App() {
     renderer.toneMappingExposure = 0.5;
     renderer.domElement.className = 'block h-full w-full';
     mountEl.appendChild(renderer.domElement);
+    cameraRef.current = camera;
 
     const controls = new MapControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
@@ -116,6 +117,8 @@ export default function App() {
     // };
 
     controls.update();
+
+    controlsRef.current = controls;
 
     const tile = new Tile({ chip: { lat: 23.1831, lng: 113.3268 } });
     tileRef.current = tile;
@@ -142,6 +145,31 @@ export default function App() {
 
     photosManagerRef.current = new PhotosManager(scene, camera);
 
+    latlngReaderRef.current = (mouse: THREE.Vector2) => {
+      const activeCamera = cameraRef.current;
+      const activeTile = tileRef.current;
+      if (!activeCamera || !activeTile) {
+        return { lat: 0, lng: 0 };
+      }
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, activeCamera);
+
+      const hit = raycaster.intersectObject(activeTile, true)[0];
+      if (!hit) {
+        return { lat: 0, lng: 0 };
+      }
+
+      const center = activeTile.chip;
+      const metersPerDegLat = (Math.PI / 180) * 6371000;
+      const metersPerDegLng = metersPerDegLat * Math.cos((center.lat * Math.PI) / 180);
+
+      const lat = center.lat - hit.point.z / metersPerDegLat;
+      const lng = center.lng + hit.point.x / metersPerDegLng;
+
+      return { lat, lng };
+    };
+
     const handleResize = () => {
       const width = mountEl.clientWidth;
       const height = mountEl.clientHeight;
@@ -151,6 +179,7 @@ export default function App() {
     };
 
     window.addEventListener('resize', handleResize);
+    setReady(true);
 
     return () => {
       cancelAnimationFrame(animationRef.current);
@@ -170,6 +199,7 @@ export default function App() {
   }, []);
 
   const handlePhotoSelect = (photo: PhotoRecord, geoNode: JourneyGeoNode) => {
+    setCurrentPhoto(photo);
     photosManagerRef.current.select(photo);
   };
 
@@ -180,23 +210,27 @@ export default function App() {
     disposeTile(tileRef.current);
     tileRef.current = tile;
 
+    setCurrentGeoNode(geoNode);
+
     photosManagerRef.current.openChip(geoNode);
   };
 
   const handleGeoOpenByKey = (key: string) => {
     const node = result.geoNodes.find((n) => n.chipKey === key);
-    console.log(node);
     if (node) {
       handleGeoOpen(node);
     }
   };
 
   const handleGeoClose = () => {
+    setCurrentGeoNode(null);
     photosManagerRef.current.closeChip();
   };
 
-  const capacities = {
+  const capacities: JourneyPhotosCapacities = {
     scene: sceneRef.current,
+    photo: currentPhoto,
+    geoNode: currentGeoNode,
     onDaySelect: (_day: JourneyDayNode) => {},
     onGeoOpen: handleGeoOpen,
     onGeoClose: handleGeoClose,
@@ -212,86 +246,17 @@ export default function App() {
         <JourneyPanel byDay={false} capacities={capacities} />
       </div>
 
-      <div className=" fixed bottom-2 left-2">
+      <div className=" fixed bottom-4 left-4">
         {result && <LoadFlatMap data={result} onChipKeySelect={handleGeoOpenByKey} />}
       </div>
 
       <div className=" fixed left-4 top-4">
-        <Panel defaultMinimized className="yes" title="Hello, Photos">
-          <div className="pointer-events-auto w-[min(360px,calc(100vw-2rem))] rounded-xl border border-jade-border bg-jade-panel/95 p-4 shadow-sm backdrop-blur-sm">
-            <h1 className="mb-3 text-base font-semibold text-jade-text">Photo-in-3D viewer</h1>
-
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-xs text-jade-text-muted">Photo file</span>
-              <span className="text-xs text-jade-text-muted">
-                {exif ? exif.fileName : 'None loaded'}
-              </span>
-            </div>
-            <p className="min-h-10 rounded-lg border border-jade-border-soft bg-jade-depth/40 px-3 py-2 text-sm overflow-hidden text-jade-text/80">
-              {exif?.filePath ?? 'Select a photo from the timeline panel'}
-            </p>
-
-            {error && <p className="mt-3 text-xs text-jade-error">Error: {error}</p>}
-
-            {exif && !error && (
-              <div className="space-y-2">
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">Camera</span>
-                  <span className="text-right text-jade-text">
-                    {exif.make} {exif.model}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">Lens</span>
-                  <span className="text-right text-jade-text">{exif.lensModel}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">Resolution</span>
-                  <span className="text-right text-jade-text">
-                    {exif.imageWidth} × {exif.imageHeight}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">35mm equiv.</span>
-                  <span className="text-right text-jade-text">
-                    {exif.focalLengthIn35mmFormat ?? exif.focalLength} mm
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">Vertical FOV</span>
-                  <span className="text-right text-jade-text">
-                    {computeVerticalFov(exif.focalLengthIn35mmFormat, exif.focalLength).toFixed(1)}°
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">Exposure</span>
-                  <span className="text-right text-jade-text">
-                    f/{exif.fNumber} ·{' '}
-                    {exif.exposureTime ? `${(1 / exif.exposureTime).toFixed(0)}/s` : '-'} · ISO{' '}
-                    {exif.iso}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">Taken</span>
-                  <span className="text-right text-jade-text">
-                    {exif.dateTimeOriginal ? new Date(exif.dateTimeOriginal).toLocaleString() : '-'}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-jade-text-muted">Location</span>
-                  <span className="text-right text-jade-text">
-                    {exif.latitude?.toFixed(4)}°, {exif.longitude?.toFixed(4)}°
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </Panel>
-      </div>
-      <div className=" fixed bottom-0 right-0 pointer-events-none  flex flex-col justify-between p-4">
-        <p className="pointer-events-auto self-end rounded-lg border border-jade-border-soft bg-jade-panel/90 px-3 py-2 text-xs text-jade-text-muted shadow-sm backdrop-blur-sm">
-          Left drag to pan · Right drag to rotate · Scroll to zoom
-        </p>
+        {ready && (
+          <LoadLatlngSyncMap
+            latlngReader={latlngReaderRef.current}
+            controls={controlsRef.current}
+          />
+        )}
       </div>
     </div>
   );
