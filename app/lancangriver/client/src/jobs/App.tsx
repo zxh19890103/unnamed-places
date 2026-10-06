@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, IconButton, Tooltip } from '../_components';
 
-import { defaultCoverageApi, highwaysCoverageApi, type CoverageJobsPage } from './api';
+import {
+  defaultCoverageApi,
+  highwaysCoverageApi,
+  watersCoverageApi,
+  type CoverageJobsPage,
+} from './api';
 import { JobsTable } from './JobsTable';
 import { tileZxyToCenterLatlng } from '@/_3dtiles';
 import {
@@ -15,12 +20,13 @@ import {
 
 const PAGE_SIZE = 100;
 
-type TabKey = 'default' | 'highways';
+type TabKey = 'default' | 'highways' | 'waters';
 type MapExtentKey = 'world' | 'china';
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'default', label: 'Default (Buildings & Waters)' },
+  { key: 'default', label: 'Buildings' },
   { key: 'highways', label: 'Highways' },
+  { key: 'waters', label: 'Waterways' },
 ];
 
 type ProjectionFn = (lat: number, lng: number) => { u: number; v: number };
@@ -104,7 +110,12 @@ export default function App() {
   const mapRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  const api = activeTab === 'highways' ? highwaysCoverageApi : defaultCoverageApi;
+  const api =
+    activeTab === 'highways'
+      ? highwaysCoverageApi
+      : activeTab === 'waters'
+        ? watersCoverageApi
+        : defaultCoverageApi;
 
   useEffect(() => {
     let active = true;

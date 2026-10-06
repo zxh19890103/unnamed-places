@@ -74,3 +74,5 @@ type TileAltitude = {
   avg: number;
   median: number;
 };
+
+export type LatLng = { lat: number; lng: number };

@@ -23,6 +23,7 @@ import { PhotosManager } from './_photo.js';
 import { LoadFlatMap, LoadLatlngSyncMap } from './_map.js';
 import { OsmJobsCreate } from './_osm.js';
 import { buildHighwaysGroup, disposeHighwaysGroup } from './_highways.js';
+import { buildWatersGroup, disposeWatersGroup } from './_waters.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
@@ -47,6 +48,8 @@ export default function App() {
   const photosManagerRef = useRef<PhotosManager>(null);
   const highwaysDataRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const highwaysGroupRef = useRef<THREE.Group | null>(null);
+  const watersDataRef = useRef<GeoJSON.FeatureCollection | null>(null);
+  const watersGroupRef = useRef<THREE.Group | null>(null);
 
   const [currentGeoNode, setCurrentGeoNode] = useState<JourneyGeoNode>(null);
   const [currentPhoto, setCurrentPhoto] = useState<PhotoRecord>(null);
@@ -215,6 +218,12 @@ export default function App() {
         highwaysGroupRef.current = null;
       }
 
+      if (watersGroupRef.current && sceneRef.current) {
+        sceneRef.current.remove(watersGroupRef.current);
+        disposeWatersGroup(watersGroupRef.current);
+        watersGroupRef.current = null;
+      }
+
       renderer.dispose();
       mountEl.removeChild(renderer.domElement);
     };
@@ -230,6 +239,12 @@ export default function App() {
       sceneRef.current.remove(highwaysGroupRef.current);
       disposeHighwaysGroup(highwaysGroupRef.current);
       highwaysGroupRef.current = null;
+    }
+
+    if (watersGroupRef.current && sceneRef.current) {
+      sceneRef.current.remove(watersGroupRef.current);
+      disposeWatersGroup(watersGroupRef.current);
+      watersGroupRef.current = null;
     }
 
     const chip: LatLng = { lat: geoNode.representativeLat, lng: geoNode.representativeLng };
@@ -291,11 +306,12 @@ export default function App() {
     if (!ready || !tileGrid?.bbox) return;
 
     const { west, south, east, north } = tileGrid.bbox;
-    const url = `${BASE_URL}/vector/highways?bbox=${west},${south},${east},${north}`;
+    const highwaysUrl = `${BASE_URL}/vector/highways?bbox=${west},${south},${east},${north}`;
+    const watersUrl = `${BASE_URL}/vector/waters?bbox=${west},${south},${east},${north}`;
 
     let isCancelled = false;
 
-    fetch(url)
+    fetch(highwaysUrl)
       .then((res) => {
         if (!res.ok) {
           throw new Error(`Highways query failed with status: ${res.status}`);
@@ -319,6 +335,32 @@ export default function App() {
       .catch((error) => {
         if (isCancelled) return;
         console.error('Failed to fetch highways:', error);
+      });
+
+    fetch(watersUrl)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Waters query failed with status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data: GeoJSON.FeatureCollection) => {
+        if (isCancelled || !sceneRef.current) return;
+        watersDataRef.current = data;
+
+        if (watersGroupRef.current) {
+          sceneRef.current.remove(watersGroupRef.current);
+          disposeWatersGroup(watersGroupRef.current);
+          watersGroupRef.current = null;
+        }
+
+        const watersGroup = buildWatersGroup(data, tileGrid.worldCenterLatlng);
+        watersGroupRef.current = watersGroup;
+        sceneRef.current.add(watersGroup);
+      })
+      .catch((error) => {
+        if (isCancelled) return;
+        console.error('Failed to fetch waters:', error);
       });
 
     return () => {

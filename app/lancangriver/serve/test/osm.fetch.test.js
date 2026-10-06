@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { fetchOsmHighwayFeaturesForZ12Key, toFeatureFromElement } from '../src/jobs/osmFetch.js';
+import {
+  fetchOsmHighwayFeaturesForZ12Key,
+  fetchOsmWaterFeaturesForZ12Key,
+  toFeatureFromElement,
+} from '../src/jobs/osmFetch.js';
 
 describe('toFeatureFromElement', () => {
   it('maps relation with one outer ring to Polygon', () => {
@@ -99,5 +103,38 @@ describe('fetchOsmHighwayFeaturesForZ12Key', () => {
     expect(features[0].feature_id).toBe('way/77');
     expect(features[0].feature_type).toBe('LineString');
     expect(features[0].tags.highway).toBe('residential');
+  });
+});
+
+describe('fetchOsmWaterFeaturesForZ12Key', () => {
+  it('sends a waterway overpass query and maps way geometry to features', async () => {
+    const postFormJson = async (_endpoint, formValues) => {
+      expect(formValues.data).toContain('way["waterway"]');
+      expect(formValues.data).toContain('relation["waterway"]');
+
+      return {
+        elements: [
+          {
+            type: 'way',
+            id: 99,
+            tags: { waterway: 'river' },
+            geometry: [
+              { lon: 100, lat: 20 },
+              { lon: 100.1, lat: 20.1 },
+            ],
+          },
+        ],
+      };
+    };
+
+    const features = await fetchOsmWaterFeaturesForZ12Key('12/3456/1523', {
+      postFormJson,
+      logger: { info: () => {} },
+    });
+
+    expect(features).toHaveLength(1);
+    expect(features[0].feature_id).toBe('way/99');
+    expect(features[0].feature_type).toBe('LineString');
+    expect(features[0].tags.waterway).toBe('river');
   });
 });

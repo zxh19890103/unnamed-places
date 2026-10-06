@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,21 +93,21 @@ describe('GET /photos/original/:id', () => {
   );
   const imagePath = resolve(fixtureDir, 'sample.jpg');
 
+  afterAll(async () => {
+    await rm(fixtureDir, { recursive: true, force: true });
+  });
+
   it('returns original bytes when file exists', async () => {
-    try {
-      await mkdir(fixtureDir, { recursive: true });
-      const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
-      await writeFile(imagePath, jpegBytes);
+    await mkdir(fixtureDir, { recursive: true });
+    const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    await writeFile(imagePath, jpegBytes);
 
-      const app = createApp();
-      const response = await request(app).get(`/photos/original/${encodeURIComponent(imagePath)}`);
+    const app = createApp();
+    const response = await request(app).get(`/photos/original/${encodeURIComponent(imagePath)}`);
 
-      expect(response.status).toBe(200);
-      expect(response.headers['content-type']).toContain('image/jpeg');
-      expect(Buffer.from(response.body)).toEqual(jpegBytes);
-    } finally {
-      await rm(fixtureDir, { recursive: true, force: true });
-    }
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('image/jpeg');
+    expect(Buffer.from(response.body)).toEqual(jpegBytes);
   });
 
   it('returns 404 when file does not exist', async () => {
@@ -130,30 +130,30 @@ describe('GET /photos/thumb/:id', () => {
   const imagePath = resolve(fixtureDir, 'sample.png');
   const photosRoot = resolve(fixtureDir, '.photos-cache');
 
+  afterAll(async () => {
+    await rm(fixtureDir, { recursive: true, force: true });
+  });
+
   it('creates and caches a webp thumb', async () => {
-    try {
-      await mkdir(fixtureDir, { recursive: true });
+    await mkdir(fixtureDir, { recursive: true });
 
-      // 1x1 transparent png
-      const pngBytes = Buffer.from(
-        '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000000020001e221bc330000000049454e44ae426082',
-        'hex',
-      );
-      await writeFile(imagePath, pngBytes);
+    // 1x1 transparent png
+    const pngBytes = Buffer.from(
+      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000000020001e221bc330000000049454e44ae426082',
+      'hex',
+    );
+    await writeFile(imagePath, pngBytes);
 
-      const app = createApp({ photosRoot });
-      const id = encodeURIComponent(imagePath);
+    const app = createApp({ photosRoot });
+    const id = encodeURIComponent(imagePath);
 
-      const first = await request(app).get(`/photos/thumb/${id}`);
-      expect(first.status).toBe(200);
-      expect(first.headers['content-type']).toContain('image/webp');
+    const first = await request(app).get(`/photos/thumb/${id}`);
+    expect(first.status).toBe(200);
+    expect(first.headers['content-type']).toContain('image/webp');
 
-      const second = await request(app).get(`/photos/thumb/${id}`);
-      expect(second.status).toBe(200);
-      expect(second.headers['content-type']).toContain('image/webp');
-    } finally {
-      await rm(fixtureDir, { recursive: true, force: true });
-    }
+    const second = await request(app).get(`/photos/thumb/${id}`);
+    expect(second.status).toBe(200);
+    expect(second.headers['content-type']).toContain('image/webp');
   });
 
   it('returns 404 when source image does not exist', async () => {

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   queryVectorFeatures as defaultQueryVectorFeatures,
   queryVectorFeaturesHighways as defaultQueryVectorFeaturesHighways,
+  queryVectorFeaturesWaters as defaultQueryVectorFeaturesWaters,
 } from '../db.js';
 
 const INVALID_BBOX_MESSAGE = 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat';
@@ -62,6 +63,8 @@ export function createVectorRouter(options = {}) {
   const queryVectorFeatures = options.queryVectorFeatures ?? defaultQueryVectorFeatures;
   const queryVectorFeaturesHighways =
     options.queryVectorFeaturesHighways ?? defaultQueryVectorFeaturesHighways;
+  const queryVectorFeaturesWaters =
+    options.queryVectorFeaturesWaters ?? defaultQueryVectorFeaturesWaters;
   const router = Router();
 
   router.get('/vector', async (req, res) => {
@@ -92,6 +95,23 @@ export function createVectorRouter(options = {}) {
 
     try {
       const featureCollection = await queryVectorFeaturesHighways(bbox);
+      res.status(200).json(featureCollection);
+    } catch (_error) {
+      sendVectorError(res, 500, 'VECTOR_QUERY_FAILED', 'Internal server error', rawBbox);
+    }
+  });
+
+  router.get('/vector/waters', async (req, res) => {
+    const rawBbox = req.query.bbox;
+    const bbox = parseBbox(rawBbox);
+
+    if (!bbox) {
+      sendVectorError(res, 400, 'INVALID_BBOX', INVALID_BBOX_MESSAGE, rawBbox);
+      return;
+    }
+
+    try {
+      const featureCollection = await queryVectorFeaturesWaters(bbox);
       res.status(200).json(featureCollection);
     } catch (_error) {
       sendVectorError(res, 500, 'VECTOR_QUERY_FAILED', 'Internal server error', rawBbox);

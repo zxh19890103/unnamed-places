@@ -74,6 +74,21 @@ export function createOsmHighwayIngestWorker({
   });
 }
 
+export function createOsmWaterIngestWorker({
+  jobs,
+  fetchOsmWaterFeatures,
+  upsertVectorFeaturesWaters,
+  logger = console,
+}) {
+  return createVectorIngestWorker({
+    jobs,
+    fetchFeaturesForZ12Key: fetchOsmWaterFeatures,
+    upsertVectorFeatures: upsertVectorFeaturesWaters,
+    source: 'osm-waters',
+    logger,
+  });
+}
+
 export function createOsmIngestRunner({ worker, intervalMs = 2000 }) {
   let timer = null;
   let running = false;
