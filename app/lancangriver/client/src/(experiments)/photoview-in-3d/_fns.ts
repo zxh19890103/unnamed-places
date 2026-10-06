@@ -51,20 +51,26 @@ export function latLngToMetersOffset(
 
 export async function fetchTileAltitude(z: number, x: number, y: number): Promise<TileAltitude> {
   const response = await fetch(`${BASE_URL}/raster/dem/${z}/${x}/${y}/altitude`);
+
   if (!response.ok) {
     throw new Error(`DEM altitude ${z}/${x}/${y} failed: ${response.status}`);
   }
+
   const data = (await response.json()) as {
     ok: boolean;
-    min: number;
-    max: number;
-    avg: number;
+  } & TileAltitude;
+
+  return {
+    min: data.min,
+    max: data.max,
+    avg: data.avg,
+    median: data.median,
   };
-  return { min: data.min, max: data.max, avg: data.avg };
 }
 
 type TileAltitude = {
   min: number;
   max: number;
   avg: number;
+  median: number;
 };

@@ -250,8 +250,8 @@ describe('vector coverage routes', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       jobs: [
-        { key: '12/3456/1523', z: 12, x: 3456, y: 1523, status: 'done' },
-        { key: '12/3457/1523', z: 12, x: 3457, y: 1523, status: 'failed' },
+        { key: '12/3456/1523', z: 12, x: 3456, y: 1523, status: 'done', display_name: null },
+        { key: '12/3457/1523', z: 12, x: 3457, y: 1523, status: 'failed', display_name: null },
       ],
       limit: 25,
       offset: 0,

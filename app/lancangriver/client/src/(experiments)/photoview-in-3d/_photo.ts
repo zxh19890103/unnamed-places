@@ -1,6 +1,6 @@
 import { JourneyGeoNode, PhotoRecord } from '@/photos/types';
 import * as THREE from 'three';
-import { THUMB_ELEVATION_ZOOM } from './_tile';
+import { LatLng, THUMB_ELEVATION_ZOOM } from './_tile';
 import {
   fetchTileAltitude,
   getPhotoUrl,
@@ -104,6 +104,7 @@ class PhotoView {
     readonly camera: THREE.PerspectiveCamera,
     readonly rec: PhotoRecord,
     readonly chip: ChipView,
+    readonly worldCenterLatlng: LatLng,
   ) {
     const rollRad = DEG_TO_RAD * (-45 + Math.random() * 90);
     this.rollRad = rollRad;
@@ -223,7 +224,8 @@ class PhotoView {
         thumbTexture: { value: thumbTexture },
         demTexture: { value: chip.elevationTexture },
         demTileUv: { value: new THREE.Vector2(demTileUv.u, demTileUv.v) },
-        demMin: { value: chip.elevation },
+        demAvg: { value: chip.elevation },
+        demMedian: { value: chip.elevation },
         saturation: { value: 2.6 },
         contrast: { value: 1 },
         brightness: { value: 1.2 },
@@ -237,8 +239,14 @@ class PhotoView {
     });
 
     const mesh = new THREE.Mesh(thumbGeometry, thumbMaterial);
+    const offset = latLngToMetersOffset(
+      photo.lat,
+      photo.lng,
+      this.worldCenterLatlng.lat,
+      this.worldCenterLatlng.lng,
+    );
 
-    const offset = latLngToMetersOffset(photo.lat, photo.lng, chip.lat, chip.lng);
+    mesh.renderOrder = 99999;
 
     mesh.rotation.set(PHOTO_TILT, 0, this.rollRad);
     mesh.position.set(offset.x, 0, offset.z);
@@ -303,6 +311,7 @@ class PhotoView {
     });
 
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.renderOrder = 999999;
 
     const photo = this.rec;
     const chip = this.chip;
@@ -366,6 +375,7 @@ class ChipView {
     readonly camera: THREE.PerspectiveCamera,
     readonly textureLoader: THREE.TextureLoader,
     readonly geoNode: JourneyGeoNode,
+    readonly worldCenterLatlng: LatLng,
   ) {
     const tileXY = latLngToTileXY(
       geoNode.representativeLat,
@@ -406,7 +416,13 @@ class ChipView {
     this.scene.add(this.thumbnails);
 
     for (const photo of geoNode.photos) {
-      const pv = new PhotoView(this.textureLoader, this.camera, photo, this);
+      const pv = new PhotoView(
+        this.textureLoader,
+        this.camera,
+        photo,
+        this,
+        this.worldCenterLatlng,
+      );
       pv.buildThumbnail();
       this.thumbnails.add(pv.thumbnail);
       this.photos.push(pv);
@@ -426,7 +442,7 @@ class ChipView {
       () => null,
     );
 
-    this.elevation = altitude?.avg ?? 0;
+    this.elevation = altitude?.median ?? 0;
 
     const demUrl = `${BASE_URL}/raster/dem/${THUMB_ELEVATION_ZOOM}/${this.tileX}/${this.tileY}.png`;
     return new Promise<THREE.Texture | null>((resolve) => {
@@ -460,6 +476,8 @@ type PhotosManagerEventMap = {
 export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> {
   private animations: Animation[] = [];
 
+  readonly worldCenterLatlng: LatLng;
+
   selected: PhotoView;
 
   /**
@@ -469,9 +487,8 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
   tile: { x: number; y: number };
   elevation: number;
 
-  readonly textureLoader = new THREE.TextureLoader();
-
   constructor(
+    readonly textureLoader: THREE.TextureLoader,
     readonly scene: THREE.Scene,
     readonly camera: THREE.PerspectiveCamera,
   ) {
@@ -665,7 +682,13 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
   }
 
   private loadChip(geoNode: JourneyGeoNode) {
-    this.chip = new ChipView(this.scene, this.camera, this.textureLoader, geoNode);
+    this.chip = new ChipView(
+      this.scene,
+      this.camera,
+      this.textureLoader,
+      geoNode,
+      this.worldCenterLatlng,
+    );
   }
 
   private destoryChip() {
@@ -673,10 +696,13 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
     this.chip = null;
   }
 
-  async openChip(geoNode: JourneyGeoNode) {
+  async openChip(geoNode: JourneyGeoNode, center: LatLng) {
     if (this.chip?.geoNode === geoNode) {
       return;
     }
+
+    // @ts-ignore
+    this.worldCenterLatlng = center;
 
     this.destorySelected();
     this.destoryChip();
@@ -694,7 +720,8 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
 const thumbVertexShader = /*glsl */ `
   uniform sampler2D demTexture;
   uniform vec2 demTileUv;
-  uniform float demMin;
+  uniform float demAvg;
+  uniform float demMedian;
   varying vec2 vUv;
 
   float decodeElevation(vec3 color) {
@@ -703,12 +730,13 @@ const thumbVertexShader = /*glsl */ `
 
   void main() {
     vUv = uv;
+
     vec3 demRgb = texture2D(demTexture, demTileUv).rgb * 255.0;
     float elevation = decodeElevation(demRgb);
-    float raise = elevation - demMin;
+    float raise = elevation - demMedian;
 
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-    worldPosition.y += raise;
+    worldPosition.y += 30.0 + raise;
 
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
   }

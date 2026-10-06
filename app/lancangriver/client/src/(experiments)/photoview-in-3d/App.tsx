@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import {
-  OrbitControls as MapControls,
-  OrbitControls,
-} from 'three/addons/controls/OrbitControls.js';
+
+import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
 import { Sky } from './Sky.js';
-import { Panel } from '@/_components/Panel.js';
 
 import { JourneyPanel } from '@/photos/JourneyPanel';
 import type {
@@ -18,41 +17,12 @@ import type {
 import '@/styles.css';
 import { DEG_TO_RAD } from '@/_3dtiles';
 
-import { disposeTile, LatLng, Tile } from './_tile.js';
+import { disposeGridTile, LatLng, TileGrid } from './_tile.js';
+import { BASE_URL } from '@/calc/constants.js';
 import { PhotosManager } from './_photo.js';
 import { LoadFlatMap, LoadLatlngSyncMap } from './_map.js';
-
-type ExifData = {
-  filePath: string;
-  fileName: string;
-  sizeBytes: number;
-  make: string | null;
-  model: string | null;
-  lensMake: string | null;
-  lensModel: string | null;
-  imageWidth: number | null;
-  imageHeight: number | null;
-  orientation: string | null;
-  focalLength: number | null;
-  focalLengthIn35mmFormat: number | null;
-  fNumber: number | null;
-  exposureTime: number | null;
-  iso: number | null;
-  exposureProgram: string | null;
-  meteringMode: string | null;
-  flash: string | null;
-  whiteBalance: string | null;
-  dateTimeOriginal: string | null;
-  createDate: string | null;
-  offsetTime: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  altitude: number | null;
-  gpsImgDirection: number | null;
-  gpsImgDirectionRef: string | null;
-  software: string | null;
-  hasMotionPhoto: boolean;
-};
+import { OsmJobsCreate } from './_osm.js';
+import { buildHighwaysGroup, disposeHighwaysGroup } from './_highways.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
@@ -62,12 +32,21 @@ export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const animationRef = useRef<number>(0);
-  const tileRef = useRef<Tile | null>(null);
-  const controlsRef = useRef<OrbitControls>(null);
+  const tileGridRef = useRef<TileGrid | null>(null);
+
+  const textureLoaderRef = useRef<THREE.TextureLoader>(null);
+
+  const orbitControls = useRef<OrbitControls>(null);
+  const mapControls = useRef<MapControls>(null);
+
+  const controlsRef = useRef<THREE.Controls<{ end: {} }>>(null);
+
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const latlngReaderRef = useRef<(mouse: THREE.Vector2) => LatLng>(null);
 
   const photosManagerRef = useRef<PhotosManager>(null);
+  const highwaysDataRef = useRef<GeoJSON.FeatureCollection | null>(null);
+  const highwaysGroupRef = useRef<THREE.Group | null>(null);
 
   const [currentGeoNode, setCurrentGeoNode] = useState<JourneyGeoNode>(null);
   const [currentPhoto, setCurrentPhoto] = useState<PhotoRecord>(null);
@@ -79,6 +58,8 @@ export default function App() {
   useEffect(() => {
     const mountEl = mountRef.current;
     if (!mountEl) return;
+
+    textureLoaderRef.current = new THREE.TextureLoader();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
@@ -104,31 +85,55 @@ export default function App() {
     mountEl.appendChild(renderer.domElement);
     cameraRef.current = camera;
 
-    const controls = new MapControls(camera, renderer.domElement);
-    controls.target.set(0, 0, 0);
-    controls.enableDamping = true;
-    controls.enablePan = true;
-    controls.screenSpacePanning = false;
+    {
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 0, 0);
+      controls.enableDamping = true;
+      controls.enablePan = true;
+      controls.screenSpacePanning = false;
 
-    // controls.mouseButtons = {
-    //   LEFT: THREE.MOUSE.PAN,
-    //   MIDDLE: THREE.MOUSE.DOLLY,
-    //   RIGHT: THREE.MOUSE.ROTATE,
-    // };
+      controls.update();
+      controls.enabled = true;
 
-    controls.update();
+      orbitControls.current = controls;
+    }
 
-    controlsRef.current = controls;
+    {
+      const controls = new MapControls(camera, renderer.domElement);
+      controls.target.set(0, 0, 0);
+      controls.enableDamping = true;
+      controls.enablePan = true;
+      controls.screenSpacePanning = false;
 
-    const tile = new Tile({ chip: { lat: 23.1831, lng: 113.3268 } });
-    tileRef.current = tile;
-    scene.add(tile);
+      controls.mouseButtons = {
+        LEFT: THREE.MOUSE.PAN,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.ROTATE,
+      };
+
+      controls.update();
+      controls.enabled = false;
+
+      mapControls.current = controls;
+    }
+
+    controlsRef.current = orbitControls.current;
+
+    const tileGrid = new TileGrid(textureLoaderRef.current, {
+      chip: { lat: 23.1831, lng: 113.3268 },
+    });
+
+    tileGridRef.current = tileGrid;
+    scene.add(tileGrid);
+
+    tileGrid.onReady = () => {
+      const sky = new Sky({ DAYTIME, r: tileGrid.loadedWorldSizeMeters * 0.6 });
+      scene.add(sky);
+
+      tileGrid.box.getCenter(sky.position);
+    };
 
     scene.add(new THREE.AxesHelper(20_000));
-
-    const sky = new Sky({ DAYTIME, r: tile.loadedWorldSizeMeters * 0.6 });
-    scene.add(sky);
-    tile.box.getCenter(sky.position);
 
     const timer = new THREE.Timer();
 
@@ -136,18 +141,20 @@ export default function App() {
       animationRef.current = requestAnimationFrame(animate);
       const deltaTime = timer.getDelta();
       photosManagerRef.current?.playAnimation(deltaTime);
-      controls.update(deltaTime);
+
+      controlsRef.current?.update(deltaTime);
+
       timer.update();
       renderer.render(scene, camera);
     };
 
     animate();
 
-    photosManagerRef.current = new PhotosManager(scene, camera);
+    photosManagerRef.current = new PhotosManager(textureLoaderRef.current, scene, camera);
 
     latlngReaderRef.current = (mouse: THREE.Vector2) => {
       const activeCamera = cameraRef.current;
-      const activeTile = tileRef.current;
+      const activeTile = tileGridRef.current;
       if (!activeCamera || !activeTile) {
         return { lat: 0, lng: 0 };
       }
@@ -181,11 +188,20 @@ export default function App() {
     window.addEventListener('resize', handleResize);
     setReady(true);
 
+    orbitControls.current?.addEventListener('end', () => {
+      tileGridRef.current?.onEyesMove(camera);
+    });
+    mapControls.current?.addEventListener('end', () => {
+      tileGridRef.current?.onEyesMove(camera);
+    });
+
     return () => {
       cancelAnimationFrame(animationRef.current);
       window.removeEventListener('resize', handleResize);
-      controls.dispose();
-      disposeTile(tileRef.current);
+
+      controlsRef.current?.dispose();
+
+      disposeGridTile(tileGridRef.current);
 
       scene.traverse((child) => {
         if (child instanceof Sky) {
@@ -193,26 +209,38 @@ export default function App() {
         }
       });
 
+      if (highwaysGroupRef.current && sceneRef.current) {
+        sceneRef.current.remove(highwaysGroupRef.current);
+        disposeHighwaysGroup(highwaysGroupRef.current);
+        highwaysGroupRef.current = null;
+      }
+
       renderer.dispose();
       mountEl.removeChild(renderer.domElement);
     };
   }, []);
 
-  const handlePhotoSelect = (photo: PhotoRecord, geoNode: JourneyGeoNode) => {
+  const handlePhotoSelect = (photo: PhotoRecord, _geoNode: JourneyGeoNode) => {
     setCurrentPhoto(photo);
     photosManagerRef.current.select(photo);
   };
 
   const handleGeoOpen = async (geoNode: JourneyGeoNode) => {
+    if (highwaysGroupRef.current && sceneRef.current) {
+      sceneRef.current.remove(highwaysGroupRef.current);
+      disposeHighwaysGroup(highwaysGroupRef.current);
+      highwaysGroupRef.current = null;
+    }
+
     const chip: LatLng = { lat: geoNode.representativeLat, lng: geoNode.representativeLng };
-    const tile = new Tile({ chip });
-    sceneRef.current.add(tile);
-    disposeTile(tileRef.current);
-    tileRef.current = tile;
+    const tilegrid = new TileGrid(textureLoaderRef.current, { chip });
+    sceneRef.current.add(tilegrid);
+    disposeGridTile(tileGridRef.current);
+    tileGridRef.current = tilegrid;
 
     setCurrentGeoNode(geoNode);
 
-    photosManagerRef.current.openChip(geoNode);
+    photosManagerRef.current.openChip(geoNode, tilegrid.worldCenterLatlng);
   };
 
   const handleGeoOpenByKey = (key: string) => {
@@ -238,12 +266,89 @@ export default function App() {
     onLoaded: setResult,
   };
 
+  const switchToOrbitCtrls = () => {
+    if (controlsRef.current === orbitControls.current) return;
+
+    controlsRef.current.enabled = false;
+    orbitControls.current.enabled = true;
+
+    controlsRef.current = orbitControls.current;
+    controlsRef.current.update(0);
+  };
+
+  const switchToMapCtrls = () => {
+    if (controlsRef.current === mapControls.current) return;
+
+    controlsRef.current.enabled = false;
+    mapControls.current.enabled = true;
+
+    controlsRef.current = mapControls.current;
+    controlsRef.current.update(0);
+  };
+
+  useEffect(() => {
+    const tileGrid = tileGridRef.current;
+    if (!ready || !tileGrid?.bbox) return;
+
+    const { west, south, east, north } = tileGrid.bbox;
+    const url = `${BASE_URL}/vector/highways?bbox=${west},${south},${east},${north}`;
+
+    let isCancelled = false;
+
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Highways query failed with status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data: GeoJSON.FeatureCollection) => {
+        if (isCancelled || !sceneRef.current) return;
+        highwaysDataRef.current = data;
+
+        if (highwaysGroupRef.current) {
+          sceneRef.current.remove(highwaysGroupRef.current);
+          disposeHighwaysGroup(highwaysGroupRef.current);
+          highwaysGroupRef.current = null;
+        }
+
+        const highwaysGroup = buildHighwaysGroup(data, tileGrid.worldCenterLatlng);
+        highwaysGroupRef.current = highwaysGroup;
+        sceneRef.current.add(highwaysGroup);
+      })
+      .catch((error) => {
+        if (isCancelled) return;
+        console.error('Failed to fetch highways:', error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [ready, currentGeoNode]);
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-jade-foundation font-suse-mono">
       <div ref={mountRef} className="h-full w-full" aria-label="Photo view in 3D scene" />
 
       <div className="pointer-events-auto fixed right-4 top-4 z-20">
-        <JourneyPanel byDay={false} capacities={capacities} />
+        <JourneyPanel motions={false} byDay={false} capacities={capacities} />
+      </div>
+
+      <div className=" pointer-events-none fixed bottom-4 left-0 flex w-full h-auto justify-center gap-4">
+        <button
+          type="button"
+          onClick={switchToOrbitCtrls}
+          className=" cursor-pointer pointer-events-auto text-amber-50"
+        >
+          Orbit
+        </button>
+        <button
+          type="button"
+          onClick={switchToMapCtrls}
+          className=" cursor-pointer pointer-events-auto text-amber-50"
+        >
+          Map
+        </button>
       </div>
 
       <div className=" fixed bottom-4 left-4">
@@ -257,6 +362,10 @@ export default function App() {
             controls={controlsRef.current}
           />
         )}
+      </div>
+
+      <div className=" fixed left-1/2 -translate-x-1/2 top-4">
+        {ready && <OsmJobsCreate tileGridRef={tileGridRef} />}
       </div>
     </div>
   );

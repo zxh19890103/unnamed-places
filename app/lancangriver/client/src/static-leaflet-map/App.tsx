@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 
 import { START_CENTER_LAT, START_CENTER_LON } from '@/calc/constants';
@@ -12,10 +12,23 @@ type LeafletWindow = Window & {
 const DEFAULT_ZOOM = 11;
 const DEFAULT_CENTER: [number, number] = [START_CENTER_LAT, START_CENTER_LON];
 
+const defaultZoomParser = () => {
+  const searhParams = new URLSearchParams(location.search);
+
+  if (searhParams.has('zoom')) {
+    const zoom = parseInt(searhParams.get('zoom'));
+    if (Number.isNaN(zoom)) return DEFAULT_ZOOM;
+    return zoom;
+  }
+
+  return DEFAULT_ZOOM;
+};
+
 export default function App() {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const latestCenterRef = useRef<[number, number]>(DEFAULT_CENTER);
+  const [defaultZoom] = useState(defaultZoomParser);
 
   useEffect(() => {
     if (!mapElementRef.current) {
@@ -24,7 +37,7 @@ export default function App() {
 
     const map = L.map(mapElementRef.current, {
       center: DEFAULT_CENTER,
-      zoom: DEFAULT_ZOOM,
+      zoom: defaultZoom,
       zoomControl: false,
       zoomDelta: 1,
       zoomSnap: 0.5,
@@ -50,8 +63,6 @@ export default function App() {
 
     map.dragging.disable();
     map.touchZoom.disable();
-    // map.doubleClickZoom.disable();
-    // map.scrollWheelZoom.disable();
     map.boxZoom.disable();
     map.keyboard.disable();
     map.tapHold?.disable();

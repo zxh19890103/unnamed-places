@@ -133,7 +133,7 @@ export function buildRasterPaths(rasterRoot, z, x, y) {
     tileRoot,
     satellitePath: join(tileRoot, 'satellite.jpeg'),
     demPngPath: join(tileRoot, 'dem.png'),
-    demAltitudePath: join(tileRoot, 'dem.altitude.json'),
+    demAltitudePath: join(tileRoot, 'dem.altitude.v2.json'),
   };
 }
 
@@ -276,7 +276,7 @@ async function defaultCleanSatelliteTile(inputPath, rasterOptions) {
     const cleanedBuffer = await readFile(outputPath);
     return cleanedBuffer;
   } finally {
-    await unlink(outputPath).catch(() => {});
+    await unlink(outputPath).catch(() => { });
   }
 }
 
@@ -340,6 +340,8 @@ async function sendRasterFile(res, filePath, contentType) {
 async function readDemAltitudeFromPng(pngPath) {
   const { data, info } = await sharp(pngPath).raw().toBuffer({ resolveWithObject: true });
 
+  const totalPixels = Math.floor(data.length / info.channels);
+  const elevations = new Float32Array(totalPixels);
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   let sum = 0;
@@ -350,6 +352,8 @@ async function readDemAltitudeFromPng(pngPath) {
     const g = data[offset + 1];
     const b = data[offset + 2];
     const elevation = r * 256.0 + g + b / 256.0 - 32768.0;
+
+    elevations[count] = elevation;
 
     if (elevation < min) {
       min = elevation;
@@ -363,10 +367,22 @@ async function readDemAltitudeFromPng(pngPath) {
     count += 1;
   }
 
+  let median = 0;
+  if (count > 0) {
+    elevations.sort();
+    const mid = Math.floor(count / 2);
+    if (count % 2 === 1) {
+      median = elevations[mid];
+    } else {
+      median = (elevations[mid - 1] + elevations[mid]) / 2;
+    }
+  }
+
   return {
     min,
     max,
     avg: count > 0 ? sum / count : 0,
+    median,
   };
 }
 
@@ -726,6 +742,7 @@ export function createRasterRouter(options = {}) {
         min: altitudeResult.min,
         max: altitudeResult.max,
         avg: altitudeResult.avg,
+        median: altitudeResult.median,
       });
     } catch (_error) {
       sendRasterError(res, 500, 'DEM_ALTITUDE_FAILED', 'Internal server error', _error);

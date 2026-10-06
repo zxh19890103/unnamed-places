@@ -25,10 +25,12 @@ export function JourneyPanel({
   capacities,
   byDay = true,
   byGeo = true,
+  motions = true,
 }: {
   capacities: JourneyPhotosCapacities;
   byDay?: boolean;
   byGeo?: boolean;
+  motions?: boolean;
 }) {
   const [journeyData, setJourneyData] = useState<JourneyBuildResult | null>(null);
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
@@ -179,7 +181,7 @@ export function JourneyPanel({
         <p className="text-xs text-jade-text-muted">No geotagged photos found</p>
       )}
 
-      {!loading && !error && journeyData && (
+      {!loading && !error && journeyData && motions && (
         <button
           type="button"
           onClick={onToggleMotions}

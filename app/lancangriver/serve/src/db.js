@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 
 const VECTOR_BBOX_SQL = readFileSync(new URL('./sql/vector_bbox.sql', import.meta.url), 'utf8');
+const VECTOR_HIGHWAYS_BBOX_SQL = readFileSync(
+  new URL('./sql/vector_highways_bbox.sql', import.meta.url),
+  'utf8',
+);
 const VECTOR_TILE_MVT_SQL = readFileSync(
   new URL('./sql/vector_tile_mvt.sql', import.meta.url),
   'utf8',
@@ -52,6 +56,18 @@ function asFeatureCollection(value) {
 export async function queryVectorFeatures(bbox) {
   const activePool = await getPool();
   const result = await activePool.query(VECTOR_BBOX_SQL, bbox);
+  const featureCollection = result.rows?.[0]?.feature_collection;
+
+  if (typeof featureCollection === 'string') {
+    return asFeatureCollection(JSON.parse(featureCollection));
+  }
+
+  return asFeatureCollection(featureCollection);
+}
+
+export async function queryVectorFeaturesHighways(bbox) {
+  const activePool = await getPool();
+  const result = await activePool.query(VECTOR_HIGHWAYS_BBOX_SQL, bbox);
   const featureCollection = result.rows?.[0]?.feature_collection;
 
   if (typeof featureCollection === 'string') {

@@ -94,14 +94,14 @@ describe('osm jobs store', () => {
 
     expect(result).toEqual({
       jobs: [
-        { key: '12/3456/1523', status: 'done' },
-        { key: '12/3457/1523', status: 'failed' },
+        { key: '12/3456/1523', status: 'done', displayName: null },
+        { key: '12/3457/1523', status: 'failed', displayName: null },
       ],
       total: 4,
     });
     expect(db.query).toHaveBeenNthCalledWith(
       1,
-      expect.stringMatching(/SELECT z12_key, status[\s\S]*ORDER BY z12_key ASC/),
+      expect.stringMatching(/SELECT jobs\.z12_key, jobs\.status[\s\S]*ORDER BY jobs\.queued_at DESC/),
       [2, 2],
     );
   });

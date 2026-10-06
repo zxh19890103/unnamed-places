@@ -157,7 +157,7 @@ describe('GET /raster/dem/:z/:x/:y/altitude', () => {
     try {
       const tileDir = join(tempRoot, '11', '1024', '768');
       const pngPath = join(tileDir, 'dem.png');
-      const altitudePath = join(tileDir, 'dem.altitude.json');
+      const altitudePath = join(tileDir, 'dem.altitude.v2.json');
 
       await mkdir(tileDir, { recursive: true });
 
@@ -213,6 +213,7 @@ describe('GET /raster/dem/:z/:x/:y/altitude', () => {
       expect(response.body.min).toBeCloseTo(0, 8);
       expect(response.body.max).toBeCloseTo(256.5, 8);
       expect(response.body.avg).toBeCloseTo(128.25, 8);
+      expect(response.body.median).toBeCloseTo(128.25, 8);
 
       const sidecar = JSON.parse(
         await import('node:fs/promises').then(({ readFile }) => readFile(altitudePath, 'utf8')),
@@ -221,6 +222,7 @@ describe('GET /raster/dem/:z/:x/:y/altitude', () => {
         min: response.body.min,
         max: response.body.max,
         avg: response.body.avg,
+        median: response.body.median,
       });
 
       const cachedResponse = await request(app).get('/raster/dem/11/1024/768/altitude');
