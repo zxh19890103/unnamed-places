@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { latLngToMetersOffset, LatLng } from './_fns';
+import { DemAtlas } from './_demAtlas';
 
 const HIGHWAY_WIDTHS: Record<string, number> = {
   motorway: 16,
@@ -24,6 +25,7 @@ const HIGHWAY_WIDTHS: Record<string, number> = {
 };
 
 const DEFAULT_HIGHWAY_WIDTH = 5;
+const MAX_SEGMENT_LENGTH_METERS = 30;
 
 const HIGHWAY_COLORS: Record<string, number> = {
   motorway: 0xff9900,
@@ -42,6 +44,37 @@ const HIGHWAY_COLORS: Record<string, number> = {
   default: 0xd5d8dc,
 };
 
+const highwayVertexShader = /* glsl */ `
+  uniform sampler2D demAtlas;
+  uniform float demMedian;
+  uniform float elevationOffset;
+
+  attribute vec2 demUv;
+  varying vec2 vUv;
+
+  void main() {
+    vUv = uv;
+    vec2 clampedUv = clamp(demUv, 0.0, 1.0);
+    float elevation = texture2D(demAtlas, clampedUv).r;
+    float raise = elevation - demMedian;
+
+    vec3 pos = position;
+    pos.y += raise + elevationOffset;
+
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const highwayFragmentShader = /* glsl */ `
+  uniform vec3 diffuseColor;
+  varying vec2 vUv;
+
+  void main() {
+    gl_FragColor = vec4(diffuseColor, 1.0);
+  }
+`;
+
 function getHighwayType(feature: GeoJSON.Feature): string {
   const props = feature.properties ?? {};
   const rawType = props.highway ?? props.tags?.highway ?? props.feature_type;
@@ -59,15 +92,50 @@ function getHighwayColor(type: string): number {
   return HIGHWAY_COLORS[type] ?? HIGHWAY_COLORS.default;
 }
 
+function subdivideCoordinates(
+  line: GeoJSON.Position[],
+  maxDistance = MAX_SEGMENT_LENGTH_METERS,
+): GeoJSON.Position[] {
+  if (line.length < 2) return line;
+
+  const result: GeoJSON.Position[] = [];
+  for (let i = 0; i < line.length - 1; i += 1) {
+    const p1 = line[i];
+    const p2 = line[i + 1];
+    result.push(p1);
+
+    const dLng = p2[0] - p1[0];
+    const dLat = p2[1] - p1[1];
+    const avgLatRad = ((p1[1] + p2[1]) * 0.5 * Math.PI) / 180;
+    const metersLng = dLng * 111320 * Math.cos(avgLatRad);
+    const metersLat = dLat * 110574;
+    const distanceMeters = Math.hypot(metersLng, metersLat);
+
+    if (distanceMeters > maxDistance) {
+      const steps = Math.ceil(distanceMeters / maxDistance);
+      for (let s = 1; s < steps; s += 1) {
+        const t = s / steps;
+        result.push([p1[0] + dLng * t, p1[1] + dLat * t]);
+      }
+    }
+  }
+
+  result.push(line[line.length - 1]);
+  return result;
+}
+
 function createRoadRibbonGeometry(
   points: THREE.Vector3[],
   width: number,
+  demAtlas?: DemAtlas,
+  worldCenterLatlng?: LatLng,
 ): THREE.BufferGeometry | null {
   if (points.length < 2) return null;
 
   const positions: number[] = [];
   const normals: number[] = [];
   const uvs: number[] = [];
+  const demUvs: number[] = [];
   const indices: number[] = [];
 
   const cumulativeDistances = [0];
@@ -109,6 +177,14 @@ function createRoadRibbonGeometry(
     normals.push(0, 1, 0, 0, 1, 0);
     uvs.push(0, v, 1, v);
 
+    if (demAtlas && worldCenterLatlng) {
+      const leftUv = demAtlas.getDemUvFromOffset(left.x, left.z, worldCenterLatlng);
+      const rightUv = demAtlas.getDemUvFromOffset(right.x, right.z, worldCenterLatlng);
+      demUvs.push(leftUv.u, leftUv.v, rightUv.u, rightUv.v);
+    } else {
+      demUvs.push(0, 0, 0, 0);
+    }
+
     if (i < points.length - 1) {
       const leftIndex = i * 2;
       const rightIndex = i * 2 + 1;
@@ -123,6 +199,7 @@ function createRoadRibbonGeometry(
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('demUv', new THREE.Float32BufferAttribute(demUvs, 2));
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
 
@@ -142,6 +219,7 @@ function extractLineCoordinates(geometry: GeoJSON.Geometry): GeoJSON.Position[][
 export function buildHighwaysGroup(
   collection: GeoJSON.FeatureCollection,
   worldCenterLatlng: LatLng,
+  demAtlas?: DemAtlas,
   elevationOffset = 1.0,
 ): THREE.Group {
   const group = new THREE.Group();
@@ -152,15 +230,17 @@ export function buildHighwaysGroup(
   for (const feature of collection.features) {
     if (!feature.geometry) continue;
 
-    const lines = extractLineCoordinates(feature.geometry);
-    if (lines.length === 0) continue;
+    const rawLines = extractLineCoordinates(feature.geometry);
+    if (rawLines.length === 0) continue;
 
     const highwayType = getHighwayType(feature);
     const width = getHighwayWidth(highwayType);
     const colorHex = getHighwayColor(highwayType);
 
-    for (const line of lines) {
-      if (line.length < 2) continue;
+    for (const rawLine of rawLines) {
+      if (rawLine.length < 2) continue;
+
+      const line = subdivideCoordinates(rawLine);
 
       const points = line.map(([lng, lat]) => {
         const offset = latLngToMetersOffset(
@@ -169,10 +249,10 @@ export function buildHighwaysGroup(
           worldCenterLatlng.lat,
           worldCenterLatlng.lng,
         );
-        return new THREE.Vector3(offset.x, elevationOffset, offset.z);
+        return new THREE.Vector3(offset.x, 0, offset.z);
       });
 
-      const ribbonGeom = createRoadRibbonGeometry(points, width);
+      const ribbonGeom = createRoadRibbonGeometry(points, width, demAtlas, worldCenterLatlng);
       if (ribbonGeom) {
         let bucket = geometriesByColor.get(colorHex);
         if (!bucket) {
@@ -194,8 +274,15 @@ export function buildHighwaysGroup(
 
     if (!merged) continue;
 
-    const material = new THREE.MeshBasicMaterial({
-      color: colorHex,
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        demAtlas: demAtlas ? demAtlas.textureUniform : { value: new THREE.Texture() },
+        demMedian: demAtlas ? demAtlas.demMedianUniform : { value: 0 },
+        elevationOffset: { value: elevationOffset },
+        diffuseColor: { value: new THREE.Color(colorHex) },
+      },
+      vertexShader: highwayVertexShader,
+      fragmentShader: highwayFragmentShader,
       side: THREE.DoubleSide,
       depthWrite: true,
     });
@@ -226,3 +313,4 @@ export function disposeHighwaysGroup(group: THREE.Group | null): void {
 
   group.clear();
 }
+

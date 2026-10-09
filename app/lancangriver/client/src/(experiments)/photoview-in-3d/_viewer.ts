@@ -1,0 +1,369 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
+import {
+  DepthOfFieldEffect,
+  EffectComposer,
+  EffectPass,
+  RenderPass,
+} from 'postprocessing';
+
+import { DEG_TO_RAD } from '@/_3dtiles';
+import { BASE_URL } from '@/calc/constants.js';
+import type { JourneyGeoNode, PhotoRecord } from '@/photos/types';
+import { Sky } from './Sky.js';
+import { buildHighwaysGroup, disposeHighwaysGroup } from './_highways.js';
+import { PhotosManager } from './_photo.js';
+import { disposeGridTile, type LatLng, TileGrid } from './_tile.js';
+import { buildWatersGroup, disposeWatersGroup, updateWatersAnimation } from './_waters.js';
+
+const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
+const CAMERA_DISTANCE = 3800;
+const DAYTIME = '15:30';
+const DEFAULT_INITIAL_CHIP: LatLng = { lat: 23.1831, lng: 113.3268 };
+
+export interface PhotoviewViewerOptions {
+  initialChip?: LatLng;
+  onTileGridEyesMove?: (camera: THREE.PerspectiveCamera) => void;
+}
+
+export class PhotoviewViewer {
+  readonly scene: THREE.Scene;
+  readonly camera: THREE.PerspectiveCamera;
+  readonly renderer: THREE.WebGLRenderer;
+  readonly textureLoader: THREE.TextureLoader;
+
+  readonly composer: EffectComposer;
+  readonly renderPass: RenderPass;
+  readonly dofEffect: DepthOfFieldEffect;
+  readonly effectPass: EffectPass;
+
+  readonly orbitControls: OrbitControls;
+  readonly mapControls: MapControls;
+  private _currentControls: THREE.Controls<{ end: {} }>;
+
+  private _tileGrid: TileGrid | null = null;
+
+  readonly photosManager: PhotosManager;
+
+  private highwaysGroup: THREE.Group | null = null;
+  private watersGroup: THREE.Group | null = null;
+  private sky: Sky | null = null;
+
+  private animationId = 0;
+  private timer = new THREE.Timer();
+  private vectorAbortController: AbortController | null = null;
+  private resizeHandler: () => void;
+  private isDisposed = false;
+
+  constructor(
+    private readonly mountEl: HTMLDivElement,
+    private readonly options: PhotoviewViewerOptions = {},
+  ) {
+    this.textureLoader = new THREE.TextureLoader();
+
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x000000);
+
+    const aspect = mountEl.clientWidth / mountEl.clientHeight;
+    this.camera = new THREE.PerspectiveCamera(53.1, aspect, 1, 100000);
+    const initialAltitude = CAMERA_DISTANCE * Math.sin(CAMERA_ALTITUDE_DEG);
+    const initialForward = CAMERA_DISTANCE * Math.cos(CAMERA_ALTITUDE_DEG);
+    this.camera.position.set(0, initialAltitude, initialForward);
+    this.camera.lookAt(0, 0, 0);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(mountEl.clientWidth, mountEl.clientHeight);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 0.5;
+    this.renderer.domElement.className = 'block h-full w-full';
+    mountEl.appendChild(this.renderer.domElement);
+
+    this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.orbitControls.target.set(0, 0, 0);
+    this.orbitControls.enableDamping = true;
+    this.orbitControls.enablePan = true;
+    this.orbitControls.screenSpacePanning = false;
+    this.orbitControls.update();
+    this.orbitControls.enabled = true;
+
+    this.mapControls = new MapControls(this.camera, this.renderer.domElement);
+    this.mapControls.target.set(0, 0, 0);
+    this.mapControls.enableDamping = true;
+    this.mapControls.enablePan = true;
+    this.mapControls.screenSpacePanning = false;
+    this.mapControls.mouseButtons = {
+      LEFT: THREE.MOUSE.PAN,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.ROTATE,
+    };
+    this.mapControls.update();
+    this.mapControls.enabled = false;
+
+    this._currentControls = this.orbitControls;
+
+    this.composer = new EffectComposer(this.renderer);
+    this.renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(this.renderPass);
+
+    this.dofEffect = new DepthOfFieldEffect(this.camera, {
+      focusDistance: 0.0,
+      focusRange: 2000,
+      bokehScale: 2.0,
+    });
+    this.dofEffect.target = this.orbitControls.target;
+
+    this.effectPass = new EffectPass(this.camera, this.dofEffect);
+    this.composer.addPass(this.effectPass);
+
+    this.photosManager = new PhotosManager(this.textureLoader, this.scene, this.camera);
+
+    this.scene.add(new THREE.AxesHelper(20_000));
+
+    const initialChip = options.initialChip ?? DEFAULT_INITIAL_CHIP;
+    this.setupTileGrid(initialChip);
+
+    const onControlsEnd = () => {
+      this._tileGrid?.onEyesMove(this.camera);
+      this.options.onTileGridEyesMove?.(this.camera);
+    };
+    this.orbitControls.addEventListener('end', onControlsEnd);
+    this.mapControls.addEventListener('end', onControlsEnd);
+
+    this.resizeHandler = () => {
+      const width = this.mountEl.clientWidth;
+      const height = this.mountEl.clientHeight;
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(width, height);
+      this.composer.setSize(width, height);
+    };
+    window.addEventListener('resize', this.resizeHandler);
+
+    this.startAnimationLoop();
+  }
+
+  get tileGrid(): TileGrid | null {
+    return this._tileGrid;
+  }
+
+  get currentControls(): THREE.Controls<{ end: {} }> {
+    return this._currentControls;
+  }
+
+  switchControls(mode: 'orbit' | 'map') {
+    const targetControls = mode === 'orbit' ? this.orbitControls : this.mapControls;
+    if (this._currentControls === targetControls) return;
+
+    this._currentControls.enabled = false;
+    targetControls.enabled = true;
+
+    this._currentControls = targetControls;
+    this._currentControls.update(0);
+    this.dofEffect.target = targetControls.target;
+  }
+
+  async openGeoNode(geoNode: JourneyGeoNode): Promise<void> {
+    const chip: LatLng = {
+      lat: geoNode.representativeLat,
+      lng: geoNode.representativeLng,
+    };
+
+    const tileGrid = this.setupTileGrid(chip);
+    this.photosManager.openChip(geoNode, tileGrid.worldCenterLatlng);
+  }
+
+  closeGeoNode() {
+    this.photosManager.closeChip();
+  }
+
+  selectPhoto(photo: PhotoRecord) {
+    this.photosManager.select(photo);
+  }
+
+  readLatLng = (mouse: THREE.Vector2): LatLng => {
+    if (!this.camera || !this._tileGrid) {
+      return { lat: 0, lng: 0 };
+    }
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, this.camera);
+
+    const hit = raycaster.intersectObject(this._tileGrid, true)[0];
+    if (!hit) {
+      return { lat: 0, lng: 0 };
+    }
+
+    const center = this._tileGrid.chip;
+    const metersPerDegLat = (Math.PI / 180) * 6371000;
+    const metersPerDegLng = metersPerDegLat * Math.cos((center.lat * Math.PI) / 180);
+
+    const lat = center.lat - hit.point.z / metersPerDegLat;
+    const lng = center.lng + hit.point.x / metersPerDegLng;
+
+    return { lat, lng };
+  };
+
+  private setupTileGrid(chip: LatLng): TileGrid {
+    this.cleanupVectors();
+
+    const previousTileGrid = this._tileGrid;
+    const tileGrid = new TileGrid(this.textureLoader, { chip });
+
+    this.scene.add(tileGrid);
+    if (previousTileGrid) {
+      disposeGridTile(previousTileGrid);
+    }
+    this._tileGrid = tileGrid;
+
+    tileGrid.onReady = () => {
+      if (this.isDisposed) return;
+      this.removeSky();
+      const sky = new Sky({ DAYTIME, r: tileGrid.loadedWorldSizeMeters * 0.6 });
+      this.sky = sky;
+      this.scene.add(sky);
+      tileGrid.box.getCenter(sky.position);
+    };
+
+    this.fetchVectors(tileGrid);
+
+    return tileGrid;
+  }
+
+  private cleanupVectors() {
+    if (this.highwaysGroup) {
+      this.scene.remove(this.highwaysGroup);
+      disposeHighwaysGroup(this.highwaysGroup);
+      this.highwaysGroup = null;
+    }
+
+    if (this.watersGroup) {
+      this.scene.remove(this.watersGroup);
+      disposeWatersGroup(this.watersGroup);
+      this.watersGroup = null;
+    }
+  }
+
+  private removeSky() {
+    if (this.sky) {
+      this.scene.remove(this.sky);
+      this.sky.geometry?.dispose();
+      if (Array.isArray(this.sky.material)) {
+        this.sky.material.forEach((mat) => mat.dispose());
+      } else {
+        this.sky.material?.dispose();
+      }
+      this.sky = null;
+    }
+  }
+
+  private async fetchVectors(tileGrid: TileGrid) {
+    if (this.vectorAbortController) {
+      this.vectorAbortController.abort();
+    }
+    const abortController = new AbortController();
+    this.vectorAbortController = abortController;
+    const { signal } = abortController;
+
+    const { west, south, east, north } = tileGrid.bbox;
+    const highwaysUrl = `${BASE_URL}/vector/highways?bbox=${west},${south},${east},${north}`;
+    const watersUrl = `${BASE_URL}/vector/waters?bbox=${west},${south},${east},${north}`;
+
+    try {
+      const [highwaysRes, watersRes] = await Promise.all([
+        fetch(highwaysUrl, { signal }),
+        fetch(watersUrl, { signal }),
+      ]);
+
+      if (signal.aborted || this.isDisposed) return;
+
+      if (highwaysRes.ok) {
+        const highwaysData: GeoJSON.FeatureCollection = await highwaysRes.json();
+        if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
+          if (this.highwaysGroup) {
+            this.scene.remove(this.highwaysGroup);
+            disposeHighwaysGroup(this.highwaysGroup);
+          }
+          this.highwaysGroup = buildHighwaysGroup(
+            highwaysData,
+            tileGrid.worldCenterLatlng,
+            tileGrid.demAtlas,
+            1.0,
+          );
+          this.scene.add(this.highwaysGroup);
+        }
+      }
+
+      if (watersRes.ok) {
+        const watersData: GeoJSON.FeatureCollection = await watersRes.json();
+        if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
+          if (this.watersGroup) {
+            this.scene.remove(this.watersGroup);
+            disposeWatersGroup(this.watersGroup);
+          }
+          this.watersGroup = buildWatersGroup(
+            watersData,
+            tileGrid.worldCenterLatlng,
+            tileGrid.demAtlas,
+            0.3,
+          );
+          this.scene.add(this.watersGroup);
+        }
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || signal.aborted) {
+        return;
+      }
+      console.error('Failed to fetch vectors:', error);
+    }
+  }
+
+  private startAnimationLoop() {
+    const animate = () => {
+      if (this.isDisposed) return;
+      this.animationId = requestAnimationFrame(animate);
+
+      const deltaTime = this.timer.getDelta();
+      this.photosManager.playAnimation(deltaTime);
+      updateWatersAnimation(this.watersGroup, deltaTime);
+      this._currentControls?.update(deltaTime);
+      this.timer.update();
+      this.composer.render(deltaTime);
+    };
+
+    animate();
+  }
+
+  dispose() {
+    this.isDisposed = true;
+    cancelAnimationFrame(this.animationId);
+
+    if (this.vectorAbortController) {
+      this.vectorAbortController.abort();
+    }
+
+    window.removeEventListener('resize', this.resizeHandler);
+
+    this.orbitControls.dispose();
+    this.mapControls.dispose();
+
+    if (this._tileGrid) {
+      disposeGridTile(this._tileGrid);
+      this._tileGrid = null;
+    }
+
+    this.removeSky();
+    this.cleanupVectors();
+
+    this.effectPass.dispose();
+    this.dofEffect.dispose();
+    this.renderPass.dispose();
+    this.composer.dispose();
+
+    this.renderer.dispose();
+    if (this.mountEl.contains(this.renderer.domElement)) {
+      this.mountEl.removeChild(this.renderer.domElement);
+    }
+  }
+}

@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { ChildWindow } from '@/_components/Window';
 import { Button } from '@/_components/Button';
-import type { TileGrid } from './_tile';
+import type { PhotoviewViewer } from './_viewer';
 
 type Props = {
-  tileGridRef?: React.RefObject<TileGrid | null>;
+  viewer?: PhotoviewViewer | null;
 };
 
-export const OsmJobsCreate = ({ tileGridRef }: Props) => {
+export const OsmJobsCreate = ({ viewer }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const getPageUrl = () => {
-    const bbox = tileGridRef?.current?.bbox;
+    const bbox = viewer?.tileGrid?.bbox;
     if (bbox && typeof bbox.west === 'number') {
       const { west, south, east, north } = bbox;
       return `/jobs-create?bbox=${west},${south},${east},${north}`;

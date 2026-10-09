@@ -13,6 +13,7 @@ import {
 } from './_fns';
 import { __glsl_funcs__ } from './_glsl';
 import { loadProcessedDem, createDemDataTexture } from './_demDecode';
+import { DemAtlas } from './_demAtlas';
 
 type TileEvents = THREE.Object3DEventMap & {
   terrianReady: {};
@@ -178,7 +179,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         demUvScale: { value: demUvScale },
         demAvg: { value: demAvg },
         demMedian: { value: demMedian },
-        saturation: { value: 1 },
+        saturation: { value: 1.0 },
         contrast: { value: 1 },
         brightness: { value: 1 },
         focusDistance: { value: 3000 },
@@ -237,6 +238,7 @@ class TileGridCell extends THREE.Group {
     readonly useCpuDem = USE_CPU_DEM,
     readonly clampThreshold = DEM_CLAMP_THRESHOLD_METERS,
     parentCell?: TileGridCell,
+    readonly demAtlas?: DemAtlas,
   ) {
     super();
 
@@ -313,6 +315,10 @@ class TileGridCell extends THREE.Group {
       })
         .then((result) => {
           if (this.isDisposed) return;
+
+          if (this.zoom === 14 && this.demAtlas) {
+            this.demAtlas.updateTile(this.x, this.y, result);
+          }
 
           const processedTexture = createDemDataTexture(result);
           const oldTexture = demTextureUniform.value;
@@ -507,6 +513,7 @@ export class TileGrid extends THREE.Group<TileEvents> {
   readonly worldCenterLatlng: LatLng;
 
   readonly zoom0: number;
+  readonly demAtlas: DemAtlas;
   private isDisposed = false;
 
   constructor(
@@ -530,6 +537,14 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
     const centerX = Math.floor(tileXY.x);
     const centerY = Math.floor(tileXY.y);
+
+    this.demAtlas = new DemAtlas({
+      centerX,
+      centerY,
+      expand,
+      zoom,
+      demMedian: 0,
+    });
 
     const worldCenterLatlng = tileXYToLatLng(centerX + 0.5, centerY + 0.5, zoom);
     this.worldCenterLatlng = worldCenterLatlng;
@@ -571,6 +586,8 @@ export class TileGrid extends THREE.Group<TileEvents> {
       .then(({ min: demMin, avg: demAvg, median }) => {
         if (this.isDisposed) return;
 
+        this.demAtlas.setDemMedian(median);
+
         console.log({ demMin, demAvg, median });
 
         const xyMax = 2 ** zoom - 1;
@@ -601,6 +618,8 @@ export class TileGrid extends THREE.Group<TileEvents> {
               onTextureReady,
               this.useCpuDem,
               this.clampThreshold,
+              undefined,
+              this.demAtlas,
             );
 
             box.union(mesh.volume);
@@ -653,6 +672,7 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
   dispose() {
     this.markDisposed();
+    this.demAtlas.dispose();
 
     for (const child of this.children) {
       if (child instanceof TileGridCell) {
@@ -725,6 +745,7 @@ const tileVertexShader = /*glsl */ `
 
   varying vec2 vUv;
   varying float vViewZ;
+  varying vec3 vWorldPosition;
 
 #ifdef DEM_FLOAT
 #else
@@ -749,6 +770,8 @@ const tileVertexShader = /*glsl */ `
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     worldPosition.y += raise;
 
+    vWorldPosition = worldPosition.xyz;
+
     vec4 mvPosition = viewMatrix * worldPosition;
     vViewZ = -mvPosition.z;
 
@@ -769,17 +792,16 @@ const tileFragmentShader = /*glsl */ `
 
   varying vec2 vUv;
   varying float vViewZ;
+  varying vec3 vWorldPosition;
 
 ${__glsl_funcs__}
 
   void main() {
     float dist = vViewZ;
-    float dofFactor = smoothstep(focusDistance, focusDistance + falloffRange, dist);
 
     if (hasSatellite < 0.5) {
       // Placeholder while the satellite image is loading or after it failed.
-      vec3 grayId = mix(idColor, vec3(0.5), 0.5);
-      gl_FragColor = vec4(mix(idColor, grayId, dofFactor), 1.0);
+      gl_FragColor = vec4(idColor, 1.0);
       return;
     }
 
@@ -789,11 +811,6 @@ ${__glsl_funcs__}
     finalColor = applyContrast(finalColor, contrast);
     finalColor = applyBrightness(finalColor, brightness);
 
-    // Blend toward a grayish color for distant tiles
-    float luma = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
-    vec3 grayishColor = mix(vec3(luma), vec3(0.55, 0.58, 0.62), 0.35);
-
-    finalColor = mix(finalColor, grayishColor, dofFactor);
     gl_FragColor = vec4(finalColor, 1.0);
   }
 `;
