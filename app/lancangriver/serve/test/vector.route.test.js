@@ -366,3 +366,64 @@ describe('GET /vector/waters', () => {
     });
   });
 });
+
+describe('GET /vector/places', () => {
+  it('returns 200 and a FeatureCollection for a valid bbox', async () => {
+    const featureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          id: 'node/55',
+          geometry: { type: 'Point', coordinates: [100, 20] },
+          properties: { place: 'village', name: 'SampleVillage' },
+        },
+      ],
+    };
+
+    const queryVectorFeaturesPlaces = vi.fn().mockResolvedValue(featureCollection);
+    const app = createApp({ queryVectorFeaturesPlaces });
+
+    const response = await request(app).get('/vector/places').query({ bbox: '99,19,101,21' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual(featureCollection);
+    expect(queryVectorFeaturesPlaces).toHaveBeenCalledWith([99, 19, 101, 21]);
+  });
+
+  it('returns 400 when bbox is invalid', async () => {
+    const queryVectorFeaturesPlaces = vi.fn();
+    const app = createApp({ queryVectorFeaturesPlaces });
+
+    const response = await request(app).get('/vector/places').query({ bbox: 'bad' });
+
+    expect(response.status).toBe(400);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual({
+      error: {
+        code: 'INVALID_BBOX',
+        reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
+        bbox: 'bad',
+      },
+    });
+    expect(queryVectorFeaturesPlaces).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 JSON payload when the db adapter throws', async () => {
+    const queryVectorFeaturesPlaces = vi.fn().mockRejectedValue(new Error('db down'));
+    const app = createApp({ queryVectorFeaturesPlaces });
+
+    const response = await request(app).get('/vector/places').query({ bbox: '99,19,101,21' });
+
+    expect(response.status).toBe(500);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VECTOR_QUERY_FAILED',
+        reason: 'Internal server error',
+        bbox: '99,19,101,21',
+      },
+    });
+  });
+});

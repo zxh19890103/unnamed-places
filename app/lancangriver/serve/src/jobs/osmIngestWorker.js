@@ -89,6 +89,21 @@ export function createOsmWaterIngestWorker({
   });
 }
 
+export function createOsmPlaceIngestWorker({
+  jobs,
+  fetchOsmPlaceFeatures,
+  upsertVectorFeaturesPlaces,
+  logger = console,
+}) {
+  return createVectorIngestWorker({
+    jobs,
+    fetchFeaturesForZ12Key: fetchOsmPlaceFeatures,
+    upsertVectorFeatures: upsertVectorFeaturesPlaces,
+    source: 'osm-places',
+    logger,
+  });
+}
+
 export function createOsmIngestRunner({ worker, intervalMs = 2000 }) {
   let timer = null;
   let running = false;

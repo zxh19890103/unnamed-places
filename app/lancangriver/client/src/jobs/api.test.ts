@@ -3,15 +3,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BASE_URL } from '../calc/constants';
 import {
   enqueueCoverageJob,
+  enqueueCoverageJobPlaces,
   fetchCoverageJobs,
   fetchCoverageJobsHighways,
+  fetchCoverageJobsPlaces,
   fetchCoverageStatus,
   fetchCoverageStatusHighways,
+  fetchCoverageStatusPlaces,
   fetchLoadedCoverage,
   requestCoverageForTile,
   requestCoverageForTileHighways,
+  requestCoverageForTilePlaces,
   rerunFailedCoverageJob,
   rerunFailedCoverageJobHighways,
+  rerunFailedCoverageJobPlaces,
 } from './api';
 
 describe('fetchLoadedCoverage', () => {
@@ -191,5 +196,88 @@ describe('coverage jobs API', () => {
       accepted: true,
     });
     expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/vector/highways/tiles/12/2212/1539.pbf`);
+  });
+
+  it('requests places jobs with prefixed coverage routes', async () => {
+    const payload = {
+      jobs: [
+        {
+          key: '12/2212/1539',
+          z: 12,
+          x: 2212,
+          y: 1539,
+          status: 'queued',
+        },
+      ],
+      limit: 100,
+      offset: 0,
+      total: 1,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchCoverageJobsPlaces({ limit: 100, offset: 0 })).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/places/coverage/jobs?limit=100&offset=0`,
+    );
+  });
+
+  it('refreshes one places job status using prefixed route', async () => {
+    const payload = { key: '12/2212/1539', status: 'running', loaded: false };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchCoverageStatusPlaces(2212, 1539)).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/vector/places/coverage/12/2212/1539`);
+  });
+
+  it('reruns one failed places job using prefixed route', async () => {
+    const payload = { key: '12/2212/1539', status: 'queued' };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(rerunFailedCoverageJobPlaces(2212, 1539)).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/places/coverage/12/2212/1539/rerun`,
+      { method: 'POST' },
+    );
+  });
+
+  it('enqueues one places job using prefixed route', async () => {
+    const payload = { key: '12/2212/1539', enqueued: true };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(enqueueCoverageJobPlaces(2212, 1539)).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/places/coverage/12/2212/1539/enqueue`,
+      { method: 'POST' },
+    );
+  });
+
+  it('requests places coverage generation for one tile', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(requestCoverageForTilePlaces(2212, 1539)).resolves.toEqual({
+      accepted: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/vector/places/tiles/12/2212/1539.pbf`);
   });
 });

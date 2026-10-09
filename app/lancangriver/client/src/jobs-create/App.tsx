@@ -7,9 +7,11 @@ import { coverageTilesForBBox, type TileKey } from './tiles.js';
 import {
   enqueueCoverageJob,
   enqueueCoverageJobHighways,
+  enqueueCoverageJobPlaces,
   enqueueCoverageJobWaters,
   fetchCoverageStatus,
   fetchCoverageStatusHighways,
+  fetchCoverageStatusPlaces,
   fetchCoverageStatusWaters,
 } from '../jobs/api.js';
 
@@ -168,6 +170,9 @@ const TileListItem = memo(
     const [waterDownloadStatus, setWaterDownloadStatus] = useState<
       'idle' | 'queuing' | 'queued' | 'error'
     >('idle');
+    const [placeDownloadStatus, setPlaceDownloadStatus] = useState<
+      'idle' | 'queuing' | 'queued' | 'error'
+    >('idle');
 
     const handleDownloadOsm = async () => {
       setDownloadStatus('queuing');
@@ -202,13 +207,26 @@ const TileListItem = memo(
       }
     };
 
-    const handleCheckStatus = async (kind: 'buildings' | 'highways' | 'waters') => {
+    const handleDownloadPlaceOsm = async () => {
+      setPlaceDownloadStatus('queuing');
+      try {
+        await enqueueCoverageJobPlaces(tile.x, tile.y);
+        setPlaceDownloadStatus('queued');
+      } catch (error) {
+        console.warn('Failed to enqueue place OSM coverage job', tile, error);
+        setPlaceDownloadStatus('error');
+      }
+    };
+
+    const handleCheckStatus = async (kind: 'buildings' | 'highways' | 'waters' | 'places') => {
       const label =
         kind === 'buildings'
           ? 'Buildings'
           : kind === 'highways'
             ? 'Highways'
-            : 'Waterways';
+            : kind === 'waters'
+              ? 'Waterways'
+              : 'Places';
 
       try {
         const result =
@@ -216,7 +234,9 @@ const TileListItem = memo(
             ? await fetchCoverageStatus(tile.x, tile.y)
             : kind === 'highways'
               ? await fetchCoverageStatusHighways(tile.x, tile.y)
-              : await fetchCoverageStatusWaters(tile.x, tile.y);
+              : kind === 'waters'
+                ? await fetchCoverageStatusWaters(tile.x, tile.y)
+                : await fetchCoverageStatusPlaces(tile.x, tile.y);
 
         const statusText = result.status ?? 'no job queued yet';
         const loadedText = result.loaded
@@ -343,6 +363,19 @@ const TileListItem = memo(
                     : 'down load water osm'}
             </button>
             <button
+              onClick={() => void handleDownloadPlaceOsm()}
+              disabled={placeDownloadStatus === 'queuing'}
+              className="cursor-pointer rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 font-medium text-amber-400 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {placeDownloadStatus === 'queuing'
+                ? 'queuing...'
+                : placeDownloadStatus === 'queued'
+                  ? 'queued'
+                  : placeDownloadStatus === 'error'
+                    ? 'retry download place osm'
+                    : 'down load place osm'}
+            </button>
+            <button
               onClick={() => void handleCheckStatus('buildings')}
               className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
             >
@@ -359,6 +392,12 @@ const TileListItem = memo(
               className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
             >
               waters?
+            </button>
+            <button
+              onClick={() => void handleCheckStatus('places')}
+              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
+            >
+              places?
             </button>
           </div>
         </div>

@@ -184,6 +184,65 @@ describe('waters-prefixed vector tile routes', () => {
   });
 });
 
+describe('places-prefixed vector tile routes', () => {
+  it('returns place PBF bytes from the places tile provider', async () => {
+    const queueMissingCoverage = vi.fn();
+    const getVectorTilePbf = vi.fn();
+    const getVectorTilePbfPlaces = vi.fn().mockResolvedValue(Buffer.from([0x1a, 0x01, 0x08]));
+    const app = createApp({
+      queueMissingCoverage,
+      getVectorTilePbf,
+      queueMissingCoveragePlaces: vi.fn(),
+      getVectorTilePbfPlaces,
+      placesJobsStore: {
+        getStatus: vi.fn().mockResolvedValue('done'),
+        listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
+        listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+        enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
+        rerunFailed: vi.fn().mockResolvedValue('queued'),
+      },
+    });
+
+    const response = await request(app)
+      .get('/vector/places/tiles-existing/12/2212/1539.pbf')
+      .buffer(true)
+      .parse(parseBinary);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/x-protobuf/);
+    expect(getVectorTilePbfPlaces).toHaveBeenCalledWith(12, 2212, 1539);
+    expect(getVectorTilePbf).not.toHaveBeenCalled();
+  });
+
+  it('uses places coverage status for prefixed coverage route', async () => {
+    const placesJobsStore = {
+      getStatus: vi.fn().mockResolvedValue('running'),
+      listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
+      listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
+      rerunFailed: vi.fn().mockResolvedValue('queued'),
+    };
+
+    const app = createApp({
+      queueMissingCoverage: vi.fn(),
+      getVectorTilePbf: vi.fn(),
+      queueMissingCoveragePlaces: vi.fn(),
+      getVectorTilePbfPlaces: vi.fn(),
+      placesJobsStore,
+    });
+
+    const response = await request(app).get('/vector/places/coverage/12/2212/1539');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      key: '12/2212/1539',
+      status: 'running',
+      loaded: false,
+    });
+    expect(placesJobsStore.getStatus).toHaveBeenCalledWith('12/2212/1539');
+  });
+});
+
 describe('vector coverage routes', () => {
   function createCoverageApp(jobsStore) {
     const fullJobsStore = {

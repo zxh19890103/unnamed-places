@@ -9,6 +9,10 @@ const VECTOR_WATERS_BBOX_SQL = readFileSync(
   new URL('./sql/vector_waters_bbox.sql', import.meta.url),
   'utf8',
 );
+const VECTOR_PLACES_BBOX_SQL = readFileSync(
+  new URL('./sql/vector_places_bbox.sql', import.meta.url),
+  'utf8',
+);
 const VECTOR_TILE_MVT_SQL = readFileSync(
   new URL('./sql/vector_tile_mvt.sql', import.meta.url),
   'utf8',
@@ -19,6 +23,10 @@ const VECTOR_TILE_MVT_HIGHWAYS_SQL = readFileSync(
 );
 const VECTOR_TILE_MVT_WATERS_SQL = readFileSync(
   new URL('./sql/vector_tile_mvt_waters.sql', import.meta.url),
+  'utf8',
+);
+const VECTOR_TILE_MVT_PLACES_SQL = readFileSync(
+  new URL('./sql/vector_tile_mvt_places.sql', import.meta.url),
   'utf8',
 );
 let pool;
@@ -97,6 +105,18 @@ export async function queryVectorFeaturesWaters(bbox) {
   return asFeatureCollection(featureCollection);
 }
 
+export async function queryVectorFeaturesPlaces(bbox) {
+  const activePool = await getPool();
+  const result = await activePool.query(VECTOR_PLACES_BBOX_SQL, bbox);
+  const featureCollection = result.rows?.[0]?.feature_collection;
+
+  if (typeof featureCollection === 'string') {
+    return asFeatureCollection(JSON.parse(featureCollection));
+  }
+
+  return asFeatureCollection(featureCollection);
+}
+
 export async function dbQuery(sql, params = []) {
   const activePool = await getPool();
   return activePool.query(sql, params);
@@ -150,6 +170,22 @@ export async function getVectorTilePbfWaters(z, x, y) {
   return Buffer.alloc(0);
 }
 
+export async function getVectorTilePbfPlaces(z, x, y) {
+  const activePool = await getPool();
+  const result = await activePool.query(VECTOR_TILE_MVT_PLACES_SQL, [z, x, y]);
+  const pbf = result.rows?.[0]?.tile_pbf;
+
+  if (Buffer.isBuffer(pbf)) {
+    return pbf;
+  }
+
+  if (typeof pbf === 'string') {
+    return Buffer.from(pbf, 'binary');
+  }
+
+  return Buffer.alloc(0);
+}
+
 export async function upsertVectorFeatures(features) {
   return upsertVectorFeaturesIntoTable(features, 'public.vector_features');
 }
@@ -162,6 +198,10 @@ export async function upsertVectorFeaturesWaters(features) {
   return upsertVectorFeaturesIntoTable(features, 'public.vector_features_waters');
 }
 
+export async function upsertVectorFeaturesPlaces(features) {
+  return upsertVectorFeaturesIntoTable(features, 'public.vector_features_places');
+}
+
 async function upsertVectorFeaturesIntoTable(features, tableName) {
   if (!Array.isArray(features) || features.length === 0) {
     return;
@@ -170,7 +210,8 @@ async function upsertVectorFeaturesIntoTable(features, tableName) {
   if (
     tableName !== 'public.vector_features' &&
     tableName !== 'public.vector_features_highways' &&
-    tableName !== 'public.vector_features_waters'
+    tableName !== 'public.vector_features_waters' &&
+    tableName !== 'public.vector_features_places'
   ) {
     throw new Error(`Unsupported vector features table: ${tableName}`);
   }

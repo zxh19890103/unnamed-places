@@ -145,10 +145,10 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
 
     // Loader callbacks are async, so `segment` is assigned (after super) before they run.
     let segment: TileSegment | undefined;
-    const hasSatellite = { value: 0 };
+
     const settle = (loaded: boolean) => {
       if (!segment) return;
-      hasSatellite.value = loaded ? 1 : 0;
+      material.uniforms.hasSatellite.value = loaded ? 1 : 0;
       segment.satelliteSettled = true;
       onSatelliteSettled();
     };
@@ -170,8 +170,9 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
     const material = new THREE.ShaderMaterial({
       defines: useCpuDem ? { DEM_FLOAT: '1' } : {},
       uniforms: {
+        ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]),
         satelliteTexture: { value: satelliteTexture },
-        hasSatellite,
+        hasSatellite: { value: 0 },
         idColor: { value: new THREE.Color(Math.floor(Math.random() * 0xffffff)) },
         demTexture: demTextureUniform,
         demTexSize: demTexSizeUniform,
@@ -187,6 +188,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
       },
       vertexShader: tileVertexShader,
       fragmentShader: tileFragmentShader,
+      fog: true,
       side: THREE.FrontSide,
       transparent: false,
     });
@@ -736,6 +738,8 @@ function disposeAnyMesh(mesh: THREE.Mesh) {
 }
 
 const tileVertexShader = /*glsl */ `
+  #include <fog_pars_vertex>
+
   uniform sampler2D demTexture;
   uniform vec2 demUvOffset;
   uniform vec2 demUvScale;
@@ -776,10 +780,14 @@ const tileVertexShader = /*glsl */ `
     vViewZ = -mvPosition.z;
 
     gl_Position = projectionMatrix * mvPosition;
+
+    #include <fog_vertex>
   }
 `;
 
 const tileFragmentShader = /*glsl */ `
+  #include <fog_pars_fragment>
+
   uniform sampler2D satelliteTexture;
   uniform float hasSatellite;
 
@@ -802,6 +810,7 @@ ${__glsl_funcs__}
     if (hasSatellite < 0.5) {
       // Placeholder while the satellite image is loading or after it failed.
       gl_FragColor = vec4(idColor, 1.0);
+      #include <fog_fragment>
       return;
     }
 
@@ -812,5 +821,7 @@ ${__glsl_funcs__}
     finalColor = applyBrightness(finalColor, brightness);
 
     gl_FragColor = vec4(finalColor, 1.0);
+
+    #include <fog_fragment>
   }
 `;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   fetchOsmHighwayFeaturesForZ12Key,
+  fetchOsmPlaceFeaturesForZ12Key,
   fetchOsmWaterFeaturesForZ12Key,
   toFeatureFromElement,
 } from '../src/jobs/osmFetch.js';
@@ -136,5 +137,36 @@ describe('fetchOsmWaterFeaturesForZ12Key', () => {
     expect(features[0].feature_id).toBe('way/99');
     expect(features[0].feature_type).toBe('LineString');
     expect(features[0].tags.waterway).toBe('river');
+  });
+});
+
+describe('fetchOsmPlaceFeaturesForZ12Key', () => {
+  it('sends a place overpass query and maps node geometry to features', async () => {
+    const postFormJson = async (_endpoint, formValues) => {
+      expect(formValues.data).toContain('node["place"]');
+
+      return {
+        elements: [
+          {
+            type: 'node',
+            id: 88,
+            lat: 20.5,
+            lon: 100.5,
+            tags: { place: 'town', name: 'SampleTown' },
+          },
+        ],
+      };
+    };
+
+    const features = await fetchOsmPlaceFeaturesForZ12Key('12/3456/1523', {
+      postFormJson,
+      logger: { info: () => {} },
+    });
+
+    expect(features).toHaveLength(1);
+    expect(features[0].feature_id).toBe('node/88');
+    expect(features[0].feature_type).toBe('Point');
+    expect(features[0].tags.place).toBe('town');
+    expect(features[0].tags.name).toBe('SampleTown');
   });
 });

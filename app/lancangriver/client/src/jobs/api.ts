@@ -161,6 +161,7 @@ function createCoverageApi(prefix: string): CoverageApi {
 export const defaultCoverageApi = createCoverageApi('/vector');
 export const highwaysCoverageApi = createCoverageApi('/vector/highways');
 export const watersCoverageApi = createCoverageApi('/vector/waters');
+export const placesCoverageApi = createCoverageApi('/vector/places');
 
 export async function fetchLoadedCoverage({
   limit,
@@ -250,6 +251,34 @@ export async function rerunFailedCoverageJobWaters(
   return watersCoverageApi.rerunFailedCoverageJob(x, y);
 }
 
+export async function enqueueCoverageJobPlaces(
+  x: number,
+  y: number,
+): Promise<EnqueueCoverageJobResponse> {
+  return placesCoverageApi.enqueueCoverageJob(x, y);
+}
+
+export async function fetchCoverageJobsPlaces({
+  limit,
+  offset,
+}: FetchLoadedCoverageOptions): Promise<CoverageJobsPage> {
+  return placesCoverageApi.fetchCoverageJobs({ limit, offset });
+}
+
+export async function fetchCoverageStatusPlaces(
+  x: number,
+  y: number,
+): Promise<CoverageStatusResponse> {
+  return placesCoverageApi.fetchCoverageStatus(x, y);
+}
+
+export async function rerunFailedCoverageJobPlaces(
+  x: number,
+  y: number,
+): Promise<RerunCoverageJobResponse> {
+  return placesCoverageApi.rerunFailedCoverageJob(x, y);
+}
+
 export async function requestCoverageForTile(
   x: number,
   y: number,
@@ -269,6 +298,13 @@ export async function requestCoverageForTileWaters(
   y: number,
 ): Promise<RequestCoverageTileResponse> {
   return watersCoverageApi.requestCoverageForTile(x, y);
+}
+
+export async function requestCoverageForTilePlaces(
+  x: number,
+  y: number,
+): Promise<RequestCoverageTileResponse> {
+  return placesCoverageApi.requestCoverageForTile(x, y);
 }
 
 export async function fetchZ12GeoInfo(x: number, y: number): Promise<Z12GeoInfo | null> {

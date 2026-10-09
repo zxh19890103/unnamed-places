@@ -35,6 +35,7 @@ class SkyMaterial extends THREE.ShaderMaterial {
     super({
       side: THREE.BackSide,
       wireframe: false,
+      depthWrite: true,
       vertexShader: /*glsl */ `
         uniform float radius;
 

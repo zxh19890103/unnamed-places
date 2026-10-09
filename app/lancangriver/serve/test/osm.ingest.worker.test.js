@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createOsmHighwayIngestWorker,
   createOsmIngestWorker,
+  createOsmPlaceIngestWorker,
   createOsmWaterIngestWorker,
 } from '../src/jobs/osmIngestWorker.js';
 
@@ -126,6 +127,40 @@ describe('osm ingest worker', () => {
 
     expect(fetchOsmWaterFeatures).toHaveBeenCalledWith('12/3456/1523');
     expect(upsertVectorFeaturesWaters).toHaveBeenCalledTimes(1);
+    expect(jobs.markDone).toHaveBeenCalledWith('12/3456/1523');
+    expect(jobs.markFailed).not.toHaveBeenCalled();
+  });
+
+  it('ingests place features with the places upsert target', async () => {
+    const jobs = {
+      claimNextQueued: vi.fn().mockResolvedValue({ z12Key: '12/3456/1523' }),
+      markRunning: vi.fn().mockResolvedValue(undefined),
+      markDone: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const fetchOsmPlaceFeatures = vi.fn().mockResolvedValue([
+      {
+        source: 'osm',
+        feature_id: 'node/55',
+        feature_type: 'Point',
+        tags: { place: 'village' },
+        geometry: {
+          type: 'Point',
+          coordinates: [100, 20],
+        },
+      },
+    ]);
+    const upsertVectorFeaturesPlaces = vi.fn().mockResolvedValue(undefined);
+
+    const worker = createOsmPlaceIngestWorker({
+      jobs,
+      fetchOsmPlaceFeatures,
+      upsertVectorFeaturesPlaces,
+    });
+    await worker.tickOnce();
+
+    expect(fetchOsmPlaceFeatures).toHaveBeenCalledWith('12/3456/1523');
+    expect(upsertVectorFeaturesPlaces).toHaveBeenCalledTimes(1);
     expect(jobs.markDone).toHaveBeenCalledWith('12/3456/1523');
     expect(jobs.markFailed).not.toHaveBeenCalled();
   });

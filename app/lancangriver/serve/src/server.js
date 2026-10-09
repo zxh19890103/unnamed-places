@@ -6,9 +6,11 @@ import {
   dbQuery,
   getVectorTilePbf,
   getVectorTilePbfHighways,
+  getVectorTilePbfPlaces,
   getVectorTilePbfWaters,
   upsertVectorFeatures,
   upsertVectorFeaturesHighways,
+  upsertVectorFeaturesPlaces,
   upsertVectorFeaturesWaters,
 } from './db.js';
 import { createCenterlineRouter } from './routes/centerline.js';
@@ -24,16 +26,19 @@ import { createPhotosRouter } from './routes/photos.js';
 import { getCoveringZ12Tiles } from './jobs/tileCoverage.js';
 import { createOsmJobsStore } from './jobs/osmJobsStore.js';
 import { createOsmHighwayJobsStore } from './jobs/osmHighwayJobsStore.js';
+import { createOsmPlacesJobsStore } from './jobs/osmPlacesJobsStore.js';
 import { createOsmWatersJobsStore } from './jobs/osmWatersJobsStore.js';
 import { createZ12GeoInfoStore } from './jobs/z12GeoInfoStore.js';
 import {
   createOsmHighwayIngestWorker,
+  createOsmPlaceIngestWorker,
   createOsmWaterIngestWorker,
   createVectorIngestRunner,
   createVectorIngestWorker,
 } from './jobs/osmIngestWorker.js';
 import {
   fetchOsmHighwayFeaturesForZ12Key,
+  fetchOsmPlaceFeaturesForZ12Key,
   fetchOsmWaterFeaturesForZ12Key,
 } from './jobs/osmFetch.js';
 import { getVectorIngestSource } from './jobs/vectorSourceConfig.js';
@@ -57,6 +62,14 @@ function createHighwayJobsStore() {
 
 function createWatersJobsStore() {
   return createOsmWatersJobsStore({
+    db: {
+      query: dbQuery,
+    },
+  });
+}
+
+function createPlacesJobsStore() {
+  return createOsmPlacesJobsStore({
     db: {
       query: dbQuery,
     },
@@ -124,11 +137,22 @@ function createWaterRunner(jobsStore) {
   return createVectorIngestRunner({ worker, intervalMs: 2000 });
 }
 
+function createPlaceRunner(jobsStore) {
+  const worker = createOsmPlaceIngestWorker({
+    jobs: jobsStore,
+    fetchOsmPlaceFeatures: fetchOsmPlaceFeaturesForZ12Key,
+    upsertVectorFeaturesPlaces,
+  });
+
+  return createVectorIngestRunner({ worker, intervalMs: 2000 });
+}
+
 export function createApp(options = {}) {
   const app = express();
   const jobsStore = options.jobsStore ?? createDefaultJobsStore();
   const highwayJobsStore = options.highwayJobsStore ?? createHighwayJobsStore();
   const watersJobsStore = options.watersJobsStore ?? createWatersJobsStore();
+  const placesJobsStore = options.placesJobsStore ?? createPlacesJobsStore();
   const z12GeoInfoStore = options.z12GeoInfoStore ?? createDefaultZ12GeoInfoStore();
   const queueMissingCoverage =
     options.queueMissingCoverage ?? createQueueMissingCoverage(jobsStore);
@@ -136,9 +160,12 @@ export function createApp(options = {}) {
     options.queueMissingCoverageHighways ?? createQueueMissingCoverage(highwayJobsStore);
   const queueMissingCoverageWaters =
     options.queueMissingCoverageWaters ?? createQueueMissingCoverage(watersJobsStore);
+  const queueMissingCoveragePlaces =
+    options.queueMissingCoveragePlaces ?? createQueueMissingCoverage(placesJobsStore);
   const tilePbfGetter = options.getVectorTilePbf ?? getVectorTilePbf;
   const highwayTilePbfGetter = options.getVectorTilePbfHighways ?? getVectorTilePbfHighways;
   const watersTilePbfGetter = options.getVectorTilePbfWaters ?? getVectorTilePbfWaters;
+  const placesTilePbfGetter = options.getVectorTilePbfPlaces ?? getVectorTilePbfPlaces;
 
   app.use(cors());
   app.use(createHealthRouter());
@@ -185,6 +212,18 @@ export function createApp(options = {}) {
       rerunFailedCoverage: (key) => watersJobsStore.rerunFailed(key),
     }),
   );
+  app.use(
+    createVectorTilesRouter({
+      routePrefix: '/vector/places',
+      queueMissingCoverage: queueMissingCoveragePlaces,
+      enqueueCoverageJob: (key) => placesJobsStore.enqueueIfMissing(key),
+      getVectorTilePbf: placesTilePbfGetter,
+      getCoverageStatus: (key) => placesJobsStore.getStatus(key),
+      listLoadedCoverage: (pagination) => placesJobsStore.listLoaded(pagination),
+      listCoverageJobs: (pagination) => placesJobsStore.listJobs(pagination),
+      rerunFailedCoverage: (key) => placesJobsStore.rerunFailed(key),
+    }),
+  );
   app.use(createPhotosRouter(options));
 
   return app;
@@ -195,13 +234,16 @@ if (process.env.NODE_ENV !== 'test') {
   const jobsStore = createDefaultJobsStore();
   const highwayJobsStore = createHighwayJobsStore();
   const watersJobsStore = createWatersJobsStore();
+  const placesJobsStore = createPlacesJobsStore();
   const runner = createDefaultRunner(jobsStore);
   const highwayRunner = createHighwayRunner(highwayJobsStore);
   const watersRunner = createWaterRunner(watersJobsStore);
+  const placeRunner = createPlaceRunner(placesJobsStore);
 
   runner.start();
   highwayRunner.start();
   watersRunner.start();
+  placeRunner.start();
 
   const app = createApp();
   const server = app.listen(port, () => {
@@ -212,6 +254,7 @@ if (process.env.NODE_ENV !== 'test') {
     runner.stop();
     highwayRunner.stop();
     watersRunner.stop();
+    placeRunner.stop();
     server.close(() => process.exit(0));
   };
 

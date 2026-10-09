@@ -1,12 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
-import {
-  DepthOfFieldEffect,
-  EffectComposer,
-  EffectPass,
-  RenderPass,
-} from 'postprocessing';
 
 import { DEG_TO_RAD } from '@/_3dtiles';
 import { BASE_URL } from '@/calc/constants.js';
@@ -16,6 +10,7 @@ import { buildHighwaysGroup, disposeHighwaysGroup } from './_highways.js';
 import { PhotosManager } from './_photo.js';
 import { disposeGridTile, type LatLng, TileGrid } from './_tile.js';
 import { buildWatersGroup, disposeWatersGroup, updateWatersAnimation } from './_waters.js';
+import { buildPlacesGroup, disposePlacesGroup } from './_places.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
@@ -33,11 +28,6 @@ export class PhotoviewViewer {
   readonly renderer: THREE.WebGLRenderer;
   readonly textureLoader: THREE.TextureLoader;
 
-  readonly composer: EffectComposer;
-  readonly renderPass: RenderPass;
-  readonly dofEffect: DepthOfFieldEffect;
-  readonly effectPass: EffectPass;
-
   readonly orbitControls: OrbitControls;
   readonly mapControls: MapControls;
   private _currentControls: THREE.Controls<{ end: {} }>;
@@ -48,6 +38,7 @@ export class PhotoviewViewer {
 
   private highwaysGroup: THREE.Group | null = null;
   private watersGroup: THREE.Group | null = null;
+  private placesGroup: THREE.Group | null = null;
   private sky: Sky | null = null;
 
   private animationId = 0;
@@ -63,7 +54,8 @@ export class PhotoviewViewer {
     this.textureLoader = new THREE.TextureLoader();
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x000000);
+    this.scene.background = new THREE.Color(0x7ab6ea);
+    this.scene.fog = new THREE.FogExp2(0x7ab6ea, 0.00008);
 
     const aspect = mountEl.clientWidth / mountEl.clientHeight;
     this.camera = new THREE.PerspectiveCamera(53.1, aspect, 1, 100000);
@@ -103,20 +95,6 @@ export class PhotoviewViewer {
 
     this._currentControls = this.orbitControls;
 
-    this.composer = new EffectComposer(this.renderer);
-    this.renderPass = new RenderPass(this.scene, this.camera);
-    this.composer.addPass(this.renderPass);
-
-    this.dofEffect = new DepthOfFieldEffect(this.camera, {
-      focusDistance: 0.0,
-      focusRange: 2000,
-      bokehScale: 2.0,
-    });
-    this.dofEffect.target = this.orbitControls.target;
-
-    this.effectPass = new EffectPass(this.camera, this.dofEffect);
-    this.composer.addPass(this.effectPass);
-
     this.photosManager = new PhotosManager(this.textureLoader, this.scene, this.camera);
 
     this.scene.add(new THREE.AxesHelper(20_000));
@@ -137,7 +115,6 @@ export class PhotoviewViewer {
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(width, height);
-      this.composer.setSize(width, height);
     };
     window.addEventListener('resize', this.resizeHandler);
 
@@ -161,7 +138,6 @@ export class PhotoviewViewer {
 
     this._currentControls = targetControls;
     this._currentControls.update(0);
-    this.dofEffect.target = targetControls.target;
   }
 
   async openGeoNode(geoNode: JourneyGeoNode): Promise<void> {
@@ -243,6 +219,12 @@ export class PhotoviewViewer {
       disposeWatersGroup(this.watersGroup);
       this.watersGroup = null;
     }
+
+    if (this.placesGroup) {
+      this.scene.remove(this.placesGroup);
+      disposePlacesGroup(this.placesGroup);
+      this.placesGroup = null;
+    }
   }
 
   private removeSky() {
@@ -269,11 +251,13 @@ export class PhotoviewViewer {
     const { west, south, east, north } = tileGrid.bbox;
     const highwaysUrl = `${BASE_URL}/vector/highways?bbox=${west},${south},${east},${north}`;
     const watersUrl = `${BASE_URL}/vector/waters?bbox=${west},${south},${east},${north}`;
+    const placesUrl = `${BASE_URL}/vector/places?bbox=${west},${south},${east},${north}`;
 
     try {
-      const [highwaysRes, watersRes] = await Promise.all([
+      const [highwaysRes, watersRes, placesRes] = await Promise.all([
         fetch(highwaysUrl, { signal }),
         fetch(watersUrl, { signal }),
+        fetch(placesUrl, { signal }),
       ]);
 
       if (signal.aborted || this.isDisposed) return;
@@ -311,6 +295,23 @@ export class PhotoviewViewer {
           this.scene.add(this.watersGroup);
         }
       }
+
+      if (placesRes.ok) {
+        const placesData: GeoJSON.FeatureCollection = await placesRes.json();
+        if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
+          if (this.placesGroup) {
+            this.scene.remove(this.placesGroup);
+            disposePlacesGroup(this.placesGroup);
+          }
+          this.placesGroup = buildPlacesGroup(
+            placesData,
+            tileGrid.worldCenterLatlng,
+            tileGrid.demAtlas,
+            25.0,
+          );
+          this.scene.add(this.placesGroup);
+        }
+      }
     } catch (error: any) {
       if (error?.name === 'AbortError' || signal.aborted) {
         return;
@@ -329,7 +330,7 @@ export class PhotoviewViewer {
       updateWatersAnimation(this.watersGroup, deltaTime);
       this._currentControls?.update(deltaTime);
       this.timer.update();
-      this.composer.render(deltaTime);
+      this.renderer.render(this.scene, this.camera);
     };
 
     animate();
@@ -355,11 +356,6 @@ export class PhotoviewViewer {
 
     this.removeSky();
     this.cleanupVectors();
-
-    this.effectPass.dispose();
-    this.dofEffect.dispose();
-    this.renderPass.dispose();
-    this.composer.dispose();
 
     this.renderer.dispose();
     if (this.mountEl.contains(this.renderer.domElement)) {
