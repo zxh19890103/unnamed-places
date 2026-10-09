@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import request from 'supertest';
+import sharp from 'sharp';
 import { createApp } from '../src/server.js';
 
 describe('GET /photos/geotagged', () => {
@@ -137,11 +138,16 @@ describe('GET /photos/thumb/:id', () => {
   it('creates and caches a webp thumb', async () => {
     await mkdir(fixtureDir, { recursive: true });
 
-    // 1x1 transparent png
-    const pngBytes = Buffer.from(
-      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000000020001e221bc330000000049454e44ae426082',
-      'hex',
-    );
+    const pngBytes = await sharp({
+      create: {
+        width: 10,
+        height: 10,
+        channels: 4,
+        background: { r: 255, g: 0, b: 0, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
     await writeFile(imagePath, pngBytes);
 
     const app = createApp({ photosRoot });
