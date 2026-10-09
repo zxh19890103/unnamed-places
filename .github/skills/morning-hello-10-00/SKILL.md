@@ -1,10 +1,9 @@
 ---
-description: "Say hello at 10:00 in the morning"
-name: "Morning Hello 10:00"
+name: morning-hello-10-00
+description: Say hello at 10:00 in the morning
+disable-model-invocation: true
 argument-hint: "Optional: recipient name or context"
-agent: "ask"
 ---
-
 Create a short, friendly greeting message for 10:00 in the morning.
 
 Requirements:
