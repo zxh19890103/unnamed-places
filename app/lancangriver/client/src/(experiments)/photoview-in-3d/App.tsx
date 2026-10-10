@@ -57,6 +57,19 @@ export default function App() {
     viewer?.closeGeoNode();
   };
 
+  const [cloudsVisible, setCloudsVisible] = useState(true);
+
+  const toggleClouds = () => {
+    if (!viewer) return;
+    if (viewer.clouds) {
+      viewer.removeClouds();
+      setCloudsVisible(false);
+    } else {
+      viewer.addClouds({ altitudeMeters: 1000, coverage: 0.55 });
+      setCloudsVisible(true);
+    }
+  };
+
   const switchToOrbitCtrls = () => {
     viewer?.switchControls('orbit');
     setControlsMode('orbit');
@@ -100,6 +113,13 @@ export default function App() {
           className={`cursor-pointer pointer-events-auto ${controlsMode === 'map' ? 'text-amber-300 font-semibold underline' : 'text-amber-50'}`}
         >
           Map
+        </button>
+        <button
+          type="button"
+          onClick={toggleClouds}
+          className={`cursor-pointer pointer-events-auto ${cloudsVisible ? 'text-amber-300 font-semibold underline' : 'text-amber-50'}`}
+        >
+          Clouds {cloudsVisible ? 'ON' : 'OFF'}
         </button>
       </div>
 

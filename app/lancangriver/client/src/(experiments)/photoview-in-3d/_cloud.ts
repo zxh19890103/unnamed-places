@@ -1,0 +1,340 @@
+import * as THREE from 'three';
+import { DemAtlas } from './_demAtlas';
+
+export interface CloudLayerOptions {
+  /** Size (width & length in meters) of the cloud plane */
+  sizeMeters?: number;
+  /** Base altitude relative to demMedian (in meters) */
+  altitudeMeters?: number;
+  /** Vertical 3D displacement swell height (in meters). Default 400m */
+  displacementMeters?: number;
+  /** Radius of the spherical cap dome (in meters). Default 75,000m */
+  sphereRadiusMeters?: number;
+  /** Overall opacity of the cloud sheet [0.0, 1.0] */
+  opacity?: number;
+  /** Cloud coverage/density [0.0, 1.0]. Higher = thicker clouds */
+  coverage?: number;
+  /** Wind direction and speed in meters/sec */
+  windSpeed?: THREE.Vector2;
+  /** Sun direction for silver-lining forward scattering */
+  sunDirection?: THREE.Vector3;
+  /** Cloud tint color (facing sun) */
+  cloudColor?: THREE.Color;
+  /** Shadow tint color (ambient underside) */
+  cloudShadowColor?: THREE.Color;
+}
+
+const noiseGlsl = /* glsl */ `
+  // 2D Hash function
+  vec2 hash2(vec2 p) {
+    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+  }
+
+  // Simplex-like Perlin 2D noise
+  float perlinNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+
+    return mix(
+      mix(dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
+          dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
+      mix(dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
+          dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x),
+      u.y
+    );
+  }
+
+  // Fractional Brownian Motion (FBM) with 5 octaves
+  float fbm(vec2 uv) {
+    float total = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    mat2 rot = mat2(1.6, 1.2, -1.2, 1.6);
+
+    for (int i = 0; i < 5; i++) {
+      total += amplitude * perlinNoise(uv * frequency);
+      uv = rot * uv;
+      frequency *= 2.0;
+      amplitude *= 0.5;
+    }
+    return total;
+  }
+`;
+
+const cloudVertexShader = /* glsl */ `
+  #include <fog_pars_vertex>
+
+  uniform float uTime;
+  uniform vec2 uWind;
+  uniform float uAltitude;
+  uniform float uDisplacement;
+  uniform float uSphereRadius;
+  uniform float uHasDem;
+  uniform sampler2D demAtlas;
+  uniform float demMedian;
+
+  attribute vec2 demUv;
+
+  varying vec2 vUv;
+  varying vec3 vWorldPos;
+  varying float vTerrainElevation;
+  varying float vCameraDist;
+  varying float vPuffHeight;
+  varying float vDensity;
+
+  ${noiseGlsl}
+
+  void main() {
+    vUv = uv;
+
+    // 1. Dual-layer animated UV coordinates matching fragment shader wind drift
+    vec2 windOffset1 = uWind * uTime * 0.00035;
+    vec2 windOffset2 = vec2(-uWind.y, uWind.x) * uTime * 0.0002;
+
+    vec2 uv1 = uv * 5.0 + windOffset1;
+    vec2 uv2 = uv * 10.0 + windOffset2;
+
+    // 2. Sample FBM noise to calculate 3D puffy volume displacement
+    float n1 = fbm(uv1);
+    float n2 = fbm(uv2 + n1 * 0.7);
+    float density = (n1 * 0.65 + n2 * 0.35) * 0.5 + 0.5;
+    vDensity = density;
+
+    // Puffs swell upwards into 3D rolling mounds where cloud density is highest
+    float puffFactor = smoothstep(0.2, 0.85, density);
+    float verticalDisplacement = pow(puffFactor, 1.3) * uDisplacement;
+    vPuffHeight = puffFactor;
+
+    // 3. Spherical Cap curvature drop towards horizon:
+    // Models the Earth's celestial curvature so the cloud dome arcs downwards
+    // towards the distant horizon, closing the gap seamlessly with the horizon fog.
+    float r2 = position.x * position.x + position.z * position.z;
+    float curvatureDrop = uSphereRadius - sqrt(max(0.0, uSphereRadius * uSphereRadius - r2));
+
+    // 4. Displace vertices vertically in Y:
+    // Base altitude - spherical horizon curvature drop + 3D puffy swelling
+    vec3 pos = position;
+    pos.y += uAltitude - curvatureDrop + verticalDisplacement;
+
+    vec4 worldPos4 = modelMatrix * vec4(pos, 1.0);
+    vWorldPos = worldPos4.xyz;
+
+    // Sample DEM elevation at this vertex if DEM is bound
+    if (uHasDem > 0.5) {
+      vec2 clampedDemUv = clamp(demUv, 0.0, 1.0);
+      float elev = texture2D(demAtlas, clampedDemUv).r;
+      vTerrainElevation = elev - demMedian;
+    } else {
+      vTerrainElevation = -99999.0;
+    }
+
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    vCameraDist = length(mvPosition.xyz);
+
+    gl_Position = projectionMatrix * mvPosition;
+
+    #include <fog_vertex>
+  }
+`;
+
+const cloudFragmentShader = /* glsl */ `
+  #include <fog_pars_fragment>
+
+  uniform float uTime;
+  uniform vec2 uWind;
+  uniform vec3 uSunDirection;
+  uniform vec3 uCloudColor;
+  uniform vec3 uCloudShadowColor;
+  uniform float uOpacity;
+  uniform float uCoverage;
+  uniform float uAltitude;
+  uniform float uSoftDepthDistance;
+  uniform float uHasDem;
+
+  varying vec2 vUv;
+  varying vec3 vWorldPos;
+  varying float vTerrainElevation;
+  varying float vCameraDist;
+  varying float vPuffHeight;
+  varying float vDensity;
+
+  ${noiseGlsl}
+
+  void main() {
+    // 1. Dual-layer micro-detail for fine fluffy edges
+    vec2 windOffset1 = uWind * uTime * 0.00035;
+    vec2 microUv = vUv * 16.0 + windOffset1 * 1.5;
+    float microNoise = perlinNoise(microUv) * 0.12;
+
+    float density = clamp(vDensity + microNoise, 0.0, 1.0);
+
+    // Apply cloud coverage curve
+    float threshold = 1.0 - uCoverage;
+    float cloudAlpha = smoothstep(threshold - 0.15, threshold + 0.25, density);
+
+    // Fade edges of the world-sized plane so it doesn't have hard boundary cuts
+    float edgeDist = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
+    float edgeFade = smoothstep(0.0, 0.15, edgeDist);
+    cloudAlpha *= edgeFade;
+
+    // 2. Soft Terrain Intersection:
+    // If the mountain height exceeds the cloud altitude, fade out smoothly
+    if (uHasDem > 0.5) {
+      float heightDiff = vWorldPos.y - vTerrainElevation;
+      float softIntersection = smoothstep(-15.0, uSoftDepthDistance, heightDiff);
+      cloudAlpha *= softIntersection;
+    }
+
+    if (cloudAlpha <= 0.01) {
+      discard;
+    }
+
+    // 3. Volumetric Shading & Atmospheric Sun Phase Lighting:
+    // Tops of 3D cloud mounds catch bright direct sunlight, valleys are in soft shadow
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    vec3 sunDir = normalize(uSunDirection);
+
+    // Forward scattering towards sun (silver lining)
+    float cosTheta = dot(viewDir, sunDir);
+    float forwardScatter = pow(max(0.0, cosTheta), 3.0) * 0.5;
+
+    // Vertical top illumination from 3D puff height
+    float heightLighting = mix(0.4, 1.05, vPuffHeight);
+    float lighting = heightLighting + forwardScatter;
+
+    vec3 cloudCol = mix(uCloudShadowColor, uCloudColor, clamp(lighting, 0.0, 1.0));
+
+    gl_FragColor = vec4(cloudCol, cloudAlpha * uOpacity);
+
+    #include <fog_fragment>
+  }
+`;
+
+export class CloudLayer extends THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial> {
+  private _demAtlas: DemAtlas | null = null;
+
+  constructor(options: CloudLayerOptions = {}) {
+    const size = options.sizeMeters ?? 25_000;
+    const segments = 96; // Dense vertex grid so 3D rolling mounds swell smoothly
+
+    const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+    geometry.rotateX(-Math.PI / 2); // Lay horizontal in XZ plane
+
+    // Pre-initialize demUv attribute so shader attribute binding is valid immediately
+    const vertexCount = (segments + 1) * (segments + 1);
+    geometry.setAttribute('demUv', new THREE.BufferAttribute(new Float32Array(vertexCount * 2), 2));
+
+    const defaultSun = new THREE.Vector3(0.5, 0.8, 0.4).normalize();
+    const cloudColor = options.cloudColor ?? new THREE.Color(0xffffff);
+    const shadowColor = options.cloudShadowColor ?? new THREE.Color(0x9cb5cc);
+
+    // 1x1 default DataTexture placeholder so sampler2D is never null
+    const dummyTexture = new THREE.DataTexture(
+      new Float32Array([0]),
+      1,
+      1,
+      THREE.RedFormat,
+      THREE.FloatType,
+    );
+    dummyTexture.needsUpdate = true;
+
+    const material = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: true,
+      side: THREE.DoubleSide,
+      fog: true,
+      uniforms: {
+        ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]),
+        uTime: { value: 0 },
+        uWind: { value: options.windSpeed ?? new THREE.Vector2(1.2, 0.6) },
+        uSunDirection: { value: options.sunDirection ?? defaultSun },
+        uCloudColor: { value: cloudColor },
+        uCloudShadowColor: { value: shadowColor },
+        uOpacity: { value: options.opacity ?? 0.85 },
+        uCoverage: { value: options.coverage ?? 0.55 },
+        uAltitude: { value: options.altitudeMeters ?? 1000.0 }, // Base altitude relative to demMedian
+        uDisplacement: { value: options.displacementMeters ?? 400.0 }, // 3D puffy vertical height
+        uSphereRadius: { value: options.sphereRadiusMeters ?? 75_000.0 }, // Celestial curvature dome radius
+        uSoftDepthDistance: { value: 80.0 }, // Distance in meters over which cloud fades into mountain slopes
+        uHasDem: { value: 0.0 },
+        demAtlas: { value: dummyTexture },
+        demMedian: { value: 0.0 },
+      },
+      vertexShader: cloudVertexShader,
+      fragmentShader: cloudFragmentShader,
+    });
+
+    super(geometry, material);
+    this.name = 'cloud-layer';
+  }
+
+  /**
+   * Bind the terrain DemAtlas so clouds can sample mountain elevations and softly blend around slopes.
+   */
+  bindDemAtlas(demAtlas: DemAtlas, worldCenterLatlng: { lat: number; lng: number }): void {
+    this._demAtlas = demAtlas;
+    const mat = this.material;
+    mat.uniforms.demAtlas.value = demAtlas.texture;
+    mat.uniforms.demMedian.value = demAtlas.demMedian;
+    mat.uniforms.uHasDem.value = 1.0;
+
+    // Generate demUv attributes for each vertex on the plane
+    const posAttr = this.geometry.attributes.position;
+    const vertexCount = posAttr.count;
+    const demUvArray = new Float32Array(vertexCount * 2);
+
+    for (let i = 0; i < vertexCount; i += 1) {
+      const vx = posAttr.getX(i);
+      const vz = posAttr.getZ(i);
+      const uv = demAtlas.getDemUvFromOffset(vx, vz, worldCenterLatlng);
+      demUvArray[i * 2 + 0] = uv.u;
+      demUvArray[i * 2 + 1] = uv.v;
+    }
+
+    this.geometry.setAttribute('demUv', new THREE.BufferAttribute(demUvArray, 2));
+    this.geometry.attributes.demUv.needsUpdate = true;
+  }
+
+  /**
+   * Advance cloud turbulence and wind motion in the animation loop.
+   */
+  update(deltaTime: number): void {
+    this.material.uniforms.uTime.value += deltaTime;
+    if (this._demAtlas) {
+      this.material.uniforms.demMedian.value = this._demAtlas.demMedian;
+      this.material.uniforms.demAtlas.value = this._demAtlas.texture;
+    }
+  }
+
+  setAltitude(altitudeMeters: number): void {
+    this.material.uniforms.uAltitude.value = altitudeMeters;
+  }
+
+  setDisplacement(displacementMeters: number): void {
+    this.material.uniforms.uDisplacement.value = Math.max(0.0, displacementMeters);
+  }
+
+  setSphereRadius(radiusMeters: number): void {
+    this.material.uniforms.uSphereRadius.value = Math.max(10_000.0, radiusMeters);
+  }
+
+  setCoverage(coverage: number): void {
+    this.material.uniforms.uCoverage.value = Math.max(0.0, Math.min(1.0, coverage));
+  }
+
+  setOpacity(opacity: number): void {
+    this.material.uniforms.uOpacity.value = Math.max(0.0, Math.min(1.0, opacity));
+  }
+
+  setSunDirection(sunDir: THREE.Vector3): void {
+    this.material.uniforms.uSunDirection.value.copy(sunDir).normalize();
+  }
+
+  dispose(): void {
+    this.geometry.dispose();
+    this.material.dispose();
+  }
+}

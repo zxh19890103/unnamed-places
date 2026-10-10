@@ -10,7 +10,8 @@ import { buildHighwaysGroup, disposeHighwaysGroup } from './_highways.js';
 import { PhotosManager } from './_photo.js';
 import { disposeGridTile, type LatLng, TileGrid } from './_tile.js';
 import { buildWatersGroup, disposeWatersGroup, updateWatersAnimation } from './_waters.js';
-import { buildPlacesGroup, disposePlacesGroup } from './_places.js';
+import { buildPlacesGroup, disposePlacesGroup, type PlacesGroup } from './_places.js';
+import { CloudLayer, type CloudLayerOptions } from './_cloud.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
@@ -38,7 +39,8 @@ export class PhotoviewViewer {
 
   private highwaysGroup: THREE.Group | null = null;
   private watersGroup: THREE.Group | null = null;
-  private placesGroup: THREE.Group | null = null;
+  private placesGroup: PlacesGroup | null = null;
+  private cloudLayer: CloudLayer | null = null;
   private sky: Sky | null = null;
 
   private animationId = 0;
@@ -54,7 +56,7 @@ export class PhotoviewViewer {
     this.textureLoader = new THREE.TextureLoader();
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x7ab6ea);
+    this.scene.background = new THREE.Color(0x000000);
     this.scene.fog = new THREE.FogExp2(0x7ab6ea, 0.00008);
 
     const aspect = mountEl.clientWidth / mountEl.clientHeight;
@@ -115,6 +117,7 @@ export class PhotoviewViewer {
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(width, height);
+      this.placesGroup?.updateViewport(width, height);
     };
     window.addEventListener('resize', this.resizeHandler);
 
@@ -158,6 +161,47 @@ export class PhotoviewViewer {
     this.photosManager.select(photo);
   }
 
+  /**
+   * Add a procedural cloud layer to the current scene.
+   */
+  addClouds(options: CloudLayerOptions = {}): CloudLayer {
+    this.removeClouds();
+
+    const worldSize = this._tileGrid?.loadedWorldSizeMeters ?? 25_000;
+    const cloud = new CloudLayer({
+      sizeMeters: worldSize * 1.8,
+      altitudeMeters: options.altitudeMeters ?? 1000,
+      sphereRadiusMeters: options.sphereRadiusMeters ?? 20_000,
+      displacementMeters: options.displacementMeters ?? 400,
+      coverage: options.coverage ?? 0.55,
+      opacity: options.opacity ?? 0.85,
+      ...options,
+    });
+
+    if (this._tileGrid?.demAtlas) {
+      cloud.bindDemAtlas(this._tileGrid.demAtlas, this._tileGrid.worldCenterLatlng);
+    }
+
+    this.cloudLayer = cloud;
+    this.scene.add(cloud);
+    return cloud;
+  }
+
+  /**
+   * Remove and dispose the current cloud layer.
+   */
+  removeClouds(): void {
+    if (this.cloudLayer) {
+      this.scene.remove(this.cloudLayer);
+      this.cloudLayer.dispose();
+      this.cloudLayer = null;
+    }
+  }
+
+  get clouds(): CloudLayer | null {
+    return this.cloudLayer;
+  }
+
   readLatLng = (mouse: THREE.Vector2): LatLng => {
     if (!this.camera || !this._tileGrid) {
       return { lat: 0, lng: 0 };
@@ -183,6 +227,7 @@ export class PhotoviewViewer {
 
   private setupTileGrid(chip: LatLng): TileGrid {
     this.cleanupVectors();
+    this.removeClouds();
 
     const previousTileGrid = this._tileGrid;
     const tileGrid = new TileGrid(this.textureLoader, { chip });
@@ -200,6 +245,11 @@ export class PhotoviewViewer {
       this.sky = sky;
       this.scene.add(sky);
       tileGrid.box.getCenter(sky.position);
+
+      this.addClouds({
+        altitudeMeters: 1000,
+        coverage: 0.55,
+      });
     };
 
     this.fetchVectors(tileGrid);
@@ -307,7 +357,8 @@ export class PhotoviewViewer {
             placesData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            25.0,
+            0.5,
+            { value: new THREE.Vector2(this.mountEl.clientWidth, this.mountEl.clientHeight) },
           );
           this.scene.add(this.placesGroup);
         }
@@ -328,6 +379,9 @@ export class PhotoviewViewer {
       const deltaTime = this.timer.getDelta();
       this.photosManager.playAnimation(deltaTime);
       updateWatersAnimation(this.watersGroup, deltaTime);
+      if (this.cloudLayer) {
+        this.cloudLayer.update(deltaTime);
+      }
       this._currentControls?.update(deltaTime);
       this.timer.update();
       this.renderer.render(this.scene, this.camera);
@@ -355,6 +409,7 @@ export class PhotoviewViewer {
     }
 
     this.removeSky();
+    this.removeClouds();
     this.cleanupVectors();
 
     this.renderer.dispose();

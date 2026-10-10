@@ -57,44 +57,13 @@ class SkyMaterial extends THREE.ShaderMaterial {
         varying float vAlt;
         varying vec3 vPos;
 
-        float hash(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-        }
-
-        float noise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-
-          float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
-
-          vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-        }
-
-        float fbm(vec2 p) {
-          float value = 0.0;
-          float amp = 0.5;
-          for (int i = 0; i < 4; i++) {
-            value += amp * noise(p);
-            p = p * 2.0 + 12.0;
-            amp *= 0.5;
-          }
-          return value;
-        }
-
         void main() {
           if (vAlt < -0.1) discard;
 
           float azimuth = atan(vPos.z, vPos.x);
           float altitude = asin(vPos.y / length(vPos));
 
-          vec2 cloudUv = vec2(abs(azimuth /  6.2831853), altitude * 0.7 + 0.5);
-          float cloudNoise = fbm(cloudUv * vec2(6.0, 3.0));
-
-          float skyFactor = smoothstep(-0.1, cloudNoise * 0.67, vAlt);
+          float skyFactor = smoothstep(-0.1, 0.25, vAlt);
           vec3 sky = mix(color2, mix(color0, color1, skyFactor), smoothstep(0.0, 0.1, skyFactor));
 
           gl_FragColor = vec4(sky, 1.0);
@@ -107,7 +76,7 @@ class SkyMaterial extends THREE.ShaderMaterial {
         mieCoefficient: { value: 0.002 },
         mieDirectionalG: { value: 0.8 },
         uTime: { value: 0 },
-        color2: { value: new THREE.Color('#1a3b5a').convertLinearToSRGB() },
+        color2: { value: new THREE.Color('#ffffff').convertLinearToSRGB() },
         color0: { value: new THREE.Color('#edf7ff').convertLinearToSRGB() },
         color1: { value: new THREE.Color('#7ab6ea').convertLinearToSRGB() },
         sunPosition: { value: new THREE.Vector3() },
