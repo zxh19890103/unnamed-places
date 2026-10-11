@@ -14,6 +14,7 @@ import {
 import { __glsl_funcs__ } from './_glsl';
 import { loadProcessedDem, createDemDataTexture } from './_demDecode';
 import { DemAtlas } from './_demAtlas';
+import { SolarUniforms } from './_solar.js';
 
 type TileEvents = THREE.Object3DEventMap & {
   terrianReady: {};
@@ -171,6 +172,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
       defines: useCpuDem ? { DEM_FLOAT: '1' } : {},
       uniforms: {
         ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]),
+        ...SolarUniforms,
         satelliteTexture: { value: satelliteTexture },
         hasSatellite: { value: 0 },
         idColor: { value: new THREE.Color(Math.floor(Math.random() * 0xffffff)) },
@@ -180,11 +182,10 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         demUvScale: { value: demUvScale },
         demAvg: { value: demAvg },
         demMedian: { value: demMedian },
+        tileMeters: { value: sizeMeters },
         saturation: { value: 1.0 },
         contrast: { value: 1 },
         brightness: { value: 1 },
-        focusDistance: { value: 3000 },
-        falloffRange: { value: 2000 },
       },
       vertexShader: tileVertexShader,
       fragmentShader: tileFragmentShader,
@@ -746,15 +747,24 @@ const tileVertexShader = /*glsl */ `
   uniform float demAvg;
   uniform float demMedian;
   uniform vec2 demTexSize;
+  uniform float tileMeters;
 
   varying vec2 vUv;
   varying float vViewZ;
   varying vec3 vWorldPosition;
+  varying vec3 vTerrainNormal;
 
 #ifdef DEM_FLOAT
+  float sampleDem(vec2 uvCoord) {
+    return texture2D(demTexture, uvCoord).r;
+  }
 #else
   float decodeElevation(vec3 color) {
     return color.r * 256.0 + color.g + color.b / 256.0 - 32768.0;
+  }
+  float sampleDem(vec2 uvCoord) {
+    vec3 demRgb = texture2D(demTexture, uvCoord).rgb * 255.0;
+    return decodeElevation(demRgb);
   }
 #endif
 
@@ -762,19 +772,29 @@ const tileVertexShader = /*glsl */ `
     vUv = uv;
     vec2 demUv = uv * demUvScale + demUvOffset;
     
-#ifdef DEM_FLOAT
-    float elevation = texture2D(demTexture, demUv).r;
-#else
-    vec3 demRgb = texture2D(demTexture, demUv).rgb * 255.0;
-    float elevation = decodeElevation(demRgb);
-#endif
-    
+    float elevation = sampleDem(demUv);
     float raise = elevation - demMedian;
 
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     worldPosition.y += raise;
 
     vWorldPosition = worldPosition.xyz;
+
+    // Calculate terrain surface normal using central finite differences on DEM
+    vec2 texelSize = 1.0 / demTexSize;
+    float elevL = sampleDem(demUv - vec2(texelSize.x, 0.0));
+    float elevR = sampleDem(demUv + vec2(texelSize.x, 0.0));
+    float elevB = sampleDem(demUv - vec2(0.0, texelSize.y));
+    float elevT = sampleDem(demUv + vec2(0.0, texelSize.y));
+
+    // Horizontal spacing in meters represented by 2 texels of DEM across this tile
+    float metersPerTexel = (tileMeters / demTexSize.x) * demUvScale.x;
+    float dX = (elevR - elevL) / max(2.0 * metersPerTexel, 0.001);
+    float dZ = (elevT - elevB) / max(2.0 * metersPerTexel, 0.001);
+
+    // In Three.js world space, +Y is up, +X is East, -Z is North
+    vec3 localNormal = normalize(vec3(-dX, 1.0, dZ));
+    vTerrainNormal = normalize((modelMatrix * vec4(localNormal, 0.0)).xyz);
 
     vec4 mvPosition = viewMatrix * worldPosition;
     vViewZ = -mvPosition.z;
@@ -795,12 +815,15 @@ const tileFragmentShader = /*glsl */ `
   uniform float brightness;
   uniform float saturation;
   uniform float contrast;
-  uniform float focusDistance;
-  uniform float falloffRange;
+
+  uniform vec3 sunDirection;
+  uniform vec3 sunColor;
+  uniform vec3 shadowTint;
 
   varying vec2 vUv;
   varying float vViewZ;
   varying vec3 vWorldPosition;
+  varying vec3 vTerrainNormal;
 
 ${__glsl_funcs__}
 
@@ -819,6 +842,18 @@ ${__glsl_funcs__}
     vec3 finalColor = applySaturation(color.rgb, saturation);
     finalColor = applyContrast(finalColor, contrast);
     finalColor = applyBrightness(finalColor, brightness);
+
+    // Atmospheric sun shading (Option B: DEM-derived normal + dual-tone hillshading)
+    vec3 normal = normalize(vTerrainNormal);
+    vec3 lightDir = normalize(sunDirection);
+    float NdotL = dot(normal, lightDir);
+
+    // Smooth transition from shadowed slope to sunlit ridge
+    float sunFactor = smoothstep(-0.25, 0.55, NdotL);
+    vec3 sunTint = sunColor * 1.88;
+    vec3 hillshade = mix(shadowTint, sunTint, sunFactor);
+
+    finalColor *= hillshade;
 
     gl_FragColor = vec4(finalColor, 1.0);
 

@@ -12,7 +12,7 @@ import { disposeGridTile, type LatLng, TileGrid } from './_tile.js';
 import { buildWatersGroup, disposeWatersGroup, updateWatersAnimation } from './_waters.js';
 import { buildPlacesGroup, disposePlacesGroup, type PlacesGroup } from './_places.js';
 import { CloudSystem, type CloudSystemOptions } from './_cloud.js';
-import { DEFAULT_DAYTIME, setSolarDaytime } from './_solar.js';
+import { DEFAULT_DAYTIME, setSolarDaytime, SolarUniforms } from './_solar.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
@@ -57,7 +57,7 @@ export class PhotoviewViewer {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
-    this.scene.fog = new THREE.FogExp2(0x7ab6ea, 0.00008);
+    this.scene.fog = new THREE.FogExp2(SolarUniforms.skyHorizon.value, 0.00008);
 
     const aspect = mountEl.clientWidth / mountEl.clientHeight;
     this.camera = new THREE.PerspectiveCamera(53.1, aspect, 1, 100000);
@@ -145,6 +145,9 @@ export class PhotoviewViewer {
 
   setDaytime(timeStr: string) {
     setSolarDaytime(timeStr);
+    if (this.scene.fog instanceof THREE.FogExp2 || this.scene.fog instanceof THREE.Fog) {
+      this.scene.fog.color.copy(SolarUniforms.skyHorizon.value);
+    }
   }
 
   async openGeoNode(geoNode: JourneyGeoNode): Promise<void> {

@@ -27,8 +27,6 @@ export class SolarMesh extends THREE.Mesh<THREE.CircleGeometry, THREE.ShaderMate
       uniforms: {
         ...SolarUniforms,
         coreColor: { value: new THREE.Color('#ffffff') },
-        coronaColor: { value: new THREE.Color('#ffe188') },
-        flareColor: { value: new THREE.Color('#ff8822') },
       },
       vertexShader: /* glsl */ `
         varying vec2 vUv;
@@ -142,9 +140,11 @@ class SkyMaterial extends THREE.ShaderMaterial {
         }
       `,
       fragmentShader: /*glsl */ `
-        uniform vec3 color0;
-        uniform vec3 color1;
-        uniform vec3 color2;
+        uniform vec3 skyZenith;
+        uniform vec3 skyHorizon;
+        uniform vec3 skyHaze;
+        uniform vec3 sunColor;
+        uniform vec3 sunDirection;
         uniform float uTime;
 
         varying float vAlt;
@@ -153,11 +153,21 @@ class SkyMaterial extends THREE.ShaderMaterial {
         void main() {
           if (vAlt < -0.1) discard;
 
-          float azimuth = atan(vPos.z, vPos.x);
-          float altitude = asin(vPos.y / length(vPos));
+          // 1. Normalized viewing direction to sky dome
+          vec3 viewDir = normalize(vPos);
+          vec3 lightDir = normalize(sunDirection);
 
-          float skyFactor = smoothstep(-0.1, 0.25, vAlt);
-          vec3 sky = mix(color2, mix(color0, color1, skyFactor), smoothstep(0.0, 0.1, skyFactor));
+          // 2. Solar phase forward scattering (warm sunset glow around the sun)
+          float cosAngle = dot(viewDir, lightDir);
+          float sunProximity = max(0.0, cosAngle);
+          float sunGlow = pow(sunProximity, 4.0) * smoothstep(0.45, -0.05, vAlt);
+
+          // 3. Vertical atmospheric gradient (horizon haze -> horizon -> zenith)
+          float skyFactor = smoothstep(-0.05, 0.35, vAlt);
+          vec3 verticalGradient = mix(skyHaze, mix(skyHorizon, skyZenith, skyFactor), smoothstep(0.0, 0.15, skyFactor));
+
+          // 4. Blend warm directional sun glow into the sky
+          vec3 sky = mix(verticalGradient, sunColor, sunGlow * 0.75);
 
           gl_FragColor = vec4(sky, 1.0);
         }
@@ -170,9 +180,6 @@ class SkyMaterial extends THREE.ShaderMaterial {
         mieCoefficient: { value: 0.002 },
         mieDirectionalG: { value: 0.8 },
         uTime: { value: 0 },
-        color2: { value: new THREE.Color('#ffffff').convertLinearToSRGB() },
-        color0: { value: new THREE.Color('#edf7ff').convertLinearToSRGB() },
-        color1: { value: new THREE.Color('#7ab6ea').convertLinearToSRGB() },
       },
     });
   }
