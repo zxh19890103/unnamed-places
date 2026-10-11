@@ -11,11 +11,11 @@ import { PhotosManager } from './_photo.js';
 import { disposeGridTile, type LatLng, TileGrid } from './_tile.js';
 import { buildWatersGroup, disposeWatersGroup, updateWatersAnimation } from './_waters.js';
 import { buildPlacesGroup, disposePlacesGroup, type PlacesGroup } from './_places.js';
-import { CloudLayer, type CloudLayerOptions } from './_cloud.js';
+import { CloudSystem, type CloudSystemOptions } from './_cloud.js';
+import { DEFAULT_DAYTIME, setSolarDaytime } from './_solar.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
-const DAYTIME = '15:30';
 const DEFAULT_INITIAL_CHIP: LatLng = { lat: 23.1831, lng: 113.3268 };
 
 export interface PhotoviewViewerOptions {
@@ -40,7 +40,7 @@ export class PhotoviewViewer {
   private highwaysGroup: THREE.Group | null = null;
   private watersGroup: THREE.Group | null = null;
   private placesGroup: PlacesGroup | null = null;
-  private cloudLayer: CloudLayer | null = null;
+  private cloudSystem: CloudSystem | null = null;
   private sky: Sky | null = null;
 
   private animationId = 0;
@@ -143,6 +143,10 @@ export class PhotoviewViewer {
     this._currentControls.update(0);
   }
 
+  setDaytime(timeStr: string) {
+    setSolarDaytime(timeStr);
+  }
+
   async openGeoNode(geoNode: JourneyGeoNode): Promise<void> {
     const chip: LatLng = {
       lat: geoNode.representativeLat,
@@ -162,44 +166,37 @@ export class PhotoviewViewer {
   }
 
   /**
-   * Add a procedural cloud layer to the current scene.
+   * Add a multi-layer atmospheric cloud system (valley mist, mid cumulus, high cirrus) to the scene.
    */
-  addClouds(options: CloudLayerOptions = {}): CloudLayer {
+  addClouds(options: CloudSystemOptions = {}): CloudSystem {
     this.removeClouds();
 
     const worldSize = this._tileGrid?.loadedWorldSizeMeters ?? 25_000;
-    const cloud = new CloudLayer({
-      sizeMeters: worldSize * 1.8,
-      altitudeMeters: options.altitudeMeters ?? 1000,
-      sphereRadiusMeters: options.sphereRadiusMeters ?? 20_000,
-      displacementMeters: options.displacementMeters ?? 400,
-      coverage: options.coverage ?? 0.55,
-      opacity: options.opacity ?? 0.85,
+    const system = new CloudSystem({
+      sizeMeters: worldSize,
+      demAtlas: this._tileGrid?.demAtlas,
+      worldCenterLatlng: this._tileGrid?.worldCenterLatlng,
       ...options,
     });
 
-    if (this._tileGrid?.demAtlas) {
-      cloud.bindDemAtlas(this._tileGrid.demAtlas, this._tileGrid.worldCenterLatlng);
-    }
-
-    this.cloudLayer = cloud;
-    this.scene.add(cloud);
-    return cloud;
+    this.cloudSystem = system;
+    this.scene.add(system);
+    return system;
   }
 
   /**
-   * Remove and dispose the current cloud layer.
+   * Remove and dispose the current cloud system.
    */
   removeClouds(): void {
-    if (this.cloudLayer) {
-      this.scene.remove(this.cloudLayer);
-      this.cloudLayer.dispose();
-      this.cloudLayer = null;
+    if (this.cloudSystem) {
+      this.scene.remove(this.cloudSystem);
+      this.cloudSystem.dispose();
+      this.cloudSystem = null;
     }
   }
 
-  get clouds(): CloudLayer | null {
-    return this.cloudLayer;
+  get clouds(): CloudSystem | null {
+    return this.cloudSystem;
   }
 
   readLatLng = (mouse: THREE.Vector2): LatLng => {
@@ -241,15 +238,12 @@ export class PhotoviewViewer {
     tileGrid.onReady = () => {
       if (this.isDisposed) return;
       this.removeSky();
-      const sky = new Sky({ DAYTIME, r: tileGrid.loadedWorldSizeMeters * 0.6 });
+      const sky = new Sky({ DAYTIME: DEFAULT_DAYTIME, r: tileGrid.loadedWorldSizeMeters * 0.6 });
       this.sky = sky;
       this.scene.add(sky);
       tileGrid.box.getCenter(sky.position);
 
-      this.addClouds({
-        altitudeMeters: 1000,
-        coverage: 0.55,
-      });
+      this.addClouds();
     };
 
     this.fetchVectors(tileGrid);
@@ -280,12 +274,7 @@ export class PhotoviewViewer {
   private removeSky() {
     if (this.sky) {
       this.scene.remove(this.sky);
-      this.sky.geometry?.dispose();
-      if (Array.isArray(this.sky.material)) {
-        this.sky.material.forEach((mat) => mat.dispose());
-      } else {
-        this.sky.material?.dispose();
-      }
+      this.sky.dispose();
       this.sky = null;
     }
   }
@@ -379,8 +368,8 @@ export class PhotoviewViewer {
       const deltaTime = this.timer.getDelta();
       this.photosManager.playAnimation(deltaTime);
       updateWatersAnimation(this.watersGroup, deltaTime);
-      if (this.cloudLayer) {
-        this.cloudLayer.update(deltaTime);
+      if (this.cloudSystem) {
+        this.cloudSystem.update(deltaTime);
       }
       this._currentControls?.update(deltaTime);
       this.timer.update();

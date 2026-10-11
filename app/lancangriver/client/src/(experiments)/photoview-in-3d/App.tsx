@@ -65,7 +65,7 @@ export default function App() {
       viewer.removeClouds();
       setCloudsVisible(false);
     } else {
-      viewer.addClouds({ altitudeMeters: 1000, coverage: 0.55 });
+      viewer.addClouds();
       setCloudsVisible(true);
     }
   };

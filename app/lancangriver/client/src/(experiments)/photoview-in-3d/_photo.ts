@@ -230,6 +230,7 @@ class PhotoView {
         contrast: { value: 1 },
         brightness: { value: 1.2 },
         borderColor: { value: new THREE.Color('#ffffff') },
+        referenceDistance: { value: CAMERA_DISTANCE },
       },
       vertexShader: thumbVertexShader,
       fragmentShader: thumbFragmentShader,
@@ -722,6 +723,7 @@ const thumbVertexShader = /*glsl */ `
   uniform vec2 demTileUv;
   uniform float demAvg;
   uniform float demMedian;
+  uniform float referenceDistance;
   varying vec2 vUv;
 
   float decodeElevation(vec3 color) {
@@ -735,8 +737,15 @@ const thumbVertexShader = /*glsl */ `
     float elevation = decodeElevation(demRgb);
     float raise = elevation - demMedian;
 
-    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-    worldPosition.y += 30.0 + raise;
+    vec4 worldCenter = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    worldCenter.y += 30.0 + raise;
+
+    vec4 viewCenter = viewMatrix * worldCenter;
+    float distanceToCamera = max(-viewCenter.z, 1.0);
+    float scale = distanceToCamera / referenceDistance;
+
+    vec4 worldOffset = modelMatrix * vec4(position * scale, 0.0);
+    vec4 worldPosition = worldCenter + worldOffset;
 
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
   }

@@ -34,7 +34,7 @@ const distToZoomLevel = (dist: number) => {
 };
 
 export class TileGeometry extends THREE.BufferGeometry {
-  constructor(size: number, segments = 256, skirt = 10) {
+  constructor(size: number, segments = 32, skirt = 10) {
     super();
 
     const segmentCount = Math.max(1, Math.floor(segments));

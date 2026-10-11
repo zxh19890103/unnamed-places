@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DemAtlas } from './_demAtlas';
+import { SolarUniforms } from './_solar.js';
 
 export interface CloudLayerOptions {
   /** Size (width & length in meters) of the cloud plane */
@@ -10,6 +11,8 @@ export interface CloudLayerOptions {
   displacementMeters?: number;
   /** Radius of the spherical cap dome (in meters). Default 75,000m */
   sphereRadiusMeters?: number;
+  /** UV frequency scale. Default 5.0 (smaller = wider clouds, larger = denser mist) */
+  uvScale?: number;
   /** Overall opacity of the cloud sheet [0.0, 1.0] */
   opacity?: number;
   /** Cloud coverage/density [0.0, 1.0]. Higher = thicker clouds */
@@ -71,6 +74,7 @@ const cloudVertexShader = /* glsl */ `
   uniform float uAltitude;
   uniform float uDisplacement;
   uniform float uSphereRadius;
+  uniform float uUvScale;
   uniform float uHasDem;
   uniform sampler2D demAtlas;
   uniform float demMedian;
@@ -93,8 +97,8 @@ const cloudVertexShader = /* glsl */ `
     vec2 windOffset1 = uWind * uTime * 0.00035;
     vec2 windOffset2 = vec2(-uWind.y, uWind.x) * uTime * 0.0002;
 
-    vec2 uv1 = uv * 5.0 + windOffset1;
-    vec2 uv2 = uv * 10.0 + windOffset2;
+    vec2 uv1 = uv * uUvScale + windOffset1;
+    vec2 uv2 = uv * (uUvScale * 2.0) + windOffset2;
 
     // 2. Sample FBM noise to calculate 3D puffy volume displacement
     float n1 = fbm(uv1);
@@ -150,6 +154,7 @@ const cloudFragmentShader = /* glsl */ `
   uniform float uOpacity;
   uniform float uCoverage;
   uniform float uAltitude;
+  uniform float uUvScale;
   uniform float uSoftDepthDistance;
   uniform float uHasDem;
 
@@ -165,7 +170,7 @@ const cloudFragmentShader = /* glsl */ `
   void main() {
     // 1. Dual-layer micro-detail for fine fluffy edges
     vec2 windOffset1 = uWind * uTime * 0.00035;
-    vec2 microUv = vUv * 16.0 + windOffset1 * 1.5;
+    vec2 microUv = vUv * (uUvScale * 3.0) + windOffset1 * 1.5;
     float microNoise = perlinNoise(microUv) * 0.12;
 
     float density = clamp(vDensity + microNoise, 0.0, 1.0);
@@ -226,7 +231,6 @@ export class CloudLayer extends THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMate
     const vertexCount = (segments + 1) * (segments + 1);
     geometry.setAttribute('demUv', new THREE.BufferAttribute(new Float32Array(vertexCount * 2), 2));
 
-    const defaultSun = new THREE.Vector3(0.5, 0.8, 0.4).normalize();
     const cloudColor = options.cloudColor ?? new THREE.Color(0xffffff);
     const shadowColor = options.cloudShadowColor ?? new THREE.Color(0x9cb5cc);
 
@@ -244,13 +248,14 @@ export class CloudLayer extends THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMate
       transparent: true,
       depthWrite: false,
       depthTest: true,
-      side: THREE.DoubleSide,
+      side: THREE.BackSide,
       fog: true,
       uniforms: {
         ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]),
+        ...SolarUniforms,
         uTime: { value: 0 },
         uWind: { value: options.windSpeed ?? new THREE.Vector2(1.2, 0.6) },
-        uSunDirection: { value: options.sunDirection ?? defaultSun },
+        ...(options.sunDirection ? { uSunDirection: { value: options.sunDirection } } : {}),
         uCloudColor: { value: cloudColor },
         uCloudShadowColor: { value: shadowColor },
         uOpacity: { value: options.opacity ?? 0.85 },
@@ -258,6 +263,7 @@ export class CloudLayer extends THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMate
         uAltitude: { value: options.altitudeMeters ?? 1000.0 }, // Base altitude relative to demMedian
         uDisplacement: { value: options.displacementMeters ?? 400.0 }, // 3D puffy vertical height
         uSphereRadius: { value: options.sphereRadiusMeters ?? 75_000.0 }, // Celestial curvature dome radius
+        uUvScale: { value: options.uvScale ?? 5.0 },
         uSoftDepthDistance: { value: 80.0 }, // Distance in meters over which cloud fades into mountain slopes
         uHasDem: { value: 0.0 },
         demAtlas: { value: dummyTexture },
@@ -336,5 +342,108 @@ export class CloudLayer extends THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMate
   dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
+  }
+}
+
+export interface CloudSystemOptions {
+  /** Base world size (in meters) */
+  sizeMeters?: number;
+  demAtlas?: DemAtlas;
+  worldCenterLatlng?: { lat: number; lng: number };
+}
+
+/**
+ * Multi-layer atmospheric cloud system consisting of 3 distinct altitude strata:
+ * 1. Valley Mist (谷雾 / 低空云海): Sits in deep river gorges and hugs mountain slopes.
+ * 2. Mid Cumulus (中层积云): Billowy 3D mounds weaving through mountain peaks.
+ * 3. High Cirrus (高空卷云): Translucent wisps drifting along the upper jet stream.
+ */
+export class CloudSystem extends THREE.Group {
+  readonly valleyLayer: CloudLayer;
+  readonly cumulusLayer: CloudLayer;
+  readonly cirrusLayer: CloudLayer;
+
+  constructor(options: CloudSystemOptions = {}) {
+    super();
+    this.name = 'cloud-system';
+
+    const baseSize = options.sizeMeters ?? 25_000;
+
+    // 1. Low Valley Mist (云海 / 谷雾) - Sits in the river gorge below mountain peaks
+    this.valleyLayer = new CloudLayer({
+      sizeMeters: baseSize * 1.3,
+      altitudeMeters: 450,
+      displacementMeters: 180,
+      sphereRadiusMeters: 65_000,
+      uvScale: 10.5,
+      coverage: 0.6,
+      opacity: 0.75,
+      windSpeed: new THREE.Vector2(0.4, 0.2), // Slow creeping valley drift
+      cloudColor: new THREE.Color(0xf0f6fa),
+      cloudShadowColor: new THREE.Color(0x8aa0b4),
+    });
+    this.valleyLayer.renderOrder = 1;
+
+    // 2. Main Mid Cumulus Swell (中层积云) - Rolling 3D cloud masses brushing ridges
+    this.cumulusLayer = new CloudLayer({
+      sizeMeters: baseSize * 1.8,
+      altitudeMeters: 1300,
+      displacementMeters: 450,
+      sphereRadiusMeters: 80_000,
+      uvScale: 4.5,
+      coverage: 0.52,
+      opacity: 0.85,
+      windSpeed: new THREE.Vector2(1.2, 0.5), // Medium wind drift
+      cloudColor: new THREE.Color(0xffffff),
+      cloudShadowColor: new THREE.Color(0x94acc4),
+    });
+    this.cumulusLayer.renderOrder = 2;
+
+    // 3. High Cirrus Veils (高空卷云) - High-altitude wispy veil stretching across the sky dome
+    this.cirrusLayer = new CloudLayer({
+      sizeMeters: baseSize * 2.2,
+      altitudeMeters: 3600,
+      displacementMeters: 70,
+      sphereRadiusMeters: 120_000,
+      uvScale: 2.8,
+      coverage: 0.38,
+      opacity: 0.42,
+      windSpeed: new THREE.Vector2(2.2, -0.6), // Fast upper-atmosphere jet stream
+      cloudColor: new THREE.Color(0xffffff),
+      cloudShadowColor: new THREE.Color(0xb0c4de),
+    });
+    this.cirrusLayer.renderOrder = 3;
+
+    this.add(this.valleyLayer);
+    this.add(this.cumulusLayer);
+    this.add(this.cirrusLayer);
+
+    if (options.demAtlas && options.worldCenterLatlng) {
+      this.bindDemAtlas(options.demAtlas, options.worldCenterLatlng);
+    }
+  }
+
+  bindDemAtlas(demAtlas: DemAtlas, worldCenterLatlng: { lat: number; lng: number }): void {
+    this.valleyLayer.bindDemAtlas(demAtlas, worldCenterLatlng);
+    this.cumulusLayer.bindDemAtlas(demAtlas, worldCenterLatlng);
+  }
+
+  update(deltaTime: number): void {
+    this.valleyLayer.update(deltaTime);
+    this.cumulusLayer.update(deltaTime);
+    this.cirrusLayer.update(deltaTime);
+  }
+
+  setSunDirection(sunDir: THREE.Vector3): void {
+    this.valleyLayer.setSunDirection(sunDir);
+    this.cumulusLayer.setSunDirection(sunDir);
+    this.cirrusLayer.setSunDirection(sunDir);
+  }
+
+  dispose(): void {
+    this.valleyLayer.dispose();
+    this.cumulusLayer.dispose();
+    this.cirrusLayer.dispose();
+    this.clear();
   }
 }

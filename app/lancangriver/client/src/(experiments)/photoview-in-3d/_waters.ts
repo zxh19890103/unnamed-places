@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { latLngToMetersOffset, LatLng } from './_fns';
 import { DemAtlas } from './_demAtlas';
+import { SolarUniforms } from './_solar.js';
 
 const WATERWAY_WIDTHS: Record<string, number> = {
   river: 24,
@@ -420,6 +421,7 @@ export function buildWatersGroup(
 
       const material = new THREE.ShaderMaterial({
         uniforms: {
+          ...SolarUniforms,
           demAtlas: demAtlas ? demAtlas.textureUniform : { value: new THREE.Texture() },
           demMedian: demAtlas ? demAtlas.demMedianUniform : { value: 0 },
           elevationOffset: { value: elevationOffset },
@@ -427,7 +429,6 @@ export function buildWatersGroup(
           opacity: { value: 0.85 },
           normalSampler: { value: normalTexture },
           uTime: { value: 0 },
-          sunDirection: { value: new THREE.Vector3(0.4, 0.8, 0.3).normalize() },
         },
         vertexShader: waterVertexShader,
         fragmentShader: waterFragmentShader,
