@@ -27,7 +27,7 @@ export interface CloudLayerOptions {
   cloudShadowColor?: THREE.Color;
 }
 
-const noiseGlsl = /* glsl */ `
+export const noiseGlsl = /* glsl */ `
   // 2D Hash function
   vec2 hash2(vec2 p) {
     p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -65,6 +65,20 @@ const noiseGlsl = /* glsl */ `
     return total;
   }
 `;
+
+/**
+ * Cloud Shadow Uniforms
+ * Shared between cloud layers and terrain tiles to project analytical cloud shadows.
+ */
+export const CloudShadowUniforms = {
+  cloudAltitude: { value: 1300.0 }, // Base altitude matching mid-cumulus layer
+  cloudCoverage: { value: 0.52 },
+  cloudUvScale: { value: 4.5 },
+  cloudWind: { value: new THREE.Vector2(1.2, 0.5) },
+  cloudWorldSize: { value: 45_000.0 }, // Effective size for mid-cumulus plane (baseSize * 1.8)
+  cloudShadowDarkness: { value: 0.98 }, // Sunlight attenuation under cloud shadow
+  uCloudTime: { value: 0 }, // Single time reference shared across all tiles and clouds
+};
 
 const cloudVertexShader = /* glsl */ `
   #include <fog_pars_vertex>
@@ -169,9 +183,9 @@ const cloudFragmentShader = /* glsl */ `
 
   void main() {
     // 1. Dual-layer micro-detail for fine fluffy edges
-    vec2 windOffset1 = uWind * uTime * 0.00035;
+    vec2 windOffset1 = uWind * uTime * 0.0035;
     vec2 microUv = vUv * (uUvScale * 3.0) + windOffset1 * 1.5;
-    float microNoise = perlinNoise(microUv) * 0.12;
+    float microNoise = perlinNoise(microUv) * 0.92;
 
     float density = clamp(vDensity + microNoise, 0.0, 1.0);
 
@@ -370,29 +384,29 @@ export class CloudSystem extends THREE.Group {
     const baseSize = options.sizeMeters ?? 25_000;
 
     // 1. Low Valley Mist (云海 / 谷雾) - Sits in the river gorge below mountain peaks
-    this.valleyLayer = new CloudLayer({
-      sizeMeters: baseSize * 1.3,
-      altitudeMeters: 450,
-      displacementMeters: 180,
-      sphereRadiusMeters: 65_000,
-      uvScale: 10.5,
-      coverage: 0.6,
-      opacity: 0.75,
-      windSpeed: new THREE.Vector2(0.4, 0.2), // Slow creeping valley drift
-      cloudColor: new THREE.Color(0xf0f6fa),
-      cloudShadowColor: new THREE.Color(0x8aa0b4),
-    });
-    this.valleyLayer.renderOrder = 1;
+    // this.valleyLayer = new CloudLayer({
+    //   sizeMeters: baseSize * 1.3,
+    //   altitudeMeters: 450,
+    //   displacementMeters: 180,
+    //   sphereRadiusMeters: 65_000,
+    //   uvScale: 10.5,
+    //   coverage: 0.6,
+    //   opacity: 0.75,
+    //   windSpeed: new THREE.Vector2(0.4, 0.2), // Slow creeping valley drift
+    //   cloudColor: new THREE.Color(0xf0f6fa),
+    //   cloudShadowColor: new THREE.Color(0x8aa0b4),
+    // });
+    // this.valleyLayer.renderOrder = 1;
 
     // 2. Main Mid Cumulus Swell (中层积云) - Rolling 3D cloud masses brushing ridges
     this.cumulusLayer = new CloudLayer({
       sizeMeters: baseSize * 1.8,
       altitudeMeters: 1300,
       displacementMeters: 450,
-      sphereRadiusMeters: 80_000,
-      uvScale: 4.5,
-      coverage: 0.52,
-      opacity: 0.85,
+      sphereRadiusMeters: 40_000,
+      uvScale: 5.5,
+      coverage: 0.66,
+      opacity: 0.35,
       windSpeed: new THREE.Vector2(1.2, 0.5), // Medium wind drift
       cloudColor: new THREE.Color(0xffffff),
       cloudShadowColor: new THREE.Color(0x94acc4),
@@ -414,7 +428,7 @@ export class CloudSystem extends THREE.Group {
     });
     this.cirrusLayer.renderOrder = 3;
 
-    this.add(this.valleyLayer);
+    // this.add(this.valleyLayer);
     this.add(this.cumulusLayer);
     this.add(this.cirrusLayer);
 
@@ -424,24 +438,25 @@ export class CloudSystem extends THREE.Group {
   }
 
   bindDemAtlas(demAtlas: DemAtlas, worldCenterLatlng: { lat: number; lng: number }): void {
-    this.valleyLayer.bindDemAtlas(demAtlas, worldCenterLatlng);
+    this.valleyLayer?.bindDemAtlas(demAtlas, worldCenterLatlng);
     this.cumulusLayer.bindDemAtlas(demAtlas, worldCenterLatlng);
   }
 
   update(deltaTime: number): void {
-    this.valleyLayer.update(deltaTime);
+    CloudShadowUniforms.uCloudTime.value += deltaTime;
+    this.valleyLayer?.update(deltaTime);
     this.cumulusLayer.update(deltaTime);
     this.cirrusLayer.update(deltaTime);
   }
 
   setSunDirection(sunDir: THREE.Vector3): void {
-    this.valleyLayer.setSunDirection(sunDir);
+    this.valleyLayer?.setSunDirection(sunDir);
     this.cumulusLayer.setSunDirection(sunDir);
     this.cirrusLayer.setSunDirection(sunDir);
   }
 
   dispose(): void {
-    this.valleyLayer.dispose();
+    this.valleyLayer?.dispose();
     this.cumulusLayer.dispose();
     this.cirrusLayer.dispose();
     this.clear();

@@ -15,6 +15,7 @@ import { __glsl_funcs__ } from './_glsl';
 import { loadProcessedDem, createDemDataTexture } from './_demDecode';
 import { DemAtlas } from './_demAtlas';
 import { SolarUniforms } from './_solar.js';
+import { CloudShadowUniforms, noiseGlsl } from './_cloud.js';
 
 type TileEvents = THREE.Object3DEventMap & {
   terrianReady: {};
@@ -35,7 +36,7 @@ const distToZoomLevel = (dist: number) => {
 };
 
 export class TileGeometry extends THREE.BufferGeometry {
-  constructor(size: number, segments = 32, skirt = 10) {
+  constructor(size: number, segments = 128, skirt = 10) {
     super();
 
     const segmentCount = Math.max(1, Math.floor(segments));
@@ -173,6 +174,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
       uniforms: {
         ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]),
         ...SolarUniforms,
+        ...CloudShadowUniforms,
         satelliteTexture: { value: satelliteTexture },
         hasSatellite: { value: 0 },
         idColor: { value: new THREE.Color(Math.floor(Math.random() * 0xffffff)) },
@@ -818,7 +820,17 @@ const tileFragmentShader = /*glsl */ `
 
   uniform vec3 sunDirection;
   uniform vec3 sunColor;
-  uniform vec3 shadowTint;
+  uniform vec3 sunAmbient;
+
+  // Cloud shadow projection uniforms
+  uniform float cloudAltitude;
+  uniform float cloudCoverage;
+  uniform float cloudUvScale;
+  uniform vec2 cloudWind;
+  uniform float cloudWorldSize;
+  uniform float cloudShadowDarkness;
+  uniform float uCloudTime;
+  uniform float demMedian;
 
   varying vec2 vUv;
   varying float vViewZ;
@@ -826,6 +838,7 @@ const tileFragmentShader = /*glsl */ `
   varying vec3 vTerrainNormal;
 
 ${__glsl_funcs__}
+${noiseGlsl}
 
   void main() {
     float dist = vViewZ;
@@ -843,16 +856,43 @@ ${__glsl_funcs__}
     finalColor = applyContrast(finalColor, contrast);
     finalColor = applyBrightness(finalColor, brightness);
 
-    // Atmospheric sun shading (Option B: DEM-derived normal + dual-tone hillshading)
+    // 1. Atmospheric sun shading (Option B: DEM-derived normal + dual-tone hillshading)
     vec3 normal = normalize(vTerrainNormal);
     vec3 lightDir = normalize(sunDirection);
     float NdotL = dot(normal, lightDir);
 
     // Smooth transition from shadowed slope to sunlit ridge
     float sunFactor = smoothstep(-0.25, 0.55, NdotL);
-    vec3 sunTint = sunColor * 1.88;
-    vec3 hillshade = mix(shadowTint, sunTint, sunFactor);
+    vec3 sunTint = sunColor * 0.7;
 
+    // 2. Analytical Cloud Shadow Projection
+    // Trace sunlight ray backwards from terrain upward to the mid-cumulus cloud altitude
+    float lightY = max(lightDir.y, 0.06);
+    float terrainHeight = vWorldPosition.y + demMedian;
+    float rayDistance = max(0.0, (cloudAltitude - terrainHeight) / lightY);
+    vec2 shadowWorldPos = vWorldPosition.xz + lightDir.xz * rayDistance;
+
+    // Compute identical animated FBM cloud UV coordinates
+    vec2 windOffset1 = cloudWind * uCloudTime * 0.00035;
+    vec2 windOffset2 = vec2(-cloudWind.y, cloudWind.x) * uCloudTime * 0.0002;
+    vec2 cloudPlaneUv = shadowWorldPos / cloudWorldSize + vec2(0.5);
+
+    vec2 uv1 = cloudPlaneUv * cloudUvScale + windOffset1;
+    vec2 uv2 = cloudPlaneUv * (cloudUvScale * 2.0) + windOffset2;
+
+    float n1 = fbm(uv1);
+    float n2 = fbm(uv2 + n1 * 0.7);
+    float cloudDensity = (n1 * 0.65 + n2 * 0.35) * 0.5 + 0.5;
+
+    // Evaluate cloud shadow mask matching cloud coverage curve
+    float threshold = 1.0 - cloudCoverage;
+    float cloudShadowMask = smoothstep(threshold - 0.12, threshold + 0.22, cloudDensity);
+
+    // Cloud shadow attenuates direct sunlight
+    float sunAttenuation = 1.0 - cloudShadowMask * cloudShadowDarkness;
+    float effectiveSun = sunFactor * sunAttenuation;
+
+    vec3 hillshade = mix(sunAmbient, sunTint, effectiveSun);
     finalColor *= hillshade;
 
     gl_FragColor = vec4(finalColor, 1.0);

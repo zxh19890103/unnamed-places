@@ -11,7 +11,12 @@ import { PhotosManager } from './_photo.js';
 import { disposeGridTile, type LatLng, TileGrid } from './_tile.js';
 import { buildWatersGroup, disposeWatersGroup, updateWatersAnimation } from './_waters.js';
 import { buildPlacesGroup, disposePlacesGroup, type PlacesGroup } from './_places.js';
-import { CloudSystem, type CloudSystemOptions } from './_cloud.js';
+import {
+  buildRoadLabelsGroup,
+  disposeRoadLabelsGroup,
+  type RoadLabelsGroup,
+} from './_roadLabels.js';
+import { CloudSystem, CloudShadowUniforms, type CloudSystemOptions } from './_cloud.js';
 import { DEFAULT_DAYTIME, setSolarDaytime, SolarUniforms } from './_solar.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
@@ -21,6 +26,8 @@ const DEFAULT_INITIAL_CHIP: LatLng = { lat: 23.1831, lng: 113.3268 };
 export interface PhotoviewViewerOptions {
   initialChip?: LatLng;
   onTileGridEyesMove?: (camera: THREE.PerspectiveCamera) => void;
+  label_roads?: string[];
+  labelRoads?: string[];
 }
 
 export class PhotoviewViewer {
@@ -40,6 +47,7 @@ export class PhotoviewViewer {
   private highwaysGroup: THREE.Group | null = null;
   private watersGroup: THREE.Group | null = null;
   private placesGroup: PlacesGroup | null = null;
+  private roadLabelsGroup: RoadLabelsGroup | null = null;
   private cloudSystem: CloudSystem | null = null;
   private sky: Sky | null = null;
 
@@ -118,6 +126,7 @@ export class PhotoviewViewer {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(width, height);
       this.placesGroup?.updateViewport(width, height);
+      this.roadLabelsGroup?.updateViewport(width, height);
     };
     window.addEventListener('resize', this.resizeHandler);
 
@@ -175,6 +184,7 @@ export class PhotoviewViewer {
     this.removeClouds();
 
     const worldSize = this._tileGrid?.loadedWorldSizeMeters ?? 25_000;
+    CloudShadowUniforms.cloudWorldSize.value = worldSize * 1.8;
     const system = new CloudSystem({
       sizeMeters: worldSize,
       demAtlas: this._tileGrid?.demAtlas,
@@ -183,6 +193,7 @@ export class PhotoviewViewer {
     });
 
     this.cloudSystem = system;
+    CloudShadowUniforms.cloudShadowDarkness.value = 0.58;
     this.scene.add(system);
     return system;
   }
@@ -195,6 +206,7 @@ export class PhotoviewViewer {
       this.scene.remove(this.cloudSystem);
       this.cloudSystem.dispose();
       this.cloudSystem = null;
+      CloudShadowUniforms.cloudShadowDarkness.value = 0.0;
     }
   }
 
@@ -272,6 +284,12 @@ export class PhotoviewViewer {
       disposePlacesGroup(this.placesGroup);
       this.placesGroup = null;
     }
+
+    if (this.roadLabelsGroup) {
+      this.scene.remove(this.roadLabelsGroup);
+      disposeRoadLabelsGroup(this.roadLabelsGroup);
+      this.roadLabelsGroup = null;
+    }
   }
 
   private removeSky() {
@@ -318,6 +336,22 @@ export class PhotoviewViewer {
             1.0,
           );
           this.scene.add(this.highwaysGroup);
+
+          if (this.roadLabelsGroup) {
+            this.scene.remove(this.roadLabelsGroup);
+            disposeRoadLabelsGroup(this.roadLabelsGroup);
+          }
+          this.roadLabelsGroup = buildRoadLabelsGroup(
+            highwaysData,
+            tileGrid.worldCenterLatlng,
+            tileGrid.demAtlas,
+            1.5,
+            { value: new THREE.Vector2(this.mountEl.clientWidth, this.mountEl.clientHeight) },
+            {
+              label_roads: this.options.label_roads ?? this.options.labelRoads,
+            },
+          );
+          this.scene.add(this.roadLabelsGroup);
         }
       }
 
