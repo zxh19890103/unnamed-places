@@ -427,3 +427,74 @@ describe('GET /vector/places', () => {
     });
   });
 });
+
+describe('GET /vector/natural_water', () => {
+  it('returns 200 and a FeatureCollection for a valid bbox', async () => {
+    const featureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          id: 'way/101',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [100, 20],
+                [100.1, 20],
+                [100.1, 20.1],
+                [100, 20],
+              ],
+            ],
+          },
+          properties: { natural: 'water' },
+        },
+      ],
+    };
+
+    const queryVectorFeaturesNaturalWater = vi.fn().mockResolvedValue(featureCollection);
+    const app = createApp({ queryVectorFeaturesNaturalWater });
+
+    const response = await request(app).get('/vector/natural_water').query({ bbox: '99,19,101,21' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual(featureCollection);
+    expect(queryVectorFeaturesNaturalWater).toHaveBeenCalledWith([99, 19, 101, 21]);
+  });
+
+  it('returns 400 when bbox is invalid', async () => {
+    const queryVectorFeaturesNaturalWater = vi.fn();
+    const app = createApp({ queryVectorFeaturesNaturalWater });
+
+    const response = await request(app).get('/vector/natural_water').query({ bbox: 'bad' });
+
+    expect(response.status).toBe(400);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual({
+      error: {
+        code: 'INVALID_BBOX',
+        reason: 'Invalid bbox parameter. Expected minLon,minLat,maxLon,maxLat',
+        bbox: 'bad',
+      },
+    });
+    expect(queryVectorFeaturesNaturalWater).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 JSON payload when the db adapter throws', async () => {
+    const queryVectorFeaturesNaturalWater = vi.fn().mockRejectedValue(new Error('db down'));
+    const app = createApp({ queryVectorFeaturesNaturalWater });
+
+    const response = await request(app).get('/vector/natural_water').query({ bbox: '99,19,101,21' });
+
+    expect(response.status).toBe(500);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VECTOR_QUERY_FAILED',
+        reason: 'Internal server error',
+        bbox: '99,19,101,21',
+      },
+    });
+  });
+});

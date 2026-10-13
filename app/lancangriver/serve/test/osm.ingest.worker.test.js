@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createOsmHighwayIngestWorker,
   createOsmIngestWorker,
+  createOsmNaturalWaterIngestWorker,
   createOsmPlaceIngestWorker,
   createOsmWaterIngestWorker,
 } from '../src/jobs/osmIngestWorker.js';
@@ -164,4 +165,46 @@ describe('osm ingest worker', () => {
     expect(jobs.markDone).toHaveBeenCalledWith('12/3456/1523');
     expect(jobs.markFailed).not.toHaveBeenCalled();
   });
+
+  it('ingests natural water features with the natural water upsert target', async () => {
+    const jobs = {
+      claimNextQueued: vi.fn().mockResolvedValue({ z12Key: '12/3456/1523' }),
+      markRunning: vi.fn().mockResolvedValue(undefined),
+      markDone: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const fetchOsmNaturalWaterFeatures = vi.fn().mockResolvedValue([
+      {
+        source: 'osm',
+        feature_id: 'way/101',
+        feature_type: 'Polygon',
+        tags: { natural: 'water' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [100, 20],
+              [100.1, 20],
+              [100.1, 20.1],
+              [100, 20],
+            ],
+          ],
+        },
+      },
+    ]);
+    const upsertVectorFeaturesNaturalWater = vi.fn().mockResolvedValue(undefined);
+
+    const worker = createOsmNaturalWaterIngestWorker({
+      jobs,
+      fetchOsmNaturalWaterFeatures,
+      upsertVectorFeaturesNaturalWater,
+    });
+    await worker.tickOnce();
+
+    expect(fetchOsmNaturalWaterFeatures).toHaveBeenCalledWith('12/3456/1523');
+    expect(upsertVectorFeaturesNaturalWater).toHaveBeenCalledTimes(1);
+    expect(jobs.markDone).toHaveBeenCalledWith('12/3456/1523');
+    expect(jobs.markFailed).not.toHaveBeenCalled();
+  });
 });
+

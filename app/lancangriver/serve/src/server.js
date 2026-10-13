@@ -6,10 +6,12 @@ import {
   dbQuery,
   getVectorTilePbf,
   getVectorTilePbfHighways,
+  getVectorTilePbfNaturalWater,
   getVectorTilePbfPlaces,
   getVectorTilePbfWaters,
   upsertVectorFeatures,
   upsertVectorFeaturesHighways,
+  upsertVectorFeaturesNaturalWater,
   upsertVectorFeaturesPlaces,
   upsertVectorFeaturesWaters,
 } from './db.js';
@@ -26,11 +28,13 @@ import { createPhotosRouter } from './routes/photos.js';
 import { getCoveringZ12Tiles } from './jobs/tileCoverage.js';
 import { createOsmJobsStore } from './jobs/osmJobsStore.js';
 import { createOsmHighwayJobsStore } from './jobs/osmHighwayJobsStore.js';
+import { createOsmNaturalWaterJobsStore } from './jobs/osmNaturalWaterJobsStore.js';
 import { createOsmPlacesJobsStore } from './jobs/osmPlacesJobsStore.js';
 import { createOsmWatersJobsStore } from './jobs/osmWatersJobsStore.js';
 import { createZ12GeoInfoStore } from './jobs/z12GeoInfoStore.js';
 import {
   createOsmHighwayIngestWorker,
+  createOsmNaturalWaterIngestWorker,
   createOsmPlaceIngestWorker,
   createOsmWaterIngestWorker,
   createVectorIngestRunner,
@@ -38,6 +42,7 @@ import {
 } from './jobs/osmIngestWorker.js';
 import {
   fetchOsmHighwayFeaturesForZ12Key,
+  fetchOsmNaturalWaterFeaturesForZ12Key,
   fetchOsmPlaceFeaturesForZ12Key,
   fetchOsmWaterFeaturesForZ12Key,
 } from './jobs/osmFetch.js';
@@ -70,6 +75,14 @@ function createWatersJobsStore() {
 
 function createPlacesJobsStore() {
   return createOsmPlacesJobsStore({
+    db: {
+      query: dbQuery,
+    },
+  });
+}
+
+function createNaturalWaterJobsStore() {
+  return createOsmNaturalWaterJobsStore({
     db: {
       query: dbQuery,
     },
@@ -147,12 +160,23 @@ function createPlaceRunner(jobsStore) {
   return createVectorIngestRunner({ worker, intervalMs: 2000 });
 }
 
+function createNaturalWaterRunner(jobsStore) {
+  const worker = createOsmNaturalWaterIngestWorker({
+    jobs: jobsStore,
+    fetchOsmNaturalWaterFeatures: fetchOsmNaturalWaterFeaturesForZ12Key,
+    upsertVectorFeaturesNaturalWater,
+  });
+
+  return createVectorIngestRunner({ worker, intervalMs: 2000 });
+}
+
 export function createApp(options = {}) {
   const app = express();
   const jobsStore = options.jobsStore ?? createDefaultJobsStore();
   const highwayJobsStore = options.highwayJobsStore ?? createHighwayJobsStore();
   const watersJobsStore = options.watersJobsStore ?? createWatersJobsStore();
   const placesJobsStore = options.placesJobsStore ?? createPlacesJobsStore();
+  const naturalWaterJobsStore = options.naturalWaterJobsStore ?? createNaturalWaterJobsStore();
   const z12GeoInfoStore = options.z12GeoInfoStore ?? createDefaultZ12GeoInfoStore();
   const queueMissingCoverage =
     options.queueMissingCoverage ?? createQueueMissingCoverage(jobsStore);
@@ -162,10 +186,14 @@ export function createApp(options = {}) {
     options.queueMissingCoverageWaters ?? createQueueMissingCoverage(watersJobsStore);
   const queueMissingCoveragePlaces =
     options.queueMissingCoveragePlaces ?? createQueueMissingCoverage(placesJobsStore);
+  const queueMissingCoverageNaturalWater =
+    options.queueMissingCoverageNaturalWater ?? createQueueMissingCoverage(naturalWaterJobsStore);
   const tilePbfGetter = options.getVectorTilePbf ?? getVectorTilePbf;
   const highwayTilePbfGetter = options.getVectorTilePbfHighways ?? getVectorTilePbfHighways;
   const watersTilePbfGetter = options.getVectorTilePbfWaters ?? getVectorTilePbfWaters;
   const placesTilePbfGetter = options.getVectorTilePbfPlaces ?? getVectorTilePbfPlaces;
+  const naturalWaterTilePbfGetter =
+    options.getVectorTilePbfNaturalWater ?? getVectorTilePbfNaturalWater;
 
   app.use(cors());
   app.use(createHealthRouter());
@@ -224,6 +252,18 @@ export function createApp(options = {}) {
       rerunFailedCoverage: (key) => placesJobsStore.rerunFailed(key),
     }),
   );
+  app.use(
+    createVectorTilesRouter({
+      routePrefix: '/vector/natural_water',
+      queueMissingCoverage: queueMissingCoverageNaturalWater,
+      enqueueCoverageJob: (key) => naturalWaterJobsStore.enqueueIfMissing(key),
+      getVectorTilePbf: naturalWaterTilePbfGetter,
+      getCoverageStatus: (key) => naturalWaterJobsStore.getStatus(key),
+      listLoadedCoverage: (pagination) => naturalWaterJobsStore.listLoaded(pagination),
+      listCoverageJobs: (pagination) => naturalWaterJobsStore.listJobs(pagination),
+      rerunFailedCoverage: (key) => naturalWaterJobsStore.rerunFailed(key),
+    }),
+  );
   app.use(createPhotosRouter(options));
 
   return app;
@@ -235,15 +275,18 @@ if (process.env.NODE_ENV !== 'test') {
   const highwayJobsStore = createHighwayJobsStore();
   const watersJobsStore = createWatersJobsStore();
   const placesJobsStore = createPlacesJobsStore();
+  const naturalWaterJobsStore = createNaturalWaterJobsStore();
   const runner = createDefaultRunner(jobsStore);
   const highwayRunner = createHighwayRunner(highwayJobsStore);
   const watersRunner = createWaterRunner(watersJobsStore);
   const placeRunner = createPlaceRunner(placesJobsStore);
+  const naturalWaterRunner = createNaturalWaterRunner(naturalWaterJobsStore);
 
   runner.start();
   highwayRunner.start();
   watersRunner.start();
   placeRunner.start();
+  naturalWaterRunner.start();
 
   const app = createApp();
   const server = app.listen(port, () => {
@@ -255,6 +298,7 @@ if (process.env.NODE_ENV !== 'test') {
     highwayRunner.stop();
     watersRunner.stop();
     placeRunner.stop();
+    naturalWaterRunner.stop();
     server.close(() => process.exit(0));
   };
 

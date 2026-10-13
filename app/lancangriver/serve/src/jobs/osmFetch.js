@@ -161,9 +161,7 @@ export async function fetchOsmFeaturesForZ12Key(z12Key, options = {}) {
     '[out:json][timeout:360];',
     `(`,
     `  way["building"](${bbox});`,
-    `  way["natural"="water"](${bbox});`,
     `  relation["building"](${bbox});`,
-    `  relation["natural"="water"](${bbox});`,
     `);`,
     'out body geom;',
   ].join('\n');
@@ -301,6 +299,49 @@ export async function fetchOsmPlaceFeaturesForZ12Key(z12Key, options = {}) {
     const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
     logger.info(
       `[overpass-places] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`,
+    );
+  }
+
+  return features;
+}
+
+export async function fetchOsmNaturalWaterFeaturesForZ12Key(z12Key, options = {}) {
+  const startedAt = Date.now();
+  const logger = options.logger ?? console;
+  const postJson = options.postFormJson ?? postFormJson;
+  const endpoint =
+    options.endpoint ??
+    process.env.OSM_OVERPASS_ENDPOINT ??
+    'https://overpass-api.de/api/interpreter';
+  const { minLon, minLat, maxLon, maxLat } = getZ12EnvelopeFromKey(z12Key);
+
+  const bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
+  if (typeof logger?.info === 'function') {
+    logger.info(`[overpass-natural-water] start ${z12Key} endpoint=${endpoint} bbox=${bbox}`);
+  }
+
+  const query = [
+    '[out:json][timeout:360];',
+    `(`,
+    `  node["natural"="water"](${bbox});`,
+    `  way["natural"="water"](${bbox});`,
+    `  relation["natural"="water"](${bbox});`,
+    `);`,
+    'out body geom;',
+  ].join('\n');
+
+  const payload = await postJson(
+    endpoint,
+    { data: query },
+    { logger, label: `natural_water:${z12Key}` },
+  );
+  const elements = Array.isArray(payload?.elements) ? payload.elements : [];
+  const features = elements.map(toFeatureFromElement).filter((feature) => feature !== null);
+
+  if (typeof logger?.info === 'function') {
+    const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+    logger.info(
+      `[overpass-natural-water] done ${z12Key} elements=${elements.length} features=${features.length} elapsed=${elapsedSeconds}s`,
     );
   }
 

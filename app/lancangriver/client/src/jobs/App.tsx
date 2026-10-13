@@ -4,6 +4,7 @@ import { Button, IconButton, Tooltip } from '../_components';
 import {
   defaultCoverageApi,
   highwaysCoverageApi,
+  naturalWaterCoverageApi,
   placesCoverageApi,
   watersCoverageApi,
   type CoverageJobsPage,
@@ -21,7 +22,7 @@ import {
 
 const PAGE_SIZE = 100;
 
-type TabKey = 'default' | 'highways' | 'waters' | 'places';
+type TabKey = 'default' | 'highways' | 'waters' | 'places' | 'natural_water';
 type MapExtentKey = 'world' | 'china';
 
 const tabs: Array<{ key: TabKey; label: string }> = [
@@ -29,6 +30,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'highways', label: 'Highways' },
   { key: 'waters', label: 'Waterways' },
   { key: 'places', label: 'Places' },
+  { key: 'natural_water', label: 'Natural Water' },
 ];
 
 type ProjectionFn = (lat: number, lng: number) => { u: number; v: number };
@@ -119,7 +121,9 @@ export default function App() {
         ? watersCoverageApi
         : activeTab === 'places'
           ? placesCoverageApi
-          : defaultCoverageApi;
+          : activeTab === 'natural_water'
+            ? naturalWaterCoverageApi
+            : defaultCoverageApi;
 
   useEffect(() => {
     let active = true;

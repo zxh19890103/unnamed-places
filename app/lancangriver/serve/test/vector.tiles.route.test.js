@@ -243,6 +243,67 @@ describe('places-prefixed vector tile routes', () => {
   });
 });
 
+describe('natural_water-prefixed vector tile routes', () => {
+  it('returns natural water PBF bytes from the natural water tile provider', async () => {
+    const queueMissingCoverage = vi.fn();
+    const getVectorTilePbf = vi.fn();
+    const getVectorTilePbfNaturalWater = vi
+      .fn()
+      .mockResolvedValue(Buffer.from([0x1a, 0x01, 0x08]));
+    const app = createApp({
+      queueMissingCoverage,
+      getVectorTilePbf,
+      queueMissingCoverageNaturalWater: vi.fn(),
+      getVectorTilePbfNaturalWater,
+      naturalWaterJobsStore: {
+        getStatus: vi.fn().mockResolvedValue('done'),
+        listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
+        listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+        enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
+        rerunFailed: vi.fn().mockResolvedValue('queued'),
+      },
+    });
+
+    const response = await request(app)
+      .get('/vector/natural_water/tiles-existing/12/2212/1539.pbf')
+      .buffer(true)
+      .parse(parseBinary);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/application\/x-protobuf/);
+    expect(getVectorTilePbfNaturalWater).toHaveBeenCalledWith(12, 2212, 1539);
+    expect(getVectorTilePbf).not.toHaveBeenCalled();
+  });
+
+  it('uses natural water coverage status for prefixed coverage route', async () => {
+    const naturalWaterJobsStore = {
+      getStatus: vi.fn().mockResolvedValue('running'),
+      listLoaded: vi.fn().mockResolvedValue({ keys: [], total: 0 }),
+      listJobs: vi.fn().mockResolvedValue({ jobs: [], total: 0 }),
+      enqueueIfMissing: vi.fn().mockResolvedValue({ enqueued: false }),
+      rerunFailed: vi.fn().mockResolvedValue('queued'),
+    };
+
+    const app = createApp({
+      queueMissingCoverage: vi.fn(),
+      getVectorTilePbf: vi.fn(),
+      queueMissingCoverageNaturalWater: vi.fn(),
+      getVectorTilePbfNaturalWater: vi.fn(),
+      naturalWaterJobsStore,
+    });
+
+    const response = await request(app).get('/vector/natural_water/coverage/12/2212/1539');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      key: '12/2212/1539',
+      status: 'running',
+      loaded: false,
+    });
+    expect(naturalWaterJobsStore.getStatus).toHaveBeenCalledWith('12/2212/1539');
+  });
+});
+
 describe('vector coverage routes', () => {
   function createCoverageApp(jobsStore) {
     const fullJobsStore = {

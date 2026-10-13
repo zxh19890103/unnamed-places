@@ -7,10 +7,12 @@ import { coverageTilesForBBox, type TileKey } from './tiles.js';
 import {
   enqueueCoverageJob,
   enqueueCoverageJobHighways,
+  enqueueCoverageJobNaturalWater,
   enqueueCoverageJobPlaces,
   enqueueCoverageJobWaters,
   fetchCoverageStatus,
   fetchCoverageStatusHighways,
+  fetchCoverageStatusNaturalWater,
   fetchCoverageStatusPlaces,
   fetchCoverageStatusWaters,
 } from '../jobs/api.js';
@@ -173,6 +175,9 @@ const TileListItem = memo(
     const [placeDownloadStatus, setPlaceDownloadStatus] = useState<
       'idle' | 'queuing' | 'queued' | 'error'
     >('idle');
+    const [naturalWaterDownloadStatus, setNaturalWaterDownloadStatus] = useState<
+      'idle' | 'queuing' | 'queued' | 'error'
+    >('idle');
 
     const handleDownloadOsm = async () => {
       setDownloadStatus('queuing');
@@ -218,7 +223,20 @@ const TileListItem = memo(
       }
     };
 
-    const handleCheckStatus = async (kind: 'buildings' | 'highways' | 'waters' | 'places') => {
+    const handleDownloadNaturalWaterOsm = async () => {
+      setNaturalWaterDownloadStatus('queuing');
+      try {
+        await enqueueCoverageJobNaturalWater(tile.x, tile.y);
+        setNaturalWaterDownloadStatus('queued');
+      } catch (error) {
+        console.warn('Failed to enqueue natural water OSM coverage job', tile, error);
+        setNaturalWaterDownloadStatus('error');
+      }
+    };
+
+    const handleCheckStatus = async (
+      kind: 'buildings' | 'highways' | 'waters' | 'places' | 'natural_water',
+    ) => {
       const label =
         kind === 'buildings'
           ? 'Buildings'
@@ -226,7 +244,9 @@ const TileListItem = memo(
             ? 'Highways'
             : kind === 'waters'
               ? 'Waterways'
-              : 'Places';
+              : kind === 'places'
+                ? 'Places'
+                : 'Natural Water';
 
       try {
         const result =
@@ -236,7 +256,9 @@ const TileListItem = memo(
               ? await fetchCoverageStatusHighways(tile.x, tile.y)
               : kind === 'waters'
                 ? await fetchCoverageStatusWaters(tile.x, tile.y)
-                : await fetchCoverageStatusPlaces(tile.x, tile.y);
+                : kind === 'places'
+                  ? await fetchCoverageStatusPlaces(tile.x, tile.y)
+                  : await fetchCoverageStatusNaturalWater(tile.x, tile.y);
 
         const statusText = result.status ?? 'no job queued yet';
         const loadedText = result.loaded
@@ -376,6 +398,19 @@ const TileListItem = memo(
                     : 'down load place osm'}
             </button>
             <button
+              onClick={() => void handleDownloadNaturalWaterOsm()}
+              disabled={naturalWaterDownloadStatus === 'queuing'}
+              className="cursor-pointer rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 font-medium text-cyan-400 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {naturalWaterDownloadStatus === 'queuing'
+                ? 'queuing...'
+                : naturalWaterDownloadStatus === 'queued'
+                  ? 'queued'
+                  : naturalWaterDownloadStatus === 'error'
+                    ? 'retry download natural water osm'
+                    : 'down load natural water osm'}
+            </button>
+            <button
               onClick={() => void handleCheckStatus('buildings')}
               className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
             >
@@ -398,6 +433,12 @@ const TileListItem = memo(
               className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
             >
               places?
+            </button>
+            <button
+              onClick={() => void handleCheckStatus('natural_water')}
+              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
+            >
+              natural water?
             </button>
           </div>
         </div>

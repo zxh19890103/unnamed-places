@@ -3,19 +3,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BASE_URL } from '../calc/constants';
 import {
   enqueueCoverageJob,
+  enqueueCoverageJobNaturalWater,
   enqueueCoverageJobPlaces,
   fetchCoverageJobs,
   fetchCoverageJobsHighways,
+  fetchCoverageJobsNaturalWater,
   fetchCoverageJobsPlaces,
   fetchCoverageStatus,
   fetchCoverageStatusHighways,
+  fetchCoverageStatusNaturalWater,
   fetchCoverageStatusPlaces,
   fetchLoadedCoverage,
   requestCoverageForTile,
   requestCoverageForTileHighways,
+  requestCoverageForTileNaturalWater,
   requestCoverageForTilePlaces,
   rerunFailedCoverageJob,
   rerunFailedCoverageJobHighways,
+  rerunFailedCoverageJobNaturalWater,
   rerunFailedCoverageJobPlaces,
 } from './api';
 
@@ -279,5 +284,86 @@ describe('coverage jobs API', () => {
       accepted: true,
     });
     expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/vector/places/tiles/12/2212/1539.pbf`);
+  });
+
+  it('requests natural_water jobs with prefixed coverage routes', async () => {
+    const payload = {
+      jobs: [
+        {
+          key: '12/2212/1539',
+          status: 'queued',
+          displayName: 'Dali Bai Autonomous Prefecture',
+        },
+      ],
+      total: 1,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      fetchCoverageJobsNaturalWater({ limit: 100, offset: 0 }),
+    ).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/natural_water/coverage/jobs?limit=100&offset=0`,
+    );
+  });
+
+  it('refreshes one natural_water job status using prefixed route', async () => {
+    const payload = { key: '12/2212/1539', status: 'running', loaded: false };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchCoverageStatusNaturalWater(2212, 1539)).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/vector/natural_water/coverage/12/2212/1539`);
+  });
+
+  it('reruns one failed natural_water job using prefixed route', async () => {
+    const payload = { key: '12/2212/1539', status: 'queued' };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(rerunFailedCoverageJobNaturalWater(2212, 1539)).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/natural_water/coverage/12/2212/1539/rerun`,
+      { method: 'POST' },
+    );
+  });
+
+  it('enqueues one natural_water job using prefixed route', async () => {
+    const payload = { key: '12/2212/1539', enqueued: true };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(enqueueCoverageJobNaturalWater(2212, 1539)).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vector/natural_water/coverage/12/2212/1539/enqueue`,
+      { method: 'POST' },
+    );
+  });
+
+  it('requests natural_water coverage generation for one tile', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(requestCoverageForTileNaturalWater(2212, 1539)).resolves.toEqual({
+      accepted: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}/vector/natural_water/tiles/12/2212/1539.pbf`);
   });
 });
