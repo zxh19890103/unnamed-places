@@ -20,7 +20,7 @@ const MAX_SEGMENT_LENGTH_METERS = 30;
 
 let cachedWaterNormalTexture: THREE.Texture | null = null;
 
-function getWaterNormalTexture(textureLoader?: THREE.TextureLoader): THREE.Texture {
+export function getWaterNormalTexture(textureLoader?: THREE.TextureLoader): THREE.Texture {
   if (cachedWaterNormalTexture) {
     return cachedWaterNormalTexture;
   }
@@ -34,7 +34,7 @@ function getWaterNormalTexture(textureLoader?: THREE.TextureLoader): THREE.Textu
   return texture;
 }
 
-const waterVertexShader = /* glsl */ `
+export const waterVertexShader = /* glsl */ `
   uniform sampler2D demAtlas;
   uniform float demMedian;
   uniform float elevationOffset;
@@ -63,7 +63,7 @@ const waterVertexShader = /* glsl */ `
   }
 `;
 
-const waterFragmentShader = /* glsl */ `
+export const waterFragmentShader = /* glsl */ `
   uniform vec3 diffuseColor;
   uniform float opacity;
   uniform sampler2D normalSampler;

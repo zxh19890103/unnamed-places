@@ -10,12 +10,27 @@ import { buildHighwaysGroup, disposeHighwaysGroup } from './_highways.js';
 import { PhotosManager } from './_photo.js';
 import { disposeGridTile, type LatLng, TileGrid } from './_tile.js';
 import { buildWatersGroup, disposeWatersGroup, updateWatersAnimation } from './_waters.js';
+import {
+  buildNaturalWatersGroup,
+  disposeNaturalWatersGroup,
+  updateNaturalWatersAnimation,
+} from './_naturalWaters.js';
 import { buildPlacesGroup, disposePlacesGroup, type PlacesGroup } from './_places.js';
+import {
+  buildNaturalWaterLabelsGroup,
+  disposeNaturalWaterLabelsGroup,
+  type NaturalWaterLabelsGroup,
+} from './_naturalWaterLabels.js';
 import {
   buildRoadLabelsGroup,
   disposeRoadLabelsGroup,
   type RoadLabelsGroup,
 } from './_roadLabels.js';
+import {
+  buildWaterwayLabelsGroup,
+  disposeWaterwayLabelsGroup,
+  type WaterwayLabelsGroup,
+} from './_waterwayLabels.js';
 import { CloudSystem, CloudShadowUniforms, type CloudSystemOptions } from './_cloud.js';
 import { DEFAULT_DAYTIME, setSolarDaytime, SolarUniforms } from './_solar.js';
 
@@ -28,6 +43,8 @@ export interface PhotoviewViewerOptions {
   onTileGridEyesMove?: (camera: THREE.PerspectiveCamera) => void;
   label_roads?: string[];
   labelRoads?: string[];
+  label_waterways?: string[];
+  labelWaterways?: string[];
 }
 
 export class PhotoviewViewer {
@@ -46,8 +63,11 @@ export class PhotoviewViewer {
 
   private highwaysGroup: THREE.Group | null = null;
   private watersGroup: THREE.Group | null = null;
+  private naturalWatersGroup: THREE.Group | null = null;
   private placesGroup: PlacesGroup | null = null;
+  private naturalWaterLabelsGroup: NaturalWaterLabelsGroup | null = null;
   private roadLabelsGroup: RoadLabelsGroup | null = null;
+  private waterwayLabelsGroup: WaterwayLabelsGroup | null = null;
   private cloudSystem: CloudSystem | null = null;
   private sky: Sky | null = null;
 
@@ -126,7 +146,9 @@ export class PhotoviewViewer {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(width, height);
       this.placesGroup?.updateViewport(width, height);
+      this.naturalWaterLabelsGroup?.updateViewport(width, height);
       this.roadLabelsGroup?.updateViewport(width, height);
+      this.waterwayLabelsGroup?.updateViewport(width, height);
     };
     window.addEventListener('resize', this.resizeHandler);
 
@@ -279,16 +301,34 @@ export class PhotoviewViewer {
       this.watersGroup = null;
     }
 
+    if (this.naturalWatersGroup) {
+      this.scene.remove(this.naturalWatersGroup);
+      disposeNaturalWatersGroup(this.naturalWatersGroup);
+      this.naturalWatersGroup = null;
+    }
+
     if (this.placesGroup) {
       this.scene.remove(this.placesGroup);
       disposePlacesGroup(this.placesGroup);
       this.placesGroup = null;
     }
 
+    if (this.naturalWaterLabelsGroup) {
+      this.scene.remove(this.naturalWaterLabelsGroup);
+      disposeNaturalWaterLabelsGroup(this.naturalWaterLabelsGroup);
+      this.naturalWaterLabelsGroup = null;
+    }
+
     if (this.roadLabelsGroup) {
       this.scene.remove(this.roadLabelsGroup);
       disposeRoadLabelsGroup(this.roadLabelsGroup);
       this.roadLabelsGroup = null;
+    }
+
+    if (this.waterwayLabelsGroup) {
+      this.scene.remove(this.waterwayLabelsGroup);
+      disposeWaterwayLabelsGroup(this.waterwayLabelsGroup);
+      this.waterwayLabelsGroup = null;
     }
   }
 
@@ -311,12 +351,14 @@ export class PhotoviewViewer {
     const { west, south, east, north } = tileGrid.bbox;
     const highwaysUrl = `${BASE_URL}/vector/highways?bbox=${west},${south},${east},${north}`;
     const watersUrl = `${BASE_URL}/vector/waters?bbox=${west},${south},${east},${north}`;
+    const naturalWaterUrl = `${BASE_URL}/vector/natural_water?bbox=${west},${south},${east},${north}`;
     const placesUrl = `${BASE_URL}/vector/places?bbox=${west},${south},${east},${north}`;
 
     try {
-      const [highwaysRes, watersRes, placesRes] = await Promise.all([
+      const [highwaysRes, watersRes, naturalWaterRes, placesRes] = await Promise.all([
         fetch(highwaysUrl, { signal }),
         fetch(watersUrl, { signal }),
+        fetch(naturalWaterUrl, { signal }),
         fetch(placesUrl, { signal }),
       ]);
 
@@ -369,6 +411,52 @@ export class PhotoviewViewer {
             0.3,
           );
           this.scene.add(this.watersGroup);
+
+          if (this.waterwayLabelsGroup) {
+            this.scene.remove(this.waterwayLabelsGroup);
+            disposeWaterwayLabelsGroup(this.waterwayLabelsGroup);
+          }
+          this.waterwayLabelsGroup = buildWaterwayLabelsGroup(
+            watersData,
+            tileGrid.worldCenterLatlng,
+            tileGrid.demAtlas,
+            0.8,
+            { value: new THREE.Vector2(this.mountEl.clientWidth, this.mountEl.clientHeight) },
+            {
+              label_waterways: this.options.label_waterways ?? this.options.labelWaterways,
+            },
+          );
+          this.scene.add(this.waterwayLabelsGroup);
+        }
+      }
+
+      if (naturalWaterRes.ok) {
+        const naturalWaterData: GeoJSON.FeatureCollection = await naturalWaterRes.json();
+        if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
+          if (this.naturalWatersGroup) {
+            this.scene.remove(this.naturalWatersGroup);
+            disposeNaturalWatersGroup(this.naturalWatersGroup);
+          }
+          this.naturalWatersGroup = buildNaturalWatersGroup(
+            naturalWaterData,
+            tileGrid.worldCenterLatlng,
+            tileGrid.demAtlas,
+            0.25,
+          );
+          this.scene.add(this.naturalWatersGroup);
+
+          if (this.naturalWaterLabelsGroup) {
+            this.scene.remove(this.naturalWaterLabelsGroup);
+            disposeNaturalWaterLabelsGroup(this.naturalWaterLabelsGroup);
+          }
+          this.naturalWaterLabelsGroup = buildNaturalWaterLabelsGroup(
+            naturalWaterData,
+            tileGrid.worldCenterLatlng,
+            tileGrid.demAtlas,
+            0.5,
+            { value: new THREE.Vector2(this.mountEl.clientWidth, this.mountEl.clientHeight) },
+          );
+          this.scene.add(this.naturalWaterLabelsGroup);
         }
       }
 
@@ -405,6 +493,7 @@ export class PhotoviewViewer {
       const deltaTime = this.timer.getDelta();
       this.photosManager.playAnimation(deltaTime);
       updateWatersAnimation(this.watersGroup, deltaTime);
+      updateNaturalWatersAnimation(this.naturalWatersGroup, deltaTime);
       if (this.cloudSystem) {
         this.cloudSystem.update(deltaTime);
       }
