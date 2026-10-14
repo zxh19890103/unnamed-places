@@ -3,11 +3,102 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { latLngToMetersOffset, LatLng } from './_fns';
 import { DemAtlas } from './_demAtlas';
 import { SolarUniforms } from './_solar.js';
-import { getWaterNormalTexture, waterVertexShader, waterFragmentShader } from './_waters.js';
+import { getWaterNormalTexture } from './_waters.js';
 
-export const DEFAULT_NATURAL_WATER_COLOR = '#0a4f5c';
+const DEFAULT_NATURAL_WATER_COLOR = '#0a4f5c';
+const DEFAULT_NATURAL_WATER_ELEVATION_OFFSET = 10.0;
+const MAX_RING_SEGMENT_LENGTH_METERS = 30;
 
-export function extractPolygonCoordinates(geometry: GeoJSON.Geometry): GeoJSON.Position[][][] {
+const naturalWaterVertexShader = /* glsl */ `
+  uniform sampler2D demAtlas;
+  uniform float demMedian;
+  uniform float elevationOffset;
+
+  attribute vec2 demUv;
+  attribute float aShoreT;
+  attribute float aSkirtDrop;
+
+  varying vec2 vUv;
+  varying vec3 vWorldPosition;
+  varying float vShoreT;
+  varying float vSkirtDrop;
+
+  void main() {
+    vUv = uv;
+    vShoreT = aShoreT;
+    vSkirtDrop = aSkirtDrop;
+
+    vec2 clampedUv = clamp(demUv, 0.0, 1.0);
+    float elevation = texture2D(demAtlas, clampedUv).r;
+    float raise = elevation - demMedian;
+
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    // Raise the surface by elevationOffset, and drop skirt vertices back down to terrain
+    worldPosition.y += raise + elevationOffset - aSkirtDrop;
+
+    vWorldPosition = worldPosition.xyz;
+
+    vec4 mvPosition = viewMatrix * worldPosition;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const naturalWaterFragmentShader = /* glsl */ `
+  uniform vec3 diffuseColor;
+  uniform float opacity;
+  uniform sampler2D normalSampler;
+  uniform float uTime;
+  uniform vec3 sunDirection;
+
+  varying vec2 vUv;
+  varying vec3 vWorldPosition;
+  varying float vShoreT;
+  varying float vSkirtDrop;
+
+  void main() {
+    // World space horizontal coordinates for ripple scale
+    vec2 flowUv = vWorldPosition.xz * 0.001;
+
+    // Dual-layer scrolling normals for calm water waves
+    vec2 flowOffset1 = vec2(uTime * 0.012, uTime * 0.008);
+    vec2 flowOffset2 = vec2(-uTime * 0.009, uTime * 0.003);
+
+    vec3 normalSample1 = texture2D(normalSampler, flowUv + flowOffset1).rgb * 2.0 - 1.0;
+    vec3 normalSample2 = texture2D(normalSampler, flowUv * 1.3 + flowOffset2).rgb * 2.0 - 1.0;
+    vec3 rawNormal = normalize(normalSample1 + normalSample2);
+
+    float waveStrength = 1.4;
+    vec3 worldNormal = normalize(vec3(rawNormal.x * waveStrength, 1.0, rawNormal.y * waveStrength));
+
+    // Direction vectors
+    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+    vec3 lightDir = normalize(sunDirection);
+
+    float NdotL = max(0.0, dot(worldNormal, lightDir));
+    vec3 baseColor = diffuseColor * (0.85 + 0.3 * NdotL);
+
+    // Darken skirt wall toward deeper shoreline tone as it drops down
+    if (vSkirtDrop > 0.01) {
+      float dropFactor = clamp(vSkirtDrop / 10.0, 0.0, 1.0);
+      vec3 deepSkirtColor = diffuseColor * 0.55;
+      baseColor = mix(baseColor, deepSkirtColor, dropFactor);
+    }
+
+    // Blinn-Phong specular highlight on top surface
+    vec3 halfVec = normalize(lightDir + viewDir);
+    float NdotH = max(0.0, dot(worldNormal, halfVec));
+    float specular = pow(NdotH, 48.0) * 0.5;
+
+    // Subtle Fresnel sheen
+    float fresnel = pow(1.0 - max(0.0, dot(worldNormal, viewDir)), 2.0);
+
+    vec3 finalColor = baseColor + vec3(1.0, 0.98, 0.92) * specular + vec3(0.08, 0.16, 0.20) * (fresnel * 0.3);
+
+    gl_FragColor = vec4(finalColor, opacity);
+  }
+`;
+
+function extractPolygonCoordinates(geometry: GeoJSON.Geometry): GeoJSON.Position[][][] {
   if (geometry.type === 'Polygon') {
     return [geometry.coordinates];
   }
@@ -17,23 +108,66 @@ export function extractPolygonCoordinates(geometry: GeoJSON.Geometry): GeoJSON.P
   return [];
 }
 
-export function createPolygonWaterGeometry(
+/**
+ * Subdivide a ring to ensure vertex spacing does not exceed maxDistanceMeters,
+ * allowing the skirt bottom to follow terrain contours smoothly.
+ */
+function subdivideRing(
+  ring: GeoJSON.Position[],
+  maxDistance = MAX_RING_SEGMENT_LENGTH_METERS,
+): GeoJSON.Position[] {
+  if (ring.length < 2) return ring;
+
+  const result: GeoJSON.Position[] = [];
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const p1 = ring[i];
+    const p2 = ring[i + 1];
+    result.push(p1);
+
+    const dLng = p2[0] - p1[0];
+    const dLat = p2[1] - p1[1];
+    const avgLatRad = ((p1[1] + p2[1]) * 0.5 * Math.PI) / 180;
+    const metersLng = dLng * 111320 * Math.cos(avgLatRad);
+    const metersLat = dLat * 110574;
+    const distanceMeters = Math.hypot(metersLng, metersLat);
+
+    if (distanceMeters > maxDistance) {
+      const steps = Math.ceil(distanceMeters / maxDistance);
+      for (let s = 1; s < steps; s += 1) {
+        const t = s / steps;
+        result.push([p1[0] + dLng * t, p1[1] + dLat * t]);
+      }
+    }
+  }
+
+  result.push(ring[ring.length - 1]);
+  return result;
+}
+
+/**
+ * Creates 3D water geometry with a flat top cap (at +elevationOffset)
+ * and an extruded vertical skirt dropped down to the original terrain elevation.
+ */
+function createPolygonWaterGeometry(
   rings: GeoJSON.Position[][],
   worldCenterLatlng: LatLng,
   demAtlas?: DemAtlas,
+  elevationOffset = DEFAULT_NATURAL_WATER_ELEVATION_OFFSET,
 ): THREE.BufferGeometry | null {
   if (rings.length === 0 || rings[0].length < 3) return null;
 
-  const outerRing = rings[0];
-  const holeRings = rings.slice(1);
+  // 1. Subdivide rings for contour conformity
+  const outerRing = subdivideRing(rings[0]);
+  const holeRings = rings.slice(1).map((r) => subdivideRing(r));
 
+  // 2. Prepare 2D coordinates for polygon triangulation (top cap)
   const outerPoints2D: THREE.Vector2[] = [];
-  const all3DPoints: THREE.Vector3[] = [];
+  const topPoints3D: THREE.Vector3[] = [];
 
   for (const [lng, lat] of outerRing) {
     const offset = latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng);
     outerPoints2D.push(new THREE.Vector2(offset.x, offset.z));
-    all3DPoints.push(new THREE.Vector3(offset.x, 0, offset.z));
+    topPoints3D.push(new THREE.Vector3(offset.x, 0, offset.z));
   }
 
   const holes2D: THREE.Vector2[][] = [];
@@ -43,27 +177,30 @@ export function createPolygonWaterGeometry(
     for (const [lng, lat] of hole) {
       const offset = latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng);
       holePoints.push(new THREE.Vector2(offset.x, offset.z));
-      all3DPoints.push(new THREE.Vector3(offset.x, 0, offset.z));
+      topPoints3D.push(new THREE.Vector3(offset.x, 0, offset.z));
     }
     holes2D.push(holePoints);
   }
 
   try {
-    const faces = THREE.ShapeUtils.triangulateShape(outerPoints2D, holes2D);
-    if (!faces || faces.length === 0) return null;
+    const topFaces = THREE.ShapeUtils.triangulateShape(outerPoints2D, holes2D);
+    if (!topFaces || topFaces.length === 0) return null;
 
     const positions: number[] = [];
     const normals: number[] = [];
     const uvs: number[] = [];
     const demUvs: number[] = [];
     const aShoreTs: number[] = [];
+    const aSkirtDrops: number[] = [];
     const indices: number[] = [];
 
-    for (const pt of all3DPoints) {
+    // --- Build Top Cap ---
+    for (const pt of topPoints3D) {
       positions.push(pt.x, pt.y, pt.z);
       normals.push(0, 1, 0);
       uvs.push(pt.x * 0.01, pt.z * 0.01);
       aShoreTs.push(0.0);
+      aSkirtDrops.push(0.0); // Top surface stays at +elevationOffset
 
       if (demAtlas) {
         const uv = demAtlas.getDemUvFromOffset(pt.x, pt.z, worldCenterLatlng);
@@ -73,8 +210,65 @@ export function createPolygonWaterGeometry(
       }
     }
 
-    for (const face of faces) {
+    for (const face of topFaces) {
       indices.push(face[0], face[1], face[2]);
+    }
+
+    // --- Build Vertical Boundary Skirt for all rings (outer + holes) ---
+    const allRings = [outerRing, ...holeRings];
+
+    for (const ring of allRings) {
+      const ringLen = ring.length;
+      if (ringLen < 3) continue;
+
+      // Close ring if last point != first point
+      const isClosed = ring[0][0] === ring[ringLen - 1][0] && ring[0][1] === ring[ringLen - 1][1];
+      const count = isClosed ? ringLen - 1 : ringLen;
+      if (count < 3) continue;
+
+      const ringStartIndex = positions.length / 3;
+
+      for (let i = 0; i < count; i += 1) {
+        const [lng, lat] = ring[i];
+        const offset = latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng);
+
+        const demUv = demAtlas
+          ? demAtlas.getDemUvFromOffset(offset.x, offset.z, worldCenterLatlng)
+          : { u: 0, v: 0 };
+
+        // Top vertex (stays at +elevationOffset)
+        positions.push(offset.x, 0, offset.z);
+        normals.push(0, 1, 0);
+        uvs.push(offset.x * 0.01, offset.z * 0.01);
+        demUvs.push(demUv.u, demUv.v);
+        aShoreTs.push(1.0);
+        aSkirtDrops.push(0.0);
+
+        // Bottom vertex (drops by elevationOffset to terrain level)
+        positions.push(offset.x, 0, offset.z);
+        normals.push(0, 1, 0);
+        uvs.push(offset.x * 0.01, offset.z * 0.01);
+        demUvs.push(demUv.u, demUv.v);
+        aShoreTs.push(1.0);
+        aSkirtDrops.push(elevationOffset);
+      }
+
+      // Generate quad faces connecting top & bottom vertices along the ring
+      for (let i = 0; i < count; i += 1) {
+        const next = (i + 1) % count;
+        const topCurrent = ringStartIndex + i * 2;
+        const botCurrent = topCurrent + 1;
+        const topNext = ringStartIndex + next * 2;
+        const botNext = topNext + 1;
+
+        // Front-facing quad
+        indices.push(topCurrent, botCurrent, topNext);
+        indices.push(botCurrent, botNext, topNext);
+
+        // Double-sided back quad so skirt is visible from all angles/islands
+        indices.push(topCurrent, topNext, botCurrent);
+        indices.push(botCurrent, topNext, botNext);
+      }
     }
 
     const geometry = new THREE.BufferGeometry();
@@ -83,6 +277,7 @@ export function createPolygonWaterGeometry(
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute('demUv', new THREE.Float32BufferAttribute(demUvs, 2));
     geometry.setAttribute('aShoreT', new THREE.Float32BufferAttribute(aShoreTs, 1));
+    geometry.setAttribute('aSkirtDrop', new THREE.Float32BufferAttribute(aSkirtDrops, 1));
     geometry.setIndex(indices);
     geometry.computeBoundingSphere();
 
@@ -95,12 +290,13 @@ export function createPolygonWaterGeometry(
 /**
  * Builds 3D natural water surface meshes (lakes, reservoirs, ponds, basins).
  * Strictly considers Polygon and MultiPolygon geometries only.
+ * Surface raised by elevationOffset (default 10m) with vertical skirts to prevent z-fighting.
  */
 export function buildNaturalWatersGroup(
   collection: GeoJSON.FeatureCollection,
   worldCenterLatlng: LatLng,
   demAtlas?: DemAtlas,
-  elevationOffset = 0.25,
+  elevationOffset = DEFAULT_NATURAL_WATER_ELEVATION_OFFSET,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'osm-natural-waters';
@@ -115,7 +311,12 @@ export function buildNaturalWatersGroup(
     if (type === 'Polygon' || type === 'MultiPolygon') {
       const polygonList = extractPolygonCoordinates(feature.geometry);
       for (const rings of polygonList) {
-        const polyGeom = createPolygonWaterGeometry(rings, worldCenterLatlng, demAtlas);
+        const polyGeom = createPolygonWaterGeometry(
+          rings,
+          worldCenterLatlng,
+          demAtlas,
+          elevationOffset,
+        );
         if (polyGeom) {
           geometries.push(polyGeom);
         }
@@ -143,8 +344,8 @@ export function buildNaturalWatersGroup(
           normalSampler: { value: normalTexture },
           uTime: { value: 0 },
         },
-        vertexShader: waterVertexShader,
-        fragmentShader: waterFragmentShader,
+        vertexShader: naturalWaterVertexShader,
+        fragmentShader: naturalWaterFragmentShader,
         side: THREE.DoubleSide,
         transparent: true,
         depthWrite: true,
@@ -152,7 +353,6 @@ export function buildNaturalWatersGroup(
 
       const mesh = new THREE.Mesh(merged, material);
       mesh.name = 'natural-waters-mesh';
-      // mesh.renderOrder = 999999;
       group.add(mesh);
     }
   }

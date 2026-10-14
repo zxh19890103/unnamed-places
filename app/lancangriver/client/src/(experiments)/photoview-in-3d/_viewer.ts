@@ -408,7 +408,7 @@ export class PhotoviewViewer {
             watersData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            0.3,
+            5.0,
           );
           this.scene.add(this.watersGroup);
 
@@ -441,7 +441,7 @@ export class PhotoviewViewer {
             naturalWaterData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            0.25,
+            10.0,
           );
           this.scene.add(this.naturalWatersGroup);
 

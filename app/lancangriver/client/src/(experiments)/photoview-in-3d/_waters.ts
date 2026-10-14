@@ -17,6 +17,8 @@ const WATERWAY_WIDTHS: Record<string, number> = {
 
 const DEFAULT_WATER_COLOR = '#0d5966';
 const MAX_SEGMENT_LENGTH_METERS = 30;
+const WATER_WIDTH_SCALE = 2;
+const DEFAULT_WATER_ELEVATION_OFFSET = 5.0;
 
 let cachedWaterNormalTexture: THREE.Texture | null = null;
 
@@ -34,27 +36,30 @@ export function getWaterNormalTexture(textureLoader?: THREE.TextureLoader): THRE
   return texture;
 }
 
-export const waterVertexShader = /* glsl */ `
+const waterVertexShader = /* glsl */ `
   uniform sampler2D demAtlas;
   uniform float demMedian;
   uniform float elevationOffset;
 
   attribute vec2 demUv;
   attribute float aShoreT;
+  attribute float aSkirtDrop;
 
   varying vec2 vUv;
   varying vec3 vWorldPosition;
   varying float vShoreT;
+  varying float vSkirtDrop;
 
   void main() {
     vUv = uv;
     vShoreT = aShoreT;
+    vSkirtDrop = aSkirtDrop;
     vec2 clampedUv = clamp(demUv, 0.0, 1.0);
     float elevation = texture2D(demAtlas, clampedUv).r;
     float raise = elevation - demMedian;
 
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-    worldPosition.y += raise + elevationOffset;
+    worldPosition.y += raise + elevationOffset - aSkirtDrop;
 
     vWorldPosition = worldPosition.xyz;
 
@@ -63,7 +68,7 @@ export const waterVertexShader = /* glsl */ `
   }
 `;
 
-export const waterFragmentShader = /* glsl */ `
+const waterFragmentShader = /* glsl */ `
   uniform vec3 diffuseColor;
   uniform float opacity;
   uniform sampler2D normalSampler;
@@ -73,6 +78,7 @@ export const waterFragmentShader = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vWorldPosition;
   varying float vShoreT;
+  varying float vSkirtDrop;
 
   void main() {
     // World space horizontal coordinates for consistent ripple scale across tiles
@@ -106,6 +112,13 @@ export const waterFragmentShader = /* glsl */ `
     float shoreFactor = 1.0 - smoothstep(0.0, 0.3, shoreDistance);
     vec3 shoreColor = vec3(0.95, 0.97, 0.98);
     baseColor = mix(baseColor, shoreColor, shoreFactor);
+
+    // Darken vertical skirts toward deeper shoreline tone as they drop down
+    if (vSkirtDrop > 0.01) {
+      float dropFactor = clamp(vSkirtDrop / 10.0, 0.0, 1.0);
+      vec3 deepSkirtColor = diffuseColor * 0.55;
+      baseColor = mix(baseColor, deepSkirtColor, dropFactor);
+    }
 
     // Blinn-Phong specular highlight
     vec3 halfVec = normalize(lightDir + viewDir);
@@ -177,6 +190,7 @@ function createWaterRibbonGeometry(
   width: number,
   demAtlas?: DemAtlas,
   worldCenterLatlng?: LatLng,
+  elevationOffset = DEFAULT_WATER_ELEVATION_OFFSET,
 ): THREE.BufferGeometry | null {
   if (points.length < 2) return null;
 
@@ -185,6 +199,7 @@ function createWaterRibbonGeometry(
   const uvs: number[] = [];
   const demUvs: number[] = [];
   const aShoreTs: number[] = [];
+  const aSkirtDrops: number[] = [];
   const indices: number[] = [];
 
   const cumulativeDistances = [0];
@@ -202,6 +217,10 @@ function createWaterRibbonGeometry(
   const left = new THREE.Vector3();
   const right = new THREE.Vector3();
 
+  // Cache left and right ribbon edge points to construct side skirts
+  const leftEdgePoints: { x: number; z: number; demUv: { u: number; v: number } }[] = [];
+  const rightEdgePoints: { x: number; z: number; demUv: { u: number; v: number } }[] = [];
+
   for (let i = 0; i < points.length; i += 1) {
     const point = points[i];
     const prevPoint = points[Math.max(0, i - 1)];
@@ -217,7 +236,7 @@ function createWaterRibbonGeometry(
       side.set(1, 0, 0);
     }
 
-    const halfWidth = width / 2;
+    const halfWidth = (WATER_WIDTH_SCALE * width) / 2;
     left.copy(point).addScaledVector(side, halfWidth);
     right.copy(point).addScaledVector(side, -halfWidth);
 
@@ -226,15 +245,25 @@ function createWaterRibbonGeometry(
     normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
     uvs.push(0, v, 0.5, v, 1, v);
     aShoreTs.push(1.0, 0.0, 1.0);
+    aSkirtDrops.push(0.0, 0.0, 0.0);
 
-    if (demAtlas && worldCenterLatlng) {
-      const leftUv = demAtlas.getDemUvFromOffset(left.x, left.z, worldCenterLatlng);
-      const centerUv = demAtlas.getDemUvFromOffset(point.x, point.z, worldCenterLatlng);
-      const rightUv = demAtlas.getDemUvFromOffset(right.x, right.z, worldCenterLatlng);
-      demUvs.push(leftUv.u, leftUv.v, centerUv.u, centerUv.v, rightUv.u, rightUv.v);
-    } else {
-      demUvs.push(0, 0, 0, 0, 0, 0);
-    }
+    const leftUv =
+      demAtlas && worldCenterLatlng
+        ? demAtlas.getDemUvFromOffset(left.x, left.z, worldCenterLatlng)
+        : { u: 0, v: 0 };
+    const centerUv =
+      demAtlas && worldCenterLatlng
+        ? demAtlas.getDemUvFromOffset(point.x, point.z, worldCenterLatlng)
+        : { u: 0, v: 0 };
+    const rightUv =
+      demAtlas && worldCenterLatlng
+        ? demAtlas.getDemUvFromOffset(right.x, right.z, worldCenterLatlng)
+        : { u: 0, v: 0 };
+
+    demUvs.push(leftUv.u, leftUv.v, centerUv.u, centerUv.v, rightUv.u, rightUv.v);
+
+    leftEdgePoints.push({ x: left.x, z: left.z, demUv: leftUv });
+    rightEdgePoints.push({ x: right.x, z: right.z, demUv: rightUv });
 
     if (i < points.length - 1) {
       const i0 = i * 3;
@@ -251,12 +280,52 @@ function createWaterRibbonGeometry(
     }
   }
 
+  // --- Add Vertical Skirts along both ribbon edges (left and right shores) ---
+  const addShoreSkirt = (edgePts: typeof leftEdgePoints) => {
+    const edgeStartIndex = positions.length / 3;
+    for (let i = 0; i < edgePts.length; i += 1) {
+      const pt = edgePts[i];
+      // Top vertex (stays at elevationOffset)
+      positions.push(pt.x, 0, pt.z);
+      normals.push(0, 1, 0);
+      uvs.push(pt.x * 0.01, pt.z * 0.01);
+      demUvs.push(pt.demUv.u, pt.demUv.v);
+      aShoreTs.push(1.0);
+      aSkirtDrops.push(0.0);
+
+      // Bottom vertex (drops by elevationOffset to terrain)
+      positions.push(pt.x, 0, pt.z);
+      normals.push(0, 1, 0);
+      uvs.push(pt.x * 0.01, pt.z * 0.01);
+      demUvs.push(pt.demUv.u, pt.demUv.v);
+      aShoreTs.push(1.0);
+      aSkirtDrops.push(elevationOffset);
+    }
+
+    for (let i = 0; i < edgePts.length - 1; i += 1) {
+      const topCurr = edgeStartIndex + i * 2;
+      const botCurr = topCurr + 1;
+      const topNext = edgeStartIndex + (i + 1) * 2;
+      const botNext = topNext + 1;
+
+      // Double-sided quad
+      indices.push(topCurr, botCurr, topNext);
+      indices.push(botCurr, botNext, topNext);
+      indices.push(topCurr, topNext, botCurr);
+      indices.push(botCurr, topNext, botNext);
+    }
+  };
+
+  addShoreSkirt(leftEdgePoints);
+  addShoreSkirt(rightEdgePoints);
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setAttribute('demUv', new THREE.Float32BufferAttribute(demUvs, 2));
   geometry.setAttribute('aShoreT', new THREE.Float32BufferAttribute(aShoreTs, 1));
+  geometry.setAttribute('aSkirtDrop', new THREE.Float32BufferAttribute(aSkirtDrops, 1));
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
 
@@ -267,11 +336,12 @@ function createPolygonWaterGeometry(
   rings: GeoJSON.Position[][],
   worldCenterLatlng: LatLng,
   demAtlas?: DemAtlas,
+  elevationOffset = DEFAULT_WATER_ELEVATION_OFFSET,
 ): THREE.BufferGeometry | null {
   if (rings.length === 0 || rings[0].length < 3) return null;
 
-  const outerRing = rings[0];
-  const holeRings = rings.slice(1);
+  const outerRing = subdivideCoordinates(rings[0]);
+  const holeRings = rings.slice(1).map((r) => subdivideCoordinates(r));
 
   const outerPoints2D: THREE.Vector2[] = [];
   const all3DPoints: THREE.Vector3[] = [];
@@ -303,13 +373,16 @@ function createPolygonWaterGeometry(
     const uvs: number[] = [];
     const demUvs: number[] = [];
     const aShoreTs: number[] = [];
+    const aSkirtDrops: number[] = [];
     const indices: number[] = [];
 
+    // Top cap
     for (const pt of all3DPoints) {
       positions.push(pt.x, pt.y, pt.z);
       normals.push(0, 1, 0);
       uvs.push(pt.x * 0.01, pt.z * 0.01);
       aShoreTs.push(0.0);
+      aSkirtDrops.push(0.0);
 
       if (demAtlas) {
         const uv = demAtlas.getDemUvFromOffset(pt.x, pt.z, worldCenterLatlng);
@@ -323,12 +396,64 @@ function createPolygonWaterGeometry(
       indices.push(face[0], face[1], face[2]);
     }
 
+    // Boundary skirts for all polygon rings
+    const allRings = [outerRing, ...holeRings];
+    for (const ring of allRings) {
+      const ringLen = ring.length;
+      if (ringLen < 3) continue;
+
+      const isClosed = ring[0][0] === ring[ringLen - 1][0] && ring[0][1] === ring[ringLen - 1][1];
+      const count = isClosed ? ringLen - 1 : ringLen;
+      if (count < 3) continue;
+
+      const ringStartIndex = positions.length / 3;
+
+      for (let i = 0; i < count; i += 1) {
+        const [lng, lat] = ring[i];
+        const offset = latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng);
+
+        const demUv = demAtlas
+          ? demAtlas.getDemUvFromOffset(offset.x, offset.z, worldCenterLatlng)
+          : { u: 0, v: 0 };
+
+        // Top vertex (at elevationOffset)
+        positions.push(offset.x, 0, offset.z);
+        normals.push(0, 1, 0);
+        uvs.push(offset.x * 0.01, offset.z * 0.01);
+        demUvs.push(demUv.u, demUv.v);
+        aShoreTs.push(1.0);
+        aSkirtDrops.push(0.0);
+
+        // Bottom vertex (dropped to terrain)
+        positions.push(offset.x, 0, offset.z);
+        normals.push(0, 1, 0);
+        uvs.push(offset.x * 0.01, offset.z * 0.01);
+        demUvs.push(demUv.u, demUv.v);
+        aShoreTs.push(1.0);
+        aSkirtDrops.push(elevationOffset);
+      }
+
+      for (let i = 0; i < count; i += 1) {
+        const next = (i + 1) % count;
+        const topCurr = ringStartIndex + i * 2;
+        const botCurr = topCurr + 1;
+        const topNext = ringStartIndex + next * 2;
+        const botNext = topNext + 1;
+
+        indices.push(topCurr, botCurr, topNext);
+        indices.push(botCurr, botNext, topNext);
+        indices.push(topCurr, topNext, botCurr);
+        indices.push(botCurr, topNext, botNext);
+      }
+    }
+
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute('demUv', new THREE.Float32BufferAttribute(demUvs, 2));
     geometry.setAttribute('aShoreT', new THREE.Float32BufferAttribute(aShoreTs, 1));
+    geometry.setAttribute('aSkirtDrop', new THREE.Float32BufferAttribute(aSkirtDrops, 1));
     geometry.setIndex(indices);
     geometry.computeBoundingSphere();
 
@@ -362,7 +487,7 @@ export function buildWatersGroup(
   collection: GeoJSON.FeatureCollection,
   worldCenterLatlng: LatLng,
   demAtlas?: DemAtlas,
-  elevationOffset = 0.3,
+  elevationOffset = DEFAULT_WATER_ELEVATION_OFFSET,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'osm-waters';
@@ -394,7 +519,13 @@ export function buildWatersGroup(
           return new THREE.Vector3(offset.x, 0, offset.z);
         });
 
-        const ribbonGeom = createWaterRibbonGeometry(points, width, demAtlas, worldCenterLatlng);
+        const ribbonGeom = createWaterRibbonGeometry(
+          points,
+          width,
+          demAtlas,
+          worldCenterLatlng,
+          elevationOffset,
+        );
         if (ribbonGeom) {
           geometries.push(ribbonGeom);
         }
@@ -402,7 +533,12 @@ export function buildWatersGroup(
     } else if (type === 'Polygon' || type === 'MultiPolygon') {
       const polygonList = extractPolygonCoordinates(feature.geometry);
       for (const rings of polygonList) {
-        const polyGeom = createPolygonWaterGeometry(rings, worldCenterLatlng, demAtlas);
+        const polyGeom = createPolygonWaterGeometry(
+          rings,
+          worldCenterLatlng,
+          demAtlas,
+          elevationOffset,
+        );
         if (polyGeom) {
           geometries.push(polyGeom);
         }
