@@ -214,8 +214,9 @@ function createPolygonWaterGeometry(
       indices.push(face[0], face[1], face[2]);
     }
 
-    // --- Build Vertical Boundary Skirt for all rings (outer + holes) ---
+    // --- Build Sloped Shoreline Skirt for all rings (outer + holes) ---
     const allRings = [outerRing, ...holeRings];
+    const flareDistance = 3.5;
 
     for (const ring of allRings) {
       const ringLen = ring.length;
@@ -226,17 +227,66 @@ function createPolygonWaterGeometry(
       const count = isClosed ? ringLen - 1 : ringLen;
       if (count < 3) continue;
 
+      // Calculate signed area to determine outer (CW/CCW) orientation
+      let signedArea = 0;
+      for (let i = 0; i < count; i += 1) {
+        const p1 = ring[i];
+        const p2 = ring[(i + 1) % count];
+        signedArea += (p2[0] - p1[0]) * (p2[1] + p1[1]);
+      }
+      // In meter offset coords, sign determines left/right normal
+      const isClockwise = signedArea > 0;
+
+      // Compute 2D meter offsets for ring vertices
+      const ringOffsets = [];
+      for (let i = 0; i < count; i += 1) {
+        const [lng, lat] = ring[i];
+        ringOffsets.push(
+          latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng),
+        );
+      }
+
+      // Calculate outward normal at each vertex by averaging adjacent edge normals
+      const outwardNormals: { nx: number; nz: number }[] = [];
+      for (let i = 0; i < count; i += 1) {
+        const prev = ringOffsets[(i - 1 + count) % count];
+        const curr = ringOffsets[i];
+        const next = ringOffsets[(i + 1) % count];
+
+        const dx1 = curr.x - prev.x;
+        const dz1 = curr.z - prev.z;
+        const dx2 = next.x - curr.x;
+        const dz2 = next.z - curr.z;
+
+        // Perpendiculars (outward depends on winding)
+        const sign = isClockwise ? 1 : -1;
+        const n1x = dz1 * sign;
+        const n1z = -dx1 * sign;
+        const n2x = dz2 * sign;
+        const n2z = -dx2 * sign;
+
+        const avgNx = n1x + n2x;
+        const avgNz = n1z + n2z;
+        const len = Math.hypot(avgNx, avgNz);
+
+        if (len > 1e-4) {
+          outwardNormals.push({ nx: avgNx / len, nz: avgNz / len });
+        } else {
+          outwardNormals.push({ nx: 0, nz: 0 });
+        }
+      }
+
       const ringStartIndex = positions.length / 3;
 
       for (let i = 0; i < count; i += 1) {
-        const [lng, lat] = ring[i];
-        const offset = latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng);
+        const offset = ringOffsets[i];
+        const norm = outwardNormals[i];
 
         const demUv = demAtlas
           ? demAtlas.getDemUvFromOffset(offset.x, offset.z, worldCenterLatlng)
           : { u: 0, v: 0 };
 
-        // Top vertex (stays at +elevationOffset)
+        // Top vertex (stays at elevated surface)
         positions.push(offset.x, 0, offset.z);
         normals.push(0, 1, 0);
         uvs.push(offset.x * 0.01, offset.z * 0.01);
@@ -244,11 +294,17 @@ function createPolygonWaterGeometry(
         aShoreTs.push(1.0);
         aSkirtDrops.push(0.0);
 
-        // Bottom vertex (drops by elevationOffset to terrain level)
-        positions.push(offset.x, 0, offset.z);
+        // Bottom vertex: pushed outward by flareDistance along normal, dropped to terrain
+        const botX = offset.x + norm.nx * flareDistance;
+        const botZ = offset.z + norm.nz * flareDistance;
+        const botUv = demAtlas
+          ? demAtlas.getDemUvFromOffset(botX, botZ, worldCenterLatlng)
+          : demUv;
+
+        positions.push(botX, 0, botZ);
         normals.push(0, 1, 0);
-        uvs.push(offset.x * 0.01, offset.z * 0.01);
-        demUvs.push(demUv.u, demUv.v);
+        uvs.push(botX * 0.01, botZ * 0.01);
+        demUvs.push(botUv.u, botUv.v);
         aShoreTs.push(1.0);
         aSkirtDrops.push(elevationOffset);
       }
@@ -261,11 +317,9 @@ function createPolygonWaterGeometry(
         const topNext = ringStartIndex + next * 2;
         const botNext = topNext + 1;
 
-        // Front-facing quad
+        // Double-sided quad faces
         indices.push(topCurrent, botCurrent, topNext);
         indices.push(botCurrent, botNext, topNext);
-
-        // Double-sided back quad so skirt is visible from all angles/islands
         indices.push(topCurrent, topNext, botCurrent);
         indices.push(botCurrent, topNext, botNext);
       }

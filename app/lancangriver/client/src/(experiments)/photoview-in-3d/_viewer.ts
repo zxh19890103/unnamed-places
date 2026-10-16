@@ -375,7 +375,7 @@ export class PhotoviewViewer {
             highwaysData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            1.0,
+            2.0,
           );
           this.scene.add(this.highwaysGroup);
 
@@ -387,7 +387,7 @@ export class PhotoviewViewer {
             highwaysData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            1.5,
+            7.5,
             { value: new THREE.Vector2(this.mountEl.clientWidth, this.mountEl.clientHeight) },
             {
               label_roads: this.options.label_roads ?? this.options.labelRoads,
@@ -399,23 +399,33 @@ export class PhotoviewViewer {
 
       if (watersRes.ok) {
         const watersData: GeoJSON.FeatureCollection = await watersRes.json();
+
         if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
           if (this.watersGroup) {
             this.scene.remove(this.watersGroup);
             disposeWatersGroup(this.watersGroup);
           }
+
+          let naturalWatersData = null;
+          if (naturalWaterRes.ok) {
+            naturalWatersData = await naturalWaterRes.json();
+          }
+
           this.watersGroup = buildWatersGroup(
             watersData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
             5.0,
+            naturalWatersData,
           );
+
           this.scene.add(this.watersGroup);
 
           if (this.waterwayLabelsGroup) {
             this.scene.remove(this.waterwayLabelsGroup);
             disposeWaterwayLabelsGroup(this.waterwayLabelsGroup);
           }
+
           this.waterwayLabelsGroup = buildWaterwayLabelsGroup(
             watersData,
             tileGrid.worldCenterLatlng,

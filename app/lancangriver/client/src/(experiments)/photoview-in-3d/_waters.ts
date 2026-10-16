@@ -110,7 +110,7 @@ const waterFragmentShader = /* glsl */ `
 
     // Blend base color toward dark shore color within the outer 30% of the ribbon width (shoreDistance in [0.0, 0.3])
     float shoreFactor = 1.0 - smoothstep(0.0, 0.3, shoreDistance);
-    vec3 shoreColor = vec3(0.95, 0.97, 0.98);
+    vec3 shoreColor = vec3(0.60, 0.74, 0.78);
     baseColor = mix(baseColor, shoreColor, shoreFactor);
 
     // Darken vertical skirts toward deeper shoreline tone as they drop down
@@ -218,8 +218,20 @@ function createWaterRibbonGeometry(
   const right = new THREE.Vector3();
 
   // Cache left and right ribbon edge points to construct side skirts
-  const leftEdgePoints: { x: number; z: number; demUv: { u: number; v: number } }[] = [];
-  const rightEdgePoints: { x: number; z: number; demUv: { u: number; v: number } }[] = [];
+  const leftEdgePoints: {
+    x: number;
+    z: number;
+    outwardX: number;
+    outwardZ: number;
+    demUv: { u: number; v: number };
+  }[] = [];
+  const rightEdgePoints: {
+    x: number;
+    z: number;
+    outwardX: number;
+    outwardZ: number;
+    demUv: { u: number; v: number };
+  }[] = [];
 
   for (let i = 0; i < points.length; i += 1) {
     const point = points[i];
@@ -262,8 +274,20 @@ function createWaterRibbonGeometry(
 
     demUvs.push(leftUv.u, leftUv.v, centerUv.u, centerUv.v, rightUv.u, rightUv.v);
 
-    leftEdgePoints.push({ x: left.x, z: left.z, demUv: leftUv });
-    rightEdgePoints.push({ x: right.x, z: right.z, demUv: rightUv });
+    leftEdgePoints.push({
+      x: left.x,
+      z: left.z,
+      outwardX: side.x,
+      outwardZ: side.z,
+      demUv: leftUv,
+    });
+    rightEdgePoints.push({
+      x: right.x,
+      z: right.z,
+      outwardX: -side.x,
+      outwardZ: -side.z,
+      demUv: rightUv,
+    });
 
     if (i < points.length - 1) {
       const i0 = i * 3;
@@ -280,8 +304,18 @@ function createWaterRibbonGeometry(
     }
   }
 
-  // --- Add Vertical Skirts along both ribbon edges (left and right shores) ---
-  const addShoreSkirt = (edgePts: typeof leftEdgePoints) => {
+  // --- Add Sloped Shore Skirts along left and right banks ---
+  const flareDistance = Math.min(width * 0.4, 4.0);
+
+  const addShoreSkirt = (
+    edgePts: {
+      x: number;
+      z: number;
+      outwardX: number;
+      outwardZ: number;
+      demUv: { u: number; v: number };
+    }[],
+  ) => {
     const edgeStartIndex = positions.length / 3;
     for (let i = 0; i < edgePts.length; i += 1) {
       const pt = edgePts[i];
@@ -293,11 +327,18 @@ function createWaterRibbonGeometry(
       aShoreTs.push(1.0);
       aSkirtDrops.push(0.0);
 
-      // Bottom vertex (drops by elevationOffset to terrain)
-      positions.push(pt.x, 0, pt.z);
+      // Bottom vertex pushed outward along bank normal and dropped to terrain
+      const botX = pt.x + pt.outwardX * flareDistance;
+      const botZ = pt.z + pt.outwardZ * flareDistance;
+      const botUv =
+        demAtlas && worldCenterLatlng
+          ? demAtlas.getDemUvFromOffset(botX, botZ, worldCenterLatlng)
+          : pt.demUv;
+
+      positions.push(botX, 0, botZ);
       normals.push(0, 1, 0);
-      uvs.push(pt.x * 0.01, pt.z * 0.01);
-      demUvs.push(pt.demUv.u, pt.demUv.v);
+      uvs.push(botX * 0.01, botZ * 0.01);
+      demUvs.push(botUv.u, botUv.v);
       aShoreTs.push(1.0);
       aSkirtDrops.push(elevationOffset);
     }
@@ -396,8 +437,10 @@ function createPolygonWaterGeometry(
       indices.push(face[0], face[1], face[2]);
     }
 
-    // Boundary skirts for all polygon rings
+    // Sloped boundary skirts for all polygon rings
     const allRings = [outerRing, ...holeRings];
+    const flareDistance = 3.5;
+
     for (const ring of allRings) {
       const ringLen = ring.length;
       if (ringLen < 3) continue;
@@ -406,11 +449,55 @@ function createPolygonWaterGeometry(
       const count = isClosed ? ringLen - 1 : ringLen;
       if (count < 3) continue;
 
+      let signedArea = 0;
+      for (let i = 0; i < count; i += 1) {
+        const p1 = ring[i];
+        const p2 = ring[(i + 1) % count];
+        signedArea += (p2[0] - p1[0]) * (p2[1] + p1[1]);
+      }
+      const isClockwise = signedArea > 0;
+
+      const ringOffsets = [];
+      for (let i = 0; i < count; i += 1) {
+        const [lng, lat] = ring[i];
+        ringOffsets.push(
+          latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng),
+        );
+      }
+
+      const outwardNormals: { nx: number; nz: number }[] = [];
+      for (let i = 0; i < count; i += 1) {
+        const prev = ringOffsets[(i - 1 + count) % count];
+        const curr = ringOffsets[i];
+        const next = ringOffsets[(i + 1) % count];
+
+        const dx1 = curr.x - prev.x;
+        const dz1 = curr.z - prev.z;
+        const dx2 = next.x - curr.x;
+        const dz2 = next.z - curr.z;
+
+        const sign = isClockwise ? 1 : -1;
+        const n1x = dz1 * sign;
+        const n1z = -dx1 * sign;
+        const n2x = dz2 * sign;
+        const n2z = -dx2 * sign;
+
+        const avgNx = n1x + n2x;
+        const avgNz = n1z + n2z;
+        const len = Math.hypot(avgNx, avgNz);
+
+        if (len > 1e-4) {
+          outwardNormals.push({ nx: avgNx / len, nz: avgNz / len });
+        } else {
+          outwardNormals.push({ nx: 0, nz: 0 });
+        }
+      }
+
       const ringStartIndex = positions.length / 3;
 
       for (let i = 0; i < count; i += 1) {
-        const [lng, lat] = ring[i];
-        const offset = latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng);
+        const offset = ringOffsets[i];
+        const norm = outwardNormals[i];
 
         const demUv = demAtlas
           ? demAtlas.getDemUvFromOffset(offset.x, offset.z, worldCenterLatlng)
@@ -424,11 +511,15 @@ function createPolygonWaterGeometry(
         aShoreTs.push(1.0);
         aSkirtDrops.push(0.0);
 
-        // Bottom vertex (dropped to terrain)
-        positions.push(offset.x, 0, offset.z);
+        // Bottom vertex pushed outward along normal and dropped to terrain
+        const botX = offset.x + norm.nx * flareDistance;
+        const botZ = offset.z + norm.nz * flareDistance;
+        const botUv = demAtlas ? demAtlas.getDemUvFromOffset(botX, botZ, worldCenterLatlng) : demUv;
+
+        positions.push(botX, 0, botZ);
         normals.push(0, 1, 0);
-        uvs.push(offset.x * 0.01, offset.z * 0.01);
-        demUvs.push(demUv.u, demUv.v);
+        uvs.push(botX * 0.01, botZ * 0.01);
+        demUvs.push(botUv.u, botUv.v);
         aShoreTs.push(1.0);
         aSkirtDrops.push(elevationOffset);
       }
@@ -488,11 +579,25 @@ export function buildWatersGroup(
   worldCenterLatlng: LatLng,
   demAtlas?: DemAtlas,
   elevationOffset = DEFAULT_WATER_ELEVATION_OFFSET,
+  collectionNatural?: GeoJSON.FeatureCollection,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'osm-waters';
 
   const geometries: THREE.BufferGeometry[] = [];
+
+  const naturalWaterNames = new Set(
+    collectionNatural?.features
+      .map((p) =>
+        p.properties && Object.hasOwn(p.properties, 'name') ? p.properties['name'] : null,
+      )
+      .filter(Boolean) ?? [],
+  );
+
+  const hasNatural = (properties: GeoJSON.GeoJsonProperties) => {
+    if (!properties || !Object.hasOwn(properties, 'name')) return false;
+    return naturalWaterNames.has(properties.name);
+  };
 
   for (const feature of collection.features) {
     if (!feature.geometry) continue;
@@ -506,6 +611,7 @@ export function buildWatersGroup(
 
       for (const rawLine of rawLines) {
         if (rawLine.length < 2) continue;
+        if (hasNatural(feature)) continue;
 
         const line = subdivideCoordinates(rawLine);
 

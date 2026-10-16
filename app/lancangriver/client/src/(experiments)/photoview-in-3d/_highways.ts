@@ -25,6 +25,7 @@ const HIGHWAY_WIDTHS: Record<string, number> = {
 };
 
 const DEFAULT_HIGHWAY_WIDTH = 5;
+export const DEFAULT_HIGHWAY_ELEVATION_OFFSET = 6.0;
 const MAX_SEGMENT_LENGTH_METERS = 30;
 
 const HIGHWAY_COLORS: Record<string, number> = {
@@ -50,16 +51,20 @@ const highwayVertexShader = /* glsl */ `
   uniform float elevationOffset;
 
   attribute vec2 demUv;
+  attribute float aSkirtDrop;
+
   varying vec2 vUv;
+  varying float vSkirtDrop;
 
   void main() {
     vUv = uv;
+    vSkirtDrop = aSkirtDrop;
     vec2 clampedUv = clamp(demUv, 0.0, 1.0);
     float elevation = texture2D(demAtlas, clampedUv).r;
     float raise = elevation - demMedian;
 
     vec3 pos = position;
-    pos.y += raise + elevationOffset;
+    pos.y += raise + elevationOffset - aSkirtDrop;
 
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
@@ -69,9 +74,14 @@ const highwayVertexShader = /* glsl */ `
 const highwayFragmentShader = /* glsl */ `
   uniform vec3 diffuseColor;
   varying vec2 vUv;
+  varying float vSkirtDrop;
 
   void main() {
-    gl_FragColor = vec4(diffuseColor, 1.0);
+    vec3 col = diffuseColor;
+    if (vSkirtDrop > 0.01) {
+      col *= 0.65;
+    }
+    gl_FragColor = vec4(col, 1.0);
   }
 `;
 
@@ -129,6 +139,7 @@ function createRoadRibbonGeometry(
   width: number,
   demAtlas?: DemAtlas,
   worldCenterLatlng?: LatLng,
+  elevationOffset = DEFAULT_HIGHWAY_ELEVATION_OFFSET,
 ): THREE.BufferGeometry | null {
   if (points.length < 2) return null;
 
@@ -136,6 +147,7 @@ function createRoadRibbonGeometry(
   const normals: number[] = [];
   const uvs: number[] = [];
   const demUvs: number[] = [];
+  const aSkirtDrops: number[] = [];
   const indices: number[] = [];
 
   const cumulativeDistances = [0];
@@ -152,6 +164,22 @@ function createRoadRibbonGeometry(
   const side = new THREE.Vector3();
   const left = new THREE.Vector3();
   const right = new THREE.Vector3();
+
+  // Cache left and right edge coordinates for constructing side skirts
+  const leftEdgePoints: {
+    x: number;
+    z: number;
+    outwardX: number;
+    outwardZ: number;
+    demUv: { u: number; v: number };
+  }[] = [];
+  const rightEdgePoints: {
+    x: number;
+    z: number;
+    outwardX: number;
+    outwardZ: number;
+    demUv: { u: number; v: number };
+  }[] = [];
 
   for (let i = 0; i < points.length; i += 1) {
     const point = points[i];
@@ -176,14 +204,33 @@ function createRoadRibbonGeometry(
     positions.push(left.x, left.y, left.z, right.x, right.y, right.z);
     normals.push(0, 1, 0, 0, 1, 0);
     uvs.push(0, v, 1, v);
+    aSkirtDrops.push(0.0, 0.0);
 
-    if (demAtlas && worldCenterLatlng) {
-      const leftUv = demAtlas.getDemUvFromOffset(left.x, left.z, worldCenterLatlng);
-      const rightUv = demAtlas.getDemUvFromOffset(right.x, right.z, worldCenterLatlng);
-      demUvs.push(leftUv.u, leftUv.v, rightUv.u, rightUv.v);
-    } else {
-      demUvs.push(0, 0, 0, 0);
-    }
+    const leftUv =
+      demAtlas && worldCenterLatlng
+        ? demAtlas.getDemUvFromOffset(left.x, left.z, worldCenterLatlng)
+        : { u: 0, v: 0 };
+    const rightUv =
+      demAtlas && worldCenterLatlng
+        ? demAtlas.getDemUvFromOffset(right.x, right.z, worldCenterLatlng)
+        : { u: 0, v: 0 };
+
+    demUvs.push(leftUv.u, leftUv.v, rightUv.u, rightUv.v);
+
+    leftEdgePoints.push({
+      x: left.x,
+      z: left.z,
+      outwardX: side.x,
+      outwardZ: side.z,
+      demUv: leftUv,
+    });
+    rightEdgePoints.push({
+      x: right.x,
+      z: right.z,
+      outwardX: -side.x,
+      outwardZ: -side.z,
+      demUv: rightUv,
+    });
 
     if (i < points.length - 1) {
       const leftIndex = i * 2;
@@ -195,11 +242,66 @@ function createRoadRibbonGeometry(
     }
   }
 
+  // --- Add Sloped Embankment Skirts along left and right shoulders ---
+  const flareDistance = Math.min(width * 0.8, 8.0);
+
+  const addShoulderSkirt = (
+    edgePts: {
+      x: number;
+      z: number;
+      outwardX: number;
+      outwardZ: number;
+      demUv: { u: number; v: number };
+    }[],
+  ) => {
+    const edgeStartIndex = positions.length / 3;
+    for (let i = 0; i < edgePts.length; i += 1) {
+      const pt = edgePts[i];
+      // Top vertex (elevated surface level)
+      positions.push(pt.x, 0, pt.z);
+      normals.push(0, 1, 0);
+      uvs.push(0, 0);
+      demUvs.push(pt.demUv.u, pt.demUv.v);
+      aSkirtDrops.push(0.0);
+
+      // Bottom vertex pushed outward along (outwardX, outwardZ) to meet terrain
+      const botX = pt.x + pt.outwardX * flareDistance;
+      const botZ = pt.z + pt.outwardZ * flareDistance;
+      const botUv =
+        demAtlas && worldCenterLatlng
+          ? demAtlas.getDemUvFromOffset(botX, botZ, worldCenterLatlng)
+          : pt.demUv;
+
+      positions.push(botX, 0, botZ);
+      normals.push(0, 1, 0);
+      uvs.push(0, 0);
+      demUvs.push(botUv.u, botUv.v);
+      aSkirtDrops.push(elevationOffset);
+    }
+
+    for (let i = 0; i < edgePts.length - 1; i += 1) {
+      const topCurr = edgeStartIndex + i * 2;
+      const botCurr = topCurr + 1;
+      const topNext = edgeStartIndex + (i + 1) * 2;
+      const botNext = topNext + 1;
+
+      // Double-sided quad faces
+      indices.push(topCurr, botCurr, topNext);
+      indices.push(botCurr, botNext, topNext);
+      indices.push(topCurr, topNext, botCurr);
+      indices.push(botCurr, topNext, botNext);
+    }
+  };
+
+  addShoulderSkirt(leftEdgePoints);
+  addShoulderSkirt(rightEdgePoints);
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setAttribute('demUv', new THREE.Float32BufferAttribute(demUvs, 2));
+  geometry.setAttribute('aSkirtDrop', new THREE.Float32BufferAttribute(aSkirtDrops, 1));
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
 
@@ -220,7 +322,7 @@ export function buildHighwaysGroup(
   collection: GeoJSON.FeatureCollection,
   worldCenterLatlng: LatLng,
   demAtlas?: DemAtlas,
-  elevationOffset = 1.0,
+  elevationOffset = DEFAULT_HIGHWAY_ELEVATION_OFFSET,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'osm-highways';
@@ -243,16 +345,17 @@ export function buildHighwaysGroup(
       const line = subdivideCoordinates(rawLine);
 
       const points = line.map(([lng, lat]) => {
-        const offset = latLngToMetersOffset(
-          lat,
-          lng,
-          worldCenterLatlng.lat,
-          worldCenterLatlng.lng,
-        );
+        const offset = latLngToMetersOffset(lat, lng, worldCenterLatlng.lat, worldCenterLatlng.lng);
         return new THREE.Vector3(offset.x, 0, offset.z);
       });
 
-      const ribbonGeom = createRoadRibbonGeometry(points, width, demAtlas, worldCenterLatlng);
+      const ribbonGeom = createRoadRibbonGeometry(
+        points,
+        width,
+        demAtlas,
+        worldCenterLatlng,
+        elevationOffset,
+      );
       if (ribbonGeom) {
         let bucket = geometriesByColor.get(colorHex);
         if (!bucket) {
@@ -313,4 +416,3 @@ export function disposeHighwaysGroup(group: THREE.Group | null): void {
 
   group.clear();
 }
-
