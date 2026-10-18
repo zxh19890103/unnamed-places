@@ -211,7 +211,11 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         demMedian: { value: demMedian },
         tileMeters: { value: sizeMeters },
         bwOSMMaskAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.textureUniform : { value: null },
+        osmSdfAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.sdfTextureUniform : { value: null },
         hasBwOSMMask: { value: bwOSMMaskAtlas ? 1.0 : 0.0 },
+        isFineLod: { value: 1.0 },
+        sdfThreshold: { value: 0.0 },
+        sdfHalfWidth: { value: 1.0 },
         atlasUvOffset: { value: atlasUvOffset },
         atlasUvScale: { value: atlasUvScale },
         osmMaskColor: { value: new THREE.Color(0x38bdf8) },
@@ -223,7 +227,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
       vertexShader: tileVertexShader,
       fragmentShader: tileFragmentShader,
       fog: true,
-      side: THREE.FrontSide,
+      side: THREE.DoubleSide,
       transparent: false,
     });
 
@@ -619,18 +623,59 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
     // this.add(debugPlane);
 
-    // const debugPlane2 = new THREE.Mesh(
-    //   new THREE.PlaneGeometry(1280, 1280, 1, 1),
-    //   new THREE.MeshBasicMaterial({
-    //     map: this.bwOSMMaskAtlas.texture,
-    //     side: THREE.FrontSide,
-    //   }),
-    // );
+    const debugPlane2 = new THREE.Mesh(
+      new THREE.PlaneGeometry(1280, 1280, 1, 1),
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uSdfTexture: this.bwOSMMaskAtlas.sdfTextureUniform,
+        },
+        vertexShader: /* glsl */ `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform sampler2D uSdfTexture;
+          varying vec2 vUv;
 
-    // debugPlane2.rotateX(-0.5 * Math.PI);
-    // debugPlane2.position.y += 500;
+          void main() {
+            float dist = texture2D(uSdfTexture, vUv).r;
 
-    // this.add(debugPlane2);
+            vec3 color;
+            if (dist < 0.0) {
+              // Inside road/waterway/lake (negative): cyan near boundary, navy deep inside
+              float t = clamp(-dist / 30.0, 0.0, 1.0);
+              color = mix(vec3(0.0, 0.75, 1.0), vec3(0.02, 0.06, 0.22), t);
+            } else {
+              // Outside on land (positive): warm gray near boundary to dark terrain
+              float t = clamp(dist / 30.0, 0.0, 1.0);
+              color = mix(vec3(0.75, 0.75, 0.75), vec3(0.18, 0.18, 0.18), t);
+            }
+
+            // Metric contour lines every 5 meters within the narrow band
+            float isoline = abs(fract(dist / 5.0 + 0.5) - 0.5);
+            if (isoline < 0.08 && abs(dist) < 40.0) {
+              color = mix(color, vec3(1.0, 1.0, 1.0), 0.35);
+            }
+
+            // Exact zero boundary (shoreline / road edge) in bright red
+            if (abs(dist) < 1.0) {
+              color = vec3(1.0, 0.15, 0.15);
+            }
+
+            gl_FragColor = vec4(color, 1.0);
+          }
+        `,
+        side: THREE.DoubleSide,
+      }),
+    );
+
+    debugPlane2.rotateX(-0.5 * Math.PI);
+    debugPlane2.position.y += 500;
+
+    this.add(debugPlane2);
 
     const worldCenterLatlng = tileXYToLatLng(centerX + 0.5, centerY + 0.5, zoom);
     this.worldCenterLatlng = worldCenterLatlng;
@@ -903,7 +948,11 @@ const tileFragmentShader = /*glsl */ `
   uniform float hasSatellite;
 
   uniform sampler2D bwOSMMaskAtlas;
+  uniform sampler2D osmSdfAtlas;
   uniform float hasBwOSMMask;
+  uniform float isFineLod;
+  uniform float sdfThreshold;
+  uniform float sdfHalfWidth;
   uniform vec3 osmMaskColor;
   uniform float osmMaskOpacity;
 
@@ -951,13 +1000,16 @@ ${noiseGlsl}
     finalColor = applyContrast(finalColor, contrast);
     finalColor = applyBrightness(finalColor, brightness);
 
-    // OSM Vector Mask Layer: blend mask color over satellite imagery
-    if (hasBwOSMMask > 0.5) {
+    // OSM Vector Mask Layer: Signed Distance Field (SDF) clipping at fine LODs
+    if (hasBwOSMMask > 0.5 && isFineLod > 0.5) {
       if (vAtlasUv.x >= 0.0 && vAtlasUv.x <= 1.0 && vAtlasUv.y >= 0.0 && vAtlasUv.y <= 1.0) {
-        float mask = texture2D(bwOSMMaskAtlas, vAtlasUv).r;
-        if (mask > 0.02) {
+        float dist = texture2D(osmSdfAtlas, vAtlasUv).r;
+        float halfWidth = max(sdfHalfWidth, 0.001);
+        float alpha = smoothstep(sdfThreshold - halfWidth, sdfThreshold + halfWidth, dist);
+
+        if (alpha < 0.5) {
           discard;
-        };
+        }
       }
     }
 

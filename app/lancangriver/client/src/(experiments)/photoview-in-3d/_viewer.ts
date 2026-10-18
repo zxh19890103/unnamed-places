@@ -508,9 +508,11 @@ export class PhotoviewViewer {
         tileGrid.bwOSMMaskAtlas
       ) {
         tileGrid.bwOSMMaskAtlas.clear();
+
         if (naturalWatersData) {
           tileGrid.bwOSMMaskAtlas.drawPolygons(naturalWatersData);
         }
+
         if (watersData) {
           tileGrid.bwOSMMaskAtlas.drawLines(watersData, {
             propertyKey: 'waterway',
@@ -518,6 +520,7 @@ export class PhotoviewViewer {
             widthScale: DEFAULT_WATERWAY_WIDTH_SCALE,
           });
         }
+
         if (highwaysData) {
           tileGrid.bwOSMMaskAtlas.drawLines(highwaysData, {
             propertyKey: 'highway',
@@ -525,7 +528,8 @@ export class PhotoviewViewer {
             widthScale: DEFAULT_HIGHWAY_WIDTH_SCALE,
           });
         }
-        tileGrid.bwOSMMaskAtlas.flush();
+
+        tileGrid.bwOSMMaskAtlas.flush(this.renderer);
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || signal.aborted) {

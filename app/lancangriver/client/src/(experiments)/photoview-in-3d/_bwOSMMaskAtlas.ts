@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { EARTH_RADIUS } from '@/calc/constants';
 import { LatLng, latLngToTileXY, tileMetersAtLatitude } from './_fns';
+import { OSMSdfGenerator } from './_osmSdf';
 
 // --- Width Scaling Constants for Tuning ---
-export const DEFAULT_HIGHWAY_WIDTH_SCALE = 3.0;
-export const DEFAULT_WATERWAY_WIDTH_SCALE = 3.0;
+export const DEFAULT_HIGHWAY_WIDTH_SCALE = 1.0;
+export const DEFAULT_WATERWAY_WIDTH_SCALE = 1.0;
 export const MIN_LINE_WIDTH_PIXELS = 1.0;
 
 export const HIGHWAY_WIDTHS_METERS: Record<string, number> = {
@@ -72,6 +73,11 @@ export class BwOSMMaskAtlas {
 
   readonly textureUniform: THREE.IUniform<THREE.Texture> = { value: null };
 
+  readonly sdfTexture: THREE.DataTexture;
+  readonly sdfData: Float32Array;
+  readonly sdfTextureUniform: THREE.IUniform<THREE.Texture> = { value: null };
+  private sdfGenerator: OSMSdfGenerator | null = null;
+
   private readonly canvas: OffscreenCanvas | HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
   private isDisposed = false;
@@ -133,6 +139,40 @@ export class BwOSMMaskAtlas {
     this.texture.needsUpdate = true;
 
     this.textureUniform.value = this.texture;
+
+    // Signed Distance Field texture (Float32 single-channel)
+    this.sdfData = new Float32Array(this.atlasWidth * this.atlasHeight);
+    this.sdfData.fill(9999.0);
+
+    this.sdfTexture = new THREE.DataTexture(
+      this.sdfData,
+      this.atlasWidth,
+      this.atlasHeight,
+      THREE.RedFormat,
+      THREE.FloatType,
+    );
+    this.sdfTexture.minFilter = THREE.LinearFilter;
+    this.sdfTexture.magFilter = THREE.LinearFilter;
+    this.sdfTexture.wrapS = THREE.ClampToEdgeWrapping;
+    this.sdfTexture.wrapT = THREE.ClampToEdgeWrapping;
+    this.sdfTexture.generateMipmaps = false;
+    this.sdfTexture.needsUpdate = true;
+
+    this.sdfTextureUniform.value = this.sdfTexture;
+  }
+
+  private getSdfGenerator(): OSMSdfGenerator {
+    if (!this.sdfGenerator) {
+      const metersPerTile = tileMetersAtLatitude(this.centerLat, this.zoom);
+      const metersPerTexel = metersPerTile / this.tilePixelSize;
+      this.sdfGenerator = new OSMSdfGenerator({
+        width: this.atlasWidth,
+        height: this.atlasHeight,
+        metersPerTexel,
+        rounds: 4,
+      });
+    }
+    return this.sdfGenerator;
   }
 
   /**
@@ -155,6 +195,8 @@ export class BwOSMMaskAtlas {
     this.ctx.fillRect(0, 0, this.atlasWidth, this.atlasHeight);
     this.atlasData.fill(0);
     this.texture.needsUpdate = true;
+    this.sdfData.fill(9999.0);
+    this.sdfTexture.needsUpdate = true;
   }
 
   /**
@@ -240,10 +282,8 @@ export class BwOSMMaskAtlas {
         : props.highway || props.waterway || 'default';
       const baseWidthMeters = widthTable[categoryKey] ?? widthTable.default ?? defaultWidth;
 
-      const strokePixels = Math.max(
-        MIN_LINE_WIDTH_PIXELS,
-        baseWidthMeters * pixelsPerMeter * widthScale,
-      );
+      // Ensure stroke is at least 1.0 physical pixel so Canvas 2D maintains continuous 8-connectivity
+      const strokePixels = Math.max(1.5, baseWidthMeters * pixelsPerMeter * widthScale);
 
       this.ctx.lineWidth = strokePixels;
 
@@ -266,9 +306,17 @@ export class BwOSMMaskAtlas {
   /**
    * Synchronize the 2D canvas pixels into WebGL DataTexture.
    * Flips Y row-by-row so canvas row 0 (North) maps to the highest V row in WebGL texture.
+   * If a WebGLRenderer is provided, also updates the Signed Distance Field (SDF) texture.
    */
-  flush(): void {
+  flush(renderer?: THREE.WebGLRenderer): void {
     if (this.isDisposed) return;
+
+    // Treat edge pixels along zone boundaries as outside
+    this.ctx.fillStyle = '#000000';
+    this.ctx.fillRect(0, 0, this.atlasWidth, 1);
+    this.ctx.fillRect(0, this.atlasHeight - 1, this.atlasWidth, 1);
+    this.ctx.fillRect(0, 0, 1, this.atlasHeight);
+    this.ctx.fillRect(this.atlasWidth - 1, 0, 1, this.atlasHeight);
 
     const imgData = this.ctx.getImageData(0, 0, this.atlasWidth, this.atlasHeight).data;
 
@@ -284,6 +332,20 @@ export class BwOSMMaskAtlas {
     }
 
     this.texture.needsUpdate = true;
+
+    if (renderer && !this.isDisposed) {
+      this.computeSdf(renderer);
+    }
+  }
+
+  /**
+   * Execute GPU jump flooding algorithm to generate the signed distance field.
+   */
+  computeSdf(renderer: THREE.WebGLRenderer): void {
+    if (this.isDisposed) return;
+    const generator = this.getSdfGenerator();
+    generator.computeSdf(renderer, this.texture, this.sdfData);
+    this.sdfTexture.needsUpdate = true;
   }
 
   /**
@@ -317,5 +379,8 @@ export class BwOSMMaskAtlas {
     if (this.isDisposed) return;
     this.isDisposed = true;
     this.texture.dispose();
+    this.sdfTexture.dispose();
+    this.sdfGenerator?.dispose();
+    this.sdfGenerator = null;
   }
 }
