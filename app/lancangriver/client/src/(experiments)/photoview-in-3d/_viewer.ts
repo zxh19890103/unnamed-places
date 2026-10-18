@@ -33,6 +33,12 @@ import {
 } from './_waterwayLabels.js';
 import { CloudSystem, CloudShadowUniforms, type CloudSystemOptions } from './_cloud.js';
 import { DEFAULT_DAYTIME, setSolarDaytime, SolarUniforms } from './_solar.js';
+import {
+  DEFAULT_HIGHWAY_WIDTH_SCALE,
+  DEFAULT_WATERWAY_WIDTH_SCALE,
+  HIGHWAY_WIDTHS_METERS,
+  WATERWAY_WIDTHS_METERS,
+} from './_bwOSMMaskAtlas.js';
 
 const CAMERA_ALTITUDE_DEG = 12 * DEG_TO_RAD;
 const CAMERA_DISTANCE = 3800;
@@ -364,19 +370,23 @@ export class PhotoviewViewer {
 
       if (signal.aborted || this.isDisposed) return;
 
+      let highwaysData: GeoJSON.FeatureCollection | null = null;
       if (highwaysRes.ok) {
-        const highwaysData: GeoJSON.FeatureCollection = await highwaysRes.json();
+        highwaysData = await highwaysRes.json();
         if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
           if (this.highwaysGroup) {
             this.scene.remove(this.highwaysGroup);
             disposeHighwaysGroup(this.highwaysGroup);
           }
+
           this.highwaysGroup = buildHighwaysGroup(
             highwaysData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            2.0,
+            -0.0,
           );
+
+          // this.highwaysGroup.position.y += 5.0;
           this.scene.add(this.highwaysGroup);
 
           if (this.roadLabelsGroup) {
@@ -397,8 +407,15 @@ export class PhotoviewViewer {
         }
       }
 
+      let naturalWatersData: GeoJSON.FeatureCollection | null = null;
+
+      if (naturalWaterRes.ok) {
+        naturalWatersData = await naturalWaterRes.json();
+      }
+
+      let watersData: GeoJSON.FeatureCollection | null = null;
       if (watersRes.ok) {
-        const watersData: GeoJSON.FeatureCollection = await watersRes.json();
+        watersData = await watersRes.json();
 
         if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
           if (this.watersGroup) {
@@ -406,16 +423,12 @@ export class PhotoviewViewer {
             disposeWatersGroup(this.watersGroup);
           }
 
-          let naturalWatersData = null;
-          if (naturalWaterRes.ok) {
-            naturalWatersData = await naturalWaterRes.json();
-          }
-
           this.watersGroup = buildWatersGroup(
             watersData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            5.0,
+            tileGrid.satelliteAtlas,
+            0.0,
             naturalWatersData,
           );
 
@@ -441,17 +454,17 @@ export class PhotoviewViewer {
       }
 
       if (naturalWaterRes.ok) {
-        const naturalWaterData: GeoJSON.FeatureCollection = await naturalWaterRes.json();
         if (!signal.aborted && !this.isDisposed && this._tileGrid === tileGrid) {
           if (this.naturalWatersGroup) {
             this.scene.remove(this.naturalWatersGroup);
             disposeNaturalWatersGroup(this.naturalWatersGroup);
           }
           this.naturalWatersGroup = buildNaturalWatersGroup(
-            naturalWaterData,
+            naturalWatersData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
-            10.0,
+            tileGrid.satelliteAtlas,
+            0.0,
           );
           this.scene.add(this.naturalWatersGroup);
 
@@ -460,7 +473,7 @@ export class PhotoviewViewer {
             disposeNaturalWaterLabelsGroup(this.naturalWaterLabelsGroup);
           }
           this.naturalWaterLabelsGroup = buildNaturalWaterLabelsGroup(
-            naturalWaterData,
+            naturalWatersData,
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
             0.5,
@@ -486,6 +499,33 @@ export class PhotoviewViewer {
           );
           this.scene.add(this.placesGroup);
         }
+      }
+
+      if (
+        !signal.aborted &&
+        !this.isDisposed &&
+        this._tileGrid === tileGrid &&
+        tileGrid.bwOSMMaskAtlas
+      ) {
+        tileGrid.bwOSMMaskAtlas.clear();
+        if (naturalWatersData) {
+          tileGrid.bwOSMMaskAtlas.drawPolygons(naturalWatersData);
+        }
+        if (watersData) {
+          tileGrid.bwOSMMaskAtlas.drawLines(watersData, {
+            propertyKey: 'waterway',
+            widthTable: WATERWAY_WIDTHS_METERS,
+            widthScale: DEFAULT_WATERWAY_WIDTH_SCALE,
+          });
+        }
+        if (highwaysData) {
+          tileGrid.bwOSMMaskAtlas.drawLines(highwaysData, {
+            propertyKey: 'highway',
+            widthTable: HIGHWAY_WIDTHS_METERS,
+            widthScale: DEFAULT_HIGHWAY_WIDTH_SCALE,
+          });
+        }
+        tileGrid.bwOSMMaskAtlas.flush();
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || signal.aborted) {

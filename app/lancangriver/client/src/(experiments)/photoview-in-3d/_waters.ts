@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { latLngToMetersOffset, LatLng } from './_fns';
 import { DemAtlas } from './_demAtlas';
 import { SolarUniforms } from './_solar.js';
+import { SatelliteAtlas } from './_satelliteAtlas';
 
 const WATERWAY_WIDTHS: Record<string, number> = {
   river: 24,
@@ -15,9 +16,9 @@ const WATERWAY_WIDTHS: Record<string, number> = {
   default: 8,
 };
 
-const DEFAULT_WATER_COLOR = '#0d5966';
+const DEFAULT_WATER_COLOR = '#1a8ea3';
 const MAX_SEGMENT_LENGTH_METERS = 30;
-const WATER_WIDTH_SCALE = 2;
+const WATER_WIDTH_SCALE = 1;
 const DEFAULT_WATER_ELEVATION_OFFSET = 5.0;
 
 let cachedWaterNormalTexture: THREE.Texture | null = null;
@@ -46,6 +47,7 @@ const waterVertexShader = /* glsl */ `
   attribute float aSkirtDrop;
 
   varying vec2 vUv;
+  varying vec2 vDemUv;
   varying vec3 vWorldPosition;
   varying float vShoreT;
   varying float vSkirtDrop;
@@ -54,7 +56,10 @@ const waterVertexShader = /* glsl */ `
     vUv = uv;
     vShoreT = aShoreT;
     vSkirtDrop = aSkirtDrop;
+
     vec2 clampedUv = clamp(demUv, 0.0, 1.0);
+    vDemUv = clampedUv;
+
     float elevation = texture2D(demAtlas, clampedUv).r;
     float raise = elevation - demMedian;
 
@@ -70,11 +75,15 @@ const waterVertexShader = /* glsl */ `
 
 const waterFragmentShader = /* glsl */ `
   uniform vec3 diffuseColor;
+  uniform vec3 shoreColor;
   uniform float opacity;
+
   uniform sampler2D normalSampler;
+  
   uniform float uTime;
   uniform vec3 sunDirection;
 
+  varying vec2 vDemUv;
   varying vec2 vUv;
   varying vec3 vWorldPosition;
   varying float vShoreT;
@@ -110,7 +119,6 @@ const waterFragmentShader = /* glsl */ `
 
     // Blend base color toward dark shore color within the outer 30% of the ribbon width (shoreDistance in [0.0, 0.3])
     float shoreFactor = 1.0 - smoothstep(0.0, 0.3, shoreDistance);
-    vec3 shoreColor = vec3(0.60, 0.74, 0.78);
     baseColor = mix(baseColor, shoreColor, shoreFactor);
 
     // Darken vertical skirts toward deeper shoreline tone as they drop down
@@ -577,26 +585,38 @@ function extractPolygonCoordinates(geometry: GeoJSON.Geometry): GeoJSON.Position
 export function buildWatersGroup(
   collection: GeoJSON.FeatureCollection,
   worldCenterLatlng: LatLng,
-  demAtlas?: DemAtlas,
+  demAtlas: DemAtlas,
+  satelliteAtlas: SatelliteAtlas,
   elevationOffset = DEFAULT_WATER_ELEVATION_OFFSET,
-  collectionNatural?: GeoJSON.FeatureCollection,
+  collectionNatural: GeoJSON.FeatureCollection,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'osm-waters';
 
   const geometries: THREE.BufferGeometry[] = [];
 
+  const readPropertyName = (properties: GeoJSON.GeoJsonProperties, name = 'name') => {
+    if (!properties) return '';
+    const tags = properties.tags;
+    if (!tags) return '';
+    return tags[name] ?? '';
+  };
+
   const naturalWaterNames = new Set(
     collectionNatural?.features
-      .map((p) =>
-        p.properties && Object.hasOwn(p.properties, 'name') ? p.properties['name'] : null,
-      )
+      .flatMap((p) => [
+        readPropertyName(p.properties, 'name'),
+        readPropertyName(p.properties, 'name:en'),
+        readPropertyName(p.properties, 'name:zh'),
+      ])
       .filter(Boolean) ?? [],
   );
 
   const hasNatural = (properties: GeoJSON.GeoJsonProperties) => {
-    if (!properties || !Object.hasOwn(properties, 'name')) return false;
-    return naturalWaterNames.has(properties.name);
+    // const name = readPropertyName(properties);
+    // if (!name) return false;
+    // return naturalWaterNames.has(properties.name);
+    return true;
   };
 
   for (const feature of collection.features) {
@@ -608,10 +628,10 @@ export function buildWatersGroup(
       const rawLines = extractLineCoordinates(feature.geometry);
       const waterwayType = getWaterwayType(feature);
       const width = getWaterwayWidth(waterwayType);
+      if (hasNatural(feature.properties)) continue;
 
       for (const rawLine of rawLines) {
         if (rawLine.length < 2) continue;
-        if (hasNatural(feature)) continue;
 
         const line = subdivideCoordinates(rawLine);
 
@@ -666,8 +686,10 @@ export function buildWatersGroup(
           ...SolarUniforms,
           demAtlas: demAtlas ? demAtlas.textureUniform : { value: new THREE.Texture() },
           demMedian: demAtlas ? demAtlas.demMedianUniform : { value: 0 },
+          satelliteAtlas: satelliteAtlas.textureUniform,
           elevationOffset: { value: elevationOffset },
           diffuseColor: { value: new THREE.Color(DEFAULT_WATER_COLOR) },
+          shoreColor: { value: new THREE.Color(DEFAULT_WATER_COLOR) },
           opacity: { value: 0.85 },
           normalSampler: { value: normalTexture },
           uTime: { value: 0 },

@@ -29,20 +29,20 @@ export const DEFAULT_HIGHWAY_ELEVATION_OFFSET = 6.0;
 const MAX_SEGMENT_LENGTH_METERS = 30;
 
 const HIGHWAY_COLORS: Record<string, number> = {
-  motorway: 0xff9900,
-  motorway_link: 0xffaa33,
-  trunk: 0xff9900,
-  trunk_link: 0xffaa33,
-  primary: 0xf5b041,
-  primary_link: 0xf8c471,
-  secondary: 0xf4d03f,
-  secondary_link: 0xf7dc6f,
-  tertiary: 0xfafafa,
-  tertiary_link: 0xf2f3f4,
-  residential: 0xd5d8dc,
-  unclassified: 0xd5d8dc,
-  service: 0xbdc3c7,
-  default: 0xd5d8dc,
+  motorway: 0xf94144, // vivid red
+  motorway_link: 0xf3722c, // orange-red
+  trunk: 0xf9844a, // warm orange
+  trunk_link: 0xf9c74f, // golden amber
+  primary: 0xf8961e, // strong orange
+  primary_link: 0xfab75a, // soft amber
+  secondary: 0xe76f51, // coral red-orange
+  secondary_link: 0xf4a261, // salmon orange
+  tertiary: 0xffd166, // warm yellow
+  tertiary_link: 0xffe29a, // pale golden
+  residential: 0xf7d9c4, // warm blush
+  unclassified: 0xfce7d7, // pale sand
+  service: 0xe9b8a5, // muted rose
+  default: 0xf7e0d2, // warm ivory
 };
 
 const highwayVertexShader = /* glsl */ `
@@ -321,7 +321,7 @@ function extractLineCoordinates(geometry: GeoJSON.Geometry): GeoJSON.Position[][
 export function buildHighwaysGroup(
   collection: GeoJSON.FeatureCollection,
   worldCenterLatlng: LatLng,
-  demAtlas?: DemAtlas,
+  demAtlas: DemAtlas,
   elevationOffset = DEFAULT_HIGHWAY_ELEVATION_OFFSET,
 ): THREE.Group {
   const group = new THREE.Group();

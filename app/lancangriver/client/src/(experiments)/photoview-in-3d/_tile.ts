@@ -14,6 +14,8 @@ import {
 import { __glsl_funcs__ } from './_glsl';
 import { loadProcessedDem, createDemDataTexture } from './_demDecode';
 import { DemAtlas } from './_demAtlas';
+import { SatelliteAtlas } from './_satelliteAtlas';
+import { BwOSMMaskAtlas } from './_bwOSMMaskAtlas';
 import { SolarUniforms } from './_solar.js';
 import { CloudShadowUniforms, noiseGlsl } from './_cloud.js';
 
@@ -136,6 +138,8 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
     demUvScale: THREE.Vector2,
     useCpuDem: boolean,
     onSatelliteSettled: () => void,
+    readonly satelliteAtlas?: SatelliteAtlas,
+    readonly bwOSMMaskAtlas?: BwOSMMaskAtlas,
   ) {
     const tileCenter = tileXYToLatLng(x + 0.5, y + 0.5, zoom);
     const offset = latLngToMetersOffset(
@@ -158,7 +162,16 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
     const satelliteUrl = `${BASE_URL}/raster/satellite/${zoom}/${x}/${y}.jpeg`;
     const satelliteTexture = textureLoader.load(
       satelliteUrl,
-      () => settle(true),
+      () => {
+        settle(true);
+        if (this.zoom === 14 && satelliteAtlas) {
+          const source = satelliteTexture.image as CanvasImageSource | undefined;
+          if (source) {
+            const sample = SatelliteAtlas.sampleImageToTile(source, satelliteAtlas.tilePixelSize);
+            satelliteAtlas.updateTile(x, y, sample);
+          }
+        }
+      },
       undefined,
       (error) => {
         console.error(`Failed to load satellite tile ${zoom}/${x}/${y}`, error);
@@ -168,6 +181,18 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
     satelliteTexture.colorSpace = THREE.NoColorSpace;
     satelliteTexture.minFilter = THREE.LinearFilter;
     satelliteTexture.magFilter = THREE.LinearFilter;
+
+    const atlasUvOffset = new THREE.Vector2(0, 0);
+    const atlasUvScale = new THREE.Vector2(0, 0);
+
+    if (bwOSMMaskAtlas) {
+      const scale = 2 ** (zoom - bwOSMMaskAtlas.zoom);
+      atlasUvScale.set(1 / (bwOSMMaskAtlas.cols * scale), 1 / (bwOSMMaskAtlas.rows * scale));
+      atlasUvOffset.set(
+        (x / scale - bwOSMMaskAtlas.minTileX) / bwOSMMaskAtlas.cols,
+        1.0 - ((y + 1) / scale - bwOSMMaskAtlas.minTileY) / bwOSMMaskAtlas.rows,
+      );
+    }
 
     const material = new THREE.ShaderMaterial({
       defines: useCpuDem ? { DEM_FLOAT: '1' } : {},
@@ -185,7 +210,13 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         demAvg: { value: demAvg },
         demMedian: { value: demMedian },
         tileMeters: { value: sizeMeters },
-        saturation: { value: 1.0 },
+        bwOSMMaskAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.textureUniform : { value: null },
+        hasBwOSMMask: { value: bwOSMMaskAtlas ? 1.0 : 0.0 },
+        atlasUvOffset: { value: atlasUvOffset },
+        atlasUvScale: { value: atlasUvScale },
+        osmMaskColor: { value: new THREE.Color(0x38bdf8) },
+        osmMaskOpacity: { value: 0.85 },
+        saturation: { value: 2.0 },
         contrast: { value: 1 },
         brightness: { value: 1 },
       },
@@ -244,6 +275,8 @@ class TileGridCell extends THREE.Group {
     readonly clampThreshold = DEM_CLAMP_THRESHOLD_METERS,
     parentCell?: TileGridCell,
     readonly demAtlas?: DemAtlas,
+    readonly satelliteAtlas?: SatelliteAtlas,
+    readonly bwOSMMaskAtlas?: BwOSMMaskAtlas,
   ) {
     super();
 
@@ -398,6 +431,8 @@ class TileGridCell extends THREE.Group {
         if (this.isDisposed) return;
         this.onTextureReady();
       },
+      this.satelliteAtlas,
+      this.bwOSMMaskAtlas,
     );
 
     this.add(this.tileMesh);
@@ -426,6 +461,9 @@ class TileGridCell extends THREE.Group {
           this.useCpuDem,
           this.clampThreshold,
           this,
+          this.demAtlas,
+          this.satelliteAtlas,
+          this.bwOSMMaskAtlas,
         );
         this.subCells.push(child);
         this.add(child);
@@ -519,6 +557,8 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
   readonly zoom0: number;
   readonly demAtlas: DemAtlas;
+  readonly satelliteAtlas: SatelliteAtlas;
+  readonly bwOSMMaskAtlas: BwOSMMaskAtlas;
   private isDisposed = false;
 
   constructor(
@@ -550,6 +590,47 @@ export class TileGrid extends THREE.Group<TileEvents> {
       zoom,
       demMedian: 0,
     });
+    this.satelliteAtlas = new SatelliteAtlas({
+      centerX,
+      centerY,
+      expand,
+      zoom,
+      tilePixelSize: 256,
+    });
+    this.bwOSMMaskAtlas = new BwOSMMaskAtlas({
+      centerX,
+      centerY,
+      centerLat: chip.lat,
+      expand,
+      zoom,
+      tilePixelSize: 256,
+    });
+
+    // const debugPlane = new THREE.Mesh(
+    //   new THREE.PlaneGeometry(1280, 1280, 1, 1),
+    //   new THREE.MeshBasicMaterial({
+    //     map: this.satelliteAtlas.texture,
+    //     side: THREE.FrontSide,
+    //   }),
+    // );
+
+    // debugPlane.rotateX(-0.5 * Math.PI);
+    // debugPlane.position.y += 1000;
+
+    // this.add(debugPlane);
+
+    // const debugPlane2 = new THREE.Mesh(
+    //   new THREE.PlaneGeometry(1280, 1280, 1, 1),
+    //   new THREE.MeshBasicMaterial({
+    //     map: this.bwOSMMaskAtlas.texture,
+    //     side: THREE.FrontSide,
+    //   }),
+    // );
+
+    // debugPlane2.rotateX(-0.5 * Math.PI);
+    // debugPlane2.position.y += 500;
+
+    // this.add(debugPlane2);
 
     const worldCenterLatlng = tileXYToLatLng(centerX + 0.5, centerY + 0.5, zoom);
     this.worldCenterLatlng = worldCenterLatlng;
@@ -625,6 +706,8 @@ export class TileGrid extends THREE.Group<TileEvents> {
               this.clampThreshold,
               undefined,
               this.demAtlas,
+              this.satelliteAtlas,
+              this.bwOSMMaskAtlas,
             );
 
             box.union(mesh.volume);
@@ -678,6 +761,8 @@ export class TileGrid extends THREE.Group<TileEvents> {
   dispose() {
     this.markDisposed();
     this.demAtlas.dispose();
+    this.satelliteAtlas.dispose();
+    this.bwOSMMaskAtlas.dispose();
 
     for (const child of this.children) {
       if (child instanceof TileGridCell) {
@@ -750,8 +835,11 @@ const tileVertexShader = /*glsl */ `
   uniform float demMedian;
   uniform vec2 demTexSize;
   uniform float tileMeters;
+  uniform vec2 atlasUvOffset;
+  uniform vec2 atlasUvScale;
 
   varying vec2 vUv;
+  varying vec2 vAtlasUv;
   varying float vViewZ;
   varying vec3 vWorldPosition;
   varying vec3 vTerrainNormal;
@@ -772,6 +860,7 @@ const tileVertexShader = /*glsl */ `
 
   void main() {
     vUv = uv;
+    vAtlasUv = uv * atlasUvScale + atlasUvOffset;
     vec2 demUv = uv * demUvScale + demUvOffset;
     
     float elevation = sampleDem(demUv);
@@ -813,6 +902,11 @@ const tileFragmentShader = /*glsl */ `
   uniform sampler2D satelliteTexture;
   uniform float hasSatellite;
 
+  uniform sampler2D bwOSMMaskAtlas;
+  uniform float hasBwOSMMask;
+  uniform vec3 osmMaskColor;
+  uniform float osmMaskOpacity;
+
   uniform vec3 idColor;
   uniform float brightness;
   uniform float saturation;
@@ -833,6 +927,7 @@ const tileFragmentShader = /*glsl */ `
   uniform float demMedian;
 
   varying vec2 vUv;
+  varying vec2 vAtlasUv;
   varying float vViewZ;
   varying vec3 vWorldPosition;
   varying vec3 vTerrainNormal;
@@ -855,6 +950,16 @@ ${noiseGlsl}
     vec3 finalColor = applySaturation(color.rgb, saturation);
     finalColor = applyContrast(finalColor, contrast);
     finalColor = applyBrightness(finalColor, brightness);
+
+    // OSM Vector Mask Layer: blend mask color over satellite imagery
+    if (hasBwOSMMask > 0.5) {
+      if (vAtlasUv.x >= 0.0 && vAtlasUv.x <= 1.0 && vAtlasUv.y >= 0.0 && vAtlasUv.y <= 1.0) {
+        float mask = texture2D(bwOSMMaskAtlas, vAtlasUv).r;
+        if (mask > 0.02) {
+          discard;
+        };
+      }
+    }
 
     // 1. Atmospheric sun shading (Option B: DEM-derived normal + dual-tone hillshading)
     vec3 normal = normalize(vTerrainNormal);

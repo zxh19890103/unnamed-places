@@ -4,8 +4,9 @@ import { latLngToMetersOffset, LatLng } from './_fns';
 import { DemAtlas } from './_demAtlas';
 import { SolarUniforms } from './_solar.js';
 import { getWaterNormalTexture } from './_waters.js';
+import { SatelliteAtlas } from './_satelliteAtlas';
 
-const DEFAULT_NATURAL_WATER_COLOR = '#0a4f5c';
+const DEFAULT_NATURAL_WATER_COLOR = '#1a8ea3';
 const DEFAULT_NATURAL_WATER_ELEVATION_OFFSET = 10.0;
 const MAX_RING_SEGMENT_LENGTH_METERS = 30;
 
@@ -19,6 +20,7 @@ const naturalWaterVertexShader = /* glsl */ `
   attribute float aSkirtDrop;
 
   varying vec2 vUv;
+  varying vec2 vDemUv;
   varying vec3 vWorldPosition;
   varying float vShoreT;
   varying float vSkirtDrop;
@@ -29,6 +31,7 @@ const naturalWaterVertexShader = /* glsl */ `
     vSkirtDrop = aSkirtDrop;
 
     vec2 clampedUv = clamp(demUv, 0.0, 1.0);
+    vDemUv = demUv;
     float elevation = texture2D(demAtlas, clampedUv).r;
     float raise = elevation - demMedian;
 
@@ -46,11 +49,15 @@ const naturalWaterVertexShader = /* glsl */ `
 const naturalWaterFragmentShader = /* glsl */ `
   uniform vec3 diffuseColor;
   uniform float opacity;
+
+  uniform sampler2D satelliteAtlas;
   uniform sampler2D normalSampler;
+
   uniform float uTime;
   uniform vec3 sunDirection;
 
   varying vec2 vUv;
+  varying vec2 vDemUv;
   varying vec3 vWorldPosition;
   varying float vShoreT;
   varying float vSkirtDrop;
@@ -74,13 +81,15 @@ const naturalWaterFragmentShader = /* glsl */ `
     vec3 viewDir = normalize(cameraPosition - vWorldPosition);
     vec3 lightDir = normalize(sunDirection);
 
+    vec3 diffuseColor2 = texture2D(satelliteAtlas, vDemUv).rgb;
+
     float NdotL = max(0.0, dot(worldNormal, lightDir));
-    vec3 baseColor = diffuseColor * (0.85 + 0.3 * NdotL);
+    vec3 baseColor = diffuseColor2 * (0.85 + 0.3 * NdotL);
 
     // Darken skirt wall toward deeper shoreline tone as it drops down
     if (vSkirtDrop > 0.01) {
       float dropFactor = clamp(vSkirtDrop / 10.0, 0.0, 1.0);
-      vec3 deepSkirtColor = diffuseColor * 0.55;
+      vec3 deepSkirtColor = diffuseColor2 * 0.55;
       baseColor = mix(baseColor, deepSkirtColor, dropFactor);
     }
 
@@ -297,9 +306,7 @@ function createPolygonWaterGeometry(
         // Bottom vertex: pushed outward by flareDistance along normal, dropped to terrain
         const botX = offset.x + norm.nx * flareDistance;
         const botZ = offset.z + norm.nz * flareDistance;
-        const botUv = demAtlas
-          ? demAtlas.getDemUvFromOffset(botX, botZ, worldCenterLatlng)
-          : demUv;
+        const botUv = demAtlas ? demAtlas.getDemUvFromOffset(botX, botZ, worldCenterLatlng) : demUv;
 
         positions.push(botX, 0, botZ);
         normals.push(0, 1, 0);
@@ -349,7 +356,8 @@ function createPolygonWaterGeometry(
 export function buildNaturalWatersGroup(
   collection: GeoJSON.FeatureCollection,
   worldCenterLatlng: LatLng,
-  demAtlas?: DemAtlas,
+  demAtlas: DemAtlas,
+  satelliteAtlas: SatelliteAtlas,
   elevationOffset = DEFAULT_NATURAL_WATER_ELEVATION_OFFSET,
 ): THREE.Group {
   const group = new THREE.Group();
@@ -392,6 +400,7 @@ export function buildNaturalWatersGroup(
           ...SolarUniforms,
           demAtlas: demAtlas ? demAtlas.textureUniform : { value: new THREE.Texture() },
           demMedian: demAtlas ? demAtlas.demMedianUniform : { value: 0 },
+          satelliteAtlas: satelliteAtlas.textureUniform,
           elevationOffset: { value: elevationOffset },
           diffuseColor: { value: new THREE.Color(DEFAULT_NATURAL_WATER_COLOR) },
           opacity: { value: 0.88 },
