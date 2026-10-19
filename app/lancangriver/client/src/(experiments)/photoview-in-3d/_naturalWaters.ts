@@ -5,12 +5,15 @@ import { DemAtlas } from './_demAtlas';
 import { SolarUniforms } from './_solar.js';
 import { getWaterNormalTexture } from './_waters.js';
 import { SatelliteAtlas } from './_satelliteAtlas';
+import { __glsl_chunks_common__ } from './_glsl';
 
 const DEFAULT_NATURAL_WATER_COLOR = '#1a8ea3';
 const DEFAULT_NATURAL_WATER_ELEVATION_OFFSET = 10.0;
 const MAX_RING_SEGMENT_LENGTH_METERS = 30;
 
 const naturalWaterVertexShader = /* glsl */ `
+  #include <logdepthbuf_pars_vertex>
+
   uniform sampler2D demAtlas;
   uniform float demMedian;
   uniform float elevationOffset;
@@ -24,6 +27,8 @@ const naturalWaterVertexShader = /* glsl */ `
   varying vec3 vWorldPosition;
   varying float vShoreT;
   varying float vSkirtDrop;
+
+  ${__glsl_chunks_common__} 
 
   void main() {
     vUv = uv;
@@ -43,10 +48,14 @@ const naturalWaterVertexShader = /* glsl */ `
 
     vec4 mvPosition = viewMatrix * worldPosition;
     gl_Position = projectionMatrix * mvPosition;
+
+    #include <logdepthbuf_vertex>
   }
 `;
 
 const naturalWaterFragmentShader = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
+
   uniform vec3 diffuseColor;
   uniform float opacity;
 
@@ -63,6 +72,8 @@ const naturalWaterFragmentShader = /* glsl */ `
   varying float vSkirtDrop;
 
   void main() {
+    #include <logdepthbuf_fragment>
+
     // World space horizontal coordinates for ripple scale
     vec2 flowUv = vWorldPosition.xz * 0.001;
 

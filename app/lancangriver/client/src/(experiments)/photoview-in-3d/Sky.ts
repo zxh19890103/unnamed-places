@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DEFAULT_DAYTIME, setSolarDaytime, SolarUniforms } from './_solar.js';
+import { __glsl_chunks_common__ } from './_glsl.js';
 
 export type SkyOptions = {
   r: number;
@@ -29,19 +30,27 @@ export class SolarMesh extends THREE.Mesh<THREE.CircleGeometry, THREE.ShaderMate
         coreColor: { value: new THREE.Color('#ffffff') },
       },
       vertexShader: /* glsl */ `
+        #include <logdepthbuf_pars_vertex>
+
+        ${__glsl_chunks_common__}
+
         varying vec2 vUv;
         void main() {
           vUv = uv;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          #include <logdepthbuf_vertex>
         }
       `,
       fragmentShader: /* glsl */ `
+        #include <logdepthbuf_pars_fragment>
+
         uniform vec3 coreColor;
         uniform vec3 coronaColor;
         uniform vec3 flareColor;
         varying vec2 vUv;
 
         void main() {
+          #include <logdepthbuf_fragment>
           vec2 center = vUv - vec2(0.5);
           float dist = length(center) * 2.0;
 
@@ -128,18 +137,24 @@ class SkyMaterial extends THREE.ShaderMaterial {
       wireframe: false,
       depthWrite: true,
       vertexShader: /*glsl */ `
+        #include <logdepthbuf_pars_vertex>
         uniform float radius;
 
         varying float vAlt;
         varying vec3 vPos;
 
+        ${__glsl_chunks_common__}
+
         void main() {
           vPos = position;
           vAlt = position.y / radius;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          #include <logdepthbuf_vertex>
         }
       `,
       fragmentShader: /*glsl */ `
+        #include <logdepthbuf_pars_fragment>
+
         uniform vec3 skyZenith;
         uniform vec3 skyHorizon;
         uniform vec3 skyHaze;
@@ -151,6 +166,7 @@ class SkyMaterial extends THREE.ShaderMaterial {
         varying vec3 vPos;
 
         void main() {
+          #include <logdepthbuf_fragment>
           if (vAlt < -0.1) discard;
 
           // 1. Normalized viewing direction to sky dome

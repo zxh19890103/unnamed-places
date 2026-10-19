@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DemAtlas } from './_demAtlas';
+import { __glsl_chunks_common__ } from './_glsl';
 
 export interface LabelLodConfig {
   maxDistance: number;
@@ -23,6 +24,8 @@ export type LabelGroup = THREE.Group & {
 export const DEFAULT_LABEL_SCALE = 1.6;
 
 export const labelSpriteVertexShader = /* glsl */ `
+  #include <logdepthbuf_pars_vertex>
+
   uniform vec2 screenSize;
   uniform vec2 viewport;
   uniform float maxDistance;
@@ -30,6 +33,8 @@ export const labelSpriteVertexShader = /* glsl */ `
 
   varying vec2 vUv;
   varying float vAlpha;
+
+  ${__glsl_chunks_common__}
 
   void main() {
     vUv = uv;
@@ -52,15 +57,21 @@ export const labelSpriteVertexShader = /* glsl */ `
     clipCenter.xy += ndcOffset * clipCenter.w;
 
     gl_Position = clipCenter;
+
+    #include <logdepthbuf_vertex>
   }
 `;
 
 export const labelSpriteFragmentShader = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
+
   uniform sampler2D map;
   varying vec2 vUv;
   varying float vAlpha;
 
   void main() {
+    #include <logdepthbuf_fragment>
+
     if (vAlpha <= 0.01) discard;
 
     vec4 texColor = texture2D(map, vUv);

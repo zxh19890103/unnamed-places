@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DemAtlas } from './_demAtlas';
 import { SolarUniforms } from './_solar.js';
+import { __glsl_chunks_common__, __glsl_chunks_noise__ } from './_glsl';
 
 export interface CloudLayerOptions {
   /** Size (width & length in meters) of the cloud plane */
@@ -27,45 +28,6 @@ export interface CloudLayerOptions {
   cloudShadowColor?: THREE.Color;
 }
 
-export const noiseGlsl = /* glsl */ `
-  // 2D Hash function
-  vec2 hash2(vec2 p) {
-    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
-  }
-
-  // Simplex-like Perlin 2D noise
-  float perlinNoise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-
-    return mix(
-      mix(dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
-          dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
-      mix(dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
-          dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x),
-      u.y
-    );
-  }
-
-  // Fractional Brownian Motion (FBM) with 5 octaves
-  float fbm(vec2 uv) {
-    float total = 0.0;
-    float amplitude = 0.5;
-    float frequency = 1.0;
-    mat2 rot = mat2(1.6, 1.2, -1.2, 1.6);
-
-    for (int i = 0; i < 5; i++) {
-      total += amplitude * perlinNoise(uv * frequency);
-      uv = rot * uv;
-      frequency *= 2.0;
-      amplitude *= 0.5;
-    }
-    return total;
-  }
-`;
-
 /**
  * Cloud Shadow Uniforms
  * Shared between cloud layers and terrain tiles to project analytical cloud shadows.
@@ -82,6 +44,7 @@ export const CloudShadowUniforms = {
 
 const cloudVertexShader = /* glsl */ `
   #include <fog_pars_vertex>
+  #include <logdepthbuf_pars_vertex>
 
   uniform float uTime;
   uniform vec2 uWind;
@@ -102,7 +65,8 @@ const cloudVertexShader = /* glsl */ `
   varying float vPuffHeight;
   varying float vDensity;
 
-  ${noiseGlsl}
+  ${__glsl_chunks_noise__}
+  ${__glsl_chunks_common__}
 
   void main() {
     vUv = uv;
@@ -153,12 +117,14 @@ const cloudVertexShader = /* glsl */ `
 
     gl_Position = projectionMatrix * mvPosition;
 
+    #include <logdepthbuf_vertex>
     #include <fog_vertex>
   }
 `;
 
 const cloudFragmentShader = /* glsl */ `
   #include <fog_pars_fragment>
+  #include <logdepthbuf_pars_fragment>
 
   uniform float uTime;
   uniform vec2 uWind;
@@ -179,9 +145,11 @@ const cloudFragmentShader = /* glsl */ `
   varying float vPuffHeight;
   varying float vDensity;
 
-  ${noiseGlsl}
+  ${__glsl_chunks_noise__}
 
   void main() {
+    #include <logdepthbuf_fragment>
+
     // 1. Dual-layer micro-detail for fine fluffy edges
     vec2 windOffset1 = uWind * uTime * 0.0035;
     vec2 microUv = vUv * (uUvScale * 3.0) + windOffset1 * 1.5;

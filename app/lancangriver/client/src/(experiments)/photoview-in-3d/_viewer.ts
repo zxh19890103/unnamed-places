@@ -94,13 +94,16 @@ export class PhotoviewViewer {
     this.scene.fog = new THREE.FogExp2(SolarUniforms.skyHorizon.value, 0.00008);
 
     const aspect = mountEl.clientWidth / mountEl.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(53.1, aspect, 1, 100000);
+    this.camera = new THREE.PerspectiveCamera(53.1, aspect, 0.1, 100_000);
     const initialAltitude = CAMERA_DISTANCE * Math.sin(CAMERA_ALTITUDE_DEG);
     const initialForward = CAMERA_DISTANCE * Math.cos(CAMERA_ALTITUDE_DEG);
     this.camera.position.set(0, initialAltitude, initialForward);
     this.camera.lookAt(0, 0, 0);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      logarithmicDepthBuffer: true,
+    });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(mountEl.clientWidth, mountEl.clientHeight);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -386,7 +389,6 @@ export class PhotoviewViewer {
             -0.0,
           );
 
-          // this.highwaysGroup.position.y += 5.0;
           this.scene.add(this.highwaysGroup);
 
           if (this.roadLabelsGroup) {
@@ -428,7 +430,7 @@ export class PhotoviewViewer {
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
             tileGrid.satelliteAtlas,
-            0.0,
+            1.0,
             naturalWatersData,
           );
 
@@ -464,7 +466,7 @@ export class PhotoviewViewer {
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
             tileGrid.satelliteAtlas,
-            0.0,
+            3.0,
           );
           this.scene.add(this.naturalWatersGroup);
 
@@ -546,16 +548,24 @@ export class PhotoviewViewer {
 
       const deltaTime = this.timer.getDelta();
       this.photosManager.playAnimation(deltaTime);
+
       updateWatersAnimation(this.watersGroup, deltaTime);
       updateNaturalWatersAnimation(this.naturalWatersGroup, deltaTime);
+
       if (this.cloudSystem) {
         this.cloudSystem.update(deltaTime);
       }
+
       this._currentControls?.update(deltaTime);
       this.timer.update();
+    };
+
+    const render = () => {
       this.renderer.render(this.scene, this.camera);
     };
 
+    // this.mapControls.addEventListener('change', render);
+    this.orbitControls.addEventListener('change', render);
     animate();
   }
 

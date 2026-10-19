@@ -11,13 +11,14 @@ import {
   fetchTileAltitude,
   latLngToMetersOffset,
 } from './_fns';
-import { __glsl_funcs__ } from './_glsl';
+import { __glsl_chunks_common__, __glsl_chunks_cbs__ } from './_glsl';
 import { loadProcessedDem, createDemDataTexture } from './_demDecode';
 import { DemAtlas } from './_demAtlas';
 import { SatelliteAtlas } from './_satelliteAtlas';
 import { BwOSMMaskAtlas } from './_bwOSMMaskAtlas';
 import { SolarUniforms } from './_solar.js';
-import { CloudShadowUniforms, noiseGlsl } from './_cloud.js';
+import { CloudShadowUniforms } from './_cloud.js';
+import { __glsl_chunks_noise__ } from './_glsl';
 
 type TileEvents = THREE.Object3DEventMap & {
   terrianReady: {};
@@ -210,9 +211,9 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         demAvg: { value: demAvg },
         demMedian: { value: demMedian },
         tileMeters: { value: sizeMeters },
-        bwOSMMaskAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.textureUniform : { value: null },
-        osmSdfAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.sdfTextureUniform : { value: null },
-        hasBwOSMMask: { value: bwOSMMaskAtlas ? 1.0 : 0.0 },
+        // bwOSMMaskAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.textureUniform : { value: null },
+        // osmSdfAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.sdfTextureUniform : { value: null },
+        // hasBwOSMMask: { value: bwOSMMaskAtlas ? 1.0 : 0.0 },
         isFineLod: { value: 1.0 },
         sdfThreshold: { value: 0.0 },
         sdfHalfWidth: { value: 1.0 },
@@ -227,7 +228,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
       vertexShader: tileVertexShader,
       fragmentShader: tileFragmentShader,
       fog: true,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       transparent: false,
     });
 
@@ -623,59 +624,64 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
     // this.add(debugPlane);
 
-    const debugPlane2 = new THREE.Mesh(
-      new THREE.PlaneGeometry(1280, 1280, 1, 1),
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uSdfTexture: this.bwOSMMaskAtlas.sdfTextureUniform,
-        },
-        vertexShader: /* glsl */ `
-          varying vec2 vUv;
-          void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: /* glsl */ `
-          uniform sampler2D uSdfTexture;
-          varying vec2 vUv;
+    // const debugPlane2 = new THREE.Mesh(
+    //   new THREE.PlaneGeometry(1280, 1280, 1, 1),
+    //   new THREE.ShaderMaterial({
+    //     uniforms: {
+    //       uSdfTexture: this.bwOSMMaskAtlas.sdfTextureUniform,
+    //     },
+    //     vertexShader: /* glsl */ `
+    //       #include <logdepthbuf_pars_vertex>
+    //        ${__glsl_common__}
+    //       varying vec2 vUv;
+    //       void main() {
+    //         vUv = uv;
+    //         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    //         #include <logdepthbuf_vertex>
+    //       }
+    //     `,
+    //     fragmentShader: /* glsl */ `
+    //       #include <logdepthbuf_pars_fragment>
+    //       uniform sampler2D uSdfTexture;
+    //       varying vec2 vUv;
 
-          void main() {
-            float dist = texture2D(uSdfTexture, vUv).r;
+    //       void main() {
+    //         #include <logdepthbuf_fragment>
+    //         float dist = texture2D(uSdfTexture, vUv).r;
 
-            vec3 color;
-            if (dist < 0.0) {
-              // Inside road/waterway/lake (negative): cyan near boundary, navy deep inside
-              float t = clamp(-dist / 30.0, 0.0, 1.0);
-              color = mix(vec3(0.0, 0.75, 1.0), vec3(0.02, 0.06, 0.22), t);
-            } else {
-              // Outside on land (positive): warm gray near boundary to dark terrain
-              float t = clamp(dist / 30.0, 0.0, 1.0);
-              color = mix(vec3(0.75, 0.75, 0.75), vec3(0.18, 0.18, 0.18), t);
-            }
+    //         vec3 color;
+    //         if (dist < 0.0) {
+    //           // Inside road/waterway/lake (negative): cyan near boundary, navy deep inside
+    //           float t = clamp(-dist / 30.0, 0.0, 1.0);
+    //           color = mix(vec3(0.0, 0.75, 1.0), vec3(0.02, 0.06, 0.22), t);
+    //         } else {
+    //           // Outside on land (positive): warm gray near boundary to dark terrain
+    //           float t = clamp(dist / 30.0, 0.0, 1.0);
+    //           color = mix(vec3(0.75, 0.75, 0.75), vec3(0.18, 0.18, 0.18), t);
+    //         }
 
-            // Metric contour lines every 5 meters within the narrow band
-            float isoline = abs(fract(dist / 5.0 + 0.5) - 0.5);
-            if (isoline < 0.08 && abs(dist) < 40.0) {
-              color = mix(color, vec3(1.0, 1.0, 1.0), 0.35);
-            }
+    //         // Metric contour lines every 5 meters within the narrow band
+    //         float isoline = abs(fract(dist / 5.0 + 0.5) - 0.5);
+    //         if (isoline < 0.08 && abs(dist) < 40.0) {
+    //           color = mix(color, vec3(1.0, 1.0, 1.0), 0.35);
+    //         }
 
-            // Exact zero boundary (shoreline / road edge) in bright red
-            if (abs(dist) < 1.0) {
-              color = vec3(1.0, 0.15, 0.15);
-            }
+    //         // Exact zero boundary (shoreline / road edge) in bright red
+    //         if (abs(dist) < 1.0) {
+    //           color = vec3(1.0, 0.15, 0.15);
+    //         }
 
-            gl_FragColor = vec4(color, 1.0);
-          }
-        `,
-        side: THREE.DoubleSide,
-      }),
-    );
+    //         gl_FragColor = vec4(color, 1.0);
+    //       }
+    //     `,
+    //     side: THREE.DoubleSide,
+    //   }),
+    // );
 
-    debugPlane2.rotateX(-0.5 * Math.PI);
-    debugPlane2.position.y += 500;
+    // debugPlane2.rotateX(-0.5 * Math.PI);
+    // debugPlane2.position.y += 500;
 
-    this.add(debugPlane2);
+    // this.add(debugPlane2);
 
     const worldCenterLatlng = tileXYToLatLng(centerX + 0.5, centerY + 0.5, zoom);
     this.worldCenterLatlng = worldCenterLatlng;
@@ -872,6 +878,7 @@ function disposeAnyMesh(mesh: THREE.Mesh) {
 
 const tileVertexShader = /*glsl */ `
   #include <fog_pars_vertex>
+  #include <logdepthbuf_pars_vertex>
 
   uniform sampler2D demTexture;
   uniform vec2 demUvOffset;
@@ -880,14 +887,14 @@ const tileVertexShader = /*glsl */ `
   uniform float demMedian;
   uniform vec2 demTexSize;
   uniform float tileMeters;
-  uniform vec2 atlasUvOffset;
-  uniform vec2 atlasUvScale;
 
   varying vec2 vUv;
   varying vec2 vAtlasUv;
   varying float vViewZ;
   varying vec3 vWorldPosition;
   varying vec3 vTerrainNormal;
+
+  ${__glsl_chunks_common__}
 
 #ifdef DEM_FLOAT
   float sampleDem(vec2 uvCoord) {
@@ -905,7 +912,6 @@ const tileVertexShader = /*glsl */ `
 
   void main() {
     vUv = uv;
-    vAtlasUv = uv * atlasUvScale + atlasUvOffset;
     vec2 demUv = uv * demUvScale + demUvOffset;
     
     float elevation = sampleDem(demUv);
@@ -937,24 +943,17 @@ const tileVertexShader = /*glsl */ `
 
     gl_Position = projectionMatrix * mvPosition;
 
+    #include <logdepthbuf_vertex>
     #include <fog_vertex>
   }
 `;
 
 const tileFragmentShader = /*glsl */ `
   #include <fog_pars_fragment>
+  #include <logdepthbuf_pars_fragment>
 
   uniform sampler2D satelliteTexture;
   uniform float hasSatellite;
-
-  uniform sampler2D bwOSMMaskAtlas;
-  uniform sampler2D osmSdfAtlas;
-  uniform float hasBwOSMMask;
-  uniform float isFineLod;
-  uniform float sdfThreshold;
-  uniform float sdfHalfWidth;
-  uniform vec3 osmMaskColor;
-  uniform float osmMaskOpacity;
 
   uniform vec3 idColor;
   uniform float brightness;
@@ -965,14 +964,6 @@ const tileFragmentShader = /*glsl */ `
   uniform vec3 sunColor;
   uniform vec3 sunAmbient;
 
-  // Cloud shadow projection uniforms
-  uniform float cloudAltitude;
-  uniform float cloudCoverage;
-  uniform float cloudUvScale;
-  uniform vec2 cloudWind;
-  uniform float cloudWorldSize;
-  uniform float cloudShadowDarkness;
-  uniform float uCloudTime;
   uniform float demMedian;
 
   varying vec2 vUv;
@@ -981,10 +972,10 @@ const tileFragmentShader = /*glsl */ `
   varying vec3 vWorldPosition;
   varying vec3 vTerrainNormal;
 
-${__glsl_funcs__}
-${noiseGlsl}
+  ${__glsl_chunks_cbs__}
 
   void main() {
+    #include <logdepthbuf_fragment>
     float dist = vViewZ;
 
     if (hasSatellite < 0.5) {
@@ -1000,19 +991,6 @@ ${noiseGlsl}
     finalColor = applyContrast(finalColor, contrast);
     finalColor = applyBrightness(finalColor, brightness);
 
-    // OSM Vector Mask Layer: Signed Distance Field (SDF) clipping at fine LODs
-    if (hasBwOSMMask > 0.5 && isFineLod > 0.5) {
-      if (vAtlasUv.x >= 0.0 && vAtlasUv.x <= 1.0 && vAtlasUv.y >= 0.0 && vAtlasUv.y <= 1.0) {
-        float dist = texture2D(osmSdfAtlas, vAtlasUv).r;
-        float halfWidth = max(sdfHalfWidth, 0.001);
-        float alpha = smoothstep(sdfThreshold - halfWidth, sdfThreshold + halfWidth, dist);
-
-        if (alpha < 0.5) {
-          discard;
-        }
-      }
-    }
-
     // 1. Atmospheric sun shading (Option B: DEM-derived normal + dual-tone hillshading)
     vec3 normal = normalize(vTerrainNormal);
     vec3 lightDir = normalize(sunDirection);
@@ -1022,34 +1000,7 @@ ${noiseGlsl}
     float sunFactor = smoothstep(-0.25, 0.55, NdotL);
     vec3 sunTint = sunColor * 0.7;
 
-    // 2. Analytical Cloud Shadow Projection
-    // Trace sunlight ray backwards from terrain upward to the mid-cumulus cloud altitude
-    float lightY = max(lightDir.y, 0.06);
-    float terrainHeight = vWorldPosition.y + demMedian;
-    float rayDistance = max(0.0, (cloudAltitude - terrainHeight) / lightY);
-    vec2 shadowWorldPos = vWorldPosition.xz + lightDir.xz * rayDistance;
-
-    // Compute identical animated FBM cloud UV coordinates
-    vec2 windOffset1 = cloudWind * uCloudTime * 0.00035;
-    vec2 windOffset2 = vec2(-cloudWind.y, cloudWind.x) * uCloudTime * 0.0002;
-    vec2 cloudPlaneUv = shadowWorldPos / cloudWorldSize + vec2(0.5);
-
-    vec2 uv1 = cloudPlaneUv * cloudUvScale + windOffset1;
-    vec2 uv2 = cloudPlaneUv * (cloudUvScale * 2.0) + windOffset2;
-
-    float n1 = fbm(uv1);
-    float n2 = fbm(uv2 + n1 * 0.7);
-    float cloudDensity = (n1 * 0.65 + n2 * 0.35) * 0.5 + 0.5;
-
-    // Evaluate cloud shadow mask matching cloud coverage curve
-    float threshold = 1.0 - cloudCoverage;
-    float cloudShadowMask = smoothstep(threshold - 0.12, threshold + 0.22, cloudDensity);
-
-    // Cloud shadow attenuates direct sunlight
-    float sunAttenuation = 1.0 - cloudShadowMask * cloudShadowDarkness;
-    float effectiveSun = sunFactor * sunAttenuation;
-
-    vec3 hillshade = mix(sunAmbient, sunTint, effectiveSun);
+    vec3 hillshade = mix(sunAmbient, sunTint, sunFactor);
     finalColor *= hillshade;
 
     gl_FragColor = vec4(finalColor, 1.0);

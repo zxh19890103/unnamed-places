@@ -10,7 +10,7 @@ import {
 } from './_fns';
 import { DEG_TO_RAD } from '@/_3dtiles';
 import { BASE_URL } from '@/calc/constants';
-import { __glsl_funcs__ } from './_glsl';
+import { __glsl_chunks_cbs__ } from './_glsl';
 
 function computeVerticalFov(
   focalLength35mm: number | null,
@@ -760,7 +760,7 @@ const thumbFragmentShader = /*glsl */ `
 
       varying vec2 vUv;
 
-      ${__glsl_funcs__}
+      ${__glsl_chunks_cbs__}
 
       void main() {
         vec4 color = texture2D(thumbTexture, vUv);
