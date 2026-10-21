@@ -1,5 +1,5 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AlertProvider, Button } from '../_components';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AlertProvider } from '../_components';
 import { Tile12OsmLink } from '../_partials';
 import { LeafletBBoxMap } from './map.js';
 import { readBBoxFromSearch, readLatLngFromSearch, type BBox } from './bbox.js';
@@ -15,7 +15,9 @@ import {
   fetchCoverageStatusNaturalWater,
   fetchCoverageStatusPlaces,
   fetchCoverageStatusWaters,
+  type CoverageStatusResponse,
 } from '../jobs/api.js';
+import clsx from 'clsx';
 
 const COVERAGE_ZOOM = 12;
 
@@ -102,6 +104,187 @@ export default function App() {
   );
 }
 
+function FocusTileIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="7.5" />
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BuildingsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 20V7.5L12 4l8 3.5V20" />
+      <path d="M8 20v-6h8v6M8 9h2M14 9h2M8 12h2M14 12h2" />
+    </svg>
+  );
+}
+
+function HighwaysIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 18h16M6 18V8M12 18V5M18 18v-9" />
+      <path d="M8 7l2 2 2-2 2 2" />
+    </svg>
+  );
+}
+
+function WaterIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M5 16c1.5-2 3.5-3 5.5-3 2.5 0 4.5 1.5 6.5 3.5 1.5 1.5 2.5 3.5 2.5 5.5H3c0-2 1-4 2-5Z" />
+      <path d="M7 11c1.5-1.5 3-2.5 5-2.5s3.5 1 5 2.5" />
+    </svg>
+  );
+}
+
+function PlacesIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 20s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z" />
+      <circle cx="12" cy="10" r="2.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function NaturalWaterIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 15c2-2 3.5-3 6-3 2.5 0 4 1.5 6 3 1.5 1.2 2.5 2.5 4 4" />
+      <path d="M4 11c1.5-1.5 2.5-2.5 4-2.5 1.5 0 2.5 1 4 2.5 1.5 1.5 2.5 2.5 4 2.5 1.5 0 3-.8 4-2" />
+      <path d="M4 19c1.5-1.3 2.8-2 4.5-2 2 0 3.5 1.2 5.5 2.2S18.5 20 20 20" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 7h16M9 7V4h6v3M7 7l1 12h8l1-12" />
+    </svg>
+  );
+}
+
+type TileActionStatus = 'idle' | 'queuing' | 'queued' | 'error';
+
+type TileActionKind = 'buildings' | 'highways' | 'waters' | 'places' | 'natural_water';
+
+function TileActionButton({
+  kind,
+  status,
+  onClick,
+  disabled,
+  className,
+  ariaLabel,
+}: {
+  kind: TileActionKind;
+  status: TileActionStatus;
+  onClick: () => void;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel: string;
+}) {
+  const iconByKind = {
+    buildings: BuildingsIcon,
+    highways: HighwaysIcon,
+    waters: WaterIcon,
+    places: PlacesIcon,
+    natural_water: NaturalWaterIcon,
+  } satisfies Record<TileActionKind, (args: { className?: string }) => React.ReactNode>;
+
+  const Icon = iconByKind[kind];
+
+  const content =
+    status === 'queuing' ? (
+      '…'
+    ) : status === 'queued' ? (
+      '✓'
+    ) : status === 'error' ? (
+      '↻'
+    ) : (
+      <Icon className="h-4 w-4" />
+    );
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className={clsx(
+        'inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl border transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+        className,
+      )}
+    >
+      {typeof content === 'string' ? <span className="text-sm">{content}</span> : content}
+    </button>
+  );
+}
+
 const TileList = ({
   tiles,
   focusTile,
@@ -179,63 +362,9 @@ const TileListItem = memo(
       'idle' | 'queuing' | 'queued' | 'error'
     >('idle');
 
-    const handleDownloadOsm = async () => {
-      setDownloadStatus('queuing');
-      try {
-        await enqueueCoverageJob(tile.x, tile.y);
-        setDownloadStatus('queued');
-      } catch (error) {
-        console.warn('Failed to enqueue OSM coverage job', tile, error);
-        setDownloadStatus('error');
-      }
-    };
-
-    const handleDownloadHighwayOsm = async () => {
-      setHighwayDownloadStatus('queuing');
-      try {
-        await enqueueCoverageJobHighways(tile.x, tile.y);
-        setHighwayDownloadStatus('queued');
-      } catch (error) {
-        console.warn('Failed to enqueue highway OSM coverage job', tile, error);
-        setHighwayDownloadStatus('error');
-      }
-    };
-
-    const handleDownloadWaterOsm = async () => {
-      setWaterDownloadStatus('queuing');
-      try {
-        await enqueueCoverageJobWaters(tile.x, tile.y);
-        setWaterDownloadStatus('queued');
-      } catch (error) {
-        console.warn('Failed to enqueue water OSM coverage job', tile, error);
-        setWaterDownloadStatus('error');
-      }
-    };
-
-    const handleDownloadPlaceOsm = async () => {
-      setPlaceDownloadStatus('queuing');
-      try {
-        await enqueueCoverageJobPlaces(tile.x, tile.y);
-        setPlaceDownloadStatus('queued');
-      } catch (error) {
-        console.warn('Failed to enqueue place OSM coverage job', tile, error);
-        setPlaceDownloadStatus('error');
-      }
-    };
-
-    const handleDownloadNaturalWaterOsm = async () => {
-      setNaturalWaterDownloadStatus('queuing');
-      try {
-        await enqueueCoverageJobNaturalWater(tile.x, tile.y);
-        setNaturalWaterDownloadStatus('queued');
-      } catch (error) {
-        console.warn('Failed to enqueue natural water OSM coverage job', tile, error);
-        setNaturalWaterDownloadStatus('error');
-      }
-    };
-
-    const handleCheckStatus = async (
+    const showCoverageStatusModal = (
       kind: 'buildings' | 'highways' | 'waters' | 'places' | 'natural_water',
+      result: CoverageStatusResponse,
     ) => {
       const label =
         kind === 'buildings'
@@ -248,55 +377,128 @@ const TileListItem = memo(
                 ? 'Places'
                 : 'Natural Water';
 
-      try {
-        const result =
-          kind === 'buildings'
-            ? await fetchCoverageStatus(tile.x, tile.y)
-            : kind === 'highways'
-              ? await fetchCoverageStatusHighways(tile.x, tile.y)
-              : kind === 'waters'
-                ? await fetchCoverageStatusWaters(tile.x, tile.y)
-                : kind === 'places'
-                  ? await fetchCoverageStatusPlaces(tile.x, tile.y)
-                  : await fetchCoverageStatusNaturalWater(tile.x, tile.y);
+      const statusText = result.status ?? 'no job queued yet';
+      const loadedText = result.loaded
+        ? 'yes, data is loaded in the database'
+        : 'no, not loaded yet';
 
-        const statusText = result.status ?? 'no job queued yet';
-        const loadedText = result.loaded
-          ? 'yes, data is loaded in the database'
-          : 'no, not loaded yet';
-
-        Alert.create({
-          title: label,
-          description: `tile ${tile.z}/${tile.x}/${tile.y}`,
-          actionLabel: 'Close',
-          cancelLabel: 'Dismiss',
-          children: (
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
-                <span className="text-jade-text-muted">Job status</span>
-                <span className="font-medium text-jade-text">{statusText}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
-                <span className="text-jade-text-muted">Data loaded</span>
-                <span className="font-medium text-jade-text">{loadedText}</span>
-              </div>
+      Alert.create({
+        title: label,
+        description: `tile ${tile.z}/${tile.x}/${tile.y}`,
+        actionLabel: 'Close',
+        cancelLabel: 'Dismiss',
+        children: (
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
+              <span className="text-jade-text-muted">Job status</span>
+              <span className="font-medium text-jade-text">{statusText}</span>
             </div>
-          ),
-        });
+            <div className="flex items-center justify-between rounded-lg bg-jade-control/70 px-3 py-2">
+              <span className="text-jade-text-muted">Data loaded</span>
+              <span className="font-medium text-jade-text">{loadedText}</span>
+            </div>
+          </div>
+        ),
+      });
+    };
+
+    const handleDownloadOsm = async () => {
+      setDownloadStatus('queuing');
+      try {
+        const existingStatus = await fetchCoverageStatus(tile.x, tile.y);
+        if (existingStatus.status !== null || existingStatus.loaded) {
+          setDownloadStatus('queued');
+          showCoverageStatusModal('buildings', existingStatus);
+          return;
+        }
+
+        await enqueueCoverageJob(tile.x, tile.y);
+        const refreshedStatus = await fetchCoverageStatus(tile.x, tile.y);
+        setDownloadStatus('queued');
+        showCoverageStatusModal('buildings', refreshedStatus);
       } catch (error) {
-        console.warn(`Failed to check ${kind} coverage status`, tile, error);
-        Alert.create({
-          title: label,
-          description: `tile ${tile.z}/${tile.x}/${tile.y}`,
-          actionLabel: 'Close',
-          cancelLabel: 'Dismiss',
-          actionVariant: 'destructive',
-          children: (
-            <p className="rounded-lg border border-jade-error/40 bg-jade-error/10 px-3 py-2 text-sm text-jade-error">
-              Could not check status. See console for details.
-            </p>
-          ),
-        });
+        console.warn('Failed to enqueue or check OSM coverage job', tile, error);
+        setDownloadStatus('error');
+      }
+    };
+
+    const handleDownloadHighwayOsm = async () => {
+      setHighwayDownloadStatus('queuing');
+      try {
+        const existingStatus = await fetchCoverageStatusHighways(tile.x, tile.y);
+        if (existingStatus.status !== null || existingStatus.loaded) {
+          setHighwayDownloadStatus('queued');
+          showCoverageStatusModal('highways', existingStatus);
+          return;
+        }
+
+        await enqueueCoverageJobHighways(tile.x, tile.y);
+        const refreshedStatus = await fetchCoverageStatusHighways(tile.x, tile.y);
+        setHighwayDownloadStatus('queued');
+        showCoverageStatusModal('highways', refreshedStatus);
+      } catch (error) {
+        console.warn('Failed to enqueue or check highway OSM coverage job', tile, error);
+        setHighwayDownloadStatus('error');
+      }
+    };
+
+    const handleDownloadWaterOsm = async () => {
+      setWaterDownloadStatus('queuing');
+      try {
+        const existingStatus = await fetchCoverageStatusWaters(tile.x, tile.y);
+        if (existingStatus.status !== null || existingStatus.loaded) {
+          setWaterDownloadStatus('queued');
+          showCoverageStatusModal('waters', existingStatus);
+          return;
+        }
+
+        await enqueueCoverageJobWaters(tile.x, tile.y);
+        const refreshedStatus = await fetchCoverageStatusWaters(tile.x, tile.y);
+        setWaterDownloadStatus('queued');
+        showCoverageStatusModal('waters', refreshedStatus);
+      } catch (error) {
+        console.warn('Failed to enqueue or check water OSM coverage job', tile, error);
+        setWaterDownloadStatus('error');
+      }
+    };
+
+    const handleDownloadPlaceOsm = async () => {
+      setPlaceDownloadStatus('queuing');
+      try {
+        const existingStatus = await fetchCoverageStatusPlaces(tile.x, tile.y);
+        if (existingStatus.status !== null || existingStatus.loaded) {
+          setPlaceDownloadStatus('queued');
+          showCoverageStatusModal('places', existingStatus);
+          return;
+        }
+
+        await enqueueCoverageJobPlaces(tile.x, tile.y);
+        const refreshedStatus = await fetchCoverageStatusPlaces(tile.x, tile.y);
+        setPlaceDownloadStatus('queued');
+        showCoverageStatusModal('places', refreshedStatus);
+      } catch (error) {
+        console.warn('Failed to enqueue or check place OSM coverage job', tile, error);
+        setPlaceDownloadStatus('error');
+      }
+    };
+
+    const handleDownloadNaturalWaterOsm = async () => {
+      setNaturalWaterDownloadStatus('queuing');
+      try {
+        const existingStatus = await fetchCoverageStatusNaturalWater(tile.x, tile.y);
+        if (existingStatus.status !== null || existingStatus.loaded) {
+          setNaturalWaterDownloadStatus('queued');
+          showCoverageStatusModal('natural_water', existingStatus);
+          return;
+        }
+
+        await enqueueCoverageJobNaturalWater(tile.x, tile.y);
+        const refreshedStatus = await fetchCoverageStatusNaturalWater(tile.x, tile.y);
+        setNaturalWaterDownloadStatus('queued');
+        showCoverageStatusModal('natural_water', refreshedStatus);
+      } catch (error) {
+        console.warn('Failed to enqueue or check natural water OSM coverage job', tile, error);
+        setNaturalWaterDownloadStatus('error');
       }
     };
 
@@ -323,123 +525,68 @@ const TileListItem = memo(
             ) : null}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {isManualTile ? (
-              <Button
-                onClick={onRemove}
-                variant="destructive"
-                size="sm"
-                className="min-h-8 px-2.5 py-1 text-[11px]"
-              >
-                remove
-              </Button>
-            ) : null}
             <button
               className={
-                'cursor-pointer rounded-lg border px-2.5 py-1 font-medium transition-colors' +
+                'inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl border px-1.5 transition-colors' +
                 (focused
                   ? ' border-jade-river bg-jade-river-soft text-jade-text'
                   : ' border-jade-border-soft bg-jade-control text-jade-text-muted hover:bg-jade-control-hover')
               }
               itemID={tile.id}
               itemType="tile/where"
+              aria-label={`Focus tile ${tile.z}/${tile.x}/${tile.y}`}
             >
-              where?
+              <FocusTileIcon className="h-4 w-4" />
             </button>
-            <button
+            <TileActionButton
+              kind="buildings"
+              status={downloadStatus}
               onClick={() => void handleDownloadOsm()}
               disabled={downloadStatus === 'queuing'}
-              className="cursor-pointer rounded-lg border border-jade-success/25 bg-jade-success/10 px-2.5 py-1 font-medium text-jade-success transition-colors hover:bg-jade-success/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {downloadStatus === 'queuing'
-                ? 'queuing...'
-                : downloadStatus === 'queued'
-                  ? 'queued'
-                  : downloadStatus === 'error'
-                    ? 'retry download osm'
-                    : 'down load osm'}
-            </button>
-            <button
+              ariaLabel={`Download buildings for tile ${tile.z}/${tile.x}/${tile.y}`}
+              className="border-jade-success/25 bg-jade-success/10 text-jade-success hover:bg-jade-success/20"
+            />
+            <TileActionButton
+              kind="highways"
+              status={highwayDownloadStatus}
               onClick={() => void handleDownloadHighwayOsm()}
               disabled={highwayDownloadStatus === 'queuing'}
-              className="cursor-pointer rounded-lg border border-jade-sky/25 bg-jade-sky-soft px-2.5 py-1 font-medium text-jade-sky transition-colors hover:bg-jade-sky/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {highwayDownloadStatus === 'queuing'
-                ? 'queuing...'
-                : highwayDownloadStatus === 'queued'
-                  ? 'queued'
-                  : highwayDownloadStatus === 'error'
-                    ? 'retry download highway osm'
-                    : 'down load highway osm'}
-            </button>
-            <button
+              ariaLabel={`Download highways for tile ${tile.z}/${tile.x}/${tile.y}`}
+              className="border-jade-sky/25 bg-jade-sky-soft text-jade-sky hover:bg-jade-sky/10"
+            />
+            <TileActionButton
+              kind="waters"
+              status={waterDownloadStatus}
               onClick={() => void handleDownloadWaterOsm()}
               disabled={waterDownloadStatus === 'queuing'}
-              className="cursor-pointer rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 font-medium text-cyan-400 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {waterDownloadStatus === 'queuing'
-                ? 'queuing...'
-                : waterDownloadStatus === 'queued'
-                  ? 'queued'
-                  : waterDownloadStatus === 'error'
-                    ? 'retry download water osm'
-                    : 'down load water osm'}
-            </button>
-            <button
+              ariaLabel={`Download waterways for tile ${tile.z}/${tile.x}/${tile.y}`}
+              className="border-cyan-500/25 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
+            />
+            <TileActionButton
+              kind="places"
+              status={placeDownloadStatus}
               onClick={() => void handleDownloadPlaceOsm()}
               disabled={placeDownloadStatus === 'queuing'}
-              className="cursor-pointer rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 font-medium text-amber-400 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {placeDownloadStatus === 'queuing'
-                ? 'queuing...'
-                : placeDownloadStatus === 'queued'
-                  ? 'queued'
-                  : placeDownloadStatus === 'error'
-                    ? 'retry download place osm'
-                    : 'down load place osm'}
-            </button>
-            <button
+              ariaLabel={`Download places for tile ${tile.z}/${tile.x}/${tile.y}`}
+              className="border-amber-500/25 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+            />
+            <TileActionButton
+              kind="natural_water"
+              status={naturalWaterDownloadStatus}
               onClick={() => void handleDownloadNaturalWaterOsm()}
               disabled={naturalWaterDownloadStatus === 'queuing'}
-              className="cursor-pointer rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 font-medium text-cyan-400 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {naturalWaterDownloadStatus === 'queuing'
-                ? 'queuing...'
-                : naturalWaterDownloadStatus === 'queued'
-                  ? 'queued'
-                  : naturalWaterDownloadStatus === 'error'
-                    ? 'retry download natural water osm'
-                    : 'down load natural water osm'}
-            </button>
-            <button
-              onClick={() => void handleCheckStatus('buildings')}
-              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
-            >
-              buildings?
-            </button>
-            <button
-              onClick={() => void handleCheckStatus('highways')}
-              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
-            >
-              highways?
-            </button>
-            <button
-              onClick={() => void handleCheckStatus('waters')}
-              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
-            >
-              waters?
-            </button>
-            <button
-              onClick={() => void handleCheckStatus('places')}
-              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
-            >
-              places?
-            </button>
-            <button
-              onClick={() => void handleCheckStatus('natural_water')}
-              className="cursor-pointer rounded-lg border border-jade-border-soft px-2.5 py-1 font-medium text-jade-text-muted transition-colors hover:bg-jade-control hover:text-jade-text"
-            >
-              natural water?
-            </button>
+              ariaLabel={`Download natural water for tile ${tile.z}/${tile.x}/${tile.y}`}
+              className="border-cyan-500/25 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
+            />
+            {isManualTile ? (
+              <button
+                onClick={() => onRemove?.()}
+                aria-label={`Remove tile ${tile.z}/${tile.x}/${tile.y}`}
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl border transition-colors disabled:cursor-not-allowed disabled:opacity-60 border-jade-error/25 bg-jade-error/10 text-jade-error hover:bg-jade-error/20"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
         </div>
       </li>

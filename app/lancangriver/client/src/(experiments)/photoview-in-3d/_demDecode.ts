@@ -73,6 +73,136 @@ export function gaussianBlur3x3(src: Float32Array, width: number, height: number
 }
 
 /**
+ * Remove isolated outliers by comparing each pixel to the mean of its 3x3 neighborhood.
+ * If the gap exceeds the threshold, replace the current pixel with the local mean.
+ */
+export function removeLocalOutliers3x3(
+  src: Float32Array,
+  width: number,
+  height: number,
+  threshold: number,
+): Float32Array {
+  const output = new Float32Array(src);
+
+  const clamp = (val: number, min: number, max: number) =>
+    val < min ? min : val > max ? max : val;
+
+  for (let y = 0; y < height; y += 1) {
+    const y0 = clamp(y - 1, 0, height - 1);
+    const y1 = y;
+    const y2 = clamp(y + 1, 0, height - 1);
+
+    for (let x = 0; x < width; x += 1) {
+      const x0 = clamp(x - 1, 0, width - 1);
+      const x1 = x;
+      const x2 = clamp(x + 1, 0, width - 1);
+
+      const center = src[y1 * width + x1];
+      let sum = 0.0;
+      let count = 0;
+
+      for (let yy = y0; yy <= y2; yy += 1) {
+        for (let xx = x0; xx <= x2; xx += 1) {
+          if (xx === x1 && yy === y1) continue;
+          sum += src[yy * width + xx];
+          count += 1;
+        }
+      }
+
+      if (count === 0) continue;
+
+      const localMean = sum / count;
+      if (Math.abs(center - localMean) > threshold) {
+        output[y1 * width + x1] = localMean;
+      }
+    }
+  }
+
+  return output;
+}
+
+/**
+ * Remove outliers by sampling a 3x3 neighborhood from a downsampled view of the DEM.
+ * This keeps the coarse terrain context without allocating a second resized array.
+ * A scale of 2 means each coarse cell represents a 2x2 block in the original DEM.
+ */
+export function removeLocalOutliersScaled3x3(
+  src: Float32Array,
+  width: number,
+  height: number,
+  scale: number,
+  threshold: number,
+): Float32Array {
+  const output = new Float32Array(src);
+  const effectiveScale = Math.max(1, Math.floor(scale));
+
+  const clamp = (val: number, min: number, max: number) =>
+    val < min ? min : val > max ? max : val;
+
+  const coarseWidth = Math.ceil(width / effectiveScale);
+  const coarseHeight = Math.ceil(height / effectiveScale);
+  const coarse = new Float32Array(coarseWidth * coarseHeight);
+
+  for (let cy = 0; cy < coarseHeight; cy += 1) {
+    const yStart = cy * effectiveScale;
+    const yEnd = Math.min(height, yStart + effectiveScale);
+
+    for (let cx = 0; cx < coarseWidth; cx += 1) {
+      const xStart = cx * effectiveScale;
+      const xEnd = Math.min(width, xStart + effectiveScale);
+
+      let sum = 0.0;
+      let count = 0;
+
+      for (let y = yStart; y < yEnd; y += 1) {
+        for (let x = xStart; x < xEnd; x += 1) {
+          sum += src[y * width + x];
+          count += 1;
+        }
+      }
+
+      coarse[cy * coarseWidth + cx] = count === 0 ? 0 : sum / count;
+    }
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    const coarseY = Math.floor(y / effectiveScale);
+    const yStart = coarseY - 1;
+    const yEnd = coarseY + 1;
+
+    for (let x = 0; x < width; x += 1) {
+      const coarseX = Math.floor(x / effectiveScale);
+      const xStart = coarseX - 1;
+      const xEnd = coarseX + 1;
+
+      const center = src[y * width + x];
+      let sum = 0.0;
+      let count = 0;
+
+      for (let yy = yStart; yy <= yEnd; yy += 1) {
+        if (yy < 0 || yy >= coarseHeight) continue;
+        for (let xx = xStart; xx <= xEnd; xx += 1) {
+          if (xx < 0 || xx >= coarseWidth) continue;
+          if (xx === coarseX && yy === coarseY) continue;
+
+          sum += coarse[yy * coarseWidth + xx];
+          count += 1;
+        }
+      }
+
+      if (count === 0) continue;
+
+      const localMean = sum / count;
+      if (Math.abs(center - localMean) > threshold) {
+        output[y * width + x] = localMean;
+      }
+    }
+  }
+
+  return output;
+}
+
+/**
  * Hard clamp elevation deviations around a reference mean:
  * each pixel is bounded to [mean - threshold, mean + threshold].
  */
@@ -97,7 +227,7 @@ export type ProcessedDemResult = {
 };
 
 /**
- * Async pipeline: fetch DEM PNG -> extract RGBA -> decode Terrarium -> Gaussian blur -> clamp to mean.
+ * Async pipeline: fetch DEM PNG -> extract RGBA -> decode Terrarium -> Gaussian blur -> remove local outliers -> clamp to mean.
  */
 export async function loadProcessedDem(
   url: string,
@@ -105,6 +235,7 @@ export async function loadProcessedDem(
     mean: number;
     threshold: number;
     signal?: AbortSignal;
+    outlierThreshold?: number;
   },
 ): Promise<ProcessedDemResult> {
   const response = await fetch(url, { signal: options.signal });
@@ -152,10 +283,12 @@ export async function loadProcessedDem(
 
   const decoded = decodeTerrarium(rgbaData, width, height);
   const blurred = gaussianBlur3x3(decoded, width, height);
-  clampToMean(blurred, options.mean, options.threshold);
+  const outlierThreshold = options.outlierThreshold ?? 60;
+  const cleaned = removeLocalOutliersScaled3x3(blurred, width, height, 18, outlierThreshold);
+  clampToMean(cleaned, options.mean, options.threshold);
 
   return {
-    data: blurred,
+    data: cleaned,
     width,
     height,
   };

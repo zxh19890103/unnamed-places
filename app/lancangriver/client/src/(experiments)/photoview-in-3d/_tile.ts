@@ -18,7 +18,6 @@ import { SatelliteAtlas } from './_satelliteAtlas';
 import { BwOSMMaskAtlas } from './_bwOSMMaskAtlas';
 import { SolarUniforms } from './_solar.js';
 import { CloudShadowUniforms } from './_cloud.js';
-import { __glsl_chunks_noise__ } from './_glsl';
 
 type TileEvents = THREE.Object3DEventMap & {
   terrianReady: {};
@@ -28,7 +27,6 @@ const MAX_ZOOM = 20;
 
 export const TILE_ZOOM = 15;
 export const THUMB_ELEVATION_ZOOM = 11;
-export const USE_CPU_DEM = true;
 export const DEM_CLAMP_THRESHOLD_METERS = 1500;
 
 const distToZoomLevel = (dist: number) => {
@@ -137,7 +135,6 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
     demTexSizeUniform: { value: THREE.Vector2 },
     demUvOffset: THREE.Vector2,
     demUvScale: THREE.Vector2,
-    useCpuDem: boolean,
     onSatelliteSettled: () => void,
     readonly satelliteAtlas?: SatelliteAtlas,
     readonly bwOSMMaskAtlas?: BwOSMMaskAtlas,
@@ -196,7 +193,6 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
     }
 
     const material = new THREE.ShaderMaterial({
-      defines: useCpuDem ? { DEM_FLOAT: '1' } : {},
       uniforms: {
         ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]),
         ...SolarUniforms,
@@ -214,11 +210,11 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         // bwOSMMaskAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.textureUniform : { value: null },
         // osmSdfAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.sdfTextureUniform : { value: null },
         // hasBwOSMMask: { value: bwOSMMaskAtlas ? 1.0 : 0.0 },
-        isFineLod: { value: 1.0 },
-        sdfThreshold: { value: 0.0 },
-        sdfHalfWidth: { value: 1.0 },
-        atlasUvOffset: { value: atlasUvOffset },
-        atlasUvScale: { value: atlasUvScale },
+        // isFineLod: { value: 1.0 },
+        // sdfThreshold: { value: 0.0 },
+        // sdfHalfWidth: { value: 1.0 },
+        // atlasUvOffset: { value: atlasUvOffset },
+        // atlasUvScale: { value: atlasUvScale },
         osmMaskColor: { value: new THREE.Color(0x38bdf8) },
         osmMaskOpacity: { value: 0.85 },
         saturation: { value: 2.0 },
@@ -276,7 +272,6 @@ class TileGridCell extends THREE.Group {
     readonly demAvg: number,
     readonly tileSizeMeters: number,
     readonly onTextureReady: () => void,
-    readonly useCpuDem = USE_CPU_DEM,
     readonly clampThreshold = DEM_CLAMP_THRESHOLD_METERS,
     parentCell?: TileGridCell,
     readonly demAtlas?: DemAtlas,
@@ -346,58 +341,36 @@ class TileGridCell extends THREE.Group {
     const demUrl = `${BASE_URL}/raster/dem/${this.zoom}/${this.x}/${this.y}.png`;
     this.ownsDemTexture = true;
 
-    if (this.useCpuDem) {
-      // 1x1 placeholder texture filled with demMin
-      const placeholder = createDemDataTexture({ value: this.demMin });
-      const demTextureUniform = { value: placeholder };
-      const demTexSizeUniform = { value: new THREE.Vector2(1, 1) };
+    // 1x1 placeholder texture filled with demMin
+    const placeholder = createDemDataTexture({ value: this.demMin });
+    const demTextureUniform = { value: placeholder };
+    const demTexSizeUniform = { value: new THREE.Vector2(1, 1) };
 
-      loadProcessedDem(demUrl, {
-        mean: this.demAvg,
-        threshold: this.clampThreshold,
-      })
-        .then((result) => {
-          if (this.isDisposed) return;
-
-          if (this.zoom === 14 && this.demAtlas) {
-            this.demAtlas.updateTile(this.x, this.y, result);
-          }
-
-          const processedTexture = createDemDataTexture(result);
-          const oldTexture = demTextureUniform.value;
-          demTextureUniform.value = processedTexture;
-          demTexSizeUniform.value.set(result.width, result.height);
-          oldTexture.dispose();
-
-          this._demReady = true;
-          this.onTextureReady();
-        })
-        .catch((error) => {
-          console.error(`Failed to load CPU DEM tile ${this.zoom}/${this.x}/${this.y}`, error);
-        });
-
-      return { demTextureUniform, demTexSizeUniform };
-    }
-
-    // Fallback: standard TextureLoader
-    const texture = this.textureLoader.load(
-      demUrl,
-      () => {
+    loadProcessedDem(demUrl, {
+      mean: this.demAvg,
+      threshold: this.clampThreshold,
+    })
+      .then((result) => {
         if (this.isDisposed) return;
+
+        if (this.zoom === 14 && this.demAtlas) {
+          this.demAtlas.updateTile(this.x, this.y, result);
+        }
+
+        const processedTexture = createDemDataTexture(result);
+        const oldTexture = demTextureUniform.value;
+        demTextureUniform.value = processedTexture;
+        demTexSizeUniform.value.set(result.width, result.height);
+        oldTexture.dispose();
+
         this._demReady = true;
         this.onTextureReady();
-      },
-      undefined,
-      (error) => console.error(`Failed to load DEM tile ${this.zoom}/${this.x}/${this.y}`, error),
-    );
+      })
+      .catch((error) => {
+        console.error(`Failed to load CPU DEM tile ${this.zoom}/${this.x}/${this.y}`, error);
+      });
 
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-
-    return {
-      demTextureUniform: { value: texture },
-      demTexSizeUniform: { value: new THREE.Vector2(256, 256) },
-    };
+    return { demTextureUniform, demTexSizeUniform };
   }
 
   private get demReady(): boolean {
@@ -431,7 +404,6 @@ class TileGridCell extends THREE.Group {
       this.demTexSizeUniform,
       this.demUvOffset,
       this.demUvScale,
-      this.useCpuDem,
       () => {
         if (this.isDisposed) return;
         this.onTextureReady();
@@ -463,7 +435,6 @@ class TileGridCell extends THREE.Group {
           this.demAvg,
           childTileSizeMeters,
           this.onTextureReady,
-          this.useCpuDem,
           this.clampThreshold,
           this,
           this.demAtlas,
@@ -554,7 +525,6 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
   readonly bbox: BBox;
 
-  readonly useCpuDem: boolean;
   readonly clampThreshold: number;
 
   readonly worldCenter: THREE.Vector3;
@@ -568,19 +538,12 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
   constructor(
     readonly textureLoader: THREE.TextureLoader,
-    {
-      chip,
-      zoom = 14,
-      expand = 2,
-      useCpuDem = USE_CPU_DEM,
-      clampThreshold = DEM_CLAMP_THRESHOLD_METERS,
-    }: TileGridOptions,
+    { chip, zoom = 14, expand = 2, clampThreshold = DEM_CLAMP_THRESHOLD_METERS }: TileGridOptions,
   ) {
     super();
 
     this.chip = chip;
     this.zoom0 = zoom;
-    this.useCpuDem = useCpuDem;
     this.clampThreshold = clampThreshold;
 
     const tileXY = latLngToTileXY(chip.lat, chip.lng, zoom);
@@ -753,7 +716,6 @@ export class TileGrid extends THREE.Group<TileEvents> {
               demAvg,
               tileSizeMeters,
               onTextureReady,
-              this.useCpuDem,
               this.clampThreshold,
               undefined,
               this.demAtlas,
@@ -889,26 +851,15 @@ const tileVertexShader = /*glsl */ `
   uniform float tileMeters;
 
   varying vec2 vUv;
-  varying vec2 vAtlasUv;
   varying float vViewZ;
   varying vec3 vWorldPosition;
   varying vec3 vTerrainNormal;
 
   ${__glsl_chunks_common__}
 
-#ifdef DEM_FLOAT
-  float sampleDem(vec2 uvCoord) {
-    return texture2D(demTexture, uvCoord).r;
+  float sampleDem(vec2 st) {
+    return texture2D(demTexture, st).r;
   }
-#else
-  float decodeElevation(vec3 color) {
-    return color.r * 256.0 + color.g + color.b / 256.0 - 32768.0;
-  }
-  float sampleDem(vec2 uvCoord) {
-    vec3 demRgb = texture2D(demTexture, uvCoord).rgb * 255.0;
-    return decodeElevation(demRgb);
-  }
-#endif
 
   void main() {
     vUv = uv;
@@ -967,7 +918,6 @@ const tileFragmentShader = /*glsl */ `
   uniform float demMedian;
 
   varying vec2 vUv;
-  varying vec2 vAtlasUv;
   varying float vViewZ;
   varying vec3 vWorldPosition;
   varying vec3 vTerrainNormal;
@@ -997,8 +947,8 @@ const tileFragmentShader = /*glsl */ `
     float NdotL = dot(normal, lightDir);
 
     // Smooth transition from shadowed slope to sunlit ridge
-    float sunFactor = smoothstep(-0.25, 0.55, NdotL);
-    vec3 sunTint = sunColor * 0.7;
+    float sunFactor = smoothstep(-0.25, 0.85, NdotL);
+    vec3 sunTint = sunColor * 1.8;
 
     vec3 hillshade = mix(sunAmbient, sunTint, sunFactor);
     finalColor *= hillshade;

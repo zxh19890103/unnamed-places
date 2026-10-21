@@ -17,7 +17,7 @@ const WATERWAY_WIDTHS: Record<string, number> = {
   default: 8,
 };
 
-const DEFAULT_WATER_COLOR = '#1a8ea3';
+const DEFAULT_WATER_COLOR = '#19738a';
 const MAX_SEGMENT_LENGTH_METERS = 30;
 const WATER_WIDTH_SCALE = 1;
 const DEFAULT_WATER_ELEVATION_OFFSET = 5.0;

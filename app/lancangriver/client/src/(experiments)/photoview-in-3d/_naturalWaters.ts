@@ -95,7 +95,7 @@ const naturalWaterFragmentShader = /* glsl */ `
     vec3 diffuseColor2 = texture2D(satelliteAtlas, vDemUv).rgb;
 
     float NdotL = max(0.0, dot(worldNormal, lightDir));
-    vec3 baseColor = diffuseColor2 * (0.85 + 0.3 * NdotL);
+    vec3 baseColor = diffuseColor * diffuseColor2 * (0.85 + 0.3 * NdotL);
 
     // Darken skirt wall toward deeper shoreline tone as it drops down
     if (vSkirtDrop > 0.01) {

@@ -341,9 +341,9 @@ export interface CloudSystemOptions {
  * 3. High Cirrus (高空卷云): Translucent wisps drifting along the upper jet stream.
  */
 export class CloudSystem extends THREE.Group {
-  readonly valleyLayer: CloudLayer;
+  // readonly valleyLayer: CloudLayer;
   readonly cumulusLayer: CloudLayer;
-  readonly cirrusLayer: CloudLayer;
+  // readonly cirrusLayer: CloudLayer;
 
   constructor(options: CloudSystemOptions = {}) {
     super();
@@ -381,24 +381,7 @@ export class CloudSystem extends THREE.Group {
     });
     this.cumulusLayer.renderOrder = 2;
 
-    // 3. High Cirrus Veils (高空卷云) - High-altitude wispy veil stretching across the sky dome
-    this.cirrusLayer = new CloudLayer({
-      sizeMeters: baseSize * 2.2,
-      altitudeMeters: 3600,
-      displacementMeters: 70,
-      sphereRadiusMeters: 120_000,
-      uvScale: 2.8,
-      coverage: 0.38,
-      opacity: 0.42,
-      windSpeed: new THREE.Vector2(2.2, -0.6), // Fast upper-atmosphere jet stream
-      cloudColor: new THREE.Color(0xffffff),
-      cloudShadowColor: new THREE.Color(0xb0c4de),
-    });
-    this.cirrusLayer.renderOrder = 3;
-
-    // this.add(this.valleyLayer);
     this.add(this.cumulusLayer);
-    this.add(this.cirrusLayer);
 
     if (options.demAtlas && options.worldCenterLatlng) {
       this.bindDemAtlas(options.demAtlas, options.worldCenterLatlng);
@@ -406,27 +389,20 @@ export class CloudSystem extends THREE.Group {
   }
 
   bindDemAtlas(demAtlas: DemAtlas, worldCenterLatlng: { lat: number; lng: number }): void {
-    this.valleyLayer?.bindDemAtlas(demAtlas, worldCenterLatlng);
     this.cumulusLayer.bindDemAtlas(demAtlas, worldCenterLatlng);
   }
 
   update(deltaTime: number): void {
     CloudShadowUniforms.uCloudTime.value += deltaTime;
-    this.valleyLayer?.update(deltaTime);
     this.cumulusLayer.update(deltaTime);
-    this.cirrusLayer.update(deltaTime);
   }
 
   setSunDirection(sunDir: THREE.Vector3): void {
-    this.valleyLayer?.setSunDirection(sunDir);
     this.cumulusLayer.setSunDirection(sunDir);
-    this.cirrusLayer.setSunDirection(sunDir);
   }
 
   dispose(): void {
-    this.valleyLayer?.dispose();
     this.cumulusLayer.dispose();
-    this.cirrusLayer.dispose();
     this.clear();
   }
 }
