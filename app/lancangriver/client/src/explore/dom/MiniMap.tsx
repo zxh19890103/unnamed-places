@@ -85,6 +85,7 @@ const MiniMapLoader = memo(
       <ChildWindow
         className="h-[min(27rem,calc(100vh-9rem))] w-[min(27rem,calc(100vw-1rem))]"
         winRole="Following camera"
+        border
         title={`${lat.toFixed(5)}, ${lng.toFixed(5)}`}
         pageUrl="static-leaflet-map"
         onOpenStateChange={onOpenOrClose}

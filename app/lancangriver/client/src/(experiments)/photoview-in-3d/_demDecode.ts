@@ -4,11 +4,7 @@ import * as THREE from 'three';
  * Decode Terrarium encoded RGB elevation into meters:
  * elevation = (R * 256.0 + G + B / 256.0) - 32768.0
  */
-export function decodeTerrarium(
-  rgba: Uint8ClampedArray,
-  width: number,
-  height: number,
-): Float32Array {
+function decodeTerrarium(rgba: Uint8ClampedArray, width: number, height: number): Float32Array {
   const output = new Float32Array(width * height);
 
   for (let y = 0; y < height; y += 1) {
@@ -32,7 +28,7 @@ export function decodeTerrarium(
  * Apply a 3x3 Gaussian blur with edge clamping:
  * Kernel = [1 2 1; 2 4 2; 1 2 1] / 16
  */
-export function gaussianBlur3x3(src: Float32Array, width: number, height: number): Float32Array {
+function gaussianBlur3x3(src: Float32Array, width: number, height: number): Float32Array {
   const output = new Float32Array(width * height);
 
   const clamp = (val: number, min: number, max: number) =>
@@ -73,10 +69,117 @@ export function gaussianBlur3x3(src: Float32Array, width: number, height: number
 }
 
 /**
+ * Apply a Gaussian blur in place using live samples spaced by sampleSpacing pixels.
+ * Leave the outermost rows and columns unchanged; clamp samples for interior pixels.
+ * Estimate slope from weighted neighborhood heights before blurring, using ground distances.
+ * Apply full blur below 2 degrees, fading smoothly to no blur at 8 degrees.
+ * Kernel = [1 2 1; 2 4 2; 1 2 1] / 16. Resolution is unchanged.
+ * Runs left-to-right, top-to-bottom, so later pixels see earlier corrections.
+ * Returns the same array. A sampleSpacing of 2 samples neighbors two pixels apart.
+ */
+function _gaussianBlurSpaced3x3(
+  src: Float32Array,
+  width: number,
+  height: number,
+  sampleSpacing: number,
+  pixelSizeMeters: { x: number; y: number },
+): Float32Array {
+  const effectiveSpacing = Math.max(1, Math.floor(sampleSpacing));
+  const clamp = (val: number, min: number, max: number) =>
+    val < min ? min : val > max ? max : val;
+  const original = new Float32Array(src);
+  const fullBlurSlope = Math.tan((2 * Math.PI) / 180);
+  const noBlurSlope = Math.tan((8 * Math.PI) / 180);
+  const columnHeights = new Float64Array(3);
+  const rowHeights = new Float64Array(3);
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      let sum = 0;
+      columnHeights.fill(0);
+      rowHeights.fill(0);
+
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const yy = clamp(y + dy * effectiveSpacing, 0, height - 1);
+        const yWeight = dy === 0 ? 2 : 1;
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const xx = clamp(x + dx * effectiveSpacing, 0, width - 1);
+          const xWeight = dx === 0 ? 2 : 1;
+          sum += src[yy * width + xx] * xWeight * yWeight;
+          columnHeights[dx + 1] += (original[yy * width + xx] * yWeight) / 4;
+          rowHeights[dy + 1] += (original[yy * width + xx] * xWeight) / 4;
+        }
+      }
+
+      // Measure both sides separately so a ridge or hilltop cannot cancel its own slope.
+      const slopeX = Math.max(
+        Math.abs(columnHeights[1] - columnHeights[0]) /
+          (Math.min(x, effectiveSpacing) * pixelSizeMeters.x),
+        Math.abs(columnHeights[2] - columnHeights[1]) /
+          (Math.min(width - 1 - x, effectiveSpacing) * pixelSizeMeters.x),
+      );
+      const slopeY = Math.max(
+        Math.abs(rowHeights[1] - rowHeights[0]) /
+          (Math.min(y, effectiveSpacing) * pixelSizeMeters.y),
+        Math.abs(rowHeights[2] - rowHeights[1]) /
+          (Math.min(height - 1 - y, effectiveSpacing) * pixelSizeMeters.y),
+      );
+      const slope = Math.hypot(slopeX, slopeY);
+      if (slope >= noBlurSlope) continue;
+
+      const fade = clamp((slope - fullBlurSlope) / (noBlurSlope - fullBlurSlope), 0, 1);
+      const blurWeight = 1 - fade * fade * (3 - 2 * fade);
+      const index = y * width + x;
+      src[index] += (sum / 16 - src[index]) * blurWeight;
+    }
+  }
+
+  return src;
+}
+
+/**
+ * Apply a Gaussian blur in place using live samples spaced by sampleSpacing pixels.
+ * Leave the outermost rows and columns unchanged; clamp samples for interior pixels.
+ * Kernel = [1 2 1; 2 4 2; 1 2 1] / 16. Resolution is unchanged.
+ * Runs left-to-right, top-to-bottom, so later pixels see earlier corrections.
+ * Returns the same array. A sampleSpacing of 2 samples neighbors two pixels apart.
+ */
+function gaussianBlurSpaced3x3(
+  src: Float32Array,
+  width: number,
+  height: number,
+  sampleSpacing: number,
+): Float32Array {
+  const effectiveSpacing = Math.max(1, Math.floor(sampleSpacing));
+  const clamp = (val: number, min: number, max: number) =>
+    val < min ? min : val > max ? max : val;
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      let sum = 0;
+
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const yy = clamp(y + dy * effectiveSpacing, 0, height - 1);
+        const yWeight = dy === 0 ? 2 : 1;
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const xx = clamp(x + dx * effectiveSpacing, 0, width - 1);
+          const xWeight = dx === 0 ? 2 : 1;
+          sum += src[yy * width + xx] * xWeight * yWeight;
+        }
+      }
+
+      src[y * width + x] = sum / 16;
+    }
+  }
+
+  return src;
+}
+
+/**
  * Remove isolated outliers by comparing each pixel to the mean of its 3x3 neighborhood.
  * If the gap exceeds the threshold, replace the current pixel with the local mean.
  */
-export function removeLocalOutliers3x3(
+function removeLocalOutliers3x3(
   src: Float32Array,
   width: number,
   height: number,
@@ -122,91 +225,60 @@ export function removeLocalOutliers3x3(
 }
 
 /**
- * Remove outliers by sampling a 3x3 neighborhood from a downsampled view of the DEM.
- * This keeps the coarse terrain context without allocating a second resized array.
- * A scale of 2 means each coarse cell represents a 2x2 block in the original DEM.
+ * Remove outliers in place using the median of live neighbors spaced by sampleSpacing pixels.
+ * Excludes the center and out-of-bounds samples; even counts average the two middle values.
+ * Runs left-to-right, top-to-bottom, so later pixels see earlier corrections.
+ * Returns the same array. A sampleSpacing of 2 samples neighbors two pixels apart.
  */
-export function removeLocalOutliersScaled3x3(
+function removeLocalOutliersSpaced3x3(
   src: Float32Array,
   width: number,
   height: number,
-  scale: number,
+  sampleSpacing: number,
   threshold: number,
 ): Float32Array {
-  const output = new Float32Array(src);
-  const effectiveScale = Math.max(1, Math.floor(scale));
-
-  const clamp = (val: number, min: number, max: number) =>
-    val < min ? min : val > max ? max : val;
-
-  const coarseWidth = Math.ceil(width / effectiveScale);
-  const coarseHeight = Math.ceil(height / effectiveScale);
-  const coarse = new Float32Array(coarseWidth * coarseHeight);
-
-  for (let cy = 0; cy < coarseHeight; cy += 1) {
-    const yStart = cy * effectiveScale;
-    const yEnd = Math.min(height, yStart + effectiveScale);
-
-    for (let cx = 0; cx < coarseWidth; cx += 1) {
-      const xStart = cx * effectiveScale;
-      const xEnd = Math.min(width, xStart + effectiveScale);
-
-      let sum = 0.0;
-      let count = 0;
-
-      for (let y = yStart; y < yEnd; y += 1) {
-        for (let x = xStart; x < xEnd; x += 1) {
-          sum += src[y * width + x];
-          count += 1;
-        }
-      }
-
-      coarse[cy * coarseWidth + cx] = count === 0 ? 0 : sum / count;
-    }
-  }
+  const effectiveSpacing = Math.max(1, Math.floor(sampleSpacing));
+  const neighbors: number[] = [];
 
   for (let y = 0; y < height; y += 1) {
-    const coarseY = Math.floor(y / effectiveScale);
-    const yStart = coarseY - 1;
-    const yEnd = coarseY + 1;
-
     for (let x = 0; x < width; x += 1) {
-      const coarseX = Math.floor(x / effectiveScale);
-      const xStart = coarseX - 1;
-      const xEnd = coarseX + 1;
-
       const center = src[y * width + x];
-      let sum = 0.0;
-      let count = 0;
+      neighbors.length = 0;
 
-      for (let yy = yStart; yy <= yEnd; yy += 1) {
-        if (yy < 0 || yy >= coarseHeight) continue;
-        for (let xx = xStart; xx <= xEnd; xx += 1) {
-          if (xx < 0 || xx >= coarseWidth) continue;
-          if (xx === coarseX && yy === coarseY) continue;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const yy = y + dy * effectiveSpacing;
+        if (yy < 0 || yy >= height) continue;
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const xx = x + dx * effectiveSpacing;
+          if (xx < 0 || xx >= width) continue;
+          if (dx === 0 && dy === 0) continue;
 
-          sum += coarse[yy * coarseWidth + xx];
-          count += 1;
+          neighbors.push(src[yy * width + xx]);
         }
       }
 
-      if (count === 0) continue;
+      if (neighbors.length === 0) continue;
 
-      const localMean = sum / count;
-      if (Math.abs(center - localMean) > threshold) {
-        output[y * width + x] = localMean;
+      neighbors.sort((a, b) => a - b);
+      const middle = Math.floor(neighbors.length / 2);
+      const localMedian =
+        neighbors.length % 2 === 0
+          ? (neighbors[middle - 1] + neighbors[middle]) / 2
+          : neighbors[middle];
+      if (Math.abs(center - localMedian) > threshold) {
+        src[y * width + x] = localMedian;
       }
     }
   }
 
-  return output;
+  return src;
 }
 
 /**
  * Hard clamp elevation deviations around a reference mean:
  * each pixel is bounded to [mean - threshold, mean + threshold].
  */
-export function clampToMean(data: Float32Array, mean: number, threshold: number): void {
+function clampToMean(data: Float32Array, mean: number, threshold: number): void {
   const minVal = mean - threshold;
   const maxVal = mean + threshold;
 
@@ -225,6 +297,64 @@ export type ProcessedDemResult = {
   width: number;
   height: number;
 };
+
+/**
+ * Compute signed, unit-length RGBA normals from the final DEM, with one-sided edge differences.
+ * Decoded rows run south to north, so increasing row indices point toward world -Z.
+ */
+export function computeDemNormals(
+  { data, width, height }: ProcessedDemResult,
+  metersPerTexel: THREE.Vector2,
+): Float32Array {
+  const normals = new Float32Array(width * height * 4);
+
+  for (let y = 0; y < height; y += 1) {
+    const south = Math.max(0, y - 1);
+    const north = Math.min(height - 1, y + 1);
+
+    for (let x = 0; x < width; x += 1) {
+      const west = Math.max(0, x - 1);
+      const east = Math.min(width - 1, x + 1);
+      const slopeEast =
+        east === west
+          ? 0
+          : (data[y * width + east] - data[y * width + west]) / ((east - west) * metersPerTexel.x);
+      const slopeNorth =
+        north === south
+          ? 0
+          : (data[north * width + x] - data[south * width + x]) /
+            ((north - south) * metersPerTexel.y);
+      const length = Math.hypot(slopeEast, 1, slopeNorth);
+      const index = (y * width + x) * 4;
+      normals[index] = -slopeEast / length;
+      normals[index + 1] = 1 / length;
+      normals[index + 2] = slopeNorth / length;
+      normals[index + 3] = 1;
+    }
+  }
+
+  return normals;
+}
+
+/** Signed normals use linear float sampling, just like the elevation texture. */
+export function createDemNormalTexture(source?: {
+  normals: Float32Array;
+  width: number;
+  height: number;
+}): THREE.DataTexture {
+  const texture = new THREE.DataTexture(
+    source?.normals ?? new Float32Array([0, 1, 0, 1]),
+    source?.width ?? 1,
+    source?.height ?? 1,
+    THREE.RGBAFormat,
+    THREE.FloatType,
+  );
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
 
 /**
  * Async pipeline: fetch DEM PNG -> extract RGBA -> decode Terrarium -> Gaussian blur -> remove local outliers -> clamp to mean.
@@ -282,13 +412,14 @@ export async function loadProcessedDem(
   }
 
   const decoded = decodeTerrarium(rgbaData, width, height);
-  const blurred = gaussianBlur3x3(decoded, width, height);
   const outlierThreshold = options.outlierThreshold ?? 60;
-  const cleaned = removeLocalOutliersScaled3x3(blurred, width, height, 18, outlierThreshold);
-  clampToMean(cleaned, options.mean, options.threshold);
+
+  removeLocalOutliersSpaced3x3(decoded, width, height, 18, outlierThreshold);
+  // gaussianBlurSpaced3x3(decoded, width, height, 10);
+  clampToMean(decoded, options.mean, options.threshold);
 
   return {
-    data: cleaned,
+    data: decoded,
     width,
     height,
   };

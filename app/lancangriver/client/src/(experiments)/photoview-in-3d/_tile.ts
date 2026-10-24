@@ -12,7 +12,12 @@ import {
   latLngToMetersOffset,
 } from './_fns';
 import { __glsl_chunks_common__, __glsl_chunks_cbs__ } from './_glsl';
-import { loadProcessedDem, createDemDataTexture } from './_demDecode';
+import {
+  loadProcessedDem,
+  createDemDataTexture,
+  computeDemNormals,
+  createDemNormalTexture,
+} from './_demDecode';
 import { DemAtlas } from './_demAtlas';
 import { SatelliteAtlas } from './_satelliteAtlas';
 import { BwOSMMaskAtlas } from './_bwOSMMaskAtlas';
@@ -132,7 +137,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
     demAvg: number,
     sizeMeters: number,
     demTextureUniform: { value: THREE.Texture },
-    demTexSizeUniform: { value: THREE.Vector2 },
+    demNormalTextureUniform: { value: THREE.Texture },
     demUvOffset: THREE.Vector2,
     demUvScale: THREE.Vector2,
     onSatelliteSettled: () => void,
@@ -201,12 +206,11 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         hasSatellite: { value: 0 },
         idColor: { value: new THREE.Color(Math.floor(Math.random() * 0xffffff)) },
         demTexture: demTextureUniform,
-        demTexSize: demTexSizeUniform,
+        demNormalTexture: demNormalTextureUniform,
         demUvOffset: { value: demUvOffset },
         demUvScale: { value: demUvScale },
         demAvg: { value: demAvg },
         demMedian: { value: demMedian },
-        tileMeters: { value: sizeMeters },
         // bwOSMMaskAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.textureUniform : { value: null },
         // osmSdfAtlas: bwOSMMaskAtlas ? bwOSMMaskAtlas.sdfTextureUniform : { value: null },
         // hasBwOSMMask: { value: bwOSMMaskAtlas ? 1.0 : 0.0 },
@@ -246,7 +250,7 @@ class TileGridCell extends THREE.Group {
   private subCells: TileGridCell[] = [];
   private isDisposed = false;
   private demTextureUniform: { value: THREE.Texture };
-  private demTexSizeUniform: { value: THREE.Vector2 };
+  private demNormalTextureUniform: { value: THREE.Texture };
   private ownsDemTexture = false;
   private demTextureOwner?: TileGridCell;
   private demUvOffset = new THREE.Vector2(0, 0);
@@ -300,9 +304,9 @@ class TileGridCell extends THREE.Group {
     this.add(new THREE.Box3Helper(this.volume));
 
     this.targetZoom = zoom;
-    const { demTextureUniform, demTexSizeUniform } = this.initDemTexture(parentCell);
+    const { demTextureUniform, demNormalTextureUniform } = this.initDemTexture(parentCell);
     this.demTextureUniform = demTextureUniform;
-    this.demTexSizeUniform = demTexSizeUniform;
+    this.demNormalTextureUniform = demNormalTextureUniform;
     this.createTileMesh();
   }
 
@@ -310,9 +314,17 @@ class TileGridCell extends THREE.Group {
     return `${this.zoom}/${this.x}/${this.y}`;
   }
 
+  get readyForPrint(): boolean {
+    return (
+      this.ready &&
+      this.tileMesh?.material.uniforms.hasSatellite.value === 1 &&
+      this.subCells.every((cell) => cell.readyForPrint)
+    );
+  }
+
   private initDemTexture(parentCell?: TileGridCell): {
     demTextureUniform: { value: THREE.Texture };
-    demTexSizeUniform: { value: THREE.Vector2 };
+    demNormalTextureUniform: { value: THREE.Texture };
   } {
     if (this.zoom > 15) {
       let parent = parentCell;
@@ -328,7 +340,7 @@ class TileGridCell extends THREE.Group {
           this.demUvScale.set(1 / scale, 1 / scale);
           return {
             demTextureUniform: parent.demTextureUniform,
-            demTexSizeUniform: parent.demTexSizeUniform,
+            demNormalTextureUniform: parent.demNormalTextureUniform,
           };
         }
 
@@ -344,7 +356,7 @@ class TileGridCell extends THREE.Group {
     // 1x1 placeholder texture filled with demMin
     const placeholder = createDemDataTexture({ value: this.demMin });
     const demTextureUniform = { value: placeholder };
-    const demTexSizeUniform = { value: new THREE.Vector2(1, 1) };
+    const demNormalTextureUniform = { value: createDemNormalTexture() };
 
     loadProcessedDem(demUrl, {
       mean: this.demAvg,
@@ -357,11 +369,20 @@ class TileGridCell extends THREE.Group {
           this.demAtlas.updateTile(this.x, this.y, result);
         }
 
+        // Use the source cell's geographic size, not a child tile's cropped DEM extent.
+        const metersPerTexel = new THREE.Vector2(
+          this.tileSizeMeters / result.width,
+          this.tileSizeMeters / result.height,
+        );
+        const normals = computeDemNormals(result, metersPerTexel);
+        const processedNormalTexture = createDemNormalTexture({ ...result, normals });
         const processedTexture = createDemDataTexture(result);
         const oldTexture = demTextureUniform.value;
+        const oldNormalTexture = demNormalTextureUniform.value;
         demTextureUniform.value = processedTexture;
-        demTexSizeUniform.value.set(result.width, result.height);
+        demNormalTextureUniform.value = processedNormalTexture;
         oldTexture.dispose();
+        oldNormalTexture.dispose();
 
         this._demReady = true;
         this.onTextureReady();
@@ -370,7 +391,7 @@ class TileGridCell extends THREE.Group {
         console.error(`Failed to load CPU DEM tile ${this.zoom}/${this.x}/${this.y}`, error);
       });
 
-    return { demTextureUniform, demTexSizeUniform };
+    return { demTextureUniform, demNormalTextureUniform };
   }
 
   private get demReady(): boolean {
@@ -401,7 +422,7 @@ class TileGridCell extends THREE.Group {
       this.demAvg,
       this.tileSizeMeters,
       this.demTextureUniform,
-      this.demTexSizeUniform,
+      this.demNormalTextureUniform,
       this.demUvOffset,
       this.demUvScale,
       () => {
@@ -463,6 +484,7 @@ class TileGridCell extends THREE.Group {
   }
 
   disposeSubtree() {
+    if (this.isDisposed) return;
     this.isDisposed = true;
 
     this.disposeSubCells();
@@ -470,6 +492,7 @@ class TileGridCell extends THREE.Group {
 
     if (this.ownsDemTexture) {
       this.demTextureUniform.value.dispose();
+      this.demNormalTextureUniform.value.dispose();
       this.ownsDemTexture = false;
     }
 
@@ -735,9 +758,15 @@ export class TileGrid extends THREE.Group<TileEvents> {
 
   private timer: ReturnType<typeof setTimeout> | null = null;
   private latestCamera: THREE.PerspectiveCamera | null = null;
+  printPaused = false;
+
+  get readyForPrint(): boolean {
+    const cells = this.children.filter((child) => child instanceof TileGridCell);
+    return this.timer === null && cells.length > 0 && cells.every((cell) => cell.readyForPrint);
+  }
 
   private scheduleLodUpdate(camera: THREE.PerspectiveCamera, delay = 600) {
-    if (this.isDisposed) return;
+    if (this.isDisposed || this.printPaused) return;
 
     this.latestCamera = camera;
 
@@ -777,7 +806,7 @@ export class TileGrid extends THREE.Group<TileEvents> {
     this.satelliteAtlas.dispose();
     this.bwOSMMaskAtlas.dispose();
 
-    for (const child of this.children) {
+    for (const child of [...this.children]) {
       if (child instanceof TileGridCell) {
         child.disposeSubtree();
       } else {
@@ -843,12 +872,11 @@ const tileVertexShader = /*glsl */ `
   #include <logdepthbuf_pars_vertex>
 
   uniform sampler2D demTexture;
+  uniform sampler2D demNormalTexture;
   uniform vec2 demUvOffset;
   uniform vec2 demUvScale;
   uniform float demAvg;
   uniform float demMedian;
-  uniform vec2 demTexSize;
-  uniform float tileMeters;
 
   varying vec2 vUv;
   varying float vViewZ;
@@ -873,20 +901,7 @@ const tileVertexShader = /*glsl */ `
 
     vWorldPosition = worldPosition.xyz;
 
-    // Calculate terrain surface normal using central finite differences on DEM
-    vec2 texelSize = 1.0 / demTexSize;
-    float elevL = sampleDem(demUv - vec2(texelSize.x, 0.0));
-    float elevR = sampleDem(demUv + vec2(texelSize.x, 0.0));
-    float elevB = sampleDem(demUv - vec2(0.0, texelSize.y));
-    float elevT = sampleDem(demUv + vec2(0.0, texelSize.y));
-
-    // Horizontal spacing in meters represented by 2 texels of DEM across this tile
-    float metersPerTexel = (tileMeters / demTexSize.x) * demUvScale.x;
-    float dX = (elevR - elevL) / max(2.0 * metersPerTexel, 0.001);
-    float dZ = (elevT - elevB) / max(2.0 * metersPerTexel, 0.001);
-
-    // In Three.js world space, +Y is up, +X is East, -Z is North
-    vec3 localNormal = normalize(vec3(-dX, 1.0, dZ));
+    vec3 localNormal = normalize(texture2D(demNormalTexture, demUv).xyz);
     vTerrainNormal = normalize((modelMatrix * vec4(localNormal, 0.0)).xyz);
 
     vec4 mvPosition = viewMatrix * worldPosition;
@@ -948,7 +963,7 @@ const tileFragmentShader = /*glsl */ `
 
     // Smooth transition from shadowed slope to sunlit ridge
     float sunFactor = smoothstep(-0.25, 0.85, NdotL);
-    vec3 sunTint = sunColor * 1.8;
+    vec3 sunTint = sunColor * 1.46;
 
     vec3 hillshade = mix(sunAmbient, sunTint, sunFactor);
     finalColor *= hillshade;

@@ -257,7 +257,7 @@ export function JourneyPanel({
                   <div
                     key={geoNode.chipKey}
                     className={`rounded-lg border p-3 transition-colors  bg-jade-depth/40 ${
-                      isOpen ? 'border-jade-river' : 'border-jade-border-soft'
+                      isOpen ? 'border-slate-700' : 'border-jade-border-soft'
                     }`}
                   >
                     <button

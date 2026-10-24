@@ -3,6 +3,7 @@ import { Panel } from './Panel';
 import { Tooltip } from './Tooltip';
 import { ChildWindow } from './Window';
 import { Button, IconButton } from './Button';
+import { Button2 } from './Button2';
 import { Tab } from './Tab';
 import { Tag } from './Tag';
 import { Alert, AlertProvider, useAlert } from './Alert';
@@ -17,6 +18,7 @@ export {
   Tooltip,
   ChildWindow,
   Button,
+  Button2 as AButton,
   IconButton,
   Tab,
   Tag,

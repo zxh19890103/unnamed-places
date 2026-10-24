@@ -31,14 +31,14 @@ export const Panel = ({
   return (
     <section
       className={clsx(
-        'overflow-hidden pointer-events-auto rounded-xl border border-jade-border bg-jade-panel/95 text-jade-text shadow-[0_8px_24px_rgba(24,42,54,0.12)] backdrop-blur-md',
+        'pointer-events-auto rounded-2xl border border-slate-500 ring ring-offset-1  bg-jade-50/95 text-jade-text backdrop-blur-md',
         className ? 'w-fit max-w-[calc(100vw-1.5rem)]' : 'w-[min(360px,calc(100vw-1.5rem))]',
         className,
       )}
     >
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-jade-text">{title}</h3>
+          <h3 className="text-sm font-semibold text-jade-text font-share-tech-mono">{title}</h3>
           {!isMinimized && description ? (
             <p className="mt-0.5 text-xs text-jade-text-muted">{description}</p>
           ) : null}
@@ -56,13 +56,13 @@ export const Panel = ({
       </div>
 
       {isMinimized ? null : (
-        <div className="mx-2">
-          <hr className="border-t border-jade-border-soft" />
+        <div className="">
+          <hr className="border-t border-slate-600" />
         </div>
       )}
 
       {isMinimized ? null : (
-        <div className="max-h-[min(70vh,640px)] overflow-auto px-4 py-3">
+        <div className="max-h-[min(70vh,640px)] overflow-auto p-4">
           {children ? children : <div className="min-h-36" />}
         </div>
       )}

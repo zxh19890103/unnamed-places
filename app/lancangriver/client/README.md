@@ -50,3 +50,20 @@ npm run build
 ```bash
 npm test
 ```
+
+## Photo view print export
+
+On `/photoview-in-3d`, choose **Export A2 PNG** to download a 7016 x 4961 pixel
+landscape image (A2 at 300 DPI). The export waits up to 60 seconds for terrain,
+imagery, and vector loading, then renders in GPU-sized tiles with progress and
+cancellation. Animation, controls, and terrain LOD are frozen during capture.
+Failed/missing terrain or satellite imagery prevents export rather than saving placeholders.
+
+The paper aspect ratio preserves the camera's vertical field of view and adjusts
+horizontal framing. Scene labels are included; HTML panels and maps are not.
+The final image is assembled in browser memory, so close other tabs if allocation
+or encoding fails. This is not an unlimited-size/offline stitching workflow.
+
+Print the downloaded PNG on A2 landscape paper (594 x 420 mm). Set that physical
+size in your print application rather than relying on browser PNG DPI metadata;
+disable automatic fit/cropping when exact dimensions matter.

@@ -12,6 +12,7 @@ type Props = {
   iframeElementRef?: React.RefObject<HTMLIFrameElement>;
   className?: string;
   size?: number;
+  border?: boolean;
   onOpenStateChange?: (open: boolean) => void;
 };
 
@@ -25,6 +26,7 @@ export const ChildWindow = ({
   iframeElementRef,
   className,
   size = null,
+  border = false,
 }: Props) => {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const titleId = useId();
@@ -39,11 +41,12 @@ export const ChildWindow = ({
       aria-modal="true"
       aria-labelledby={titleId}
       className={clsx(
-        'flex max-h-[calc(100vh-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border border-jade-border bg-jade-panel/95 text-jade-text shadow-[0_12px_36px_rgba(24,42,54,0.16)] backdrop-blur-md',
+        'flex max-h-[calc(100vh-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl text-jade-text',
         className ? className : 'h-full w-full ',
+        border ? ' bg-white border ring ring-offset-1 border-slate-700 ring-slate-700' : null,
       )}
     >
-      <header className="z-1 flex min-h-14 items-center justify-between gap-3 border-b border-jade-border-soft px-4 py-2.5">
+      <header className="z-1 flex min-h-14 items-center justify-between gap-3 border-b px-4 py-2.5">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold text-jade-river uppercase">{winRole}</p>
           <h2 id={titleId} className="truncate text-sm font-semibold">
@@ -152,11 +155,11 @@ const ChildWindowModal = ({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-1994 grid place-items-center bg-jade-950/45 p-3 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-1994 grid place-items-center p-3 backdrop-blur-[2px]">
       <div ref={backrdopRef} aria-label="backdrop" className="absolute inset-0" />
       <div
         className={clsx(
-          'h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl border border-jade-border bg-jade-panel shadow-[0_20px_60px_rgba(24,42,54,0.18)]',
+          'h-[min(80vh,760px)] w-[min(90vw,1280px)] overflow-hidden rounded-xl border border-slate-700 ring ring-offset-1  bg-jade-panel',
           className,
         )}
         style={

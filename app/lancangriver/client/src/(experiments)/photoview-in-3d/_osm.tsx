@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChildWindow } from '@/_components/Window';
 import { Button } from '@/_components/Button';
 import type { PhotoviewViewer } from './_viewer';
+import { AButton } from '@/_components';
 
 type Props = {
   viewer?: PhotoviewViewer | null;
@@ -21,14 +22,13 @@ export const OsmJobsCreate = ({ viewer }: Props) => {
 
   return (
     <>
-      <Button
+      <AButton
         type="button"
-        variant="secondary"
-        size="sm"
+        className=""
         onClick={() => setIsOpen(true)}
       >
         Create OSM Job
-      </Button>
+      </AButton>
 
       {isOpen && (
         <ChildWindow.Modal onClose={setIsOpen}>

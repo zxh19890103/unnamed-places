@@ -477,6 +477,10 @@ type PhotosManagerEventMap = {
 export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> {
   private animations: Animation[] = [];
 
+  get readyForPrint(): boolean {
+    return (!this.chip || !!this.chip.thumbnails) && (!this.selected || !!this.selected.original);
+  }
+
   readonly worldCenterLatlng: LatLng;
 
   selected: PhotoView;

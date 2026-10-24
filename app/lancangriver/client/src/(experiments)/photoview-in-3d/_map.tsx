@@ -5,6 +5,7 @@ import { Button } from '@/_components/Button';
 import { Tooltip } from '@/_components/Tooltip';
 import type { JourneyBuildResult } from '@/photos/types';
 import { LatLng } from './_tile';
+import { AButton } from '@/_components';
 
 type Props = { data: JourneyBuildResult; onChipKeySelect: (key: string) => void };
 
@@ -60,9 +61,9 @@ export const LoadFlatMap = memo(({ data, onChipKeySelect }: Props) => {
 
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setIsOpen(true)}>
+      <AButton className="" onClick={() => setIsOpen(true)}>
         Open photo map
-      </Button>
+      </AButton>
 
       {isOpen && (
         <ChildWindow.Modal onClose={setIsOpen}>
@@ -118,9 +119,12 @@ export const LoadLatlngSyncMap = memo(
     return (
       <>
         <Tooltip label="Open photo map">
-          <button className=" rounded-full bg-jade-100 p-2" onClick={() => setIsOpen(true)}>
+          {/* <button className=" rounded-full bg-jade-100 p-2" onClick={() => setIsOpen(true)}>
             <MapIcon />
-          </button>
+          </button> */}
+          <AButton className="" onClick={() => setIsOpen(true)}>
+            <MapIcon />
+          </AButton>
         </Tooltip>
         {isOpen && (
           <div className=" fixed left-4 top-4 w-96 h-96">
@@ -128,6 +132,7 @@ export const LoadLatlngSyncMap = memo(
               iframeElementRef={iframeRef}
               title="Photo map"
               winRole="photo map"
+              border
               pageUrl="/static-leaflet-map?zoom=14"
               onOpenStateChange={setIsOpen}
             />

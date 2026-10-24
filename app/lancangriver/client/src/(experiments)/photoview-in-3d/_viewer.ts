@@ -82,12 +82,22 @@ export class PhotoviewViewer {
   private vectorAbortController: AbortController | null = null;
   private resizeHandler: () => void;
   private isDisposed = false;
+  private printActive = false;
+  private texturesLoading = false;
+  private vectorLoad: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly mountEl: HTMLDivElement,
     private readonly options: PhotoviewViewerOptions = {},
   ) {
-    this.textureLoader = new THREE.TextureLoader();
+    const loadingManager = new THREE.LoadingManager();
+    loadingManager.onStart = () => {
+      this.texturesLoading = true;
+    };
+    loadingManager.onLoad = () => {
+      this.texturesLoading = false;
+    };
+    this.textureLoader = new THREE.TextureLoader(loadingManager);
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
@@ -149,6 +159,7 @@ export class PhotoviewViewer {
     this.mapControls.addEventListener('end', onControlsEnd);
 
     this.resizeHandler = () => {
+      if (this.printActive || this.isDisposed) return;
       const width = this.mountEl.clientWidth;
       const height = this.mountEl.clientHeight;
       this.camera.aspect = width / height;
@@ -170,6 +181,97 @@ export class PhotoviewViewer {
 
   get currentControls(): THREE.Controls<{ end: {} }> {
     return this._currentControls;
+  }
+
+  updatePrintViewport(width: number, height: number) {
+    this.placesGroup?.updateViewport(width, height);
+    this.naturalWaterLabelsGroup?.updateViewport(width, height);
+    this.roadLabelsGroup?.updateViewport(width, height);
+    this.waterwayLabelsGroup?.updateViewport(width, height);
+  }
+
+  private get sceneTexturesReady(): boolean {
+    let ready = true;
+    this.scene.traverse((object) => {
+      if (!(
+        object instanceof THREE.Mesh ||
+        object instanceof THREE.Sprite ||
+        object instanceof THREE.Points ||
+        object instanceof THREE.Line
+      ))
+        return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        const textures: unknown[] = Object.values(material);
+        if (material instanceof THREE.ShaderMaterial) {
+          textures.push(...Object.values(material.uniforms).map((uniform) => uniform.value));
+        }
+        if (textures.some((value) => value instanceof THREE.Texture && !value.source.data)) {
+          ready = false;
+        }
+      }
+    });
+    return ready;
+  }
+
+  /** Freeze animation and interaction, then wait for the current scene's resources and LOD. */
+  async prepareForPrint(signal: AbortSignal): Promise<() => void> {
+    if (this.isDisposed) throw new Error('The viewer has been closed.');
+    if (this.printActive) throw new Error('An image export is already running.');
+    this.printActive = true;
+    const orbitEnabled = this.orbitControls.enabled;
+    const mapEnabled = this.mapControls.enabled;
+    this.orbitControls.enabled = false;
+    this.mapControls.enabled = false;
+    const grid = this._tileGrid;
+    grid?.onEyesMove(this.camera);
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      if (grid) grid.printPaused = false;
+      this.printActive = false;
+      if (this.isDisposed) return;
+      this.orbitControls.enabled = orbitEnabled;
+      this.mapControls.enabled = mapEnabled;
+      this.timer.reset();
+      this.resizeHandler();
+      this.renderer.render(this.scene, this.camera);
+    };
+    try {
+      const deadline = performance.now() + 60_000;
+      let vectorsReady = false;
+      void this.vectorLoad.then(() => {
+        vectorsReady = true;
+      });
+      while (
+        !grid?.readyForPrint ||
+        !vectorsReady ||
+        this.texturesLoading ||
+        !this.sceneTexturesReady ||
+        !this.photosManager.readyForPrint
+      ) {
+        signal.throwIfAborted();
+        if (this.isDisposed || this._tileGrid !== grid) {
+          throw new Error('The scene changed or closed during export.');
+        }
+        if (performance.now() > deadline) {
+          throw new Error(
+            'Scene loading timed out. Check failed terrain/imagery requests and retry.',
+          );
+        }
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 100));
+      }
+      signal.throwIfAborted();
+      if (this.isDisposed || this._tileGrid !== grid) {
+        throw new Error('The scene changed or closed during export.');
+      }
+      grid.printPaused = true;
+      return release;
+    } catch (error) {
+      release();
+      throw error;
+    }
   }
 
   switchControls(mode: 'orbit' | 'map') {
@@ -292,7 +394,7 @@ export class PhotoviewViewer {
       this.addClouds();
     };
 
-    this.fetchVectors(tileGrid);
+    this.vectorLoad = this.fetchVectors(tileGrid);
 
     return tileGrid;
   }
@@ -545,6 +647,7 @@ export class PhotoviewViewer {
     const animate = () => {
       if (this.isDisposed) return;
       this.animationId = requestAnimationFrame(animate);
+      if (this.printActive) return;
 
       const deltaTime = this.timer.getDelta();
       this.photosManager.playAnimation(deltaTime);
@@ -561,6 +664,7 @@ export class PhotoviewViewer {
     };
 
     const render = () => {
+      if (this.printActive || this.isDisposed) return;
       this.renderer.render(this.scene, this.camera);
     };
 

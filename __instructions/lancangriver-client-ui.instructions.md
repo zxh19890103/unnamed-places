@@ -1,6 +1,6 @@
 ---
-applyTo: "app/lancangriver/client/**"
-description: "Use when designing or modifying Lancangriver client DOM UI, including light River Mist map overlays, operational pages, Leaflet views, modals, iframe windows, controls, accessibility, and responsive browser layout."
+applyTo: 'app/lancangriver/client/**'
+description: 'Use when designing or modifying Lancangriver client DOM UI, including light River Mist map overlays, operational pages, Leaflet views, modals, iframe windows, controls, accessibility, and responsive browser layout.'
 ---
 
 # Lancangriver Client DOM UI

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export const DEFAULT_DAYTIME = '12:40';
+export const DEFAULT_DAYTIME = '11:40';
 
 function parseDaytime(timeStr: string): { elevation: number; azimuth: number } {
   const [hours, minutes] = timeStr.split(':').map(Number);
