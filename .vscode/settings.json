@@ -1,7 +1,7 @@
 {
   "editor.fontFamily": "Baloo Thambi 2",
   "editor.fontSize": 14,
-  "workbench.fontAliasing": "antialiased",
+  // "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
   "editor.fontWeight": "400",
   "window.zoomLevel": 1.2,

@@ -246,7 +246,7 @@ export function JourneyPanel({
 
         {byGeo && (
           <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-jade-text-muted">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-jade-text">
               By Geolocation
             </h3>
             <div className="space-y-2">
@@ -256,8 +256,8 @@ export function JourneyPanel({
                 return (
                   <div
                     key={geoNode.chipKey}
-                    className={`rounded-lg border p-3 transition-colors  bg-jade-depth/40 ${
-                      isOpen ? 'border-slate-700' : 'border-jade-border-soft'
+                    className={`rounded-lg border p-3 transition-colors border-slate-700   ${
+                      isOpen ? ' border-dashed bg-jade-foundation' : ' bg-white'
                     }`}
                   >
                     <button
@@ -286,10 +286,10 @@ export function JourneyPanel({
                         {geoNode.bydate.map((g) => {
                           return (
                             <div key={g.key} className="">
-                              <div className=" ">
+                              <div className=" mt-3">
                                 <h3 className=" text-lg font-semibold">{g.key}</h3>
                               </div>
-                              <div className=" flex flex-wrap gap-1 ">
+                              <div className=" flex flex-wrap gap-2 ">
                                 {g.photos.map((photo) => {
                                   const isSelected = finalSelectedPhotoID === photo.id;
 
@@ -299,8 +299,8 @@ export function JourneyPanel({
                                       type="button"
                                       onClick={() => onPhotoClick(photo, geoNode)}
                                       aria-pressed={isSelected}
-                                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river ${
-                                        isSelected ? 'border-jade-river' : 'border-jade-border-soft'
+                                      className={`h-16 w-16 shrink-0 overflow-hidden ring ring-offset-1 ring-slate-300 rounded-md transition-opacity hover:ring-slate-950 ${
+                                        isSelected ? 'ring-slate-950' : ''
                                       }`}
                                     >
                                       <img

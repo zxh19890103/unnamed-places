@@ -221,7 +221,7 @@ class TileSegment extends THREE.Mesh<TileGeometry, THREE.ShaderMaterial> {
         // atlasUvScale: { value: atlasUvScale },
         osmMaskColor: { value: new THREE.Color(0x38bdf8) },
         osmMaskOpacity: { value: 0.85 },
-        saturation: { value: 2.0 },
+        saturation: { value: 1.0 },
         contrast: { value: 1 },
         brightness: { value: 1 },
       },
@@ -963,7 +963,7 @@ const tileFragmentShader = /*glsl */ `
 
     // Smooth transition from shadowed slope to sunlit ridge
     float sunFactor = smoothstep(-0.25, 0.85, NdotL);
-    vec3 sunTint = sunColor * 1.46;
+    vec3 sunTint = sunColor * 1.1;
 
     vec3 hillshade = mix(sunAmbient, sunTint, sunFactor);
     finalColor *= hillshade;

@@ -57,8 +57,8 @@ export default function App() {
 
   return (
     <AlertProvider>
-      <div className="flex h-screen w-screen flex-col overflow-hidden bg-jade-foundation text-jade-text font-[SUSEMono] lg:flex-row">
-        <main className="min-h-0 min-w-0 flex-1">
+      <div className=" bg-white flex h-screen w-screen flex-col overflow-hidden text-jade-text font-suse-mono lg:flex-row">
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <LeafletBBoxMap
             focusTile={focusTile}
             bbox={bbox}
@@ -69,35 +69,37 @@ export default function App() {
           />
         </main>
 
-        <aside className="z-999 flex h-[43vh] w-full shrink-0 flex-col border-t border-jade-border bg-jade-panel/95 backdrop-blur-md lg:h-full lg:w-96 lg:border-t-0 lg:border-l">
-          <header className="border-b border-jade-border-soft px-4 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase text-jade-river">
-                  Coverage workspace
-                </p>
-                <h1 className="mt-1 text-sm font-semibold tracking-wide text-jade-text">
-                  Zoom {COVERAGE_ZOOM} Coverage
-                </h1>
+        <aside className="z-999 h-full shrink-0 backdrop-blur-md w-96">
+          <div className=" flex flex-col overflow-hidden border-l border-slate-700 size-full">
+            <header className="border-b border-slate-600 px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold font-share-tech-mono uppercase text-jade-river">
+                    Coverage workspace
+                  </p>
+                  <h1 className="mt-1 text-sm font-semibold tracking-wide text-jade-text">
+                    Zoom {COVERAGE_ZOOM} Coverage
+                  </h1>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-jade-control px-2 py-1 font-suse-mono text-[10px] tabular-nums text-jade-text-muted">
+                    {combinedTiles.length} tiles
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-lg border border-jade-border-soft bg-jade-control px-2 py-1 font-[SUSEMono] text-[10px] tabular-nums text-jade-text-muted">
-                  {combinedTiles.length} tiles
-                </span>
-              </div>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-jade-text-muted">
-              {tiles.length === 0
-                ? 'Visible map exceeds 30km, zoom in to list tiles'
-                : 'Click the map to add manual zoom-12 tiles to this list.'}
-            </p>
-          </header>
-          <TileList
-            tiles={combinedTiles}
-            focusTile={focusTile}
-            onTileClick={setFocusTile}
-            onRemoveManualTile={handleRemoveManualTile}
-          />
+              <p className="mt-2 text-xs leading-5 text-jade-text-muted">
+                {tiles.length === 0
+                  ? 'Visible map exceeds 30km, zoom in to list tiles'
+                  : 'Click the map to add manual zoom-12 tiles to this list.'}
+              </p>
+            </header>
+            <TileList
+              tiles={combinedTiles}
+              focusTile={focusTile}
+              onTileClick={setFocusTile}
+              onRemoveManualTile={handleRemoveManualTile}
+            />
+          </div>
         </aside>
       </div>
     </AlertProvider>
@@ -276,7 +278,7 @@ function TileActionButton({
       disabled={disabled}
       aria-label={ariaLabel}
       className={clsx(
-        'inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl border transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+        'inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl border hover:ring ring-offset-1 transition-colors disabled:cursor-not-allowed disabled:opacity-60',
         className,
       )}
     >
@@ -506,20 +508,20 @@ const TileListItem = memo(
       <li
         key={`${tile.z}/${tile.x}/${tile.y}`}
         className={
-          'rounded-xl border bg-jade-panel/90 p-3 text-xs transition-colors hover:bg-jade-control' +
-          (focused ? ' border-jade-river ring-1 ring-jade-river/30' : ' border-jade-border-soft')
+          'rounded-xl border p-3 text-xs transition-colors hover:border-slate-700' +
+          (focused ? ' border-jade-800 border-dashed' : ' border-jade-border-soft')
         }
       >
         <div className="grid gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="text-jade-text flex flex-wrap items-center gap-2">
             <Tile12OsmLink
               tileKey={tile.id}
-              className="text-sm font-semibold text-jade-text hover:text-jade-river hover:underline"
+              className="text-sm font-semibold hover:text-jade-river hover:underline"
             >
               {tile.z}/{tile.x}/{tile.y}
             </Tile12OsmLink>
             {isManualTile ? (
-              <span className="rounded-md border border-jade-sky/40 bg-jade-sky-soft px-2 py-0.5 text-[10px] uppercase text-jade-sky">
+              <span className="rounded-md text-jade-950 bg-jade-sky-soft px-2 py-0.5 text-[10px] uppercase">
                 manual
               </span>
             ) : null}
@@ -527,10 +529,8 @@ const TileListItem = memo(
           <div className="flex flex-wrap gap-1.5">
             <button
               className={
-                'inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl border px-1.5 transition-colors' +
-                (focused
-                  ? ' border-jade-river bg-jade-river-soft text-jade-text'
-                  : ' border-jade-border-soft bg-jade-control text-jade-text-muted hover:bg-jade-control-hover')
+                'inline-flex h-8 w-8 hover:ring ring-offset-1 cursor-pointer items-center justify-center rounded-2xl border px-1.5 transition-colors' +
+                (focused ? ' ring ' : '')
               }
               itemID={tile.id}
               itemType="tile/where"
@@ -544,7 +544,7 @@ const TileListItem = memo(
               onClick={() => void handleDownloadOsm()}
               disabled={downloadStatus === 'queuing'}
               ariaLabel={`Download buildings for tile ${tile.z}/${tile.x}/${tile.y}`}
-              className="border-jade-success/25 bg-jade-success/10 text-jade-success hover:bg-jade-success/20"
+              className=""
             />
             <TileActionButton
               kind="highways"
@@ -552,7 +552,7 @@ const TileListItem = memo(
               onClick={() => void handleDownloadHighwayOsm()}
               disabled={highwayDownloadStatus === 'queuing'}
               ariaLabel={`Download highways for tile ${tile.z}/${tile.x}/${tile.y}`}
-              className="border-jade-sky/25 bg-jade-sky-soft text-jade-sky hover:bg-jade-sky/10"
+              className=""
             />
             <TileActionButton
               kind="waters"
@@ -560,7 +560,7 @@ const TileListItem = memo(
               onClick={() => void handleDownloadWaterOsm()}
               disabled={waterDownloadStatus === 'queuing'}
               ariaLabel={`Download waterways for tile ${tile.z}/${tile.x}/${tile.y}`}
-              className="border-cyan-500/25 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
+              className=""
             />
             <TileActionButton
               kind="places"
@@ -568,7 +568,7 @@ const TileListItem = memo(
               onClick={() => void handleDownloadPlaceOsm()}
               disabled={placeDownloadStatus === 'queuing'}
               ariaLabel={`Download places for tile ${tile.z}/${tile.x}/${tile.y}`}
-              className="border-amber-500/25 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+              className=""
             />
             <TileActionButton
               kind="natural_water"
@@ -576,7 +576,7 @@ const TileListItem = memo(
               onClick={() => void handleDownloadNaturalWaterOsm()}
               disabled={naturalWaterDownloadStatus === 'queuing'}
               ariaLabel={`Download natural water for tile ${tile.z}/${tile.x}/${tile.y}`}
-              className="border-cyan-500/25 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
+              className=""
             />
             {isManualTile ? (
               <button

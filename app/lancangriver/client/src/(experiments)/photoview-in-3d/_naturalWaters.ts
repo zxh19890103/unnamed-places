@@ -376,12 +376,19 @@ export function buildNaturalWatersGroup(
 
   const geometries: THREE.BufferGeometry[] = [];
 
+  const isRiver = (feature: GeoJSON.Feature) => {
+    const yes = feature.properties?.tags?.water === 'river';
+    return yes;
+  };
+
   for (const feature of collection.features) {
     if (!feature.geometry) continue;
 
     const type = feature.geometry.type;
     // Strictly consider only Polygon and MultiPolygon
     if (type === 'Polygon' || type === 'MultiPolygon') {
+      if (isRiver(feature)) continue;
+
       const polygonList = extractPolygonCoordinates(feature.geometry);
       for (const rings of polygonList) {
         const polyGeom = createPolygonWaterGeometry(

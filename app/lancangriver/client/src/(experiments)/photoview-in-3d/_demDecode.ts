@@ -240,8 +240,8 @@ function removeLocalOutliersSpaced3x3(
   const effectiveSpacing = Math.max(1, Math.floor(sampleSpacing));
   const neighbors: number[] = [];
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
       const center = src[y * width + x];
       neighbors.length = 0;
 
@@ -413,7 +413,6 @@ export async function loadProcessedDem(
 
   const decoded = decodeTerrarium(rgbaData, width, height);
   const outlierThreshold = options.outlierThreshold ?? 60;
-
   removeLocalOutliersSpaced3x3(decoded, width, height, 18, outlierThreshold);
   // gaussianBlurSpaced3x3(decoded, width, height, 10);
   clampToMean(decoded, options.mean, options.threshold);

@@ -313,29 +313,6 @@ export function buildWatersGroup(
 
   const geometries: THREE.BufferGeometry[] = [];
 
-  const readPropertyName = (properties: GeoJSON.GeoJsonProperties, name = 'name') => {
-    if (!properties) return '';
-    const tags = properties.tags;
-    if (!tags) return '';
-    return tags[name] ?? '';
-  };
-
-  const naturalWaterNames = new Set(
-    collectionNatural?.features
-      .flatMap((p) => [
-        readPropertyName(p.properties, 'name'),
-        readPropertyName(p.properties, 'name:en'),
-        readPropertyName(p.properties, 'name:zh'),
-      ])
-      .filter(Boolean) ?? [],
-  );
-
-  const hasNatural = (properties: GeoJSON.GeoJsonProperties) => {
-    const name = readPropertyName(properties);
-    if (!name) return false;
-    return naturalWaterNames.has(properties.name);
-  };
-
   for (const feature of collection.features) {
     if (!feature.geometry) continue;
 
@@ -345,7 +322,6 @@ export function buildWatersGroup(
       const rawLines = extractLineCoordinates(feature.geometry);
       const waterwayType = getWaterwayType(feature);
       const width = getWaterwayWidth(waterwayType);
-      if (hasNatural(feature.properties)) continue;
 
       for (const rawLine of rawLines) {
         if (rawLine.length < 2) continue;
