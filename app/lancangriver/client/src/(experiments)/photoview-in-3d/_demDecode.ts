@@ -154,8 +154,8 @@ function gaussianBlurSpaced3x3(
   const clamp = (val: number, min: number, max: number) =>
     val < min ? min : val > max ? max : val;
 
-  for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
       let sum = 0;
 
       for (let dy = -1; dy <= 1; dy += 1) {
@@ -357,13 +357,14 @@ export function createDemNormalTexture(source?: {
 }
 
 /**
- * Async pipeline: fetch DEM PNG -> extract RGBA -> decode Terrarium -> Gaussian blur -> remove local outliers -> clamp to mean.
+ * Decode DEM, classify raw terrain, remove outliers, blur non-mountainous tiles, then clamp.
  */
 export async function loadProcessedDem(
   url: string,
   options: {
     mean: number;
     threshold: number;
+    tileSizeMeters: number;
     signal?: AbortSignal;
     outlierThreshold?: number;
   },
@@ -412,9 +413,21 @@ export async function loadProcessedDem(
   }
 
   const decoded = decodeTerrarium(rgbaData, width, height);
+
   const outlierThreshold = options.outlierThreshold ?? 60;
   removeLocalOutliersSpaced3x3(decoded, width, height, 18, outlierThreshold);
-  // gaussianBlurSpaced3x3(decoded, width, height, 10);
+
+  // const mountainous = isMountainous(decoded, width, height, {
+  //   x: options.tileSizeMeters / width,
+  //   y: options.tileSizeMeters / height,
+  // });
+
+  // console.log('mountainous', mountainous);
+
+  // if (!mountainous) {
+  //   gaussianBlurSpaced3x3(decoded, width, height, 12);
+  // }
+
   clampToMean(decoded, options.mean, options.threshold);
 
   return {
@@ -422,6 +435,70 @@ export async function loadProcessedDem(
     width,
     height,
   };
+}
+
+/**
+ * Tile-wide heuristic: preserve tiles with P95-P5 relief >= 100 m, or >= 10% of
+ * samples at slopes >= 8 degrees. Percentiles/fractions tolerate isolated spikes.
+ * Relief depends on tile extent; this is a blur guard, not a landform classification.
+ */
+function isMountainous(
+  decoded: Float32Array,
+  width: number,
+  height: number,
+  pixelSizeMeters: { x: number; y: number },
+): boolean {
+  if (
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < 2 ||
+    height < 2 ||
+    decoded.length !== width * height ||
+    !Number.isFinite(pixelSizeMeters.x) ||
+    !Number.isFinite(pixelSizeMeters.y) ||
+    pixelSizeMeters.x <= 0 ||
+    pixelSizeMeters.y <= 0
+  ) {
+    throw new Error(
+      'Mountain classification requires a valid DEM grid and positive ground spacing',
+    );
+  }
+
+  for (const elevation of decoded) {
+    if (!Number.isFinite(elevation)) {
+      throw new Error('Mountain classification requires finite DEM elevations');
+    }
+  }
+
+  const elevations = decoded.slice().sort();
+  const last = elevations.length - 1;
+  const relief = elevations[Math.floor(last * 0.95)] - elevations[Math.floor(last * 0.05)];
+  if (relief >= 100) return true;
+
+  const steepSlope = Math.tan((8 * Math.PI) / 180);
+  const requiredSteepSamples = Math.ceil(decoded.length * 0.1);
+  let steepSamples = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const center = decoded[y * width + x];
+      // Separate one-sided differences avoid cancelling slopes at ridges and summits.
+      const slopeX = Math.max(
+        x > 0 ? Math.abs(center - decoded[y * width + x - 1]) / pixelSizeMeters.x : 0,
+        x < width - 1 ? Math.abs(decoded[y * width + x + 1] - center) / pixelSizeMeters.x : 0,
+      );
+      const slopeY = Math.max(
+        y > 0 ? Math.abs(center - decoded[(y - 1) * width + x]) / pixelSizeMeters.y : 0,
+        y < height - 1 ? Math.abs(decoded[(y + 1) * width + x] - center) / pixelSizeMeters.y : 0,
+      );
+      if (Math.hypot(slopeX, slopeY) >= steepSlope) {
+        steepSamples += 1;
+        if (steepSamples >= requiredSteepSamples) return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 /**

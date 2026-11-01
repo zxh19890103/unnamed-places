@@ -130,7 +130,7 @@ const JobRow = memo(({ job, api }: JobRowProps) => {
       itemID={job.key}
       className="text-jade-text transition-colors hover:bg-jade-river-soft/40"
     >
-      <td className="px-4 py-2.5 font-suse-mono text-jade-text">
+      <td className="px-4 py-2.5 text-jade-text">
         <Tile12OsmLink
           tileKey={job.key}
           className="font-semibold hover:text-jade-river hover:underline"

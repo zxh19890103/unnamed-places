@@ -173,6 +173,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'ShortStack';
+  src: url('/Short_Stack/ShortStack-Regular.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 html,
 body {
   margin: 0;
@@ -181,7 +189,7 @@ body {
   height: 100%;
   background: var(--jade-foundation);
   color: var(--jade-text);
-  font-family: 'SUSEMono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'ShortStack', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 * {

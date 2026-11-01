@@ -117,7 +117,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-jade-foundation font-suse-mono">
+    <div className="relative h-screen w-screen overflow-hidden bg-jade-foundation">
       <div className="contents" inert={printProgress !== null}>
         <div ref={mountRef} className="h-full w-full" aria-label="Photo view in 3D scene" />
 

@@ -224,7 +224,7 @@ export default function App() {
   }, []);
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation font-suse-mono text-jade-text">
+    <main className="relative h-screen w-screen overflow-hidden bg-jade-foundation text-jade-text">
       <div ref={mountRef} className="h-full w-full" />
 
       {ready && <WheelGestureOverlay target={rendererDomRef.current} />}

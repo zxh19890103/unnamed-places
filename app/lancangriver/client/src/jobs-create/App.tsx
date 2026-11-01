@@ -57,7 +57,7 @@ export default function App() {
 
   return (
     <AlertProvider>
-      <div className=" bg-white flex h-screen w-screen flex-col overflow-hidden text-jade-text font-suse-mono lg:flex-row">
+      <div className=" bg-white flex h-screen w-screen flex-col overflow-hidden text-jade-text lg:flex-row">
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <LeafletBBoxMap
             focusTile={focusTile}
@@ -82,7 +82,7 @@ export default function App() {
                   </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-lg bg-jade-control px-2 py-1 font-suse-mono text-[10px] tabular-nums text-jade-text-muted">
+                  <span className="rounded-lg bg-jade-control px-2 py-1 text-[10px] tabular-nums text-jade-text-muted">
                     {combinedTiles.length} tiles
                   </span>
                 </div>

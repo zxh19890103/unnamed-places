@@ -70,7 +70,7 @@ const pages = [
 
 export default function App() {
   return (
-    <main className="min-h-screen bg-jade-foundation px-4 py-6 text-jade-text font-[SUSEMono] sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-jade-foundation px-4 py-6 text-jade-text sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <section className="overflow-hidden rounded-xl border border-jade-border bg-jade-panel/95 shadow-[0_10px_30px_rgba(24,42,54,0.12)]">
           <div className="border-b border-jade-border-soft px-6 py-6 sm:px-7">

@@ -568,7 +568,7 @@ export class PhotoviewViewer {
             tileGrid.worldCenterLatlng,
             tileGrid.demAtlas,
             tileGrid.satelliteAtlas,
-            30.0,
+            3.0,
           );
           this.scene.add(this.naturalWatersGroup);
 
@@ -668,7 +668,7 @@ export class PhotoviewViewer {
       this.renderer.render(this.scene, this.camera);
     };
 
-    // this.mapControls.addEventListener('change', render);
+    this.mapControls.addEventListener('change', render);
     this.orbitControls.addEventListener('change', render);
     animate();
   }

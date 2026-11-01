@@ -5,12 +5,12 @@ description: Use when user wants to generate Chinese overtime work phrases from 
 
 # Jiaban
 
-Generate concise Chinese Simplified overtime-work phrases from the user's English daily updates.
+Generate natural, informative Chinese Simplified overtime-work phrases from the user's English daily updates.
 
 ## Steps
 
 1. **Ask for input first.** Request the user paste their daily updates before generating anything.
-2. **Generate two paragraphs.** No bullets, no headers — just two standalone paragraphs in Chinese Simplified.
+2. **Generate two paragraphs.** No bullets, no headers — just two standalone paragraphs in Chinese Simplified. Make them sufficiently informative and fluent rather than terse, using the concrete context and progress details provided.
 
 ## Output Format
 
@@ -27,4 +27,5 @@ Generate concise Chinese Simplified overtime-work phrases from the user's Englis
 - Always output in Chinese Simplified — never English.
 - No bullets, no numbered lists, no section headers in output.
 - Two paragraphs only, each starting with the required phrase above.
-- Derive content faithfully from the user's English input; do not invent tasks.
+- Enrich the wording with grounded context from the input, such as progress ratios, ongoing status, or remaining work that follows directly from stated totals.
+- Do not invent completed work, plans, blockers, outcomes, causes, or other details not stated or directly supported by the user's updates. If the user asks you to "use your imagination," interpret that as a request for richer phrasing, not fabricated facts.
