@@ -4,6 +4,8 @@
   // "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
   "editor.fontWeight": "400",
+  "chat.fontSize": 16,
+  "chat.fontFamily": "Ubuntu Mono",
   "window.zoomLevel": 1.2,
   "editor.letterSpacing": 2,
   "files.exclude": {

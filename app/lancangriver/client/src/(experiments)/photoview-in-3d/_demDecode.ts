@@ -415,7 +415,7 @@ export async function loadProcessedDem(
   const decoded = decodeTerrarium(rgbaData, width, height);
 
   const outlierThreshold = options.outlierThreshold ?? 60;
-  removeLocalOutliersSpaced3x3(decoded, width, height, 18, outlierThreshold);
+  removeLocalOutliersSpaced3x3(decoded, width, height, 9, outlierThreshold);
 
   // const mountainous = isMountainous(decoded, width, height, {
   //   x: options.tileSizeMeters / width,

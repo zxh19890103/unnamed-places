@@ -5,6 +5,7 @@ import type {
   JourneyGeoNode,
   PhotoRecord,
 } from './types';
+import { buildPhotoChipHierarchy } from './chips';
 
 function toDayKey(takenAt: string | null): string {
   if (!takenAt) {
@@ -133,6 +134,8 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
     }));
   });
 
+  const lodHierarchy = buildPhotoChipHierarchy(records);
+
   return {
     days,
     geoNodes,
@@ -141,5 +144,6 @@ export function buildJourneyDays(records: PhotoRecord[]): JourneyBuildResult {
     buckets,
     geoBuckets,
     skippedInvalidCoordinateCount,
+    lodHierarchy,
   };
 }

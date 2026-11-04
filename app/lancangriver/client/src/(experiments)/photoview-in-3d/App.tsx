@@ -4,8 +4,10 @@ import type {
   JourneyDayNode,
   JourneyGeoNode,
   JourneyPhotosCapacities,
+  PhotoChipSelection,
   PhotoRecord,
 } from '@/photos/types';
+import { createGeoNodeFromChip } from '@/photos/chips';
 import { JourneyPanel } from '@/photos/JourneyPanel';
 import '@/styles.css';
 
@@ -14,6 +16,7 @@ import { LoadFlatMap, LoadLatlngSyncMap } from './_map.js';
 import { OsmJobsCreate } from './_osm.js';
 import { AButton } from '@/_components';
 import { downloadScenePng } from './print';
+import { PhotoModal } from './PhotoModal';
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -27,6 +30,9 @@ export default function App() {
   const [currentPhoto, setCurrentPhoto] = useState<PhotoRecord>(null);
   const [result, setResult] = useState<JourneyBuildResult>(null);
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalActivePhoto, setModalActivePhoto] = useState<PhotoRecord | null>(null);
+
   useEffect(() => {
     const mountEl = mountRef.current;
     if (!mountEl) return;
@@ -34,7 +40,14 @@ export default function App() {
     const instance = new PhotoviewViewer(mountEl);
     setViewer(instance);
 
+    const handleArrived = (e: { photo: PhotoRecord }) => {
+      setCurrentPhoto(e.photo);
+    };
+
+    instance.photosManager.addEventListener('photoArrived', handleArrived);
+
     return () => {
+      instance.photosManager.removeEventListener('photoArrived', handleArrived);
       printAbortRef.current?.abort();
       instance.dispose();
       setViewer(null);
@@ -77,9 +90,105 @@ export default function App() {
     }
   };
 
+  const handlePhotoChipSelect = (selection: PhotoChipSelection) => {
+    if (!result?.lodHierarchy) {
+      handleGeoOpenByKey(selection.chipId);
+      return;
+    }
+
+    if (
+      result.lodHierarchy.revision &&
+      selection.revision &&
+      result.lodHierarchy.revision !== selection.revision
+    ) {
+      console.warn('Ignoring stale photo-chip selection from outdated revision');
+      return;
+    }
+
+    const { chipId, selectionType, photoIds, representativePhotoId } = selection;
+    const photos: PhotoRecord[] = [];
+    for (const id of photoIds) {
+      const p = result.lodHierarchy.photoMap.get(id);
+      if (p) photos.push(p);
+    }
+    if (photos.length === 0) return;
+
+    const chip = result.lodHierarchy.allChips.get(chipId);
+    const fallbackChip = {
+      id: chipId,
+      level: 0,
+      x: 0,
+      y: 0,
+      parentId: null,
+      childIds: [],
+      photoCount: photos.length,
+      representativePhotoId,
+      representativeLat: selection.representativeLat,
+      representativeLng: selection.representativeLng,
+      bounds: {
+        minLat: selection.representativeLat,
+        maxLat: selection.representativeLat,
+        minLng: selection.representativeLng,
+        maxLng: selection.representativeLng,
+      },
+    };
+
+    const geoNode = createGeoNodeFromChip(chip ?? fallbackChip, photos);
+    handleGeoOpen(geoNode);
+
+    if (selectionType === 'single-photo') {
+      const targetPhoto = result.lodHierarchy.photoMap.get(representativePhotoId) ?? photos[0];
+      if (targetPhoto) {
+        handlePhotoSelect(targetPhoto, geoNode);
+      }
+    }
+  };
+
   const handleGeoClose = () => {
+    setIsModalOpen(false);
+    setModalActivePhoto(null);
     setCurrentGeoNode(null);
     viewer?.closeGeoNode();
+  };
+
+  const nodePhotos = currentGeoNode?.photos ?? [];
+  const hasNodePhotos = nodePhotos.length > 0;
+
+  const handleOpenPhotoModal = () => {
+    if (!hasNodePhotos) return;
+    setModalActivePhoto(nodePhotos[0]);
+    setIsModalOpen(true);
+  };
+
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleCurrentGeo = () => {
+    if (!viewer) return;
+
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsLocating(false);
+        const { latitude, longitude } = position.coords;
+        handleGeoClose();
+        viewer.renderAtLatLng({ lat: latitude, lng: longitude });
+      },
+      (error) => {
+        setIsLocating(false);
+        console.warn('Geolocation error:', error);
+        alert(`Failed to get current location: ${error.message}`);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      },
+    );
   };
 
   const [cloudsVisible, setCloudsVisible] = useState(true);
@@ -149,8 +258,45 @@ export default function App() {
           </button>
         </div>
 
-        <div className="fixed bottom-4 left-4">
-          {result && <LoadFlatMap data={result} onChipKeySelect={handleGeoOpenByKey} />}
+        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+          <button
+            type="button"
+            disabled={!hasNodePhotos}
+            onClick={handleOpenPhotoModal}
+            className={`flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-medium shadow-2xl backdrop-blur-md transition-all ${
+              hasNodePhotos
+                ? 'border-jade-river/40 bg-jade-depth/90 text-jade-text hover:border-jade-river hover:bg-jade-depth hover:text-white hover:scale-105 active:scale-95 cursor-pointer'
+                : 'border-white/10 bg-jade-depth/50 text-white/40 cursor-not-allowed opacity-60'
+            }`}
+            title={
+              hasNodePhotos
+                ? `View original photos (${nodePhotos.length}) in HTML modal`
+                : 'Select a geo node/chip to view photos'
+            }
+          >
+            {hasNodePhotos && (
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            )}
+            <span>View Original Photo</span>
+            {hasNodePhotos && (
+              <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/70">
+                {nodePhotos.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="fixed bottom-4 left-4 flex items-center gap-2">
+          {result && (
+            <LoadFlatMap
+              data={result}
+              onChipKeySelect={handleGeoOpenByKey}
+              onPhotoChipSelect={handlePhotoChipSelect}
+            />
+          )}
+          <AButton disabled={!viewer || isLocating} onClick={handleCurrentGeo}>
+            {isLocating ? 'Locating...' : 'Current location'}
+          </AButton>
         </div>
 
         <div className="fixed left-4 top-4">
@@ -163,7 +309,7 @@ export default function App() {
           {viewer && <OsmJobsCreate viewer={viewer} />}
         </div>
 
-        <div className="fixed bottom-16 right-4 z-20 max-w-sm">
+        <div className="fixed bottom-4 right-4 z-20 max-w-sm">
           <AButton disabled={!viewer || printProgress !== null} onClick={handlePrint}>
             Export A2 PNG
           </AButton>
@@ -195,6 +341,17 @@ export default function App() {
             </AButton>
           </div>
         </div>
+      )}
+
+      {isModalOpen && modalActivePhoto && (
+        <PhotoModal
+          photo={modalActivePhoto}
+          photos={nodePhotos.length > 0 ? nodePhotos : [modalActivePhoto]}
+          onClose={() => {
+            setIsModalOpen(false);
+            setModalActivePhoto(null);
+          }}
+        />
       )}
     </div>
   );

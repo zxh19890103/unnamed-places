@@ -192,6 +192,11 @@ body {
   font-family: 'ShortStack', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.photo-badge-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--jade-border-soft) transparent;

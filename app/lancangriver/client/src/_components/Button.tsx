@@ -1,82 +1,48 @@
 import { IconJarLogoIcon } from '@radix-ui/react-icons';
 import clsx from 'clsx';
-import React from 'react';
-import { ComponentStoryBook } from './_types';
+import type React from 'react';
+import type { ComponentStoryBook } from './_types';
 
 type ButtonVariant = 'default' | 'primary' | 'secondary' | 'destructive' | 'success' | 'silt';
 type ButtonSize = 'xs' | 'sm' | 'base' | 'lg';
 
-type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type Props = React.ComponentPropsWithRef<'button'> & {
   variant?: ButtonVariant;
-  className?: string;
   size?: ButtonSize;
-  disabled?: boolean;
 };
 
 const baseButtonClassName =
-  'inline-flex select-none items-center justify-center gap-2 rounded-lg border font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river active:ring-2 active:ring-offset-1 active:ring-offset-jade-foundation disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-jade-control disabled:text-jade-text-muted disabled:opacity-55 disabled:shadow-none disabled:ring-0 disabled:transition-none disabled:active:shadow-none disabled:active:ring-0';
+  'inline-flex select-none items-center justify-center gap-2 rounded-2xl border font-share-tech-mono ring ring-offset-1 ring-offset-jade-foundation cursor-pointer enabled:hover:brightness-105 enabled:hover:drop-shadow-2xl enabled:active:brightness-95 enabled:active:ring-offset-2 focus-visible:outline-2 focus-visible:outline-offset-4 transition-[background-color,box-shadow,filter] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-none disabled:bg-jade-control disabled:text-jade-text-muted disabled:opacity-60 disabled:ring-0 disabled:drop-shadow-none';
+
+const baseIconButtonClassName =
+  'inline-flex select-none items-center justify-center rounded-full border font-share-tech-mono ring ring-offset-1 ring-offset-jade-foundation cursor-pointer enabled:hover:brightness-105 enabled:hover:drop-shadow-2xl enabled:active:brightness-95 enabled:active:ring-offset-2 focus-visible:outline-2 focus-visible:outline-offset-4 transition-[background-color,box-shadow,filter] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-none disabled:bg-jade-control disabled:text-jade-text-muted disabled:opacity-60 disabled:ring-0 disabled:drop-shadow-none';
 
 const buttonVariants: Record<ButtonVariant, string> = {
   default:
-    'border-jade-border-soft bg-jade-control text-jade-text hover:border-jade-border hover:bg-jade-control-hover active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
+    'border-slate-700 ring-slate-700 bg-linear-to-b from-white via-zinc-300 to-white text-jade-text-950 drop-shadow-2xl drop-shadow-jade-400 focus-visible:outline-slate-700',
   primary:
-    'border-jade-river bg-jade-river text-white hover:border-jade-river-600 hover:bg-jade-river-600 active:bg-jade-river-700',
+    'border-jade-river-800 ring-jade-river-700 bg-linear-to-b from-jade-river-400 via-jade-river to-jade-river-600 text-white drop-shadow-2xl drop-shadow-jade-river/40 focus-visible:outline-jade-river-700',
   secondary:
-    'border-jade-border-soft bg-jade-panel text-jade-text hover:border-jade-border hover:bg-jade-control active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
+    'border-slate-600 ring-slate-600 bg-linear-to-b from-jade-panel-raised via-jade-depth to-jade-panel text-jade-text drop-shadow-2xl drop-shadow-jade-300 focus-visible:outline-slate-600',
   destructive:
-    'border-jade-error bg-jade-error text-white hover:border-jade-error-600 hover:bg-jade-error-600 active:bg-jade-error-700',
+    'border-jade-error-800 ring-jade-error-700 bg-linear-to-b from-jade-error-400 via-jade-error to-jade-error-600 text-white drop-shadow-2xl drop-shadow-jade-error/40 focus-visible:outline-jade-error-700',
   success:
-    'border-jade-success bg-jade-success text-white hover:border-jade-success-600 hover:bg-jade-success-600 active:bg-jade-success-700',
-  silt: 'border-jade-silt bg-jade-silt text-white hover:border-jade-silt-600 hover:bg-jade-silt-600 active:bg-jade-silt-700',
+    'border-jade-success-800 ring-jade-success-700 bg-linear-to-b from-jade-success-400 via-jade-success to-jade-success-600 text-white drop-shadow-2xl drop-shadow-jade-success/40 focus-visible:outline-jade-success-700',
+  silt: 'border-jade-silt-800 ring-jade-silt-700 bg-linear-to-b from-jade-silt-400 via-jade-silt to-jade-silt-600 text-white drop-shadow-2xl drop-shadow-jade-silt/40 focus-visible:outline-jade-silt-700',
 };
 
-const baseIconButtonClassName =
-  'inline-flex select-none items-center justify-center rounded-full border transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-river active:ring-2 active:ring-offset-1 active:ring-offset-jade-foundation disabled:cursor-not-allowed disabled:border-jade-border-soft disabled:bg-jade-control disabled:text-jade-text-muted disabled:opacity-55 disabled:shadow-none disabled:ring-0 disabled:transition-none disabled:active:shadow-none disabled:active:ring-0';
-
 const buttonSizes: Record<ButtonSize, string> = {
-  xs: 'min-h-7 px-2 py-1 text-[11px]',
-  base: 'min-h-10 px-3 py-2 text-sm',
-  sm: 'min-h-8 px-2.5 py-1.5 text-xs',
-  lg: 'min-h-11 px-4 py-2.5 text-base',
+  xs: 'min-h-7 min-w-7 px-2 py-0.5 text-[11px]',
+  sm: 'min-h-8 min-w-8 px-2 py-1 text-xs',
+  base: 'min-h-8 min-w-8 px-2.5 py-1 text-sm',
+  lg: 'min-h-10 min-w-10 px-3.5 py-1.5 text-base',
 };
 
 const iconButtonSizes: Record<ButtonSize, string> = {
   xs: 'size-7',
-  base: 'size-10',
   sm: 'size-8',
-  lg: 'size-11',
-};
-
-const iconButtonVariants: Record<ButtonVariant, string> = {
-  default:
-    'border-jade-border-soft bg-jade-control text-jade-text hover:border-jade-border hover:bg-jade-control-hover active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
-  primary:
-    'border-jade-river bg-jade-river text-white hover:border-jade-river-600 hover:bg-jade-river-600 active:bg-jade-river-700',
-  secondary:
-    'border-jade-border-soft bg-jade-panel text-jade-text hover:border-jade-border hover:bg-jade-control active:bg-jade-depth aria-pressed:border-jade-river aria-pressed:bg-jade-river-soft',
-  destructive:
-    'border-jade-error bg-jade-error text-white hover:border-jade-error-600 hover:bg-jade-error-600 active:bg-jade-error-700',
-  success:
-    'border-jade-success bg-jade-success text-white hover:border-jade-success-600 hover:bg-jade-success-600 active:bg-jade-success-700',
-  silt: 'border-jade-silt bg-jade-silt text-white hover:border-jade-silt-600 hover:bg-jade-silt-600 active:bg-jade-silt-700',
-};
-
-const buttonPressVariants: Record<ButtonVariant, string> = {
-  default: 'active:shadow-[0_0_0_2px_rgba(125,139,153,0.18)] active:ring-jade-border/35',
-  primary: 'active:shadow-[0_0_0_2px_rgba(6,132,166,0.2)] active:ring-jade-river/30',
-  secondary: 'active:shadow-[0_0_0_2px_rgba(7,142,165,0.16)] active:ring-jade-river/20',
-  destructive: 'active:shadow-[0_0_0_2px_rgba(191,69,69,0.18)] active:ring-jade-error/25',
-  success: 'active:shadow-[0_0_0_2px_rgba(46,155,102,0.18)] active:ring-jade-success/25',
-  silt: 'active:shadow-[0_0_0_2px_rgba(199,131,19,0.18)] active:ring-jade-silt/25',
-};
-
-const iconButtonPressVariants: Record<ButtonVariant, string> = {
-  default: 'active:shadow-[0_0_0_2px_rgba(125,139,153,0.18)] active:ring-jade-border/35',
-  primary: 'active:shadow-[0_0_0_2px_rgba(6,132,166,0.2)] active:ring-jade-river/30',
-  secondary: 'active:shadow-[0_0_0_2px_rgba(7,142,165,0.16)] active:ring-jade-river/20',
-  destructive: 'active:shadow-[0_0_0_2px_rgba(191,69,69,0.18)] active:ring-jade-error/25',
-  success: 'active:shadow-[0_0_0_2px_rgba(46,155,102,0.18)] active:ring-jade-success/25',
-  silt: 'active:shadow-[0_0_0_2px_rgba(199,131,19,0.18)] active:ring-jade-silt/25',
+  base: 'size-8',
+  lg: 'size-10',
 };
 
 export const Button = ({
@@ -86,7 +52,7 @@ export const Button = ({
   type = 'button',
   size = 'base',
   ...props
-}: React.PropsWithChildren<Props>) => {
+}: Props) => {
   return (
     <button
       {...props}
@@ -94,7 +60,6 @@ export const Button = ({
       className={clsx(
         baseButtonClassName,
         buttonVariants[variant],
-        buttonPressVariants[variant],
         buttonSizes[size],
         className,
       )}
@@ -111,15 +76,14 @@ export const IconButton = ({
   type = 'button',
   size = 'base',
   ...props
-}: React.PropsWithChildren<Props>) => {
+}: Props) => {
   return (
     <button
       {...props}
       type={type}
       className={clsx(
         baseIconButtonClassName,
-        iconButtonVariants[variant],
-        iconButtonPressVariants[variant],
+        buttonVariants[variant],
         iconButtonSizes[size],
         className,
       )}
@@ -129,58 +93,119 @@ export const IconButton = ({
   );
 };
 
-Button.__storybook = (): Props[] => {
-  return [
-    {
-      children: 'Hello, World!',
+Button.__storybook = (): ComponentStoryBook<Props> => [
+  {
+    description:
+      'Default: White-to-zinc gradient with jade glow. Hover, press, or Tab to inspect states.',
+    props: { children: 'Default Button' },
+  },
+  {
+    description: 'Primary: Jade river linear gradient with atmospheric cyan glow.',
+    props: { children: 'Primary Action', variant: 'primary' },
+  },
+  {
+    description: 'Secondary: Subtle panel gradient with depth border.',
+    props: { children: 'Secondary Action', variant: 'secondary' },
+  },
+  {
+    description: 'Destructive: Warning/delete action with error gradient and glow.',
+    props: { children: 'Delete Item', variant: 'destructive' },
+  },
+  {
+    description: 'Success: Positive confirmation with green gradient and glow.',
+    props: { children: 'Confirm Changes', variant: 'success' },
+  },
+  {
+    description: 'Silt: Earthy amber gradient for highlighted secondary tasks.',
+    props: { children: 'Silt Highlight', variant: 'silt' },
+  },
+  {
+    description: 'Disabled: muted surface, no glow, and no hover or press feedback.',
+    props: { children: 'Unavailable', disabled: true },
+  },
+  {
+    description: 'With Icon: Shared compact spacing with Radix icon.',
+    props: {
+      children: (
+        <>
+          <IconJarLogoIcon aria-hidden="true" />
+          Save Place
+        </>
+      ),
     },
-    {
-      children: 'Hello, World!',
-      variant: 'destructive',
-    },
-    {
-      children: 'Hello, World!',
-      variant: 'primary',
-    },
-    {
-      children: 'Hello, World!',
-      variant: 'secondary',
-    },
-    {
-      children: 'Hello, World!',
-      variant: 'success',
-    },
-    {
-      children: 'Hello, World!',
-      variant: 'silt',
-    },
-  ];
-};
+  },
+  {
+    description: 'Compact (xs) size.',
+    props: { children: 'Compact', size: 'xs' },
+  },
+  {
+    description: 'Large (lg) size.',
+    props: { children: 'Large Button', size: 'lg' },
+  },
+];
 
-IconButton.__storybook = (): ComponentStoryBook<Props> => {
-  return [
-    {
-      children: <IconJarLogoIcon />,
+IconButton.__storybook = (): ComponentStoryBook<Props> => [
+  {
+    description: 'Default circular icon button with halo ring and jade glow.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
+      'aria-label': 'Explore places',
     },
-    {
-      children: <IconJarLogoIcon />,
-      variant: 'destructive',
-    },
-    {
-      children: <IconJarLogoIcon />,
-      variant: 'secondary',
-    },
-    {
-      children: <IconJarLogoIcon />,
+  },
+  {
+    description: 'Primary circular icon button.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
       variant: 'primary',
+      'aria-label': 'Primary icon action',
     },
-    {
-      children: <IconJarLogoIcon />,
+  },
+  {
+    description: 'Secondary circular icon button.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
+      variant: 'secondary',
+      'aria-label': 'Secondary icon action',
+    },
+  },
+  {
+    description: 'Destructive circular icon button.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
+      variant: 'destructive',
+      'aria-label': 'Delete action',
+    },
+  },
+  {
+    description: 'Success circular icon button.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
       variant: 'success',
+      'aria-label': 'Success action',
     },
-    {
-      children: <IconJarLogoIcon />,
+  },
+  {
+    description: 'Silt circular icon button.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
       variant: 'silt',
+      'aria-label': 'Silt action',
     },
-  ];
-};
+  },
+  {
+    description: 'Disabled circular icon button without glow or ring.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
+      disabled: true,
+      'aria-label': 'Disabled action',
+    },
+  },
+  {
+    description: 'Small (sm) size circular icon button.',
+    props: {
+      children: <IconJarLogoIcon aria-hidden="true" />,
+      size: 'sm',
+      'aria-label': 'Small icon button',
+    },
+  },
+];

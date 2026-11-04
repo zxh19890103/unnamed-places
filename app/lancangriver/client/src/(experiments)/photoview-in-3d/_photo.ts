@@ -10,7 +10,7 @@ import {
 } from './_fns';
 import { DEG_TO_RAD } from '@/_3dtiles';
 import { BASE_URL } from '@/calc/constants';
-import { __glsl_chunks_cbs__ } from './_glsl';
+import { __glsl_chunks_cbs__, __glsl_chunks_common__ } from './_glsl';
 
 function computeVerticalFov(
   focalLength35mm: number | null,
@@ -235,7 +235,7 @@ class PhotoView {
       vertexShader: thumbVertexShader,
       fragmentShader: thumbFragmentShader,
       side: THREE.DoubleSide,
-      depthTest: false,
+      depthTest: true,
       transparent: false,
     });
 
@@ -470,8 +470,10 @@ class ChipView {
   }
 }
 
-type PhotosManagerEventMap = {
+export type PhotosManagerEventMap = {
   update: {};
+  photoArrived: { photo: PhotoRecord };
+  photoDeparted: { photo?: PhotoRecord };
 };
 
 export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> {
@@ -573,8 +575,10 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
   private destorySelected() {
     if (!this.selected) return;
 
+    const departedPhoto = this.selected.rec;
     this.destoryPv(this.selected);
     this.selected = null;
+    this.dispatchEvent({ type: 'photoDeparted', photo: departedPhoto });
   }
 
   playAnimation(delta: number) {
@@ -658,6 +662,7 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
       },
       onComplete: () => {
         pv.setMovingState('there', animation.id);
+        this.dispatchEvent({ type: 'photoArrived', photo: pv.rec });
       },
     });
 
@@ -676,6 +681,7 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
         }
 
         pv.setMovingState('going', animation.id);
+        this.dispatchEvent({ type: 'photoDeparted', photo: pv.rec });
       },
       onComplete: () => {
         pv.setMovingState('noops', animation.id);
@@ -723,12 +729,16 @@ export class PhotosManager extends THREE.EventDispatcher<PhotosManagerEventMap> 
 }
 
 const thumbVertexShader = /*glsl */ `
+  #include <logdepthbuf_pars_vertex>
+
   uniform sampler2D demTexture;
   uniform vec2 demTileUv;
   uniform float demAvg;
   uniform float demMedian;
   uniform float referenceDistance;
   varying vec2 vUv;
+
+  ${__glsl_chunks_common__}
 
   float decodeElevation(vec3 color) {
     return color.r * 256.0 + color.g + color.b / 256.0 - 32768.0;
@@ -742,7 +752,7 @@ const thumbVertexShader = /*glsl */ `
     float raise = elevation - demMedian;
 
     vec4 worldCenter = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-    worldCenter.y += 30.0 + raise;
+    worldCenter.y += 40.0 + raise;
 
     vec4 viewCenter = viewMatrix * worldCenter;
     float distanceToCamera = max(-viewCenter.z, 1.0);
@@ -752,10 +762,14 @@ const thumbVertexShader = /*glsl */ `
     vec4 worldPosition = worldCenter + worldOffset;
 
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
+
+    #include <logdepthbuf_vertex>
   }
 `;
 
 const thumbFragmentShader = /*glsl */ `
+      #include <logdepthbuf_pars_fragment>
+
       uniform sampler2D thumbTexture;
       uniform vec3 borderColor;
       uniform float brightness;
@@ -767,6 +781,8 @@ const thumbFragmentShader = /*glsl */ `
       ${__glsl_chunks_cbs__}
 
       void main() {
+        #include <logdepthbuf_fragment>
+
         vec4 color = texture2D(thumbTexture, vUv);
         float fill = step(abs(vUv.x - 0.5), 0.44);
 
@@ -783,7 +799,7 @@ const thumbFragmentShader = /*glsl */ `
       }
     `;
 
-type ExifData = {
+export type ExifData = {
   filePath: string;
   fileName: string;
   sizeBytes: number;

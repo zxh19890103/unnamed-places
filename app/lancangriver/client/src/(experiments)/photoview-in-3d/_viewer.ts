@@ -61,7 +61,7 @@ export class PhotoviewViewer {
 
   readonly orbitControls: OrbitControls;
   readonly mapControls: MapControls;
-  private _currentControls: THREE.Controls<{ end: {} }>;
+  private _currentControls: OrbitControls | MapControls;
 
   private _tileGrid: TileGrid | null = null;
 
@@ -179,7 +179,7 @@ export class PhotoviewViewer {
     return this._tileGrid;
   }
 
-  get currentControls(): THREE.Controls<{ end: {} }> {
+  get currentControls(): OrbitControls | MapControls {
     return this._currentControls;
   }
 
@@ -278,6 +278,8 @@ export class PhotoviewViewer {
     const targetControls = mode === 'orbit' ? this.orbitControls : this.mapControls;
     if (this._currentControls === targetControls) return;
 
+    targetControls.target.copy(this._currentControls.target);
+
     this._currentControls.enabled = false;
     targetControls.enabled = true;
 
@@ -300,6 +302,17 @@ export class PhotoviewViewer {
 
     const tileGrid = this.setupTileGrid(chip);
     this.photosManager.openChip(geoNode, tileGrid.worldCenterLatlng);
+  }
+
+  renderAtLatLng(latlng: LatLng): void {
+    this.photosManager.closeChip();
+    this.setupTileGrid(latlng);
+    this.camera.position.set(0, 15_000, 20_000);
+    this.camera.lookAt(0, 0, 0);
+    this.orbitControls.target.set(0, 0, 0);
+    this.orbitControls.update();
+    this.mapControls.target.set(0, 0, 0);
+    this.mapControls.update();
   }
 
   closeGeoNode() {

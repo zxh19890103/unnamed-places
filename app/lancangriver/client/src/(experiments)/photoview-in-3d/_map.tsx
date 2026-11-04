@@ -3,51 +3,54 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { ChildWindow } from '@/_components/Window';
 import { Button } from '@/_components/Button';
 import { Tooltip } from '@/_components/Tooltip';
-import type { JourneyBuildResult } from '@/photos/types';
+import type { JourneyBuildResult, PhotoChipSelection } from '@/photos/types';
 import { LatLng } from './_tile';
 import { AButton } from '@/_components';
 
-type Props = { data: JourneyBuildResult; onChipKeySelect: (key: string) => void };
+type Props = {
+  data: JourneyBuildResult;
+  onChipKeySelect?: (key: string) => void;
+  onPhotoChipSelect?: (selection: PhotoChipSelection) => void;
+};
 
-export const LoadFlatMap = memo(({ data, onChipKeySelect }: Props) => {
+export const LoadFlatMap = memo(({ data, onChipKeySelect, onPhotoChipSelect }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const sentRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) {
-      sentRef.current = false;
       return;
     }
 
-    const sendMockData = () => {
-      if (!iframeRef.current?.contentWindow || sentRef.current) {
+    const sendPhotosData = () => {
+      if (!iframeRef.current?.contentWindow) {
         return;
       }
 
-      sentRef.current = true;
+      const revision = data.lodHierarchy?.revision ?? 'rev-default';
       iframeRef.current.contentWindow.postMessage(
         {
           type: 'photos-load',
-          data: data,
+          data,
+          revision,
         },
         window.location.origin,
       );
     };
 
-    const frame = iframeRef.current;
-    if (!frame) {
-      return;
-    }
+    const timer = window.setTimeout(sendPhotosData, 150);
 
-    // frame.addEventListener('load', sendMockData, { once: true });
-    const timer = window.setTimeout(sendMockData, 150);
-
-    const handleMsg = (event) => {
-      const type = event.data.type;
-      if (type === 'chip-select') {
-        const chipKey = event.data.data;
-        onChipKeySelect(chipKey);
+    const handleMsg = (event: MessageEvent) => {
+      const type = event.data?.type;
+      if (type === 'photos-map-ready') {
+        sendPhotosData();
+      } else if (type === 'photo-chip-select') {
+        onPhotoChipSelect?.(event.data);
+      } else if (type === 'chip-select') {
+        const chipKey = event.data?.data;
+        if (chipKey) {
+          onChipKeySelect?.(chipKey);
+        }
       }
     };
 
@@ -57,7 +60,7 @@ export const LoadFlatMap = memo(({ data, onChipKeySelect }: Props) => {
       window.removeEventListener('message', handleMsg);
       window.clearTimeout(timer);
     };
-  }, [isOpen, data, onChipKeySelect]);
+  }, [isOpen, data, onChipKeySelect, onPhotoChipSelect]);
 
   return (
     <>

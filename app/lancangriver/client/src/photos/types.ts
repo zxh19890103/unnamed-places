@@ -1,4 +1,7 @@
 import { type Scene } from 'three';
+import type { PhotoChipHierarchy } from './chips';
+
+export * from './chips';
 
 export type PhotoRecord = {
   id: string;
@@ -55,6 +58,7 @@ export type JourneyBuildResult = {
   geoBuckets: JourneyBuildResultBucket;
   records: PhotoRecord[];
   skippedInvalidCoordinateCount: number;
+  lodHierarchy?: PhotoChipHierarchy;
 };
 
 export interface JourneyPhotosCapacities {
