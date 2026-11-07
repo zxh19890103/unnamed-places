@@ -19,6 +19,7 @@ import { PhotoMapPanel } from './PhotoMapPanel';
 import { PhotoJourneyPanel } from './photo-journey/PhotoJourneyPanel';
 import { Tooltip } from '@/_components/Tooltip';
 import type { BBox } from './_tile';
+import { sortPhotosByTime } from './_photoTime';
 
 export interface PhotoModalProps {
   photo: PhotoRecord;
@@ -52,7 +53,7 @@ export function PhotoModal({ photo: initialPhoto, photos, osmBbox, onClose }: Ph
   const exifCacheRef = useRef<Map<string, ExifData>>(new Map());
 
   const photoList = useMemo(
-    () => (photos?.length ? photos : [initialPhoto]),
+    () => sortPhotosByTime(photos?.length ? photos : [initialPhoto]),
     [photos, initialPhoto],
   );
   const currentIndex = useMemo(

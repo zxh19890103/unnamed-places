@@ -8,7 +8,11 @@ import { createPhotoMapLabels } from '../_photoMapLabels';
 
 type LayerResult = { data?: GeoJSON.FeatureCollection; error?: string };
 
-export function usePhotoMapLayers(mapRef: RefObject<L.Map | null>, bbox: BBox | null) {
+export function usePhotoMapLayers(
+  mapRef: RefObject<L.Map | null>,
+  bbox: BBox | null,
+  enabled: boolean,
+) {
   const cacheRef = useRef(new Map<string, GeoJSON.FeatureCollection>());
   const [results, setResults] = useState<Partial<Record<MapCategory, LayerResult>>>({});
   const [retry, setRetry] = useState(0);
@@ -17,7 +21,7 @@ export function usePhotoMapLayers(mapRef: RefObject<L.Map | null>, bbox: BBox | 
   useEffect(() => {
     const controller = new AbortController();
     setResults({});
-    if (!bboxKey) return () => controller.abort();
+    if (!enabled || !bboxKey) return () => controller.abort();
     for (const category of MAP_CATEGORIES) {
       const cacheKey = `${bboxKey}/${category}`;
       const cached = cacheRef.current.get(cacheKey);
@@ -39,11 +43,11 @@ export function usePhotoMapLayers(mapRef: RefObject<L.Map | null>, bbox: BBox | 
         });
     }
     return () => controller.abort();
-  }, [bboxKey, retry]);
+  }, [bboxKey, retry, enabled]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !enabled) return;
     const layers = L.layerGroup().addTo(map);
     const datasets: Array<{ category: MapCategory; data: GeoJSON.FeatureCollection }> = [];
     for (const category of MAP_CATEGORIES) {
@@ -68,13 +72,13 @@ export function usePhotoMapLayers(mapRef: RefObject<L.Map | null>, bbox: BBox | 
       disposeLabels();
       layers.remove();
     };
-  }, [mapRef, results]);
+  }, [mapRef, results, enabled]);
 
   return {
     results,
     bboxKey,
-    pending: bboxKey ? MAP_CATEGORIES.filter((category) => !results[category]).length : 0,
-    failures: MAP_CATEGORIES.filter((category) => results[category]?.error),
+    pending: enabled && bboxKey ? MAP_CATEGORIES.filter((category) => !results[category]).length : 0,
+    failures: enabled ? MAP_CATEGORIES.filter((category) => results[category]?.error) : [],
     featureCount: MAP_CATEGORIES.reduce(
       (count, category) => count + (results[category]?.data?.features.length ?? 0), 0,
     ),

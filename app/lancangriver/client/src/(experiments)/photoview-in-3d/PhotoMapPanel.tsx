@@ -11,6 +11,7 @@ import {
 import { createPhotoMapMarkers } from './_photoMapMarkers';
 import { usePhotoMapLayers } from './photo-map/usePhotoMapLayers';
 import { usePhotoMapTiles } from './photo-map/usePhotoMapTiles';
+import { Tooltip } from '@/_components/Tooltip';
 import 'leaflet/dist/leaflet.css';
 
 interface PhotoMapPanelProps {
@@ -32,6 +33,7 @@ export function PhotoMapPanel({
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<ReturnType<typeof createPhotoMapMarkers> | null>(null);
   const [showTiles, setShowTiles] = useState(false);
+  const [showVectors, setShowVectors] = useState(true);
   const locatedPhotos = useMemo(() => photos.filter(hasPhotoLocation), [photos]);
 
   useEffect(() => {
@@ -88,7 +90,7 @@ export function PhotoMapPanel({
   }, [activePhotoId, locatedPhotos, onSelect]);
 
   const { results, bboxKey, pending, failures, featureCount, retry } =
-    usePhotoMapLayers(mapRef, osmBbox);
+    usePhotoMapLayers(mapRef, osmBbox, showVectors);
   const invalidCount = photos.length - locatedPhotos.length;
   const activeHasLocation = locatedPhotos.some((photo) => photo.id === activePhotoId);
 
@@ -121,6 +123,18 @@ export function PhotoMapPanel({
           >
             Tiles
           </button>
+          <Tooltip label="Toggle OpenStreetMap vectors and labels">
+            <button
+              type="button"
+              onClick={() => setShowVectors((previous) => !previous)}
+              aria-pressed={showVectors}
+              className={`cursor-pointer rounded border px-2 py-1 text-white transition-colors ${
+                showVectors ? 'border-jade-river bg-jade-river/20' : 'border-white/20 hover:bg-white/10'
+              }`}
+            >
+              Vectors
+            </button>
+          </Tooltip>
           <button
             type="button"
             onClick={onClose}
@@ -156,9 +170,9 @@ export function PhotoMapPanel({
         {locatedPhotos.length > 0 && !activeHasLocation && (
           <p>The selected photo has no valid map location.</p>
         )}
-        {!bboxKey && <p>Loaded chip bounds are unavailable. OSM data was not requested.</p>}
+        {showVectors && !bboxKey && <p>Loaded chip bounds are unavailable. OSM data was not requested.</p>}
         {pending > 0 && <p role="status">Loading {pending} OSM layers...</p>}
-        {bboxKey &&
+        {showVectors && bboxKey &&
           pending === 0 &&
           featureCount === 0 &&
           failures.length < MAP_CATEGORIES.length && (

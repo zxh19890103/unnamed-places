@@ -27,6 +27,7 @@ export function JourneyMap({
   const initializedRef = useRef(false);
   const [fitRequest, setFitRequest] = useState(0);
   const [showTiles, setShowTiles] = useState(false);
+  const [showVectors, setShowVectors] = useState(true);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -56,7 +57,7 @@ export function JourneyMap({
     };
   }, []);
 
-  const layers = usePhotoMapLayers(mapRef, osmBbox);
+  const layers = usePhotoMapLayers(mapRef, osmBbox, showVectors);
   const tiles = usePhotoMapTiles(mapRef, showTiles);
   const previousFitRef = useRef(fitRequest);
 
@@ -174,8 +175,9 @@ export function JourneyMap({
     return () => { group.remove(); };
   }, [moments, activeIndex, activePhoto, colors, onSelect, fitRequest]);
 
-  const showStatus = !hasPhotoLocation(activePhoto) || !layers.bboxKey ||
-    layers.pending > 0 || layers.featureCount === 0 || layers.failures.length > 0 ||
+  const showStatus = !hasPhotoLocation(activePhoto) ||
+    (showVectors && (!layers.bboxKey || layers.pending > 0 ||
+      layers.featureCount === 0 || layers.failures.length > 0)) ||
     (showTiles && (tiles.loading || tiles.error));
 
   return (
@@ -204,6 +206,20 @@ export function JourneyMap({
             Tiles
           </button>
         </Tooltip>
+        <Tooltip label="Toggle OpenStreetMap vectors and labels">
+          <button
+            type="button"
+            onClick={() => setShowVectors((previous) => !previous)}
+            aria-pressed={showVectors}
+            className={`cursor-pointer rounded border px-2 py-1 text-white transition-colors ${
+              showVectors
+                ? 'border-jade-river bg-jade-river/80'
+                : 'border-white/20 bg-stone-900/90 hover:bg-stone-800'
+            }`}
+          >
+            Vectors
+          </button>
+        </Tooltip>
         <button
           type="button"
           onClick={() => setFitRequest((value) => value + 1)}
@@ -222,9 +238,9 @@ export function JourneyMap({
           </p>
         )}
         {!hasPhotoLocation(activePhoto) && <p>Selected photo has no valid location.</p>}
-        {!layers.bboxKey && <p>Chip bounds unavailable. OSM background was not requested.</p>}
+        {showVectors && !layers.bboxKey && <p>Chip bounds unavailable. OSM background was not requested.</p>}
         {layers.pending > 0 && <p role="status">Loading {layers.pending} OSM layers...</p>}
-        {layers.bboxKey && layers.pending === 0 && layers.featureCount === 0 &&
+        {showVectors && layers.bboxKey && layers.pending === 0 && layers.featureCount === 0 &&
           layers.failures.length < MAP_CATEGORIES.length && <p>No loaded OSM features for this chip.</p>}
         {layers.failures.map((category) => (
           <p key={category} className="text-amber-200">

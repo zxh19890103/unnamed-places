@@ -4,6 +4,7 @@ import { Tooltip } from '@/_components/Tooltip';
 import { getPhotoUrl } from './_fns';
 import { PhotoTimeline } from './PhotoTimeline';
 import { buildPhotoDaylight } from './_photoDaylight';
+import { photoDisplayTime } from './_photoTime';
 
 const ITEM_STRIDE = 104;
 const MAX_VISIBLE_ITEMS = 10;
@@ -95,6 +96,20 @@ export const PhotoFilmstrip = memo(function PhotoFilmstrip({
     updateRange();
   }, [activeIndex, photos, updateRange]);
 
+  const scrollToDay = useCallback((firstPhotoIndex: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollTo({
+      left: Math.max(0, Math.min(
+        firstPhotoIndex * ITEM_STRIDE,
+        el.scrollWidth - el.clientWidth,
+      )),
+      behavior: reducedMotion ? 'instant' : 'smooth',
+    });
+    updateRange();
+  }, [updateRange]);
+
   return (
     <div className="shrink-0 border-t border-white/10 bg-stone-900 px-3 py-2">
       <div
@@ -159,8 +174,8 @@ export const PhotoFilmstrip = memo(function PhotoFilmstrip({
               const photoIndex = range.start + index;
               const fileName = photo.filePath.split('/').pop() ?? photo.filePath;
               const light = daylight.samples[photoIndex];
-              const captureTime = photo.takenAt ? Date.parse(photo.takenAt) : NaN;
-              const captureLabel = Number.isFinite(captureTime)
+              const captureTime = photoDisplayTime(photo);
+              const captureLabel = captureTime !== null
                 ? new Date(captureTime).toLocaleString()
                 : 'Time unavailable';
               return (
@@ -222,6 +237,7 @@ export const PhotoFilmstrip = memo(function PhotoFilmstrip({
           activeIndex={activeIndex}
           visibleStart={visibleRange.start}
           visibleEnd={visibleRange.end}
+          onDayClick={scrollToDay}
         />
       </div>
     </div>

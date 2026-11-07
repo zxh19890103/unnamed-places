@@ -84,6 +84,14 @@ Tiles use `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, with native zoom up 
 [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/);
 this is an interactive basemap, not a bulk-download or offline-cache feature.
 The toggle starts off each time the map panel opens.
+**Vectors**, beside **Tiles**, independently toggles all OSM vector geometry and
+place/road/water labels. It starts on whenever Map or Journey opens and persists
+during photo navigation. Turning it off removes vector layers and labels, cancels
+pending vector requests, and hides vector status messages. Successfully fetched
+data stays cached within the open panel; re-enabling restores cached categories
+and requests only missing ones. Photo markers, Journey sequence links, raster
+tiles, map position, zoom, and selection are unaffected. Both panels use this
+behavior through `photo-map/usePhotoMapLayers.ts`.
 Place labels vary in size and weight by type:
 cities are largest, followed by towns, suburbs, villages, and smaller localities.
 Their existing zoom-based visibility keeps minor places out of wider views.
@@ -129,8 +137,12 @@ Only the already loaded chip bbox is requested; panning does not expand coverage
 Unavailable, empty, loading, and failed OSM data are reported; failed layers can
 be retried without disabling photo selection.
 
-Journey sorts its own chronological copy without reordering modal navigation or
-the filmstrip. Only timestamps with an explicit timezone can establish chronology;
+The modal sorts a copy of the chip's photos by capture time ascending for
+filmstrip, arrows, and map numbering; the input collection and initial selected
+photo are preserved. Equal timestamps keep their input order; missing/invalid
+times appear last. Modal display times retain browser-local interpretation of
+timezone-less timestamps, matching the tooltip and timeline.
+Journey independently requires an explicit timezone to establish chronology;
 untimed/invalid/timezone-less photos appear last with no sequence links. Capture
 times display in the browser's locale and timezone.
 Consecutive same-place photos within 15m of the first photo and 30 minutes between
@@ -148,6 +160,9 @@ Photos without valid coordinates leave the map position unchanged.
 OSM vectors and journey moments without changing selection, zoom, or position.
 It starts off whenever Journey opens and remains enabled during photo navigation.
 Loading and tile failures appear in the map status area; toggle off and on to retry.
+**Vectors**, beside **Tiles**, independently adds/removes OSM vectors and labels
+with the same default-on behavior and request/cache handling as Photo map.
+Journey thumbnails, sequence links, and photo navigation remain active when off.
 The layer uses the same standard OSM tile URL, zoom limits, attribution, and
 interactive-use policy as Photo map. Raster coverage follows the viewport,
 independently of the loaded vector bbox. Both modes share the tile-layer lifecycle
@@ -191,12 +206,32 @@ local timezone, and daylight description. Missing or invalid capture times show
 "Time unavailable". The tooltip is portaled outside the scrolling strip to avoid
 clipping; native browser title tooltips are not used.
 
-The photo modal displays a read-only timeline below its thumbnail strip. The
+The photo modal displays a timeline below its thumbnail strip. A calendar ruler
+directly beneath the density bar replaces static start/middle/end labels. Thin
+horizontal day lines, small boundary ticks, and centered compact dates span the
+bar proportionally to elapsed time between browser-local midnights, clipped at
+the first and last capture times. Local 23/25-hour DST days retain their actual
+duration. There are no filled buttons, fixed-width pills, gaps, or independent
+horizontal scrolling. Empty days have faint, dashed noninteractive ruler lines,
+aligned vertically with the solid populated-day lines; boundary ticks stay solid.
+Single-day and zero-duration ranges fill the ruler width.
+
+Clicking or keyboard-activating a day smoothly scrolls its earliest photo to the
+filmstrip's left edge without selecting it or changing the main photo, Journey,
+or gold caret. The end of the strip clamps to available scroll space; reduced
+motion uses an immediate jump. Populated segments are visually unstyled buttons
+for keyboard access; hover and focus brighten their lines and labels to jade.
+Full dates and photo counts appear in the shared tooltip; narrow segments truncate
+labels without a minimum width that would distort their temporal proportions.
+Visible days are highlighted in jade, while a
+gold dot marks the selected photo's day independently. Unknown/invalid times
+have no dated button and remain available at the end of the strip.
+
+The density
 bar spans all valid capture times in the chip; its white outlined window covers
 the earliest and latest times of thumbnails currently visible, including partially
 visible thumbnails but excluding virtualization overscan. Scroll, resize, and
-selection-driven scrolling update the highlighted span without reordering photos.
-With unsorted photos, the highlight is a time envelope, not a continuous sequence.
+selection-driven scrolling update the highlighted span in the sorted modal list.
 
 A gold downward caret above the bar marks the selected photo's capture time.
 Photo selection moves the caret; scrolling alone does not. Its exact time appears
@@ -214,7 +249,8 @@ has zero duration.
 The visible range shows exact capture times, and ticks include dates for multi-day
 chips. Times use the browser's local timezone. Missing/invalid times are excluded
 and reported; identical timestamps use a minimum-width indicator. The timeline
-does not support clicking or dragging to navigate.
+bar itself does not support clicking or dragging; calendar-ruler segments navigate
+the strip.
 
 ## Photo view print export
 

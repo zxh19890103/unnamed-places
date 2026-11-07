@@ -1,11 +1,14 @@
 import { memo, useMemo } from 'react';
 import type { PhotoRecord } from '@/photos/types';
+import { Tooltip } from '@/_components/Tooltip';
+import { buildCalendarRuler, buildPhotoDays, localPhotoDay, photoDisplayTime } from './_photoTime';
 
 interface PhotoTimelineProps {
   photos: PhotoRecord[];
   activeIndex: number;
   visibleStart: number;
   visibleEnd: number;
+  onDayClick: (firstPhotoIndex: number) => void;
 }
 
 const DENSITY_BUCKET_COUNT = 64;
@@ -26,16 +29,23 @@ export const PhotoTimeline = memo(function PhotoTimeline({
   activeIndex,
   visibleStart,
   visibleEnd,
+  onDayClick,
 }: PhotoTimelineProps) {
   const timestamps = useMemo(
-    () =>
-      photos.map((photo) => {
-        const time = photo.takenAt ? Date.parse(photo.takenAt) : NaN;
-        return Number.isFinite(time) ? time : null;
-      }),
+    () => photos.map(photoDisplayTime),
     [photos],
   );
+  const days = useMemo(() => buildPhotoDays(timestamps), [timestamps]);
+  const dayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }),
+    [],
+  );
   const fullSpan = useMemo(() => timeSpan(timestamps), [timestamps]);
+  const calendar = useMemo(() => buildCalendarRuler(days, fullSpan), [days, fullSpan]);
+  const calendarFormatter = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }),
+    [],
+  );
   const density = useMemo(() => {
     if (!fullSpan) return null;
     const duration = fullSpan.end - fullSpan.start;
@@ -90,6 +100,7 @@ export const PhotoTimeline = memo(function PhotoTimeline({
   );
   const duration = fullSpan ? fullSpan.end - fullSpan.start : 0;
   const selectedTime = timestamps[activeIndex] ?? null;
+  const selectedDay = selectedTime !== null ? localPhotoDay(selectedTime) : null;
   const selectedLabel =
     selectedTime !== null ? rangeFormatter.format(selectedTime) : 'Time unavailable';
   const selectedPosition =
@@ -155,16 +166,62 @@ export const PhotoTimeline = memo(function PhotoTimeline({
         )}
       </div>
       {fullSpan ? (
-        <div className="flex items-start justify-between gap-2 tabular-nums">
-          <span>{tickFormatter.format(fullSpan.start)}</span>
-          {duration > 0 && (
-            <>
-              <span className="hidden sm:inline">
-                {tickFormatter.format(fullSpan.start + duration / 2)}
-              </span>
-              <span className="text-right">{tickFormatter.format(fullSpan.end)}</span>
-            </>
-          )}
+        <div role="group" aria-label="Capture day calendar ruler" className="relative h-9 w-full">
+          {calendar.map((segment) => {
+            const { day } = segment;
+            const visible = day?.photoIndices.some(
+              (index) => index >= visibleStart && index < visibleEnd,
+            ) ?? false;
+            const selected = segment.key === selectedDay;
+            const label = dayFormatter.format(segment.time);
+            const style = { left: `${segment.left}%`, width: `${segment.width}%` };
+            const segmentClassName = 'absolute inset-y-0 flex min-w-0 flex-col items-stretch justify-start overflow-hidden p-0 pt-1 text-[10px] leading-normal';
+            const contents = (
+              <>
+                <span aria-hidden="true" className="relative block h-1.5 w-full shrink-0 border-x border-current">
+                  <span className={`absolute inset-x-0 top-0 border-t border-current ${day ? 'border-solid' : 'border-dashed'}`} />
+                </span>
+                <span className="mt-1 flex min-w-0 items-center justify-center gap-1 overflow-hidden">
+                  {selected && (
+                    <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
+                  )}
+                  <span className="truncate">{calendarFormatter.format(segment.time)}</span>
+                </span>
+              </>
+            );
+            if (!day) {
+              return (
+                <div
+                  key={segment.key}
+                  aria-label={`${label}: no photos`}
+                  className={`${segmentClassName} text-white/20`}
+                  style={style}
+                >
+                  {contents}
+                </div>
+              );
+            }
+            const count = `${day.photoIndices.length} ${day.photoIndices.length === 1 ? 'photo' : 'photos'}`;
+            return (
+              <Tooltip
+                key={segment.key}
+                label={`Scroll to first photo of ${label}. ${count}. Selection stays unchanged.`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onDayClick(day.firstIndex)}
+                  aria-label={`Scroll to ${label}, ${count}${visible ? ', visible in filmstrip' : ''}${selected ? ', selected photo day' : ''}`}
+                  aria-current={selected ? 'date' : undefined}
+                  className={`${segmentClassName} cursor-pointer appearance-none bg-transparent transition-colors hover:text-jade-river-300 focus-visible:text-jade-river-300 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-jade-river-300 ${
+                    visible ? 'text-jade-river-300' : 'text-white/50'
+                  }`}
+                  style={style}
+                >
+                  {contents}
+                </button>
+              </Tooltip>
+            );
+          })}
         </div>
       ) : (
         <p className="text-center">No valid capture times in this chip.</p>
