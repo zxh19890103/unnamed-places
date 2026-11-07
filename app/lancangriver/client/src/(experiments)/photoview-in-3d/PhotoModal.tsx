@@ -4,6 +4,8 @@ import {
   ChevronRightIcon,
   Cross1Icon,
   InfoCircledIcon,
+  GlobeIcon,
+  Share2Icon,
   ResetIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -13,10 +15,15 @@ import { BASE_URL } from '@/calc/constants';
 import type { ExifData } from './_photo';
 import { PhotoFilmstrip } from './PhotoFilmstrip';
 import { PhotoViewport, type PhotoViewportHandle } from './PhotoViewport';
+import { PhotoMapPanel } from './PhotoMapPanel';
+import { PhotoJourneyPanel } from './photo-journey/PhotoJourneyPanel';
+import { Tooltip } from '@/_components/Tooltip';
+import type { BBox } from './_tile';
 
 export interface PhotoModalProps {
   photo: PhotoRecord;
   photos?: PhotoRecord[];
+  osmBbox?: BBox | null;
   onClose: (finalPhoto: PhotoRecord) => void;
 }
 
@@ -33,9 +40,10 @@ function formatFileSize(bytes: number | null): string | null {
   return `${mb.toFixed(1)} MB`;
 }
 
-export function PhotoModal({ photo: initialPhoto, photos, onClose }: PhotoModalProps) {
+export function PhotoModal({ photo: initialPhoto, photos, osmBbox, onClose }: PhotoModalProps) {
   const [activePhoto, setActivePhoto] = useState<PhotoRecord>(initialPhoto);
   const [showExif, setShowExif] = useState(false);
+  const [leftPanel, setLeftPanel] = useState<'map' | 'journey' | null>(null);
   const [exif, setExif] = useState<ExifData | null>(null);
   const [exifLoading, setExifLoading] = useState(false);
 
@@ -120,7 +128,10 @@ export function PhotoModal({ photo: initialPhoto, photos, onClose }: PhotoModalP
       if (e.key === 'Escape') {
         e.preventDefault();
         handleClose();
-      } else if (e.key === 'ArrowLeft') {
+        return;
+      }
+      if (e.target instanceof Element && e.target.closest('[data-photo-map]')) return;
+      if (e.key === 'ArrowLeft') {
         e.preventDefault();
         goToPrev();
       } else if (e.key === 'ArrowRight') {
@@ -149,7 +160,7 @@ export function PhotoModal({ photo: initialPhoto, photos, onClose }: PhotoModalP
       className="fixed inset-0 z-50 flex flex-col bg-black/85 backdrop-blur-md select-none pointer-events-auto animate-fade-in"
     >
       {/* Top bar header */}
-      <header className="flex h-14 min-h-14 items-center justify-between border-b border-white/10 px-5 text-jade-text bg-jade-depth/60">
+      <header className="flex h-14 min-h-14 items-center justify-between border-b border-white/10 px-5 text-jade-text bg-stone-900">
         <div className="flex items-center gap-3 min-w-0">
           <span className="truncate text-sm font-semibold tracking-wide text-white">
             {fileName}
@@ -195,6 +206,39 @@ export function PhotoModal({ photo: initialPhoto, photos, onClose }: PhotoModalP
             <ZoomInIcon />
           </button>
 
+          <Tooltip label={leftPanel === 'map' ? 'Close map' : 'Open map'}>
+          <button
+            type="button"
+            onClick={() => setLeftPanel((previous) => previous === 'map' ? null : 'map')}
+            aria-label="Toggle photo map"
+            aria-expanded={leftPanel === 'map'}
+            aria-controls="photo-map-panel"
+            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+              leftPanel === 'map'
+                ? 'border-jade-river bg-jade-river/20 text-white'
+                : 'border-white/10 bg-white/5 text-white/80 hover:bg-white/15 hover:text-white'
+            }`}
+          >
+            <GlobeIcon />
+          </button>
+          </Tooltip>
+          <Tooltip label={leftPanel === 'journey' ? 'Close journey' : 'Open journey'}>
+            <button
+              type="button"
+              onClick={() => setLeftPanel((previous) => previous === 'journey' ? null : 'journey')}
+              aria-label="Toggle photo journey"
+              aria-expanded={leftPanel === 'journey'}
+              aria-controls="photo-journey-panel"
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+                leftPanel === 'journey'
+                  ? 'border-jade-river bg-jade-river/20 text-white'
+                  : 'border-white/10 bg-white/5 text-white/80 hover:bg-white/15 hover:text-white'
+              }`}
+            >
+              <Share2Icon />
+            </button>
+          </Tooltip>
+
           {/* EXIF drawer toggle */}
           <button
             type="button"
@@ -224,8 +268,28 @@ export function PhotoModal({ photo: initialPhoto, photos, onClose }: PhotoModalP
       </header>
 
       {/* Main content area */}
-      <div className="relative flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+        {leftPanel === 'map' && (
+          <PhotoMapPanel
+            photos={photoList}
+            activePhotoId={activePhoto.id}
+            osmBbox={osmBbox ?? null}
+            onSelect={selectPhoto}
+            onClose={() => setLeftPanel(null)}
+          />
+        )}
+        {leftPanel === 'journey' && (
+          <PhotoJourneyPanel
+            photos={photoList}
+            activePhoto={activePhoto}
+            osmBbox={osmBbox ?? null}
+            onSelect={selectPhoto}
+            onClose={() => setLeftPanel(null)}
+          />
+        )}
+        <div
+          className={`flex flex-1 flex-col ${leftPanel || showExif ? 'min-w-[320px]' : 'min-w-0'}`}
+        >
           <div className="relative min-h-0 flex-1">
             <PhotoViewport
               key={`${activePhoto.id}:${activePhoto.filePath}`}
@@ -261,7 +325,7 @@ export function PhotoModal({ photo: initialPhoto, photos, onClose }: PhotoModalP
 
         {/* Collapsible EXIF sidebar drawer */}
         {showExif && (
-          <aside className="w-80 border-l border-white/10 bg-stone-700 backdrop-blur-xl p-5 text-jade-text text-xs overflow-y-auto space-y-5 animate-slide-left">
+          <aside className="w-80 shrink-0 border-l border-white/10 bg-stone-800/80 backdrop-blur-xl p-5 text-jade-text text-xs overflow-y-auto space-y-5 animate-slide-left">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-sm font-semibold text-white tracking-wide">EXIF Telemetry</h3>
               <button

@@ -17,6 +17,7 @@ import { OsmJobsCreate } from './_osm.js';
 import { AButton } from '@/_components';
 import { downloadScenePng } from './print';
 import { PhotoModal } from './PhotoModal';
+import type { BBox } from './_tile';
 
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -32,6 +33,7 @@ export default function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalActivePhoto, setModalActivePhoto] = useState<PhotoRecord | null>(null);
+  const [modalOsmBbox, setModalOsmBbox] = useState<BBox | null>(null);
 
   useEffect(() => {
     const mountEl = mountRef.current;
@@ -147,6 +149,7 @@ export default function App() {
   const handleGeoClose = () => {
     setIsModalOpen(false);
     setModalActivePhoto(null);
+    setModalOsmBbox(null);
     setCurrentGeoNode(null);
     viewer?.closeGeoNode();
   };
@@ -156,6 +159,8 @@ export default function App() {
 
   const handleOpenPhotoModal = () => {
     if (!hasNodePhotos) return;
+    const bbox = viewer?.tileGrid?.bbox;
+    setModalOsmBbox(bbox ? { ...bbox } : null);
     setModalActivePhoto(nodePhotos[0]);
     setIsModalOpen(true);
   };
@@ -347,9 +352,11 @@ export default function App() {
         <PhotoModal
           photo={modalActivePhoto}
           photos={nodePhotos.length > 0 ? nodePhotos : [modalActivePhoto]}
+          osmBbox={modalOsmBbox}
           onClose={() => {
             setIsModalOpen(false);
             setModalActivePhoto(null);
+            setModalOsmBbox(null);
           }}
         />
       )}
