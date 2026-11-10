@@ -1,5 +1,5 @@
 {
-  "editor.fontFamily": "Ubuntu Sans Mono",
+  "editor.fontFamily": "Ubuntu Mono",
   "editor.fontSize": 14,
   // "workbench.fontAliasing": "antialiased",
   "editor.fontLigatures": true,
@@ -7,7 +7,7 @@
   "chat.fontSize": 16,
   "chat.fontFamily": "Ubuntu Mono",
   "window.zoomLevel": 1.2,
-  "editor.letterSpacing": 2,
+  "editor.letterSpacing": 3,
   "files.exclude": {
     "**/.git": true,
     "**/.svn": true,

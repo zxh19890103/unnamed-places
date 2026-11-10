@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import * as L from 'leaflet';
 import type { PhotoRecord } from '@/photos/types';
 import type { BBox } from '../_tile';
-import { getPhotoUrl } from '../_fns';
 import { hasPhotoLocation, MAP_CATEGORIES, MAP_CATEGORY_LABELS } from '../_photoMap';
 import { usePhotoMapLayers } from '../photo-map/usePhotoMapLayers';
 import { usePhotoMapTiles } from '../photo-map/usePhotoMapTiles';
 import { Tooltip } from '@/_components/Tooltip';
-import { formatCaptureTime, hasSequenceLink, type JourneyMoment } from './_journey';
+import { ToggleSwitch } from '@/_components/ToggleSwitch';
+import { formatCaptureTime, hasSequenceLink, momentPhoto, type JourneyMoment } from './_journey';
+import { createJourneyMarkers } from './_journeyMarkers';
 import 'leaflet/dist/leaflet.css';
 
 interface JourneyMapProps {
@@ -66,8 +67,6 @@ export function JourneyMap({
     if (!map) return;
     const group = L.layerGroup().addTo(map);
     const nearby = moments.slice(Math.max(0, activeIndex - 2), activeIndex + 3);
-    const positions: L.LatLng[] = [];
-    const activeMoment = moments[activeIndex];
     const hasLocation = hasPhotoLocation(activePhoto);
     const activePosition = hasLocation ? L.latLng(activePhoto.lat, activePhoto.lng) : null;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -78,11 +77,9 @@ export function JourneyMap({
     );
 
     nearby.forEach((moment, index) => {
-      const selected = moment === activeMoment;
-      const photo = selected ? activePhoto : moment.photos[0];
+      const photo = momentPhoto(moment, activePhoto, Math.max(0, activeIndex - 2) + index < activeIndex);
       if (!hasPhotoLocation(photo)) return;
       const position = positionFor(photo);
-      positions.push(position);
       const color = colors.get(photo.id) ?? '#a8a29e';
       const previous = nearby[index - 1];
       if (previous && hasSequenceLink(previous, moment)) {
@@ -108,60 +105,21 @@ export function JourneyMap({
           }
         }
       }
-      const width = selected ? 80 : 64;
-      const height = selected ? 60 : 48;
-      const sequence = moments.indexOf(moment) + 1;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'relative block cursor-pointer rounded-md border-2 bg-stone-900 shadow-lg focus-visible:outline-2 focus-visible:outline-white';
-      button.style.width = `${width}px`;
-      button.style.height = `${height}px`;
-      button.style.borderColor = selected ? '#fbbf24' : color;
-      if (selected) {
-        button.style.boxShadow = '0 0 0 3px #1c1917, 0 0 0 6px #fbbf24, 0 6px 20px #0009';
-      }
-      button.setAttribute('aria-pressed', String(selected));
-      button.setAttribute('aria-label',
-        `${selected ? 'Selected' : 'View'} moment ${sequence}: ${formatCaptureTime(photo)}, ${moment.photos.length} photos`);
-      const image = document.createElement('img');
-      image.src = getPhotoUrl('thumb', photo.filePath);
-      image.alt = '';
-      image.className = `h-full w-full rounded-sm object-cover ${
-        selected ? '' : 'brightness-65 saturate-50 hover:brightness-100 hover:saturate-100'
-      }`;
-      image.draggable = false;
-      button.append(image);
-      const sequenceBadge = document.createElement('span');
-      sequenceBadge.className = `absolute -left-2 -top-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-stone-900 ${
-        selected ? 'bg-amber-300 text-stone-900' : 'bg-jade-river-700 text-white'
-      }`;
-      sequenceBadge.textContent = String(sequence);
-      button.append(sequenceBadge);
-      if (moment.photos.length > 1) {
-        const countBadge = document.createElement('span');
-        countBadge.className = 'absolute -right-2 -top-2 rounded-full bg-stone-800 px-1.5 py-0.5 text-[10px] font-semibold text-white ring-1 ring-stone-900';
-        countBadge.textContent = `x ${moment.photos.length}`;
-        button.append(countBadge);
-      }
-      button.addEventListener('click', () => onSelect(photo));
-      const marker = L.marker(position, {
-        pane: 'photo-map-photos', keyboard: false, bubblingMouseEvents: false,
-        zIndexOffset: selected ? 1000 : 0,
-        icon: L.divIcon({
-          html: button, className: '', iconSize: [width, height],
-          iconAnchor: [width / 2, height / 2],
-        }),
-      }).addTo(group);
-      marker.bindTooltip(
-        `${formatCaptureTime(photo)} · ${moment.photos.length} photos`,
-        { direction: 'bottom' },
-      );
     });
+    const markers = createJourneyMarkers(
+      map, moments, activeIndex, activePhoto, colors, onSelect, positionFor,
+    );
+    const positions = markers.positions;
     if (positions.length > 0) {
       const fit = !initializedRef.current || previousFitRef.current !== fitRequest;
       if (fit) {
         const bounds = L.latLngBounds(positions);
-        map.fitBounds(bounds, { padding: [55, 55], maxZoom: 16, animate: false });
+        const size = map.getSize();
+        map.fitBounds(bounds, {
+          padding: [Math.min(110, size.x / 4), Math.min(100, size.y / 4)],
+          maxZoom: 16,
+          animate: false,
+        });
         initializedRef.current = true;
       } else if (activePosition) {
         const wrapped = L.latLng(activePosition.lat, activePosition.lng +
@@ -172,7 +130,10 @@ export function JourneyMap({
     }
     previousFitRef.current = fitRequest;
     map.fire('photomapmarkerschange');
-    return () => { group.remove(); };
+    return () => {
+      markers.dispose();
+      group.remove();
+    };
   }, [moments, activeIndex, activePhoto, colors, onSelect, fitRequest]);
 
   const showStatus = !hasPhotoLocation(activePhoto) ||
@@ -189,36 +150,24 @@ export function JourneyMap({
       />
       <div className="pointer-events-none absolute inset-x-3 top-3 z-[1000] flex items-start justify-between gap-2">
         <span className="rounded bg-stone-900/90 px-2 py-1 text-[10px] text-white/70">
-          North up · Photo sequence, not a recorded route
+          North up · Straight-line distances · Photo sequence, not a recorded route
         </span>
-        <div className="pointer-events-auto flex shrink-0 gap-2">
+        <div className="pointer-events-auto flex shrink-0 items-center gap-2 rounded-md bg-stone-900/90 px-2">
         <Tooltip label="Toggle OpenStreetMap raster tiles">
-          <button
-            type="button"
-            onClick={() => setShowTiles((previous) => !previous)}
-            aria-pressed={showTiles}
-            className={`cursor-pointer rounded border px-2 py-1 text-white transition-colors ${
-              showTiles
-                ? 'border-jade-river bg-jade-river/80'
-                : 'border-white/20 bg-stone-900/90 hover:bg-stone-800'
-            }`}
-          >
-            Tiles
-          </button>
+          <ToggleSwitch
+            label="Tiles"
+            checked={showTiles}
+            onCheckedChange={setShowTiles}
+            className="text-white"
+          />
         </Tooltip>
         <Tooltip label="Toggle OpenStreetMap vectors and labels">
-          <button
-            type="button"
-            onClick={() => setShowVectors((previous) => !previous)}
-            aria-pressed={showVectors}
-            className={`cursor-pointer rounded border px-2 py-1 text-white transition-colors ${
-              showVectors
-                ? 'border-jade-river bg-jade-river/80'
-                : 'border-white/20 bg-stone-900/90 hover:bg-stone-800'
-            }`}
-          >
-            Vectors
-          </button>
+          <ToggleSwitch
+            label="Vectors"
+            checked={showVectors}
+            onCheckedChange={setShowVectors}
+            className="text-white"
+          />
         </Tooltip>
         <button
           type="button"
@@ -237,8 +186,13 @@ export function JourneyMap({
             Some OpenStreetMap tiles failed to load. Toggle Tiles off and on to retry.
           </p>
         )}
-        {!hasPhotoLocation(activePhoto) && <p>Selected photo has no valid location.</p>}
-        {showVectors && !layers.bboxKey && <p>Chip bounds unavailable. OSM background was not requested.</p>}
+        {!hasPhotoLocation(activePhoto) && (
+          <p>
+            {formatCaptureTime(activePhoto)} · Selected photo has no valid location.
+            Use the filmstrip to navigate.
+          </p>
+        )}
+        {showVectors && !layers.bboxKey && <p>OSM vector bounds are unavailable. Vector data was not requested.</p>}
         {layers.pending > 0 && <p role="status">Loading {layers.pending} OSM layers...</p>}
         {showVectors && layers.bboxKey && layers.pending === 0 && layers.featureCount === 0 &&
           layers.failures.length < MAP_CATEGORIES.length && <p>No loaded OSM features for this chip.</p>}

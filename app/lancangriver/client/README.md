@@ -51,22 +51,45 @@ npm run build
 npm test
 ```
 
+## Original photo viewer
+
+On `/photoview-in-3d`, **View Original Photo** browses the selected chip's photos
+or, when no chip is selected, all loaded `records` from the existing geotagged-photo
+source. It does not fetch additional records or scan ungeotagged images. The
+button's count and tooltip reflect the collection; it is disabled until that
+collection has photos. An empty selected chip never falls back to all records.
+
+Opening snapshots the collection so later chip or source changes do not replace
+the modal's photos. Chip mode keeps its existing initial photo; all-records mode
+starts at the earliest valid capture time, or the first record if every time is
+unavailable. Opening, browsing, and closing the modal do not change the 3D scene's
+selection or position. Closing releases the snapshot.
+
 ## Photo modal map
 
-On `/photoview-in-3d`, open a chip's photo viewer and use the globe button in
+Open the original photo viewer and use the globe button in
 the header to toggle the left map panel. The EXIF panel on the right can remain
 open independently. On narrow screens, scroll the content horizontally to reach
 both panels without squeezing the photo.
 
-The map shows the chip's photo locations. Click a numbered marker to select its
+The map shows the modal collection's photo locations. Click a numbered marker to select its
 photo; overlapping markers spread on click so each photo can be selected.
-Markers are numbered 34 x 24 pixel landscape rectangles with rounded corners,
-centered on their locations. Their size stays fixed when zooming the map.
+Markers are numbered Leaflet circles with a 12px radius, centered on their
+locations. Their size stays fixed when zooming the map. A dedicated SVG renderer
+keeps circles keyboard-accessible even though geographic vector layers use Canvas.
+Numbers are permanent transparent labels at full opacity; Enter or Space activates
+a focused circle, and hovering it shows the filename and photo index.
+At-location circles fade by elapsed capture time in either direction relative to
+the selected photo: `1 − 0.75 × tanh(abs(elapsedMinutes) / 15)`, approaching a
+minimum opacity of 0.25. Selected/equal-time photos and unavailable times stay at
+1.0. Fading applies to fill and outline only; numbers remain fully readable.
+Spread circles are always fully opaque, and collapse restores time-based fading.
 Spread markers turn coral red with dashed pale-rose borders and matching connector
 lines to their true locations. Each distinct true location also shows a borderless
 6px pale-rose dot at 0.67 opacity while spread; dots and lines disappear on collapse.
 The selected photo retains its gold fill, with
-the dashed pale-rose border when spread. Collapsing restores the original styling.
+the dashed pale-rose border when spread and a stronger outline. Collapsing restores
+the original styling. Circle spacing drives overlap detection and fan-out layout.
 Drag the map to reach a large spread group; zooming, clicking the map background,
 or choosing **Fit all** collapses it.
 Thumbnail and arrow navigation also highlight the selected marker. **Fit all**
@@ -92,6 +115,12 @@ data stays cached within the open panel; re-enabling restores cached categories
 and requests only missing ones. Photo markers, Journey sequence links, raster
 tiles, map position, zoom, and selection are unaffected. Both panels use this
 behavior through `photo-map/usePhotoMapLayers.ts`.
+Tiles and Vectors use the shared compact `ToggleSwitch`: jade tracks with a
+right-hand pale thumb when on, muted stone tracks with a left-hand thumb when off.
+Clicking the label or track toggles the layer. Both have shared tooltips,
+`role="switch"`/`aria-checked`, keyboard activation, and visible focus outlines.
+The thumb transition respects reduced motion. Fit controls remain ordinary action
+buttons; layer defaults, selection, and map positioning are unchanged.
 Place labels vary in size and weight by type:
 cities are largest, followed by towns, suburbs, villages, and smaller localities.
 Their existing zoom-based visibility keeps minor places out of wider views.
@@ -100,9 +129,12 @@ polygons use the largest polygon's centroid, with an interior-point fallback for
 concave shapes and holes. Labels prefer Chinese names, then the default name.
 Road names use subdued text and water names use blue text with a dark halo.
 Minor names appear only when zoomed in; overlapping labels are suppressed,
-prioritizing photo markers and then place names.
+prioritizing photo circles/numbers or Journey thumbnail cards and then place names.
 Requests use the parent viewer's loaded chip
-bbox, not the current map viewport. Panning and zooming do not load additional
+bbox, not the current map viewport. Without a selected chip, no bounds are passed:
+Map and Journey still show photo locations and optional raster tiles, but do not
+request OSM vectors or reuse stale scene bounds. Both report unavailable vector
+bounds when Vectors is enabled. Panning and zooming do not load additional
 vector coverage or start ingestion. When enabled, OSM background tiles follow the
 visible map independently of that bbox. Empty results mean no loaded features were returned,
 not necessarily that the area has no OSM coverage. Failed layers show errors and
@@ -112,7 +144,7 @@ remain available in the filmstrip.
 ## Photo journey panel
 
 On `/photoview-in-3d`, the **Open journey** button beside **Open map** opens a
-440px left panel that combines time and place. Map and Journey are mutually
+left panel that combines time and place. Map and Journey are mutually
 exclusive; clicking the active button closes that mode, while the other button
 switches modes. EXIF, the main photo, and the filmstrip remain independent.
 Journey components live in `src/(experiments)/photoview-in-3d/photo-journey/`;
@@ -123,12 +155,38 @@ The north-up spatial scene shows the selected moment and up to two moments on
 each side against muted OSM geography. Dashed daylight-colored links mean
 **photo sequence, not a recorded route**; distances and bearings are straight-line
 relationships, not inferred walking/riding tracks. The current moment is larger
-(80 x 60px), with a gold outer ring and gold sequence badge; neighboring thumbnails
-are dimmed and desaturated, restoring brightness on hover. Every thumbnail has its
+(80 x 60px), with a gold outer ring and gold sequence badge. Map and stack-popup
+thumbnails use saturation relative to the selected photo's actual capture time:
+earlier photos range from 0.7 down toward 0.35; later photos range from 1.3 up
+toward 1.65. A smooth 15-minute curve increases the effect as elapsed time grows.
+The selected photo, equal timestamps, and unavailable times stay at 1.0.
+The images also blur symmetrically with elapsed time in either direction, using
+`2 × tanh(abs(elapsedMinutes) / 15)` pixels: about 0.6px at 5 minutes,
+1.5px at 15 minutes, and approaching a 2px cap. The selected photo, equal
+timestamps, and unavailable times remain sharp. Blur combines with saturation
+on images only, clipped inside rounded image frames; captions, badges, borders,
+and focus outlines remain sharp. Brightness is unchanged, and hover does not
+reset either effect.
+Every thumbnail has its
 full-journey moment number at top-left (jade for unselected moments). Stacks also
 show a separate dark **x n** count badge at top-right; single photos omit it.
-Both badges have dark outlines for contrast. Marker centers stay
-anchored to their geographic locations. Links have a 5px daylight-colored stroke
+Both badges have dark outlines for contrast. The map fills the panel beneath its
+header; there are no bottom selected/previous/next moment cards. Captions directly
+under thumbnails show only the current photo's local clock time (`HH:mm`, without
+a date), or signed elapsed
+time (`−12 min` / `+8 min`) and distance relative to the current photo. Compass
+words are omitted because direction is visible on the north-up map. Full
+capture dates/times remain in tooltips and the selected thumbnail's accessible
+label. Distances
+are straight-line; very close photos show **Same place**, and missing metadata
+is explicitly reported. Sequence breaks are noted on neighboring captions.
+
+Overlapping thumbnail/caption cards are offset with white dashed curved connectors
+and dots marking their true locations. The selected thumbnail remains at its
+actual position; layout recomputes on pan, zoom, resize, and font loading. When
+the viewport cannot fit all cards, panning can reach displaced cards. Chronological
+links always follow true locations, not display offsets.
+Links have a 5px daylight-colored stroke
 with dark and white casings for contrast over both light tiles and dark backgrounds,
 including nighttime colors. All three strokes use matching dashes.
 Links break at capture-date
@@ -137,7 +195,7 @@ Only the already loaded chip bbox is requested; panning does not expand coverage
 Unavailable, empty, loading, and failed OSM data are reported; failed layers can
 be retried without disabling photo selection.
 
-The modal sorts a copy of the chip's photos by capture time ascending for
+The modal sorts a copy of its photo collection by capture time ascending for
 filmstrip, arrows, and map numbering; the input collection and initial selected
 photo are preserved. Equal timestamps keep their input order; missing/invalid
 times appear last. Modal display times retain browser-local interpretation of
@@ -147,9 +205,11 @@ untimed/invalid/timezone-less photos appear last with no sequence links. Capture
 times display in the browser's locale and timezone.
 Consecutive same-place photos within 15m of the first photo and 30 minutes between
 shots form a stack (without crossing capture dates). A later revisit is a separate
-moment. Stack thumbnails, neighboring-moment cards, and map thumbnails select the
+moment. Clicking **x n** opens a map popup with selectable stack thumbnails;
+the badge is a separate keyboard-accessible button, not nested in the photo button.
+Escape closes the popup without closing the modal. Map and popup thumbnails select the
 main photo; filmstrip/arrow navigation updates the Journey selection in return.
-Neighbor cards show elapsed time, distance, direction, and sequence breaks.
+Photos without coordinates remain available in the filmstrip with a map warning.
 
 The first view fits nearby moments; subsequent selections center the selected
 photo's location, even when it was already visible, preserving zoom and orientation.
@@ -168,7 +228,7 @@ interactive-use policy as Photo map. Raster coverage follows the viewport,
 independently of the loaded vector bbox. Both modes share the tile-layer lifecycle
 in `photo-map/usePhotoMapTiles.ts`.
 Reduced-motion preferences disable selection panning animation. Repeated-location
-moments can overlap on the map; the chronological neighbor cards remain available.
+moments are separated with connectors rather than obscuring one another.
 On narrow screens the modal's existing horizontal scroll keeps both the panel
 and main photo reachable.
 
@@ -228,7 +288,7 @@ gold dot marks the selected photo's day independently. Unknown/invalid times
 have no dated button and remain available at the end of the strip.
 
 The density
-bar spans all valid capture times in the chip; its white outlined window covers
+bar spans all valid capture times in the modal collection; its white outlined window covers
 the earliest and latest times of thumbnails currently visible, including partially
 visible thumbnails but excluding virtualization overscan. Scroll, resize, and
 selection-driven scrolling update the highlighted span in the sorted modal list.

@@ -17,6 +17,7 @@ import { OsmJobsCreate } from './_osm.js';
 import { AButton } from '@/_components';
 import { downloadScenePng } from './print';
 import { PhotoModal } from './PhotoModal';
+import { sortPhotosByTime } from './_photoTime';
 import type { BBox } from './_tile';
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalActivePhoto, setModalActivePhoto] = useState<PhotoRecord | null>(null);
+  const [modalPhotos, setModalPhotos] = useState<PhotoRecord[]>([]);
   const [modalOsmBbox, setModalOsmBbox] = useState<BBox | null>(null);
 
   useEffect(() => {
@@ -149,19 +151,24 @@ export default function App() {
   const handleGeoClose = () => {
     setIsModalOpen(false);
     setModalActivePhoto(null);
+    setModalPhotos([]);
     setModalOsmBbox(null);
     setCurrentGeoNode(null);
     viewer?.closeGeoNode();
   };
 
   const nodePhotos = currentGeoNode?.photos ?? [];
-  const hasNodePhotos = nodePhotos.length > 0;
+  const availablePhotos = currentGeoNode ? nodePhotos : (result?.records ?? []);
+  const hasAvailablePhotos = availablePhotos.length > 0;
 
   const handleOpenPhotoModal = () => {
-    if (!hasNodePhotos) return;
-    const bbox = viewer?.tileGrid?.bbox;
+    if (!hasAvailablePhotos) return;
+    const photos = [...availablePhotos];
+    const initialPhoto = currentGeoNode ? photos[0] : sortPhotosByTime(photos)[0];
+    const bbox = currentGeoNode ? viewer?.tileGrid?.bbox : null;
     setModalOsmBbox(bbox ? { ...bbox } : null);
-    setModalActivePhoto(nodePhotos[0]);
+    setModalPhotos(photos);
+    setModalActivePhoto(initialPhoto);
     setIsModalOpen(true);
   };
 
@@ -266,26 +273,28 @@ export default function App() {
         <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
           <button
             type="button"
-            disabled={!hasNodePhotos}
+            disabled={!hasAvailablePhotos}
             onClick={handleOpenPhotoModal}
             className={`flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-medium shadow-2xl backdrop-blur-md transition-all ${
-              hasNodePhotos
+              hasAvailablePhotos
                 ? 'border-jade-river/40 bg-jade-depth/90 text-jade-text hover:border-jade-river hover:bg-jade-depth hover:text-white hover:scale-105 active:scale-95 cursor-pointer'
                 : 'border-white/10 bg-jade-depth/50 text-white/40 cursor-not-allowed opacity-60'
             }`}
             title={
-              hasNodePhotos
-                ? `View original photos (${nodePhotos.length}) in HTML modal`
-                : 'Select a geo node/chip to view photos'
+              hasAvailablePhotos
+                ? `${currentGeoNode ? 'Selected chip' : 'All loaded photos'}: view original photos (${availablePhotos.length})`
+                : currentGeoNode
+                  ? 'Selected chip has no photos'
+                  : 'No photo records loaded yet'
             }
           >
-            {hasNodePhotos && (
+            {hasAvailablePhotos && (
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             )}
             <span>View Original Photo</span>
-            {hasNodePhotos && (
+            {hasAvailablePhotos && (
               <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/70">
-                {nodePhotos.length}
+                {availablePhotos.length}
               </span>
             )}
           </button>
@@ -351,11 +360,12 @@ export default function App() {
       {isModalOpen && modalActivePhoto && (
         <PhotoModal
           photo={modalActivePhoto}
-          photos={nodePhotos.length > 0 ? nodePhotos : [modalActivePhoto]}
+          photos={modalPhotos}
           osmBbox={modalOsmBbox}
           onClose={() => {
             setIsModalOpen(false);
             setModalActivePhoto(null);
+            setModalPhotos([]);
             setModalOsmBbox(null);
           }}
         />

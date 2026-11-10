@@ -52,8 +52,11 @@ export function createPhotoMapLabels(
     const container = map.getContainer();
     const viewport = container.getBoundingClientRect();
     const obstacles = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('.leaflet-photo-map-photos-pane button'),
-      (button) => button.getBoundingClientRect(),
+      container.querySelectorAll<Element>(
+        '.leaflet-photo-map-photos-pane [data-photo-map-card], .leaflet-photo-map-photos-pane button, '
+        + '.leaflet-photo-map-photos-pane [data-photo-map-circle], .leaflet-photo-map-photos-pane .photo-map-photo-number',
+      ),
+      (element) => element.getBoundingClientRect(),
     );
     for (const label of labels) {
       label.element.style.visibility = 'hidden';

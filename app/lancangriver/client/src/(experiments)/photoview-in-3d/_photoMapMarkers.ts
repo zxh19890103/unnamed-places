@@ -1,12 +1,18 @@
 import * as L from 'leaflet';
 import type { PhotoRecord } from '@/photos/types';
+import { photoDisplayTime } from './_photoTime';
 
-type PhotoMarker = { photo: PhotoRecord; marker: L.Marker; position: L.LatLng };
+type PhotoMarker = {
+  photo: PhotoRecord;
+  marker: L.CircleMarker;
+  position: L.LatLng;
+  time: number | null;
+  label: HTMLSpanElement;
+};
 
-const MARKER_WIDTH = 34;
-const MARKER_HEIGHT = 24;
+const MARKER_RADIUS = 12;
 const MARKER_GAP = 6;
-const SPREAD_SPACING = Math.hypot(MARKER_WIDTH, MARKER_HEIGHT) + MARKER_GAP;
+const SPREAD_SPACING = MARKER_RADIUS * 2 + MARKER_GAP;
 
 export function createPhotoMapMarkers(
   map: L.Map,
@@ -15,34 +21,47 @@ export function createPhotoMapMarkers(
 ) {
   const layer = L.layerGroup().addTo(map);
   const legs = L.layerGroup().addTo(map);
+  const renderer = L.svg({ pane: 'photo-map-photos' });
   const entries: PhotoMarker[] = [];
   let expanded = new Set<string>();
   let activeId: string | null = null;
 
   const restyle = () => {
-    for (const { photo, marker } of entries) {
+    const activeEntry = entries.find(({ photo }) => photo.id === activeId);
+    const activeTime = activeEntry?.time ?? null;
+    for (const { photo, marker, time, label } of entries) {
       const selected = photo.id === activeId;
       const isSpread = expanded.has(photo.id);
+      const opacity =
+        isSpread || activeTime === null || time === null
+          ? 1
+          : 1 - 0.75 * Math.tanh(Math.abs(time - activeTime) / (15 * 60 * 1000));
+      marker.setStyle({
+        fillColor: selected ? '#fbbf24' : isSpread ? '#be123c' : '#9af',
+        color: isSpread ? '#fecdd3' : '#be123c',
+        weight: selected ? 3 : 1,
+        dashArray: isSpread ? '3 3' : '',
+        opacity: 1,
+        fillOpacity: opacity,
+      });
       const element = marker.getElement();
-      const button = element?.querySelector('button');
-      button?.setAttribute('aria-pressed', String(selected));
-      if (button) {
-        button.style.backgroundColor = selected ? '#fbbf24' : isSpread ? '#be123c' : '#9af';
-        button.style.color = selected ? '#142c26' : '#fff';
-        button.style.borderColor = isSpread ? '#fecdd3' : selected ? '#fff' : '#fff';
-        button.style.borderStyle = isSpread ? 'dashed' : 'solid';
-        button.style.boxShadow = selected ? '0 0 0 4px #fbbf2440' : '0 1px 5px #0009';
+      element?.setAttribute('aria-pressed', String(selected));
+      if (element) {
         if (isSpread) {
-          button.setAttribute(
+          element.setAttribute(
             'aria-description',
             'Spread marker: temporarily offset from the photo location. The line points to its actual location.',
           );
         } else {
-          button.removeAttribute('aria-description');
+          element.removeAttribute('aria-description');
         }
       }
-      marker.setZIndexOffset(selected ? 2000 : isSpread ? 1000 : 0);
+      label.style.color = selected ? '#142c26' : '#fff';
+      const tooltip = marker.getTooltip()?.getElement();
+      if (tooltip) tooltip.style.zIndex = selected ? '2000' : isSpread ? '1000' : '0';
+      if (isSpread) marker.bringToFront();
     }
+    activeEntry?.marker.bringToFront();
     map.fire('photomapmarkerschange');
   };
 
@@ -97,39 +116,41 @@ export function createPhotoMapMarkers(
   };
 
   photos.forEach((photo, index) => {
-    const button = document.createElement('button');
     const fileName = photo.filePath.split('/').pop() ?? photo.filePath;
-    button.type = 'button';
-    button.textContent = String(index + 1);
-    button.title = `${fileName} (${index + 1} of ${photos.length})`;
-    button.setAttribute('aria-label', `View map photo ${index + 1}: ${fileName}`);
-    button.style.cssText =
-      `display:block;box-sizing:border-box;width:${MARKER_WIDTH}px;height:${MARKER_HEIGHT}px;border:2px solid;` +
-      'border-radius:4px;padding:0;font:600 11px sans-serif;cursor:pointer;';
+    const label = document.createElement('span');
+    label.textContent = String(index + 1);
+    label.style.cssText = `display:block;font:600 ${label.textContent.length > 3 ? 8 : 11}px sans-serif;`;
+    label.setAttribute('aria-hidden', 'true');
     const position = L.latLng(photo.lat, photo.lng);
-    const marker = L.marker(position, {
-      icon: L.divIcon({
-        html: button,
-        className: '',
-        iconSize: [MARKER_WIDTH, MARKER_HEIGHT],
-        iconAnchor: [MARKER_WIDTH / 2, MARKER_HEIGHT / 2],
-      }),
-      keyboard: false,
+    const marker = L.circleMarker(position, {
+      radius: MARKER_RADIUS,
+      renderer,
+      stroke: true,
+      fill: true,
       bubblingMouseEvents: false,
       pane: 'photo-map-photos',
     }).addTo(layer);
-    const entry = { photo, marker, position };
+    marker.bindTooltip(label, {
+      permanent: true,
+      direction: 'center',
+      opacity: 1,
+      interactive: false,
+      className: 'photo-map-photo-number',
+      pane: 'photo-map-photos',
+    });
+    const tooltip = marker.getTooltip()?.getElement();
+    if (tooltip) {
+      tooltip.style.cssText +=
+        'background:transparent;border:0;box-shadow:none;padding:0;margin:0;pointer-events:none;user-select:none;';
+    }
+    const entry = { photo, marker, position, time: photoDisplayTime(photo), label };
     entries.push(entry);
-    button.addEventListener('click', (event) => {
-      event.stopPropagation();
+    const activate = () => {
       if (!expanded.has(photo.id)) {
         const point = map.latLngToLayerPoint(position);
         const group = entries.filter((other) => {
           const otherPoint = map.latLngToLayerPoint(other.position);
-          return (
-            Math.abs(point.x - otherPoint.x) < MARKER_WIDTH + MARKER_GAP &&
-            Math.abs(point.y - otherPoint.y) < MARKER_HEIGHT + MARKER_GAP
-          );
+          return point.distanceTo(otherPoint) < SPREAD_SPACING;
         });
         if (group.length > 1) {
           spread(group);
@@ -138,7 +159,29 @@ export function createPhotoMapMarkers(
         collapse();
       }
       onSelect(photo);
-    });
+    };
+    marker.on('click', activate);
+    const element = marker.getElement();
+    if (element) {
+      element.setAttribute('tabindex', '0');
+      element.setAttribute('role', 'button');
+      element.setAttribute('aria-label', `View map photo ${index + 1}: ${fileName}`);
+      element.setAttribute('data-photo-map-circle', '');
+      element.setAttribute(
+        'class',
+        `${element.getAttribute('class') ?? ''} cursor-pointer focus-visible:outline-2 focus-visible:outline-white`,
+      );
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      title.textContent = `${fileName} (${index + 1} of ${photos.length})`;
+      element.append(title);
+      element.addEventListener('keydown', (event) => {
+        if (event instanceof KeyboardEvent && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          event.stopPropagation();
+          activate();
+        }
+      });
+    }
   });
 
   const fitAll = () => {
@@ -175,6 +218,7 @@ export function createPhotoMapMarkers(
       map.off('click', onBackgroundClick);
       layer.remove();
       legs.remove();
+      renderer.remove();
     },
   };
 }

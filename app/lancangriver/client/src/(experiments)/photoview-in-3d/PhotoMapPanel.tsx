@@ -3,15 +3,12 @@ import { Cross1Icon } from '@radix-ui/react-icons';
 import * as L from 'leaflet';
 import type { PhotoRecord } from '@/photos/types';
 import type { BBox } from './_tile';
-import {
-  MAP_CATEGORIES,
-  MAP_CATEGORY_LABELS,
-  hasPhotoLocation,
-} from './_photoMap';
+import { MAP_CATEGORIES, MAP_CATEGORY_LABELS, hasPhotoLocation } from './_photoMap';
 import { createPhotoMapMarkers } from './_photoMapMarkers';
 import { usePhotoMapLayers } from './photo-map/usePhotoMapLayers';
 import { usePhotoMapTiles } from './photo-map/usePhotoMapTiles';
 import { Tooltip } from '@/_components/Tooltip';
+import { ToggleSwitch } from '@/_components/ToggleSwitch';
 import 'leaflet/dist/leaflet.css';
 
 interface PhotoMapPanelProps {
@@ -89,8 +86,11 @@ export function PhotoMapPanel({
     markersRef.current?.setActive(activePhotoId);
   }, [activePhotoId, locatedPhotos, onSelect]);
 
-  const { results, bboxKey, pending, failures, featureCount, retry } =
-    usePhotoMapLayers(mapRef, osmBbox, showVectors);
+  const { results, bboxKey, pending, failures, featureCount, retry } = usePhotoMapLayers(
+    mapRef,
+    osmBbox,
+    showVectors,
+  );
   const invalidCount = photos.length - locatedPhotos.length;
   const activeHasLocation = locatedPhotos.some((photo) => photo.id === activePhotoId);
 
@@ -99,7 +99,7 @@ export function PhotoMapPanel({
       id="photo-map-panel"
       data-photo-map
       aria-label="Chip photo map"
-      className="flex w-96 shrink-0 flex-col border-r border-white/10 bg-stone-800/80 text-xs text-jade-text"
+      className="flex w-150 shrink-0 flex-col border-r border-white/10 bg-stone-800/80 text-xs text-jade-text"
     >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 p-3">
         <h3 className="font-semibold text-white">Photo map</h3>
@@ -112,28 +112,21 @@ export function PhotoMapPanel({
           >
             Fit all
           </button>
-          <button
-            type="button"
-            onClick={() => setShowTiles((previous) => !previous)}
-            aria-pressed={showTiles}
-            title="Toggle OpenStreetMap tiles"
-            className={`cursor-pointer rounded border px-2 py-1 text-white transition-colors ${
-              showTiles ? 'border-jade-river bg-jade-river/20' : 'border-white/20 hover:bg-white/10'
-            }`}
-          >
-            Tiles
-          </button>
+          <Tooltip label="Toggle OpenStreetMap raster tiles">
+            <ToggleSwitch
+              label="Tiles"
+              checked={showTiles}
+              onCheckedChange={setShowTiles}
+              className="text-white"
+            />
+          </Tooltip>
           <Tooltip label="Toggle OpenStreetMap vectors and labels">
-            <button
-              type="button"
-              onClick={() => setShowVectors((previous) => !previous)}
-              aria-pressed={showVectors}
-              className={`cursor-pointer rounded border px-2 py-1 text-white transition-colors ${
-                showVectors ? 'border-jade-river bg-jade-river/20' : 'border-white/20 hover:bg-white/10'
-              }`}
-            >
-              Vectors
-            </button>
+            <ToggleSwitch
+              label="Vectors"
+              checked={showVectors}
+              onCheckedChange={setShowVectors}
+              className="text-white"
+            />
           </Tooltip>
           <button
             type="button"
@@ -170,9 +163,12 @@ export function PhotoMapPanel({
         {locatedPhotos.length > 0 && !activeHasLocation && (
           <p>The selected photo has no valid map location.</p>
         )}
-        {showVectors && !bboxKey && <p>Loaded chip bounds are unavailable. OSM data was not requested.</p>}
+        {showVectors && !bboxKey && (
+          <p>OSM vector bounds are unavailable. Vector data was not requested.</p>
+        )}
         {pending > 0 && <p role="status">Loading {pending} OSM layers...</p>}
-        {showVectors && bboxKey &&
+        {showVectors &&
+          bboxKey &&
           pending === 0 &&
           featureCount === 0 &&
           failures.length < MAP_CATEGORIES.length && (
@@ -184,11 +180,7 @@ export function PhotoMapPanel({
           </p>
         ))}
         {failures.length > 0 && (
-          <button
-            type="button"
-            onClick={retry}
-            className="cursor-pointer underline text-amber-200"
-          >
+          <button type="button" onClick={retry} className="cursor-pointer underline text-amber-200">
             Retry failed layers
           </button>
         )}

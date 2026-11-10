@@ -69,26 +69,39 @@ export function relationLabel(from: PhotoRecord, to: PhotoRecord): string {
   const toTime = captureTime(to);
   const delta = fromTime !== null && toTime !== null ? toTime - fromTime : null;
   const time = delta === null ? 'Time unavailable'
-    : delta === 0 ? 'Same capture time'
-    : `${elapsedLabel(Math.abs(delta))} ${delta > 0 ? 'later' : 'earlier'}`;
+    : delta === 0 ? '0 min'
+    : `${delta > 0 ? '+' : '−'}${elapsedLabel(Math.abs(delta))}`;
   if (!hasPhotoLocation(from) || !hasPhotoLocation(to)) return `${time} · Location unavailable`;
   const distance = distanceMeters(from, to);
   if (distance <= SAME_PLACE_METERS) return `${time} · Same place`;
-  const radians = Math.PI / 180;
-  const dLng = (to.lng - from.lng) * radians;
-  const bearing = Math.atan2(
-    Math.sin(dLng) * Math.cos(to.lat * radians),
-    Math.cos(from.lat * radians) * Math.sin(to.lat * radians) -
-      Math.sin(from.lat * radians) * Math.cos(to.lat * radians) * Math.cos(dLng),
-  ) / radians;
-  const directions = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'];
-  const direction = directions[Math.round((bearing + 360) / 45) % 8];
   const length = distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(1)} km`;
-  return `${time} · ${length} ${direction} (straight-line)`;
+  return `${time} · ${length}`;
+}
+
+export function momentPhoto(moment: JourneyMoment, activePhoto: PhotoRecord, before: boolean) {
+  return moment.photos.find((photo) => photo.id === activePhoto.id)
+    ?? moment.photos[before ? moment.photos.length - 1 : 0];
 }
 
 export function formatCaptureTime(photo: PhotoRecord): string {
   const time = captureTime(photo);
   return time === null ? 'Time unavailable (missing, invalid, or no timezone)'
     : new Date(time).toLocaleString();
+}
+
+export function formatCaptureClockTime(photo: PhotoRecord): string {
+  const time = captureTime(photo);
+  if (time === null) return formatCaptureTime(photo);
+  const date = new Date(time);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+export function journeyThumbnailFilter(activePhoto: PhotoRecord, photo: PhotoRecord): string {
+  const activeTime = captureTime(activePhoto);
+  const time = captureTime(photo);
+  if (activeTime === null || time === null || time === activeTime) return 'saturate(1) blur(0px)';
+  const delta = time - activeTime;
+  const strength = Math.tanh(Math.abs(delta) / (15 * 60 * 1000));
+  const saturation = delta < 0 ? 0.7 - 0.35 * strength : 1.3 + 0.35 * strength;
+  return `saturate(${saturation}) blur(${2 * strength}px)`;
 }
