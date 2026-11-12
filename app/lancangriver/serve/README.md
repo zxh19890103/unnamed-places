@@ -89,6 +89,36 @@ This applies SQL files in `src/sql/migrations/` and creates the service tables a
 - `SATELLITE_URL_TEMPLATE` (optional): override Google satellite URL template
 - `OPENTOPOGRAPHY_URL_TEMPLATE` (optional): override DEM URL template
 
+## Photo folders
+
+- `GET /photos/directories[?path=...&offset=0]` returns canonical `path`, allowed
+  `roots`, `parent`, directory-only `directories`, and `nextOffset`. Listings are
+  sorted and paginated at 100 directories. Symlinks are omitted, and canonical
+  paths outside the allowed locations are rejected.
+- `GET /photos/geotagged?root=...&recursive=true` scans nested folders with bounded
+  metadata concurrency, skips symlinks, and returns `photos`, up to 50 `warnings`,
+  and the full `warningCount`. Omitting `recursive=true` preserves shallow scanning
+  and the existing response shape. Client disconnection cancels further scan work.
+- Missing or unreadable selected roots return an error. Unreadable nested
+  directories and corrupt image metadata generate warnings while valid photos
+  continue loading. Source files are never modified.
+
+Browser directory browsing defaults to the current user's home directory. Optional
+`PHOTO_BROWSE_ROOTS` is a nonempty JSON array of existing absolute paths, for example
+`["/Users/example","/Volumes/Photos"]`. This controls browsing locations, not the
+saved photo source selection. Restart the service after changing configuration.
+
+The new browse route accepts loopback clients with a localhost/loopback Host and
+trusted Origin only. Default origins are `http://localhost:5173`,
+`http://127.0.0.1:5173`, and their port-5174 equivalents. Optional
+`PHOTO_BROWSE_ORIGINS` replaces this list with comma-separated exact origins.
+Non-browser local clients without an Origin header are also accepted.
+
+This remains a local-only photo workflow. Existing photo image/EXIF endpoints are
+not a complete filesystem access sandbox and retain their existing behavior;
+do not expose the service to untrusted networks. OS access permissions still
+apply, including macOS Files and Folders permissions for Documents and Desktop.
+
 ## Prefetch Tiles
 
 ```bash

@@ -51,6 +51,39 @@ npm run build
 npm test
 ```
 
+## Photo folders
+
+Open `/photo-settings`, the portal's **Photo Settings** entry, or **Photo Settings**
+in the photo timeline. Add folders, then **Apply** to save; **Cancel** discards the
+draft. Removing a folder never deletes its files. The rescan icon reloads saved
+folders without changing the selection.
+
+Browser mode lists directories on the local service machine. Electron uses a
+native multi-folder dialog. Both modes use the service to scan selected folders
+and their subfolders, skipping symlinks. Overlapping selections deduplicate photos
+by canonical file path. Unreadable folders and metadata warnings remain visible
+without discarding valid photos from other folders.
+
+Preferences persist in local storage, separately for each browser origin/profile
+and Electron profile. On first use only, `VITE_PHOTOS_ROOT` is imported as the
+initial comma-separated selection. Saved selections, including an empty list,
+override that environment variable thereafter. New UI selections support commas
+in directory names. Open photo views reload when settings change; stale photo
+selections and original-photo modal snapshots are cleared on source replacement.
+
+Keep the local service running on port `4050`, including for Electron development.
+Directory browsing starts at the service user's home folder. Additional browser
+locations and trusted origins are configured on the service; see its README.
+On macOS, `EPERM`/permission errors for Documents, Desktop or other protected
+locations require Files and Folders access for the application launching Node
+(for example VS Code or Terminal) in System Settings > Privacy & Security.
+Folder selection does not bypass OS permissions.
+
+The production build includes the main HTML entry and
+`dist/src/photo-settings/index.html` with relative assets for packaged Electron.
+Browser uploads, remote-machine photo selection and automatic filesystem watching
+are not supported.
+
 ## Original photo viewer
 
 On `/photoview-in-3d`, **View Original Photo** browses the selected chip's photos

@@ -234,7 +234,12 @@ export default function App() {
     onGeoOpen: handleGeoOpen,
     onGeoClose: handleGeoClose,
     onPhotoSelect: handlePhotoSelect,
-    onLoaded: setResult,
+    onLoaded: (journey) => {
+      printAbortRef.current?.abort();
+      handleGeoClose();
+      setCurrentPhoto(null);
+      setResult(journey);
+    },
   };
 
   return (

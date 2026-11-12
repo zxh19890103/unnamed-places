@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('versions', {
 
 contextBridge.exposeInMainWorld('electronPhotos', {
   pickAndLoadGeotaggedPhotos: () => ipcRenderer.invoke('photos:pick-and-load'),
+  pickPhotoDirectories: () => ipcRenderer.invoke('photos:pick-directories'),
 });

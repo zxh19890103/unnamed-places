@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import exifr from 'exifr';
 import { scanGeotaggedPhotos as defaultScanGeotaggedPhotos } from '../photos/scanGeotaggedPhotos.js';
+import { listPhotoDirectories } from '../photos/listPhotoDirectories.js';
 
 function getDefaultPhotosRoot() {
   const routeDir = dirname(fileURLToPath(import.meta.url));
@@ -26,6 +27,66 @@ export function createPhotosRouter(options = {}) {
   const router = Router();
   const scanGeotaggedPhotos = options.scanGeotaggedPhotos ?? defaultScanGeotaggedPhotos;
   const photosRoot = options.photosRoot ? resolve(options.photosRoot) : getDefaultPhotosRoot();
+
+  router.get('/photos/directories', async (req, res) => {
+    const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+    const trustedOrigins =
+      options.photoBrowseOrigins ??
+      (
+        process.env.PHOTO_BROWSE_ORIGINS ||
+        'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174'
+      )
+        .split(',')
+        .map((origin) => origin.trim());
+    let hostname;
+    try {
+      hostname = new URL(`http://${req.headers.host}`).hostname;
+    } catch {
+      hostname = '';
+    }
+    if (
+      !loopback.has(req.socket.remoteAddress) ||
+      !['localhost', '127.0.0.1', '[::1]'].includes(hostname) ||
+      (req.headers.origin && !trustedOrigins.includes(req.headers.origin))
+    ) {
+      res
+        .status(403)
+        .json(
+          createErrorPayload(
+            'FOLDER_BROWSE_DENIED',
+            'Folder browsing is restricted to trusted local clients',
+          ),
+        );
+      return;
+    }
+
+    try {
+      const listing = await listPhotoDirectories({
+        roots: options.photoBrowseRoots,
+        directory: typeof req.query.path === 'string' ? req.query.path : undefined,
+        offset: req.query.offset,
+      });
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(listing);
+    } catch (error) {
+      const forbidden = ['OUTSIDE_BROWSE_ROOT', 'EACCES', 'EPERM'].includes(error.code);
+      const missing = ['ENOENT', 'ENOTDIR'].includes(error.code);
+      res
+        .status(forbidden ? 403 : missing ? 400 : 500)
+        .json(
+          createErrorPayload(
+            error.code || 'FOLDER_BROWSE_FAILED',
+            error.code === 'INVALID_PHOTO_BROWSE_ROOTS'
+              ? error.message
+              : forbidden
+                ? 'Folder is outside allowed locations or cannot be read'
+                : missing
+                  ? 'Folder does not exist or is not a directory'
+                  : 'Could not list folders',
+          ),
+        );
+    }
+  });
 
   const idToFilePath = (id) => {
     if (typeof id !== 'string' || !id) {
@@ -61,11 +122,37 @@ export function createPhotosRouter(options = {}) {
       return;
     }
 
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    res.on('close', cancel);
+
     try {
-      const photos = await scanGeotaggedPhotos(root);
-      res.status(200).json({ photos: Array.isArray(photos) ? photos : [] });
+      const warnings = [];
+      let warningCount = 0;
+      const recursive = req.query.recursive === 'true';
+      const photos = await scanGeotaggedPhotos(root, {
+        recursive,
+        signal: controller.signal,
+        onWarning: (warning) => {
+          warningCount += 1;
+          if (warnings.length < 50) warnings.push(warning);
+        },
+      });
+      if (!controller.signal.aborted) {
+        res.setHeader('Cache-Control', 'no-store');
+        res.status(200).json({
+          photos: Array.isArray(photos) ? photos : [],
+          ...(recursive ? { warnings, warningCount } : {}),
+        });
+      }
     } catch (error) {
+      if (controller.signal.aborted) return;
       const code = error && typeof error === 'object' ? error.code : null;
+
+      if (code === 'EACCES' || code === 'EPERM') {
+        res.status(403).json(createErrorPayload('ROOT_UNREADABLE', 'Photo folder cannot be read'));
+        return;
+      }
 
       if (code === 'ENOENT' || code === 'ENOTDIR') {
         res.status(400).json({
@@ -85,6 +172,8 @@ export function createPhotosRouter(options = {}) {
           reason: 'Internal server error',
         },
       });
+    } finally {
+      res.off('close', cancel);
     }
   });
 

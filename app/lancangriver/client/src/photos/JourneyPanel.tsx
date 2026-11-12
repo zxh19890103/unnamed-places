@@ -1,4 +1,4 @@
-import { Panel } from '@/_components';
+import { ChildWindow, IconButton, Panel, Tooltip } from '@/_components';
 import type {
   JourneyBuildResult,
   JourneyDayNode,
@@ -11,9 +11,17 @@ import {
   ArrowTopLeftIcon,
   CaretDownIcon,
   CaretRightIcon,
+  GearIcon,
+  ReloadIcon,
 } from '@radix-ui/react-icons';
 import { useEffect, useRef, useState } from 'react';
-import { fetchGeotaggedPhotos } from './sources';
+import { loadPhotoFolders, mergePhotoFolderResults, type PhotoFolderResult } from './sources';
+import {
+  getPhotoSettingsUrl,
+  readPhotoFolders,
+  savePhotoFolders,
+  subscribePhotoFolders,
+} from './folders';
 import { buildJourneyDays } from './journey';
 import { BASE_URL } from '../calc/constants';
 
@@ -38,6 +46,8 @@ export function JourneyPanel({
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [folderResults, setFolderResults] = useState<PhotoFolderResult[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [days, setDays] = useState<JourneyDayNode[]>([]);
   const [geoNodes, setGeoNodes] = useState<JourneyGeoNode[]>([]);
@@ -47,34 +57,58 @@ export function JourneyPanel({
   capacitiesRef.current = capacities;
 
   useEffect(() => {
-    const handleLoadGeotaggedPhotos = async () => {
-      setLoading(true);
+    let activeController: AbortController | null = null;
+    let loadedRevision: string | null = null;
 
+    const replacePhotos = (photos: PhotoRecord[]) => {
+      const journey = buildJourneyDays(photos);
+      setJourneyData(journey);
+      setDays(journey.days);
+      setGeoNodes(journey.geoNodes);
+      setSelectedDayKey(null);
+      setOpenGeoKey(null);
+      setSelectedPhotoId(null);
+      setMotionLinesVisible(false);
+      capacitiesRef.current?.onLoaded(journey);
+    };
+
+    const sync = async () => {
+      let controller: AbortController | null = null;
       try {
-        const mode = import.meta.env.DEV ? 'dev' : 'prod';
-        const photos =
-          mode === 'dev'
-            ? await fetchGeotaggedPhotos({ mode: 'dev' })
-            : await fetchGeotaggedPhotos({ mode: 'prod' });
-
-        const journey = buildJourneyDays(photos);
-
-        setJourneyData(journey);
-        setDays(journey.days);
-        setGeoNodes(journey.geoNodes);
-
-        capacitiesRef.current?.onLoaded(journey);
-
+        const preferences = readPhotoFolders();
+        if (preferences.revision === loadedRevision) return;
+        loadedRevision = preferences.revision;
+        activeController?.abort();
+        controller = new AbortController();
+        activeController = controller;
+        setLoading(preferences.roots.length > 0);
         setError(null);
-      } catch (error) {
-        console.warn('Failed to load life journey photos', error);
-        setError('Could not load photos');
-      } finally {
+        setFolderResults([]);
+        replacePhotos([]);
+        const results = await loadPhotoFolders(preferences.roots, controller.signal);
+        if (controller.signal.aborted) return;
+        setFolderResults(results);
+        replacePhotos(mergePhotoFolderResults(results));
+      } catch (failure) {
+        if (controller?.signal.aborted) return;
+        activeController?.abort();
+        loadedRevision = null;
+        setError(failure instanceof Error ? failure.message : 'Could not load photos');
         setLoading(false);
+      } finally {
+        if (controller && activeController === controller && !controller.signal.aborted)
+          setLoading(false);
       }
     };
 
-    handleLoadGeotaggedPhotos();
+    void sync();
+    const unsubscribe = subscribePhotoFolders(() => {
+      void sync();
+    });
+    return () => {
+      unsubscribe();
+      activeController?.abort();
+    };
   }, []);
 
   const onSelectDay = (dayKey: string) => {
@@ -165,6 +199,49 @@ export function JourneyPanel({
       minIcon={<ArrowBottomRightIcon />}
       maxIcon={<ArrowTopLeftIcon />}
     >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <Tooltip label="Photo Settings">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open Photo Settings"
+            aria-haspopup="dialog"
+            aria-expanded={settingsOpen}
+            className="inline-flex min-h-8 cursor-pointer items-center gap-2 text-xs text-jade-river underline-offset-4 hover:underline"
+          >
+            <GearIcon aria-hidden="true" />
+            Photo Settings
+          </button>
+        </Tooltip>
+        <Tooltip label="Rescan photo folders">
+          <IconButton
+            size="sm"
+            disabled={loading}
+            aria-label="Rescan photo folders"
+            onClick={() => {
+              try {
+                savePhotoFolders(readPhotoFolders().roots);
+              } catch (failure) {
+                setError(
+                  failure instanceof Error ? failure.message : 'Could not save photo folders',
+                );
+              }
+            }}
+          >
+            <ReloadIcon />
+          </IconButton>
+        </Tooltip>
+      </div>
+      {settingsOpen && (
+        <ChildWindow.Modal onClose={setSettingsOpen}>
+          <ChildWindow
+            title="Photo Settings"
+            winRole="photo settings"
+            pageUrl={getPhotoSettingsUrl()}
+            onOpenStateChange={setSettingsOpen}
+          />
+        </ChildWindow.Modal>
+      )}
       {loading && (
         <p className="text-xs text-jade-text-muted" role="status">
           Loading photo locations...
@@ -177,9 +254,26 @@ export function JourneyPanel({
         </p>
       )}
 
-      {!loading && !error && days.length === 0 && geoNodes.length === 0 && (
-        <p className="text-xs text-jade-text-muted">No geotagged photos found</p>
-      )}
+      {!loading &&
+        folderResults
+          .filter((result) => result.error || result.warningCount)
+          .map((result) => (
+            <div
+              key={result.root}
+              role="status"
+              className={`mb-2 break-all text-xs ${result.error ? 'text-jade-error' : 'text-jade-text-muted'}`}
+            >
+              {result.root}: {result.error || `${result.warningCount} scan warnings`}
+            </div>
+          ))}
+
+      {!loading &&
+        !error &&
+        !folderResults.some((result) => result.error) &&
+        days.length === 0 &&
+        geoNodes.length === 0 && (
+          <p className="text-xs text-jade-text-muted">No geotagged photos found</p>
+        )}
 
       {!loading && !error && journeyData && motions && (
         <button

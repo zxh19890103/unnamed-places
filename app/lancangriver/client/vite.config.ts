@@ -17,6 +17,7 @@ const pagesCfg = {
   ['tile12-osm']: `./src/tile12-osm`,
   ['photoview-in-3d']: `./src/(experiments)/photoview-in-3d`,
   ['photos-on-map']: `./src/photos-on-map`,
+  ['photo-settings']: `./src/photo-settings`,
 };
 
 const pages = new Map(
@@ -31,6 +32,7 @@ const pages = new Map(
 );
 
 export default defineConfig({
+  base: './',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -67,6 +69,13 @@ export default defineConfig({
   ],
   appType: 'mpa',
   build: {
-    rollupOptions: {},
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        'photo-settings': fileURLToPath(
+          new URL('./src/photo-settings/index.html', import.meta.url),
+        ),
+      },
+    },
   },
 });

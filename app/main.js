@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { spawn } from 'node:child_process';
-import { readdir } from 'node:fs/promises';
+import { readdir, realpath } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 import path, { extname, join } from 'node:path';
 import exifr from 'exifr';
@@ -97,6 +98,31 @@ const createWindow = async () => {
 };
 
 app.whenReady().then(() => {
+  ipcMain.handle('photos:pick-directories', async (event) => {
+    const senderUrl = new URL(event.senderFrame.url);
+    const clientDist = join(__dirname, 'lancangriver', 'client', 'dist');
+    let trusted = false;
+    if (app.isPackaged && senderUrl.protocol === 'file:') {
+      const relative = path.relative(clientDist, fileURLToPath(senderUrl));
+      trusted =
+        relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+    } else if (!app.isPackaged) {
+      trusted = senderUrl.origin === new URL(DEV_CLIENT_URL).origin;
+    }
+    if (!trusted || event.senderFrame !== event.sender.mainFrame) {
+      throw new Error('Photo folder selection is restricted to the application');
+    }
+
+    const owner = BrowserWindow.fromWebContents(event.sender);
+    const selection = await dialog.showOpenDialog(owner, {
+      title: 'Select photo folders',
+      properties: ['openDirectory', 'multiSelections'],
+    });
+    if (selection.canceled) return { canceled: true, roots: [] };
+    const roots = await Promise.all(selection.filePaths.map((root) => realpath(root)));
+    return { canceled: false, roots: [...new Set(roots)] };
+  });
+
   ipcMain.handle('photos:pick-and-load', async () => {
     const focusedWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
 
@@ -125,6 +151,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  ipcMain.removeHandler('photos:pick-directories');
   ipcMain.removeHandler('photos:pick-and-load');
   stopBundledService();
 });

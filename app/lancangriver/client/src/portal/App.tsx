@@ -62,6 +62,11 @@ const pages = [
     description: 'Experimental Three.js scene with an orange plane and orbit controls.',
   },
   {
+    title: 'Photo Settings',
+    href: '/photo-settings',
+    description: 'Manage saved photo folders.',
+  },
+  {
     title: 'Photos on Map',
     href: '/photos-on-map',
     description: 'Leaflet map that listens for a photos-loaded message and plots photo markers.',

@@ -17,6 +17,7 @@ declare global {
   interface Window {
     electronPhotos?: {
       pickAndLoadGeotaggedPhotos: () => Promise<unknown[]>;
+      pickPhotoDirectories?: () => Promise<{ canceled: boolean; roots: string[] }>;
     };
   }
 }
