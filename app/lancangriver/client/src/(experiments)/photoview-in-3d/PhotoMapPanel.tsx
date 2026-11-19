@@ -4,7 +4,11 @@ import * as L from 'leaflet';
 import type { PhotoRecord } from '@/photos/types';
 import type { BBox } from './_tile';
 import { MAP_CATEGORIES, MAP_CATEGORY_LABELS, hasPhotoLocation } from './_photoMap';
-import { createPhotoMapMarkers } from './_photoMapMarkers';
+import {
+  createPhotoMapMarkers,
+  MAX_SPREAD_PHOTOS,
+  PHOTO_FOOTPRINT_LIMIT,
+} from './_photoMapMarkers';
 import { usePhotoMapLayers } from './photo-map/usePhotoMapLayers';
 import { usePhotoMapTiles } from './photo-map/usePhotoMapTiles';
 import { Tooltip } from '@/_components/Tooltip';
@@ -31,6 +35,7 @@ export function PhotoMapPanel({
   const markersRef = useRef<ReturnType<typeof createPhotoMapMarkers> | null>(null);
   const [showTiles, setShowTiles] = useState(false);
   const [showVectors, setShowVectors] = useState(true);
+  const [blockedSpreadCount, setBlockedSpreadCount] = useState<number | null>(null);
   const locatedPhotos = useMemo(() => photos.filter(hasPhotoLocation), [photos]);
 
   useEffect(() => {
@@ -40,11 +45,17 @@ export function PhotoMapPanel({
       center: [0, 0],
       zoom: 2,
       minZoom: 1,
-      maxZoom: 20,
+      maxZoom: 19,
       preferCanvas: true,
       zoomControl: false,
       attributionControl: true,
     });
+    L.control.scale({
+      position: 'bottomleft',
+      metric: true,
+      imperial: false,
+      maxWidth: 100,
+    }).addTo(map);
     map.attributionControl.addAttribution(
       '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>',
     );
@@ -74,7 +85,7 @@ export function PhotoMapPanel({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const markers = createPhotoMapMarkers(map, locatedPhotos, onSelect);
+    const markers = createPhotoMapMarkers(map, locatedPhotos, onSelect, setBlockedSpreadCount);
     markersRef.current = markers;
     return () => {
       markers.dispose();
@@ -147,7 +158,22 @@ export function PhotoMapPanel({
         className="max-h-44 shrink-0 space-y-1 overflow-y-auto border-t border-white/10 p-3 text-white/70"
         aria-live="polite"
       >
-        <p>{locatedPhotos.length} photo locations. Click overlapping markers to spread them.</p>
+        <p>
+          {locatedPhotos.length} photo locations. Hover or focus filled dots to reveal cameras.
+          Click a group count to zoom in. Only groups of up to {MAX_SPREAD_PHOTOS} photos can
+          spread. Click the expanded group count to collapse it.
+        </p>
+        <p>
+          Hollow {locatedPhotos.length < PHOTO_FOOTPRINT_LIMIT ? 'footprints' : 'rings'}: exact
+          locations (not clickable). Solid dots: selectable photos. Violet fills and dashed
+          connector lines: spread photos.
+        </p>
+        {blockedSpreadCount !== null && (
+          <p role="status" className="text-amber-200">
+            Zoom limit reached for {blockedSpreadCount} overlapping photos. Groups above{' '}
+            {MAX_SPREAD_PHOTOS} photos stay grouped. Select a photo from the filmstrip.
+          </p>
+        )}
         {showTiles && tilesLoading && <p role="status">Loading OpenStreetMap tiles...</p>}
         {showTiles && tilesError && (
           <p className="text-amber-200">

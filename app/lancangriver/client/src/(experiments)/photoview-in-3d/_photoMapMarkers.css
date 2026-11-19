@@ -1,0 +1,91 @@
+@reference "../../styles.css";
+
+.photo-location-marker {
+  @apply pointer-events-none;
+}
+
+.photo-location-footprint {
+  @apply block h-full w-full text-[#fff5e6];
+}
+
+.photo-location-footprint.is-active {
+  @apply text-amber-400;
+  transform: scale(1.2);
+}
+
+.photo-camera-marker {
+  @apply relative block h-6 w-6 cursor-pointer border-0 bg-transparent p-0;
+  --photo-time-opacity: 1;
+}
+
+.photo-camera-marker:focus-visible {
+  @apply outline-none;
+}
+
+.photo-camera-marker:focus-visible .photo-camera-art {
+  @apply rounded-lg outline-2 outline-offset-2 outline-amber-200;
+}
+
+.photo-camera-dot {
+  @apply absolute left-1/2 top-1/2 block h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#ed7668];
+  box-shadow: 0 0 0 1px #142c26;
+}
+
+.photo-camera-art {
+  @apply absolute left-1/2 top-1/2 hidden;
+  width: calc(44px * var(--photo-camera-scale));
+  height: calc(44px * var(--photo-camera-scale));
+  transform: translate(-50%, -88%);
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 35%));
+}
+
+.photo-camera-marker:is(:hover, :focus-visible, .is-active, .is-group) .photo-camera-art {
+  display: block;
+}
+
+.photo-camera-marker:is(:hover, :focus-visible, .is-active, .is-group) .photo-camera-dot {
+  display: none;
+}
+
+.photo-camera-fill {
+  opacity: var(--photo-time-opacity);
+}
+
+.photo-camera-marker.is-spread .photo-camera-dot {
+  background-color: #f59e0b;
+}
+
+.photo-camera-marker.is-spread .photo-camera-fill {
+  fill: #f59e0b;
+}
+
+.photo-camera-marker.is-spread .photo-camera-outline {
+  stroke: #ffffff;
+}
+
+.photo-camera-marker.is-active .photo-camera-outline {
+  stroke: #fbbf24;
+  stroke-width: 5;
+}
+
+.photo-camera-marker.is-active .photo-camera-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: photo-camera-wink 240ms ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .photo-camera-marker:hover:not(.is-active) .photo-camera-art {
+    transform: translate(-50%, -92%) rotate(-6deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-camera-marker.is-active .photo-camera-eye {
+    animation: none;
+  }
+}
+
+@keyframes photo-camera-wink {
+  50% { transform: scaleY(0.1); }
+}

@@ -98,6 +98,15 @@ starts at the earliest valid capture time, or the first record if every time is
 unavailable. Opening, browsing, and closing the modal do not change the 3D scene's
 selection or position. Closing releases the snapshot.
 
+The filmstrip calendar automatically switches between days, Monday-start weeks,
+months, quarters, and years according to its available width. Multi-year slices
+are used for very long ranges. Slices target at least 72px (unless the whole ruler
+is narrower), and resizing recomputes the scale. Complete local-calendar periods
+keep edge slices readable; the density bar, selected-photo marker, and visible
+range outline share these boundaries. Empty periods remain visible with dashed
+lines. Hovering a populated period shows its exact dates and photo count;
+clicking scrolls to its first photo without changing selection.
+
 ## Photo modal map
 
 Open the original photo viewer and use the globe button in
@@ -105,24 +114,67 @@ the header to toggle the left map panel. The EXIF panel on the right can remain
 open independently. On narrow screens, scroll the content horizontally to reach
 both panels without squeezing the photo.
 
-The map shows the modal collection's photo locations. Click a numbered marker to select its
-photo; overlapping markers spread on click so each photo can be selected.
-Markers are numbered Leaflet circles with a 12px radius, centered on their
-locations. Their size stays fixed when zooming the map. A dedicated SVG renderer
-keeps circles keyboard-accessible even though geographic vector layers use Canvas.
-Numbers are permanent transparent labels at full opacity; Enter or Space activates
-a focused circle, and hovering it shows the filename and photo index.
-At-location circles fade by elapsed capture time in either direction relative to
+The map shows the modal collection's photo locations as compact coral dots
+with white inner and dark outer rings. Hovering or keyboard-focusing a dot reveals a Camera Buddy:
+a jade SVG camera with a lens-eye, smile, and coral photo-number badge.
+The selected photo stays visible as a camera with a gold outline and one brief
+shutter wink. Hover tilt and the wink respect reduced-motion preferences.
+Native buttons support Enter and Space; their labels include the filename and
+photo index. Individual Camera Buddies are 1.4 times their original size
+(61.6px square); group artwork stays 44px square and dots are unchanged.
+Icon sizes stay fixed when zooming.
+Every photo also keeps a non-interactive hollow location marker at its exact
+coordinates beneath the interactive markers. Collections with fewer than 100
+located photos use an ivory SVG footprint with thick dark edging and no interior
+fill. Leaflet div icons keep the footprints fixed at 20px by 30px while zooming;
+the selected footprint turns gold and grows to 24px by 36px without shifting its
+anchor. At 100 or more located photos, the map uses the previous canvas-rendered
+white rings with dark edging (12px overall, or 14px and gold when selected),
+avoiding a footprint DOM icon per photo. Change the code-level
+`PHOTO_FOOTPRINT_LIMIT` in `src/(experiments)/photoview-in-3d/_photoMapMarkers.ts`
+to configure this exclusive cutoff. The legend follows the current marker style.
+Both styles stay fully opaque for contrast against light and dark OSM tiles. Location markers
+remain drawn when cameras are grouped or spread, do not respond to hover or clicks,
+and are not keyboard focusable.
+Selectable individual photos use solid coral dots; spread photos use bright
+violet (`#A855F7`) dots and camera-body fills. Both dot styles retain
+solid white borders and dark edging (14px overall). Spread photos keep dashed
+coral connector lines to their true locations, identifying their temporary
+displacement without changing the circle size or border style. Hover/focus still
+reveals a Camera Buddy for either selectable dot. The panel includes a short
+legend explaining these three roles.
+
+Nearby photos, including the selected photo, are grouped by connected screen-space neighbors within
+48px, recomputed after zooming or resizing. Each group shows a simple stacked-photo
+icon with an indigo pill-shaped count badge, distinct from an individual Camera
+Buddy's coral circular sequence badge (`x24` means 24 photos, not photo number 24). Clicking it zooms to
+its members, capped at zoom 19 (or the map's lower maximum); when no further
+automatic zoom is available, groups of up to 12 photos fan out for individual
+selection. Larger groups never spread: clicking them zooms in by at least one
+level when possible, even if fitting the bounds would not increase zoom.
+At the zoom limit they remain grouped, and a status message directs users to
+select photos from the filmstrip. The message clears on zooming, collapsing,
+choosing **Fit all**, or selecting a photo; resizing alone does not dismiss it.
+The photo map itself is capped at zoom 19, including manual gestures and
+programmatic zoom. The selected Camera Buddy remains visible alongside its group,
+while the count includes every member, so a two-photo overlap always remains
+accessible. Spread photos keep their offsets when selection changes. An expanded
+group retains its stacked-photo count control at the fan-out origin; clicking
+it collapses the spread. Keyboard activation preserves focus on the next group
+control or spread photo.
+A group too close to the selected camera is offset with a leader line so both
+remain clickable; the line identifies the group's original center.
+Camera bodies fade by elapsed capture time in either direction relative to
 the selected photo: `1 − 0.75 × tanh(abs(elapsedMinutes) / 15)`, approaching a
 minimum opacity of 0.25. Selected/equal-time photos and unavailable times stay at
-1.0. Fading applies to fill and outline only; numbers remain fully readable.
-Spread circles are always fully opaque, and collapse restores time-based fading.
-Spread markers turn coral red with dashed pale-rose borders and matching connector
-lines to their true locations. Each distinct true location also shows a borderless
-6px pale-rose dot at 0.67 opacity while spread; dots and lines disappear on collapse.
-The selected photo retains its gold fill, with
-the dashed pale-rose border when spread and a stronger outline. Collapsing restores
-the original styling. Circle spacing drives overlap detection and fan-out layout.
+1.0. Cream outlines and number badges remain fully readable; dots do not fade.
+Spread cameras are always fully opaque, and collapse restores time-based fading.
+Spread cameras have white outlines (gold when selected) and keep dashed coral
+connector lines to their true locations. The permanent high-contrast location targets
+remain in place while spread; only the connector lines disappear on collapse.
+The selected photo retains its stronger gold outline when spread.
+Fan-out distances and selected-camera/group clearance scale with the larger
+camera silhouettes.
 Drag the map to reach a large spread group; zooming, clicking the map background,
 or choosing **Fit all** collapses it.
 Thumbnail and arrow navigation also highlight the selected marker. **Fit all**
@@ -136,7 +188,8 @@ position, or selection. These align with the OSM vectors and WGS84 photo locatio
 without a GCJ-02 offset. The map retains its OpenStreetMap attribution; failed tiles
 show a warning and can be retried by toggling off and on.
 Tiles use `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, with native zoom up to
-19 and overzoom at 20. Use is subject to the
+19. Retina loading accounts for Leaflet's one-level tile URL offset so requests
+also stop at 19. The photo map does not allow overzoom to 20. Use is subject to the
 [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/);
 this is an interactive basemap, not a bulk-download or offline-cache feature.
 The toggle starts off each time the map panel opens.
@@ -162,7 +215,7 @@ polygons use the largest polygon's centroid, with an interior-point fallback for
 concave shapes and holes. Labels prefer Chinese names, then the default name.
 Road names use subdued text and water names use blue text with a dark halo.
 Minor names appear only when zoomed in; overlapping labels are suppressed,
-prioritizing photo circles/numbers or Journey thumbnail cards and then place names.
+prioritizing photo dots/cameras or Journey thumbnail cards and then place names.
 Requests use the parent viewer's loaded chip
 bbox, not the current map viewport. Without a selected chip, no bounds are passed:
 Map and Journey still show photo locations and optional raster tiles, but do not

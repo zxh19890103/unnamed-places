@@ -1,7 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PhotoRecord } from '@/photos/types';
 import { Tooltip } from '@/_components/Tooltip';
-import { buildCalendarRuler, buildPhotoDays, localPhotoDay, photoDisplayTime } from './_photoTime';
+import { buildCalendarRuler, buildPhotoDays, photoDisplayTime } from './_photoTime';
 
 interface PhotoTimelineProps {
   photos: PhotoRecord[];
@@ -31,6 +31,17 @@ export const PhotoTimeline = memo(function PhotoTimeline({
   visibleEnd,
   onDayClick,
 }: PhotoTimelineProps) {
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const [rulerWidth, setRulerWidth] = useState(0);
+  useLayoutEffect(() => {
+    const element = timelineRef.current;
+    if (!element) return;
+    const measure = () => setRulerWidth(element.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const timestamps = useMemo(
     () => photos.map(photoDisplayTime),
     [photos],
@@ -41,14 +52,22 @@ export const PhotoTimeline = memo(function PhotoTimeline({
     [],
   );
   const fullSpan = useMemo(() => timeSpan(timestamps), [timestamps]);
-  const calendar = useMemo(() => buildCalendarRuler(days, fullSpan), [days, fullSpan]);
+  const calendar = useMemo(
+    () => buildCalendarRuler(days, fullSpan, rulerWidth),
+    [days, fullSpan, rulerWidth],
+  );
+  const timeScale = calendar ?? fullSpan;
   const calendarFormatter = useMemo(
-    () => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }),
-    [],
+    () => new Intl.DateTimeFormat(undefined, {
+      ...(calendar?.unit === 'month'
+        ? { month: 'short', year: 'numeric' } as const
+        : { month: 'short', day: 'numeric' } as const),
+    }),
+    [calendar?.unit],
   );
   const density = useMemo(() => {
-    if (!fullSpan) return null;
-    const duration = fullSpan.end - fullSpan.start;
+    if (!timeScale) return null;
+    const duration = timeScale.end - timeScale.start;
     const counts = Array<number>(DENSITY_BUCKET_COUNT).fill(0);
     for (const time of timestamps) {
       if (time === null) continue;
@@ -56,7 +75,7 @@ export const PhotoTimeline = memo(function PhotoTimeline({
         duration > 0
           ? Math.min(
               DENSITY_BUCKET_COUNT - 1,
-              Math.floor(((time - fullSpan.start) / duration) * DENSITY_BUCKET_COUNT),
+              Math.floor(((time - timeScale.start) / duration) * DENSITY_BUCKET_COUNT),
             )
           : Math.floor(DENSITY_BUCKET_COUNT / 2);
       counts[index] += 1;
@@ -69,7 +88,7 @@ export const PhotoTimeline = memo(function PhotoTimeline({
       return `${color} ${((index + 0.5) / DENSITY_BUCKET_COUNT) * 100}%`;
     });
     return { background: `linear-gradient(to right, ${stops.join(', ')})`, peak };
-  }, [timestamps, fullSpan]);
+  }, [timestamps, timeScale]);
   const visibleTimes = timestamps.slice(visibleStart, visibleEnd);
   const visibleSpan = timeSpan(visibleTimes);
   const missingCount = visibleTimes.filter((time) => time === null).length;
@@ -98,18 +117,17 @@ export const PhotoTimeline = memo(function PhotoTimeline({
       }),
     [],
   );
-  const duration = fullSpan ? fullSpan.end - fullSpan.start : 0;
+  const duration = timeScale ? timeScale.end - timeScale.start : 0;
   const selectedTime = timestamps[activeIndex] ?? null;
-  const selectedDay = selectedTime !== null ? localPhotoDay(selectedTime) : null;
   const selectedLabel =
     selectedTime !== null ? rangeFormatter.format(selectedTime) : 'Time unavailable';
   const selectedPosition =
-    fullSpan && selectedTime !== null && duration > 0
-      ? ((selectedTime - fullSpan.start) / duration) * 100
+    timeScale && selectedTime !== null && duration > 0
+      ? ((selectedTime - timeScale.start) / duration) * 100
       : 50;
   const left =
-    fullSpan && visibleSpan && duration > 0
-      ? ((visibleSpan.start - fullSpan.start) / duration) * 100
+    timeScale && visibleSpan && duration > 0
+      ? ((visibleSpan.start - timeScale.start) / duration) * 100
       : 50;
   const width =
     visibleSpan && duration > 0 ? ((visibleSpan.end - visibleSpan.start) / duration) * 100 : 0;
@@ -123,6 +141,7 @@ export const PhotoTimeline = memo(function PhotoTimeline({
 
   return (
     <div
+      ref={timelineRef}
       role="group"
       aria-label="Photo capture timeline"
       className="space-y-1.5 pt-1 pb-1 text-[10px] text-white/50"
@@ -165,35 +184,45 @@ export const PhotoTimeline = memo(function PhotoTimeline({
           />
         )}
       </div>
-      {fullSpan ? (
-        <div role="group" aria-label="Capture day calendar ruler" className="relative h-9 w-full">
-          {calendar.map((segment) => {
-            const { day } = segment;
-            const visible = day?.photoIndices.some(
+      {calendar ? (
+        <div role="group" aria-label={`Capture calendar ruler: ${calendar.unit} periods`} className="relative h-9 w-full">
+          {calendar.segments.map((segment) => {
+            const populated = segment.firstIndex !== undefined;
+            const visible = segment.photoIndices.some(
               (index) => index >= visibleStart && index < visibleEnd,
-            ) ?? false;
-            const selected = segment.key === selectedDay;
-            const label = dayFormatter.format(segment.time);
+            );
+            const selected = segment.photoIndices.includes(activeIndex);
+            const startLabel = dayFormatter.format(segment.time);
+            const endLabel = dayFormatter.format(segment.end - 1);
+            const label = startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`;
+            const date = new Date(segment.time);
+            const endYear = new Date(segment.end - 1).getFullYear();
+            const shortLabel = calendar.unit === 'quarter'
+              ? `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
+              : calendar.unit === 'year'
+                ? `${date.getFullYear()}${endYear !== date.getFullYear() ? ` - ${endYear}` : ''}`
+                : calendarFormatter.format(segment.time);
             const style = { left: `${segment.left}%`, width: `${segment.width}%` };
             const segmentClassName = 'absolute inset-y-0 flex min-w-0 flex-col items-stretch justify-start overflow-hidden p-0 pt-1 text-[10px] leading-normal';
             const contents = (
               <>
                 <span aria-hidden="true" className="relative block h-1.5 w-full shrink-0 border-x border-current">
-                  <span className={`absolute inset-x-0 top-0 border-t border-current ${day ? 'border-solid' : 'border-dashed'}`} />
+                  <span className={`absolute inset-x-0 top-0 border-t border-current ${populated ? 'border-solid' : 'border-dashed'}`} />
                 </span>
                 <span className="mt-1 flex min-w-0 items-center justify-center gap-1 overflow-hidden">
                   {selected && (
                     <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
                   )}
-                  <span className="truncate">{calendarFormatter.format(segment.time)}</span>
+                  <span className="truncate">{shortLabel}</span>
                 </span>
               </>
             );
-            if (!day) {
+            if (segment.firstIndex === undefined) {
               return (
                 <div
                   key={segment.key}
                   aria-label={`${label}: no photos`}
+                  title={`${label}: no photos`}
                   className={`${segmentClassName} text-white/20`}
                   style={style}
                 >
@@ -201,16 +230,17 @@ export const PhotoTimeline = memo(function PhotoTimeline({
                 </div>
               );
             }
-            const count = `${day.photoIndices.length} ${day.photoIndices.length === 1 ? 'photo' : 'photos'}`;
+            const firstIndex = segment.firstIndex;
+            const count = `${segment.photoIndices.length} ${segment.photoIndices.length === 1 ? 'photo' : 'photos'}`;
             return (
               <Tooltip
                 key={segment.key}
-                label={`Scroll to first photo of ${label}. ${count}. Selection stays unchanged.`}
+                label={`Scroll to first photo in ${label}. ${count}. Selection stays unchanged.`}
               >
                 <button
                   type="button"
-                  onClick={() => onDayClick(day.firstIndex)}
-                  aria-label={`Scroll to ${label}, ${count}${visible ? ', visible in filmstrip' : ''}${selected ? ', selected photo day' : ''}`}
+                  onClick={() => onDayClick(firstIndex)}
+                  aria-label={`Scroll to ${label}, ${count}${visible ? ', visible in filmstrip' : ''}${selected ? ', selected photo period' : ''}`}
                   aria-current={selected ? 'date' : undefined}
                   className={`${segmentClassName} cursor-pointer appearance-none bg-transparent transition-colors hover:text-jade-river-300 focus-visible:text-jade-river-300 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-jade-river-300 ${
                     visible ? 'text-jade-river-300' : 'text-white/50'
@@ -223,9 +253,9 @@ export const PhotoTimeline = memo(function PhotoTimeline({
             );
           })}
         </div>
-      ) : (
+      ) : !fullSpan ? (
         <p className="text-center">No valid capture times in this chip.</p>
-      )}
+      ) : null}
     </div>
   );
 });

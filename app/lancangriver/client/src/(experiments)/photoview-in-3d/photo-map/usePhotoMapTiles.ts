@@ -13,7 +13,8 @@ export function usePhotoMapTiles(mapRef: RefObject<L.Map | null>, enabled: boole
 
     const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 20,
-      maxNativeZoom: 19,
+      // Retina detection adds one to the tile URL zoom.
+      maxNativeZoom: L.Browser.retina ? 18 : 19,
       detectRetina: true,
     });
     const onLoading = () => {
