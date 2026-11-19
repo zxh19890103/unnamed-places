@@ -251,61 +251,38 @@ export default function App() {
           <JourneyPanel motions={false} byDay={false} capacities={capacities} />
         </div>
 
-        <div className="pointer-events-none fixed bottom-4 left-0 flex w-full h-auto justify-center gap-4">
+        <div
+          role="group"
+          aria-label="3D map controls"
+          className="fixed bottom-36 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-white/20 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur-md sm:bottom-20 xl:bottom-4"
+        >
           <button
             type="button"
             onClick={switchToOrbitCtrls}
-            className={`cursor-pointer pointer-events-auto ${controlsMode === 'orbit' ? 'text-amber-300 font-semibold underline' : 'text-amber-50'}`}
+            aria-pressed={controlsMode === 'orbit'}
+            className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${controlsMode === 'orbit' ? 'bg-emerald-300 text-slate-950' : 'text-white hover:bg-white/15'}`}
           >
             Orbit
           </button>
           <button
             type="button"
             onClick={switchToMapCtrls}
-            className={`cursor-pointer pointer-events-auto ${controlsMode === 'map' ? 'text-amber-300 font-semibold underline' : 'text-amber-50'}`}
+            aria-pressed={controlsMode === 'map'}
+            className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${controlsMode === 'map' ? 'bg-emerald-300 text-slate-950' : 'text-white hover:bg-white/15'}`}
           >
             Map
           </button>
           <button
             type="button"
             onClick={toggleClouds}
-            className={`cursor-pointer pointer-events-auto ${cloudsVisible ? 'text-amber-300 font-semibold underline' : 'text-amber-50'}`}
+            aria-pressed={cloudsVisible}
+            className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${cloudsVisible ? 'bg-emerald-300 text-slate-950' : 'text-white hover:bg-white/15'}`}
           >
             Clouds {cloudsVisible ? 'ON' : 'OFF'}
           </button>
         </div>
 
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-          <button
-            type="button"
-            disabled={!hasAvailablePhotos}
-            onClick={handleOpenPhotoModal}
-            className={`flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-medium shadow-2xl backdrop-blur-md transition-all ${
-              hasAvailablePhotos
-                ? 'border-jade-river/40 bg-jade-depth/90 text-jade-text hover:border-jade-river hover:bg-jade-depth hover:text-white hover:scale-105 active:scale-95 cursor-pointer'
-                : 'border-white/10 bg-jade-depth/50 text-white/40 cursor-not-allowed opacity-60'
-            }`}
-            title={
-              hasAvailablePhotos
-                ? `${currentGeoNode ? 'Selected chip' : 'All loaded photos'}: view original photos (${availablePhotos.length})`
-                : currentGeoNode
-                  ? 'Selected chip has no photos'
-                  : 'No photo records loaded yet'
-            }
-          >
-            {hasAvailablePhotos && (
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            )}
-            <span>View Original Photo</span>
-            {hasAvailablePhotos && (
-              <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/70">
-                {availablePhotos.length}
-              </span>
-            )}
-          </button>
-        </div>
-
-        <div className="fixed bottom-4 left-4 flex items-center gap-2">
+        <div className="fixed bottom-20 left-4 flex items-center gap-2 sm:bottom-4">
           {result && (
             <LoadFlatMap
               data={result}
@@ -329,9 +306,24 @@ export default function App() {
         </div>
 
         <div className="fixed bottom-4 right-4 z-20 max-w-sm">
-          <AButton disabled={!viewer || printProgress !== null} onClick={handlePrint}>
-            Export A2 PNG
-          </AButton>
+          <div className="flex items-center justify-end gap-2">
+            <AButton
+              disabled={!hasAvailablePhotos}
+              onClick={handleOpenPhotoModal}
+              title={
+                hasAvailablePhotos
+                  ? `${currentGeoNode ? 'Selected chip' : 'All loaded photos'}: view original photos (${availablePhotos.length})`
+                  : currentGeoNode
+                    ? 'Selected chip has no photos'
+                    : 'No photo records loaded yet'
+              }
+            >
+              View Original Photo{hasAvailablePhotos && ` (${availablePhotos.length})`}
+            </AButton>
+            <AButton disabled={!viewer || printProgress !== null} onClick={handlePrint}>
+              Export A2 PNG
+            </AButton>
+          </div>
           {printError && (
             <p role="alert" className="mt-3 rounded-lg bg-jade-panel p-3 text-sm text-jade-error">
               {printError}
