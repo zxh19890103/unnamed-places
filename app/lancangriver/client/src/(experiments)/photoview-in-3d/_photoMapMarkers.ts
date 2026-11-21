@@ -22,7 +22,7 @@ const GROUP_SPACING = 24;
 const GROUP_CAMERA_CLEARANCE = GROUP_SPACING * PHOTO_CAMERA_SCALE;
 const MAX_GROUP_ZOOM = 16;
 const SPREAD_SPACING = 48;
-export const MAX_SPREAD_PHOTOS = 12;
+export const MAX_SPREAD_PHOTOS = 8;
 export const PHOTO_FOOTPRINT_LIMIT = 100;
 
 export function createPhotoMapMarkers(
