@@ -23,7 +23,7 @@ import {
   type PhotoFolderResult,
 } from '@/photos/sources';
 
-type Folder = { name: string; path: string };
+type Folder = { name: string; path: string; hasVisibleSubfolders: boolean | null };
 
 type DirectoryListing = {
   path: string;
@@ -60,62 +60,68 @@ function FolderIcon(props: SVGProps<SVGSVGElement>) {
 
 function FolderRow({
   folder,
-  isRoot = false,
   loading,
   selected,
-  onSelect,
+  onSelectionChange,
   onOpen,
 }: {
   folder: Folder;
-  isRoot?: boolean;
   loading: boolean;
   selected: boolean;
-  onSelect: (path: string) => void;
+  onSelectionChange?: (path: string, checked: boolean) => void;
   onOpen: (path: string) => void;
 }) {
-  const { name, path } = folder;
-  const Icon = isRoot ? HomeIcon : FolderIcon;
+  const { name, path, hasVisibleSubfolders } = folder;
 
   return (
-    <li className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 px-2 py-2 text-sm">
-      <div className="flex min-w-0 flex-1 basis-32 items-center gap-3">
-        <Icon aria-hidden="true" className="shrink-0 text-jade-river" />
-        <span className="min-w-0 break-all">{name}</span>
+    <li className="flex min-h-11 items-center gap-3 py-1 pl-2 text-sm">
+      <FolderIcon className="shrink-0 text-jade-river" />
+      <div className="min-w-0 flex-1">
+        {hasVisibleSubfolders && !selected ? (
+          <button
+            type="button"
+            disabled={loading}
+            className="min-h-8 break-all text-left text-jade-river underline-offset-4 enabled:cursor-pointer enabled:hover:underline focus-visible:outline-2 focus-visible:outline-jade-river disabled:opacity-50"
+            onClick={() => onOpen(path)}
+          >
+            {name}
+          </button>
+        ) : (
+          <span className="break-all">{name}</span>
+        )}
+        {hasVisibleSubfolders === null && (
+          <p className="text-xs text-jade-text-muted">Subfolders unavailable</p>
+        )}
       </div>
-      <div className="ml-auto flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="primary"
-          disabled={loading}
-          aria-disabled={selected || undefined}
-          aria-label={selected ? `${name} selected` : `Select ${name}`}
-          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
-          onClick={() => {
-            if (!selected) onSelect(path);
-          }}
-        >
-          {selected ? 'Selected' : 'Select'}
-        </Button>
-        <Button
-          size="sm"
-          disabled={loading}
-          aria-label={`Open ${name}`}
-          onClick={() => onOpen(path)}
-        >
-          Open
-        </Button>
-      </div>
+      {onSelectionChange && (
+        <label className="grid size-11 shrink-0 cursor-pointer place-items-center has-disabled:cursor-not-allowed has-disabled:opacity-50">
+          <input
+            type="checkbox"
+            className="peer sr-only"
+            aria-label={`Select ${name}`}
+            checked={selected}
+            disabled={loading}
+            onChange={(event) => onSelectionChange(path, event.currentTarget.checked)}
+          />
+          <span
+            aria-hidden="true"
+            className="grid size-5 place-items-center rounded border border-jade-river text-jade-river peer-checked:bg-jade-control peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-jade-river"
+          >
+            {selected && <CheckIcon />}
+          </span>
+        </label>
+      )}
     </li>
   );
 }
 
 function FolderBrowser({
   selectedRoots,
-  onSelect,
+  onSelectionChange,
   onClose,
 }: {
   selectedRoots: readonly string[];
-  onSelect: (root: string) => void;
+  onSelectionChange: (path: string, checked: boolean) => void;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -221,25 +227,17 @@ function FolderBrowser({
       </header>
       <div className="flex max-h-[calc(85dvh-10rem)] min-h-64 flex-col overflow-y-auto p-4">
         {roots.length > 0 && (
-          <ul
-            aria-label="Folder locations"
-            className="mb-4 divide-y divide-jade-border-soft border-b border-jade-border-soft"
-          >
+          <nav aria-label="Folder locations" className="mb-4 flex flex-wrap gap-2">
             {roots.map((root) => (
-              <FolderRow
-                key={root}
-                folder={{ name: folderName(root), path: root }}
-                isRoot
-                loading={loading}
-                selected={selectedRoots.includes(root)}
-                onSelect={onSelect}
-                onOpen={openFolder}
-              />
+              <Button key={root} size="sm" disabled={loading} onClick={() => openFolder(root)}>
+                <HomeIcon aria-hidden="true" />
+                <span className="min-w-0 break-all text-left">{folderName(root)}</span>
+              </Button>
             ))}
-          </ul>
+          </nav>
         )}
         {listing && (
-          <div className="mb-3 flex min-w-0 items-start gap-3">
+          <div className="mb-3 flex min-w-0 items-center gap-3">
             <button
               type="button"
               aria-label="Back to parent folder"
@@ -295,7 +293,7 @@ function FolderBrowser({
                 folder={directory}
                 loading={loading}
                 selected={selectedRoots.includes(directory.path)}
-                onSelect={onSelect}
+                onSelectionChange={roots.includes(directory.path) ? undefined : onSelectionChange}
                 onOpen={openFolder}
               />
             ))}
@@ -368,6 +366,11 @@ export default function App() {
 
   const addRoots = (roots: string[]) => {
     setDraft((previous) => [...new Set([...previous, ...roots])]);
+    setMessage(null);
+  };
+
+  const removeRoot = (root: string) => {
+    setDraft((current) => current.filter((item) => item !== root));
     setMessage(null);
   };
 
@@ -486,13 +489,7 @@ export default function App() {
                     )}
                   </div>
                   <Tooltip label="Remove folder">
-                    <IconButton
-                      aria-label={`Remove ${root}`}
-                      onClick={() => {
-                        setDraft((current) => current.filter((item) => item !== root));
-                        setMessage(null);
-                      }}
-                    >
+                    <IconButton aria-label={`Remove ${root}`} onClick={() => removeRoot(root)}>
                       <TrashIcon />
                     </IconButton>
                   </Tooltip>
@@ -540,7 +537,10 @@ export default function App() {
       {browsing && (
         <FolderBrowser
           selectedRoots={draft}
-          onSelect={(root) => addRoots([root])}
+          onSelectionChange={(root, checked) => {
+            if (checked) addRoots([root]);
+            else removeRoot(root);
+          }}
           onClose={() => setBrowsing(false)}
         />
       )}

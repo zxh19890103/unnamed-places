@@ -59,9 +59,10 @@ draft. Removing a folder never deletes its files. The rescan icon reloads saved
 folders without changing the selection.
 
 Browser mode lists directories on the local service machine and hides folders
-whose names start with a dot. Use **Select** on a folder row to add it to the
-draft without leaving the list, or **Open** to browse its subfolders without
-selecting it. Choose **Done** when finished adding folders.
+whose names start with a dot. Use a folder's checkbox to add or remove it from
+the draft without leaving the list. Click the name of an unchecked folder to
+browse its visible subfolders. The root shortcuts are for navigation only.
+Choose **Done** when finished making changes.
 Electron uses a native multi-folder dialog. Both modes use the service to scan
 selected folders and their subfolders, skipping symlinks. Overlapping selections
 deduplicate photos by canonical file path. Unreadable folders and metadata

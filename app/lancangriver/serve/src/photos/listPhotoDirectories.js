@@ -1,6 +1,19 @@
-import { readdir, realpath, stat } from 'node:fs/promises';
+import { opendir, readdir, realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+
+async function hasVisibleSubfolders(directory) {
+  try {
+    if ((await realpath(directory)) !== directory) return null;
+    for await (const entry of await opendir(directory)) {
+      if (entry.isDirectory() && !entry.name.startsWith('.')) return true;
+    }
+    return false;
+  } catch (error) {
+    if (['EACCES', 'EPERM', 'ENOENT', 'ENOTDIR'].includes(error.code)) return null;
+    throw error;
+  }
+}
 
 export async function listPhotoDirectories(options = {}) {
   const invalidConfiguration = () =>
@@ -49,15 +62,22 @@ export async function listPhotoDirectories(options = {}) {
   const offset = Math.max(0, Math.floor(Number(options.offset) || 0));
   const limit = 100;
   const parent = path.dirname(directory);
+  const directories = await Promise.all(
+    entries.slice(offset, offset + limit).map(async (entry) => {
+      const childPath = path.join(directory, entry.name);
+      return {
+        name: entry.name,
+        path: childPath,
+        hasVisibleSubfolders: await hasVisibleSubfolders(childPath),
+      };
+    }),
+  );
 
   return {
     path: directory,
     roots,
     parent: parent !== directory && roots.some((root) => contains(root, parent)) ? parent : null,
-    directories: entries.slice(offset, offset + limit).map((entry) => ({
-      name: entry.name,
-      path: path.join(directory, entry.name),
-    })),
+    directories,
     nextOffset: offset + limit < entries.length ? offset + limit : null,
   };
 }

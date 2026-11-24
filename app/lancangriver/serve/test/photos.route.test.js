@@ -65,9 +65,30 @@ describe('photo directory browsing and recursive scanning', () => {
       path: browseRoot,
       parent: null,
       roots: [browseRoot],
-      directories: [{ name: 'nested', path: join(browseRoot, 'nested') }],
+      directories: [
+        { name: 'nested', path: join(browseRoot, 'nested'), hasVisibleSubfolders: false },
+      ],
       nextOffset: null,
     });
+  });
+
+  it('only counts visible real subdirectories when deciding if a folder can be opened', async () => {
+    const root = join(temporaryRoot, 'subfolder-metadata');
+    await mkdir(join(root, 'branch', 'child'), { recursive: true });
+    await mkdir(join(root, 'hidden-only', '.hidden'), { recursive: true });
+    await mkdir(join(root, 'empty'));
+    await symlink(join(root, 'branch'), join(root, 'hidden-only', 'linked'));
+
+    const response = await request(createApp({ photoBrowseRoots: [root] })).get(
+      '/photos/directories',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.directories).toEqual([
+      { name: 'branch', path: join(root, 'branch'), hasVisibleSubfolders: true },
+      { name: 'empty', path: join(root, 'empty'), hasVisibleSubfolders: false },
+      { name: 'hidden-only', path: join(root, 'hidden-only'), hasVisibleSubfolders: false },
+    ]);
   });
 
   it('allows the configured client origin', async () => {
@@ -119,7 +140,9 @@ describe('photo directory browsing and recursive scanning', () => {
       .get('/photos/directories')
       .query({ offset: first.body.nextOffset });
     expect(first.body.directories).toHaveLength(100);
-    expect(second.body.directories).toHaveLength(1);
+    expect(second.body.directories).toEqual([
+      { name: '100', path: join(paginatedRoot, '100'), hasVisibleSubfolders: false },
+    ]);
     expect(second.body.nextOffset).toBeNull();
   });
 

@@ -93,8 +93,10 @@ This applies SQL files in `src/sql/migrations/` and creates the service tables a
 
 - `GET /photos/directories[?path=...&offset=0]` returns canonical `path`, allowed
   `roots`, `parent`, directory-only `directories`, and `nextOffset`. Listings are
-  sorted and paginated at 100 directories. Symlinks are omitted, and canonical
-  paths outside the allowed locations are rejected.
+  sorted and paginated at 100 directories. Each entry's `hasVisibleSubfolders`
+  indicates whether it has a non-dot-prefixed directory child, or is `null` if
+  the entry cannot be inspected. Symlinks are omitted, and canonical paths
+  outside the allowed locations are rejected.
 - `GET /photos/geotagged?root=...&recursive=true` scans nested folders with bounded
   metadata concurrency, skips symlinks, and returns `photos`, up to 50 `warnings`,
   and the full `warningCount`. Omitting `recursive=true` preserves shallow scanning
