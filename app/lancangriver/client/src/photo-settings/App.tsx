@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type SVGProps } from 'react';
 import {
   ArrowLeftIcon,
   CheckIcon,
   Cross2Icon,
-  FileIcon,
   HomeIcon,
   PlusIcon,
   ReloadIcon,
@@ -24,11 +23,13 @@ import {
   type PhotoFolderResult,
 } from '@/photos/sources';
 
+type Folder = { name: string; path: string };
+
 type DirectoryListing = {
   path: string;
   roots: string[];
   parent: string | null;
-  directories: { name: string; path: string }[];
+  directories: Folder[];
   nextOffset: number | null;
 };
 
@@ -40,10 +41,80 @@ function folderName(root: string): string {
   return root.split('/').filter(Boolean).at(-1) || root;
 }
 
+function FolderIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      aria-hidden="true"
+      width="15"
+      height="15"
+      viewBox="0 0 15 15"
+      fill="none"
+      stroke="currentColor"
+      strokeLinejoin="round"
+    >
+      <path d="M1.5 4a1 1 0 0 1 1-1h3l1.5 1.5h5.5a1 1 0 0 1 1 1V11a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1Z" />
+    </svg>
+  );
+}
+
+function FolderRow({
+  folder,
+  isRoot = false,
+  loading,
+  selected,
+  onSelect,
+  onOpen,
+}: {
+  folder: Folder;
+  isRoot?: boolean;
+  loading: boolean;
+  selected: boolean;
+  onSelect: (path: string) => void;
+  onOpen: (path: string) => void;
+}) {
+  const { name, path } = folder;
+  const Icon = isRoot ? HomeIcon : FolderIcon;
+
+  return (
+    <li className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 px-2 py-2 text-sm">
+      <div className="flex min-w-0 flex-1 basis-32 items-center gap-3">
+        <Icon aria-hidden="true" className="shrink-0 text-jade-river" />
+        <span className="min-w-0 break-all">{name}</span>
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={loading}
+          aria-disabled={selected || undefined}
+          aria-label={selected ? `${name} selected` : `Select ${name}`}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+          onClick={() => {
+            if (!selected) onSelect(path);
+          }}
+        >
+          {selected ? 'Selected' : 'Select'}
+        </Button>
+        <Button
+          size="sm"
+          disabled={loading}
+          aria-label={`Open ${name}`}
+          onClick={() => onOpen(path)}
+        >
+          Open
+        </Button>
+      </div>
+    </li>
+  );
+}
+
 function FolderBrowser({
+  selectedRoots,
   onSelect,
   onClose,
 }: {
+  selectedRoots: readonly string[];
   onSelect: (root: string) => void;
   onClose: () => void;
 }) {
@@ -53,6 +124,8 @@ function FolderBrowser({
   const [roots, setRoots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const parent = listing?.parent;
+  const openFolder = (path: string) => setRequest({ path, offset: 0 });
   const browseRoot = listing?.roots
     .filter(
       (root) => listing.path === root || listing.path.startsWith(root === '/' ? root : `${root}/`),
@@ -98,13 +171,24 @@ function FolderBrowser({
       })
       .then((body) => {
         if (controller.signal.aborted) return;
-        setRoots(body.roots);
+        const visibleRoots = body.roots.filter((root) => !folderName(root).startsWith('.'));
+        setRoots(visibleRoots);
+        if (folderName(body.path).startsWith('.')) {
+          if (!request.path && visibleRoots.length > 0) {
+            setRequest({ path: visibleRoots[0], offset: 0 });
+            return;
+          }
+          throw new Error('No visible folder is available at this location');
+        }
+        const directories = body.directories.filter(({ name }) => !name.startsWith('.'));
         setListing((previous) => ({
           ...body,
+          roots: visibleRoots,
+          parent: body.parent && !folderName(body.parent).startsWith('.') ? body.parent : null,
           directories:
             request.offset > 0 && previous?.path === body.path
-              ? [...previous.directories, ...body.directories]
-              : body.directories,
+              ? [...previous.directories, ...directories]
+              : directories,
         }));
       })
       .catch((failure) => {
@@ -136,30 +220,38 @@ function FolderBrowser({
         </IconButton>
       </header>
       <div className="flex max-h-[calc(85dvh-10rem)] min-h-64 flex-col overflow-y-auto p-4">
-        <nav aria-label="Folder locations" className="mb-4 flex flex-wrap gap-2">
-          {(roots.length ? roots : ['']).map((root) => (
-            <Button
-              key={root}
-              size="sm"
-              disabled={loading}
-              onClick={() => setRequest({ path: root || undefined, offset: 0 })}
-            >
-              <HomeIcon aria-hidden="true" />
-              {root ? folderName(root) : 'Home'}
-            </Button>
-          ))}
-        </nav>
+        {roots.length > 0 && (
+          <ul
+            aria-label="Folder locations"
+            className="mb-4 divide-y divide-jade-border-soft border-b border-jade-border-soft"
+          >
+            {roots.map((root) => (
+              <FolderRow
+                key={root}
+                folder={{ name: folderName(root), path: root }}
+                isRoot
+                loading={loading}
+                selected={selectedRoots.includes(root)}
+                onSelect={onSelect}
+                onOpen={openFolder}
+              />
+            ))}
+          </ul>
+        )}
         {listing && (
           <div className="mb-3 flex min-w-0 items-start gap-3">
-            <Tooltip label="Parent folder">
-              <IconButton
-                aria-label="Parent folder"
-                disabled={!listing.parent || loading}
-                onClick={() => setRequest({ path: listing.parent!, offset: 0 })}
-              >
-                <ArrowLeftIcon />
-              </IconButton>
-            </Tooltip>
+            <button
+              type="button"
+              aria-label="Back to parent folder"
+              title="Back to parent folder"
+              disabled={!parent || loading}
+              onClick={() => {
+                if (parent) openFolder(parent);
+              }}
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border-0 enabled:cursor-pointer enabled:hover:bg-jade-control focus-visible:outline-2 focus-visible:outline-jade-river disabled:opacity-50"
+            >
+              <ArrowLeftIcon aria-hidden="true" />
+            </button>
             <p className="min-w-0 break-all text-sm leading-6">{listing.path}</p>
           </div>
         )}
@@ -174,7 +266,7 @@ function FolderBrowser({
                     disabled={loading}
                     aria-current={crumb.path === listing.path ? 'location' : undefined}
                     className="break-all text-left text-jade-river underline-offset-4 hover:underline disabled:opacity-50"
-                    onClick={() => setRequest({ path: crumb.path, offset: 0 })}
+                    onClick={() => openFolder(crumb.path)}
                   >
                     {crumb.name}
                   </button>
@@ -198,21 +290,18 @@ function FolderBrowser({
             className="divide-y divide-jade-border-soft border-y border-jade-border-soft"
           >
             {listing.directories.map((directory) => (
-              <li key={directory.path}>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => setRequest({ path: directory.path, offset: 0 })}
-                  className="flex min-h-11 w-full items-center gap-3 px-2 py-3 text-left text-sm hover:bg-jade-control focus-visible:outline-2 focus-visible:outline-jade-river disabled:opacity-50"
-                >
-                  <FileIcon aria-hidden="true" className="shrink-0 text-jade-river" />
-                  <span className="min-w-0 break-all">{directory.name}</span>
-                </button>
-              </li>
+              <FolderRow
+                key={directory.path}
+                folder={directory}
+                loading={loading}
+                selected={selectedRoots.includes(directory.path)}
+                onSelect={onSelect}
+                onOpen={openFolder}
+              />
             ))}
           </ul>
         )}
-        {!loading && listing?.directories.length === 0 && (
+        {!loading && !error && listing?.directories.length === 0 && listing.nextOffset === null && (
           <p className="py-5 text-sm text-jade-text-muted">No subfolders</p>
         )}
         {loading && (
@@ -230,19 +319,8 @@ function FolderBrowser({
           </Button>
         )}
       </div>
-      <footer className="flex flex-wrap justify-end gap-3 border-t border-jade-border-soft p-4">
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          variant="primary"
-          disabled={!listing || loading || !!error}
-          onClick={() => {
-            onSelect(listing!.path);
-            onClose();
-          }}
-        >
-          <CheckIcon aria-hidden="true" />
-          Select Folder
-        </Button>
+      <footer className="flex justify-end border-t border-jade-border-soft p-4">
+        <Button onClick={onClose}>Done</Button>
       </footer>
     </dialog>
   );
@@ -379,7 +457,7 @@ export default function App() {
               const result = results.find((item) => item.root === root);
               return (
                 <li key={root} className="flex min-w-0 items-start gap-4 py-5">
-                  <FileIcon aria-hidden="true" className="mt-1 size-5 shrink-0 text-jade-river" />
+                  <FolderIcon className="mt-1 size-5 shrink-0 text-jade-river" />
                   <div className="min-w-0 flex-1">
                     <h3 className="break-all text-sm font-semibold">{folderName(root)}</h3>
                     <p className="mt-1 break-all text-xs leading-5 text-jade-text-muted">{root}</p>
@@ -460,7 +538,11 @@ export default function App() {
         </footer>
       </div>
       {browsing && (
-        <FolderBrowser onSelect={(root) => addRoots([root])} onClose={() => setBrowsing(false)} />
+        <FolderBrowser
+          selectedRoots={draft}
+          onSelect={(root) => addRoots([root])}
+          onClose={() => setBrowsing(false)}
+        />
       )}
     </main>
   );

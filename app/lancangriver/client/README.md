@@ -58,11 +58,14 @@ in the photo timeline. Add folders, then **Apply** to save; **Cancel** discards 
 draft. Removing a folder never deletes its files. The rescan icon reloads saved
 folders without changing the selection.
 
-Browser mode lists directories on the local service machine. Electron uses a
-native multi-folder dialog. Both modes use the service to scan selected folders
-and their subfolders, skipping symlinks. Overlapping selections deduplicate photos
-by canonical file path. Unreadable folders and metadata warnings remain visible
-without discarding valid photos from other folders.
+Browser mode lists directories on the local service machine and hides folders
+whose names start with a dot. Use **Select** on a folder row to add it to the
+draft without leaving the list, or **Open** to browse its subfolders without
+selecting it. Choose **Done** when finished adding folders.
+Electron uses a native multi-folder dialog. Both modes use the service to scan
+selected folders and their subfolders, skipping symlinks. Overlapping selections
+deduplicate photos by canonical file path. Unreadable folders and metadata
+warnings remain visible without discarding valid photos from other folders.
 
 Preferences persist in local storage, separately for each browser origin/profile
 and Electron profile. On first use only, `VITE_PHOTOS_ROOT` is imported as the
