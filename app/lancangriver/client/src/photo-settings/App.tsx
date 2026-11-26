@@ -94,7 +94,7 @@ function FolderRow({
         )}
       </div>
       {onSelectionChange && (
-        <label className="grid size-11 shrink-0 cursor-pointer place-items-center has-disabled:cursor-not-allowed has-disabled:opacity-50">
+        <label className="relative grid size-11 shrink-0 cursor-pointer place-items-center has-disabled:cursor-not-allowed has-disabled:opacity-50">
           <input
             type="checkbox"
             className="peer sr-only"
